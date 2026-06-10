@@ -10,31 +10,6 @@ Run tools from any terminal (Command Prompt or PowerShell):
    athc <command> --help            show help for one command
 
 
-1) hello  --  print a greeting from athc.ini
-   ------------------------------------------
-
-   Reads the [hello] section of %LOCALAPPDATA%\athc\athc.ini and
-   prints the 'greeting' value. Falls back to a default if the file
-   or section is missing.
-
-   Show help:
-      athc hello --help
-
-   Run:
-      athc hello
-
-
-2) helloworld  --  standalone hello-world script
-   ---------------------------------------------
-
-   Same idea as 'athc hello' but lives as its own command (not under
-   the 'athc' umbrella). Reads the [helloworld] section of athc.ini.
-
-   Show help:
-      helloworld --help
-
-   Run:
-      helloworld
-
+No tools are wired up yet.
 
 (More tools land here as they are ported in.)

@@ -58,7 +58,7 @@ Every subcommand — built-in athc tool or third-party extension — is register
 ```toml
 # athc/pyproject.toml
 [project.entry-points."athc.commands"]
-hello = "athc.cli.hello:hello"
+autocontinue = "athc.cli.autocontinue:autocontinue"
 
 # any extension package's pyproject.toml
 [project.entry-points."athc.commands"]
@@ -71,16 +71,16 @@ Extension packages can mirror athc's `<pkg>/cli/` layout (CLI wiring under `<pkg
 
 All CLI wiring lives under `<pkg>/cli/`. Each leaf command is its own `.py`; each large command group is its own folder. Tool logic lives separately under `<pkg>/<tool>/` and stays free of Click. Mirrors pnfl's prior structure.
 
-- **Leaf command** (single action, e.g. `athc hello`): `<pkg>/cli/<name>.py`, one `@click.command(...)`.
+- **Leaf command** (single action, e.g. `athc autocontinue`): `<pkg>/cli/<name>.py`, one `@click.command(...)`.
 - **Large command group** (multiple subcommands, e.g. `athc gameplan list-plays check ...`): `<pkg>/cli/<name>/` folder with `__init__.py` (defines the group) and one `.py` per leaf.
 
 ```python
-# athc/cli/hello.py — leaf command
-from athc.hello.core import greet
+# athc/cli/autocontinue.py — leaf command
+from athc.autocontinue.core import run_autocontinue
 
-@click.command(help="Print the configured greeting.")
-def hello() -> None:
-    click.echo(greet())
+@click.command(help="Advance the sim to the next coaching decision.")
+def autocontinue() -> None:
+    run_autocontinue()
 ```
 
 ```python
@@ -111,7 +111,7 @@ Set `ATHC_CONFIG_DIR` to a directory containing `athc.ini`:
 
 ```
 $env:ATHC_CONFIG_DIR = "$PWD\dev"
-athc hello
+athc autocontinue
 ```
 
 Convention: keep dev config in `dev/` at the repo root, gitignored. Matches the layout of `release/` (end-user-facing). The dev folder isn't tracked, so each developer's machine-specific paths stay local.
@@ -166,7 +166,7 @@ For a command group, putting the decorator on the group means every leaf inherit
 ## Help text conventions
 
 - Every `@click.command` / `@click.group` gets a one-line `help="..."` describing what it does.
-- Help text refers to the user's perspective ("Print the greeting") rather than implementation ("Read [hello] section").
+- Help text refers to the user's perspective ("Advance the sim to the next decision") rather than implementation ("Read the [autocontinue] section").
 - Default values shown via `show_default=True` on `@click.option` where useful.
 
 ## What goes where

@@ -21,10 +21,10 @@ dev = ["pytest", "pyright==1.1.409", "ruff", "ipython"]
 
 [project.scripts]
 athc = "athc.cli:main"
-helloworld = "athc.tools.helloworld:main"
 
-[project.entry-points."athc.commands"]
-hello = "athc.cli.hello:hello"
+# Built-in subcommands register here, same as third-party extensions.
+# [project.entry-points."athc.commands"]
+# gameplan = "athc.cli.gameplan:gameplan"
 
 # [project.urls]
 # Homepage = "https://github.com/jako479/athc"

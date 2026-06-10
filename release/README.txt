@@ -4,19 +4,16 @@ athc
 Assistant to the Head Coach -- umbrella CLI for Front Page
 Sports Football Pro '98 league management.
 
-   hello                Read a greeting from athc.ini (placeholder)
-   helloworld           Standalone hello-world script (placeholder)
-
-Currently only hello-world placeholders are wired up. Real
-subcommands (gameplan, profile, generate-schedule, etc.) are being
-added as the project is ported in.
+No tools are wired up yet. Real subcommands (gameplan, profile,
+generate-schedule, etc.) are being added as the project is ported
+in.
 
 
 WHAT'S NEW IN v0.1.0
 --------------------
 
-- Initial release.
-- Placeholder commands: hello (subcommand), helloworld (standalone).
+- Initial release. Install/build pipeline in place; subcommands
+  land as the project is ported in.
 
 
 REQUIREMENTS
@@ -57,10 +54,6 @@ Once installed, the 'athc' command is available from any terminal
 
    athc --help                      list top-level commands
    athc <command> --help            show help for one command
-
-The 'helloworld' command is also installed and runs on its own:
-
-   helloworld
 
 For what each tool does, with examples, see COMMANDS.txt in your
 settings folder (see below).

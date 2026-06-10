@@ -24,7 +24,7 @@ Three kinds of sections, distinguished by naming convention:
 
 | Section | Convention | Example | Purpose |
 |---|---|---|---|
-| **Umbrella / tool** | lowercase | `[athc]`, `[hello]`, `[gameplan]` | Settings owned by the umbrella or a specific tool. One section per command name. |
+| **Umbrella / tool** | lowercase | `[athc]`, `[gameplan]`, `[profile]` | Settings owned by the umbrella or a specific tool. One section per command name. |
 | **League** | UPPERCASE | `[PNFL]`, `[PCFL]` | Per-league overrides for tools that operate on league-specific data. |
 | **Cross-cutting defaults** | `[DEFAULT]` | `[DEFAULT]` | Native to `configparser`. Keys here cascade into every other section unless overridden. |
 
@@ -40,8 +40,8 @@ LogLevel = INFO
 [athc]
 default_league = PNFL
 
-[hello]
-greeting = hello, head coach
+[gameplan]
+rule_files = house-rules.txt
 
 [PNFL]
 LeagueRoot = D:\Leagues\PNFL

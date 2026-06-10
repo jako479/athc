@@ -16,15 +16,13 @@ uv tool install ./dist/athc-0.1.0-py3-none-any.whl
 `athc <group> --help` lists subcommands
 `athc <group> <subcommand> --help` for flags
 
-`hello` is a built-in subcommand; `helloworld` is a standalone script (separate `[project.scripts]` entry, not under the `athc` umbrella).
-
 ## Configuration
 
 `athc` reads `%LOCALAPPDATA%\athc\athc.ini`. Each tool has its own `[section]`; missing file or section falls back to defaults.
 
 ```ini
-[hello]
-greeting = hello, head coach
+[toolname]
+setting = value
 ```
 
 ## Extending

@@ -24,7 +24,6 @@ athc/
     # CLI WIRING (Click decorators; no tool logic)
     cli/
       __init__.py                        # AthcGroup + main() + shared decorators
-      hello.py                           # athc hello (leaf)
       generate_schedule.py               # athc generate-schedule (leaf)
       convert_pdb.py                     # athc convert-pdb (leaf)
       autocontinue.py                    # athc autocontinue (leaf)
@@ -36,7 +35,6 @@ athc/
         check.py, copy.py, diff.py
 
     # TOOLS (logic only; no Click)
-    hello/           core.py
     gameplan/        config.py  model.py  rules.py  reader.py  writer.py
     profile/         config.py  model.py  diff.py   display.py
     scheduler/       config.py  main.py   domain/  schedulers/  writers/
@@ -49,8 +47,7 @@ athc/
     fbpro98_play/              py.typed  model.py  reader.py
     fbpro98_profile/           py.typed  model.py  reader.py  writer.py
 
-    tools/                               # standalone scripts (non-subcommand)
-      helloworld.py                      # demo; real standalones land here if needed
+    tools/                               # standalone scripts (non-subcommand; none yet)
 ```
 
 ## Tools vs libraries
@@ -63,7 +60,7 @@ A package can start as a library and grow a `cli/` later (or vice versa).
 ## Config handling
 
 - Single shared INI file at `%LOCALAPPDATA%\athc\athc.ini`, read by `configparser`.
-- Three section flavors: tool sections (lowercase, e.g. `[hello]`), league sections (UPPERCASE, e.g. `[PNFL]`), and `[DEFAULT]` for cross-cutting keys.
+- Three section flavors: tool sections (lowercase, e.g. `[gameplan]`), league sections (UPPERCASE, e.g. `[PNFL]`), and `[DEFAULT]` for cross-cutting keys.
 - Each tool owns its own `config.py` with a `Config` dataclass; missing keys/sections fall back to in-code defaults.
 - Tools that operate on league-specific data take a `--league NAME` option.
 - Dev override: set `ATHC_CONFIG_DIR` to point at a local `dev/` folder when running from source (matches `llm`, `httpie`, `tmuxp` pattern).
