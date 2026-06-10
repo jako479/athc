@@ -1,0 +1,49 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "pytest: all tests",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["tests/", "-x", "-v"],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
+    },
+    {
+      "name": "pytest: current file",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${file}", "-x", "-v"],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
+    },
+    {
+      "name": "helloworld",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "athc.tools.helloworld",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "athc hello",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "athc",
+      "args": ["hello"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "athc admin-hello",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "athc",
+      "args": ["admin-hello"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}

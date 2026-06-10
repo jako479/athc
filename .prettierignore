@@ -1,0 +1,7 @@
+# Don't let Prettier touch Python (Ruff owns .py)
+**/*.py
+
+# Build artefacts
+dist/
+build/
+output/
