@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from importlib.metadata import entry_points
 from typing import Any
 
@@ -38,7 +39,17 @@ class AthcGroup(click.Group):
 )
 @click.version_option(package_name="athc")
 def cli() -> None:
-    """Assistant to the Head Coach -- PNFL umbrella CLI."""
+    """Assistant to the Head Coach -- tools for FbPro98 coaches and league managers."""
+
+
+def league_option(f: Callable[..., Any]) -> Callable[..., Any]:
+    """Shared `--league` option for tools that operate on league-specific data."""
+    return click.option(
+        "--league",
+        envvar="ATHC_LEAGUE",
+        default=None,
+        help="League name (matches a section like [league.PNFL] in athc.ini).",
+    )(f)
 
 
 def main() -> None:

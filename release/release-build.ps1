@@ -55,11 +55,15 @@ Write-Host "  Downloading transitive deps into packages/..."
 if ($LASTEXITCODE -ne 0) { throw "pip download failed" }
 
 # Stage end-user-facing files at the staging root (sibling to packages/).
-foreach ($name in "README.txt", "COMMANDS.txt", "athc.ini", "install.bat") {
+foreach ($name in "README.txt", "COMMANDS.txt", "SCHEDULER-COMMANDS.txt", "athc.ini", "athc.ini.example", "install.bat") {
     $src = Join-Path $scriptRoot $name
     Write-Host "  Staging: $name"
     Copy-Item $src $staging
 }
+
+# Stage the rules\ folder (shipped PNFL rule sets).
+Write-Host "  Staging: rules\"
+Copy-Item (Join-Path $scriptRoot "rules") $staging -Recurse
 
 # Zip the staging folder so extracting produces a named folder.
 Write-Host "  Creating zip..."

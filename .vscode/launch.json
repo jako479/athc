@@ -18,6 +18,56 @@
       "args": ["${file}", "-x", "-v"],
       "cwd": "${workspaceFolder}",
       "justMyCode": false
+    },
+    {
+      "name": "athc autocontinue",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "athc",
+      "args": ["autocontinue"],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": { "ATHC_CONFIG_DIR": "${workspaceFolder}/dev" }
+    },
+    {
+      "name": "athc convert-pdb",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "athc",
+      "args": ["convert-pdb"],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": { "ATHC_CONFIG_DIR": "${workspaceFolder}/dev" }
+    },
+    {
+      "name": "athc generate-schedule",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "athc",
+      "args": ["generate-schedule"],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": { "ATHC_CONFIG_DIR": "${workspaceFolder}/dev" }
+    },
+    {
+      "name": "athc gameplan check",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "athc",
+      "args": ["gameplan", "check"],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": { "ATHC_CONFIG_DIR": "${workspaceFolder}/dev" }
+    },
+    {
+      "name": "athc profile check",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "athc",
+      "args": ["profile", "check"],
+      "console": "integratedTerminal",
+      "justMyCode": false,
+      "env": { "ATHC_CONFIG_DIR": "${workspaceFolder}/dev" }
     }
   ]
 }

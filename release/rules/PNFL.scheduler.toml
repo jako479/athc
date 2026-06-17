@@ -1,0 +1,54 @@
+# Scheduler tuning for `athc generate-schedule`. Installed to the athc config
+# dir's rules\ folder but not advertised; the commissioner edits it. A missing
+# file or key falls back to the built-in default.
+
+schema_version = 1
+
+[difficulty]
+# Non-conference strength-of-schedule curve (a team's average opponent overall
+# rank, 1-18). #1 team aims for 9.5 - spread, #18 team for 9.5 + spread.
+spread = 3.19 # default 3.19 (band ~6.3-12.7)
+shape = 2     # 1 = linear; higher = flatter middle (bell)
+
+[solver]
+time_limit = 1800.0      # max seconds for the week-placement (phase-2) solve
+phase1_time_limit = 60.0 # max seconds for the matchup (phase-1) solve
+
+[phase2]
+# Week-placement rule amounts (defaults shown). Amounts only -- the rules
+# themselves and league/conference sizes are fixed.
+
+# Home/away sequencing
+max_consecutive_home_or_away = 3
+min_home_per_six_weeks = 2
+max_home_per_six_weeks = 4
+max_three_game_home_away_streaks = 1
+
+# Divisional sequencing
+max_consecutive_divisional = 3
+max_three_game_divisional_streaks = 1
+max_non_interleaved_divisional_opponents = 2
+
+# Divisional density (max divisional games within a span of weeks)
+five_team_max_divisional_in_10 = 7
+five_team_max_divisional_in_9 = 6
+four_team_max_divisional_in_8 = 5
+four_team_max_divisional_in_7 = 3
+
+# Divisional games in the second half of the season
+five_team_second_half_divisional_min = 4
+four_team_second_half_divisional_min = 3
+
+# Conference cross-division home games hosted
+five_team_conference_home = 2
+four_team_conference_home_min = 2
+four_team_conference_home_max = 3
+
+# Non-conference home games hosted
+five_team_nonconference_home = 2
+four_team_nonconference_home_min = 2
+four_team_nonconference_home_max = 3
+
+# Week 16 / late season
+week_16_divisional_games = 8
+min_late_divisional_games = 1

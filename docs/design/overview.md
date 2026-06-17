@@ -2,7 +2,7 @@
 
 ## What this is
 
-`athc` is the umbrella CLI for Front Page Sports Football Pro '98 (FbPro98) league management. It's a normal Python package, managed with `uv`, built with `setuptools`, and shipped as a wheel. The umbrella discovers all subcommands at runtime via setuptools entry points, so any package installed in the same environment can extend it.
+`athc` is the umbrella CLI of tools for Front Page Sports Football Pro '98 (FbPro98) coaches and league managers. It's a normal Python package, managed with `uv`, built with `setuptools`, and shipped as a wheel. The umbrella discovers all subcommands at runtime via setuptools entry points, so any package installed in the same environment can extend it.
 
 ## Project layout
 
@@ -19,7 +19,7 @@ athc/
   src/athc/
     __init__.py
     __main__.py                          # python -m athc
-    config.py                            # base INI reader + config_dir()
+    config.py                            # base INI reader + config_dir()/config_file()
 
     # CLI WIRING (Click decorators; no tool logic)
     cli/
@@ -33,6 +33,9 @@ athc/
       profile/                           # athc profile ... (group with leaves)
         __init__.py
         check.py, copy.py, diff.py
+      config/                            # athc config ... (group with leaves)
+        __init__.py
+        path.py, edit.py, reveal.py
 
     # TOOLS (logic only; no Click)
     gameplan/        config.py  model.py  rules.py  reader.py  writer.py
@@ -46,8 +49,6 @@ athc/
     fbpro98_gameplan/          py.typed  model.py  reader.py  writer.py
     fbpro98_play/              py.typed  model.py  reader.py
     fbpro98_profile/           py.typed  model.py  reader.py  writer.py
-
-    tools/                               # standalone scripts (non-subcommand; none yet)
 ```
 
 ## Tools vs libraries
@@ -60,10 +61,11 @@ A package can start as a library and grow a `cli/` later (or vice versa).
 ## Config handling
 
 - Single shared INI file at `%LOCALAPPDATA%\athc\athc.ini`, read by `configparser`.
-- Three section flavors: tool sections (lowercase, e.g. `[gameplan]`), league sections (UPPERCASE, e.g. `[PNFL]`), and `[DEFAULT]` for cross-cutting keys.
+- Three section flavors: tool sections (bare name, e.g. `[gameplan]`), league sections (`league.` prefix, e.g. `[league.PNFL]`), and `[DEFAULT]` for cross-cutting keys.
 - Each tool owns its own `config.py` with a `Config` dataclass; missing keys/sections fall back to in-code defaults.
 - Tools that operate on league-specific data take a `--league NAME` option.
-- Dev override: set `ATHC_CONFIG_DIR` to point at a local `dev/` folder when running from source (matches `llm`, `httpie`, `tmuxp` pattern).
+- `athc config path | edit | reveal` locate, edit, and reveal `athc.ini` (no `[config]` section); see [config.md](config.md#editing-the-config).
+- Dev override: set `ATHC_CONFIG_DIR` to a gitignored local `dev/` folder when running from source. Design in [config.md](config.md#dev-config-running-from-source); VS Code terminal + F5 steps in [cli.md](cli.md#running-from-source-dev-config).
 - Full structure, multi-league selection rules, dev override details, and deprecation: [config.md](config.md). File deploy/upgrade behavior: [installer.md](installer.md). CLI/run-from-source details: [cli.md](cli.md).
 
 ## Extension mechanism

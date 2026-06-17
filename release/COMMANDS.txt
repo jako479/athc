@@ -6,10 +6,213 @@ see README.txt in this same folder.
 
 Run tools from any terminal (Command Prompt or PowerShell):
 
-   athc --help                      list top-level commands
-   athc <command> --help            show help for one command
+   athc --help                        list top-level commands
+   athc <group> --help                list subcommands in a group
+   athc <group> <subcommand> --help   show help for one subcommand
+
+Settings live in athc.ini (see athc.ini.example for every option). The rules\
+folder next to this file holds the ready-to-use PNFL rule sets
+(PNFL.gameplan.toml, PNFL.profile.toml, PNFL.playpool.toml).
 
 
-No tools are wired up yet.
+1) gameplan check  --  validate a .pln game plan against league rules
+   ------------------------------------------------------------------
 
-(More tools land here as they are ported in.)
+   Rules come from athc.ini ([gameplan] rule_files, one path per line) or
+   --rules (repeatable). The PNFL rule set ships at rules\PNFL.gameplan.toml.
+   The play pool comes from the league's PlayPath (plus an optional playpool
+   rules TOML via PlayPoolRules), or --play-path / --playpool-rules. The play
+   folder must use the standard layout (Offense/Defense/Special folders with
+   category subfolders). With no gameplan rules configured, check reports an
+   error and stops.
+
+   Show help:
+      athc gameplan check --help
+
+   Example terminal calls:
+      athc gameplan check offense.pln
+      athc gameplan check plans\ -r
+      athc gameplan check offense.pln --rules rules\PNFL.gameplan.toml
+
+
+2) gameplan list-normals  --  list the 64 normal plays from a .pln
+   ----------------------------------------------------------------
+
+   Default prints to the screen. Pass an output file to write to disk; its
+   first line is a `::` comment with the absolute path of the source .pln.
+   --sort name lists alphabetically (default keeps slot order).
+
+   Show help:
+      athc gameplan list-normals --help
+
+   Example terminal calls:
+      athc gameplan list-normals offense.pln
+      athc gameplan list-normals offense.pln plays.txt --sort name -f
+
+
+3) gameplan list-specials  --  list the custom special-teams plays
+   ----------------------------------------------------------------
+
+   Default prints to the screen, in source-file order. With an output path
+   the first line is a `::` comment with the absolute source path.
+
+   Show help:
+      athc gameplan list-specials --help
+
+   Example terminal calls:
+      athc gameplan list-specials offense.pln
+      athc gameplan list-specials offense.pln spec.txt -f
+
+
+4) gameplan find-play  --  find plays by name across .pln files
+   ------------------------------------------------------------
+
+   Searches a single .pln, every .pln in a directory, or a tree (-r).
+   Case-insensitive; only the normal and custom-special slots are searched
+   (stock/clock slots skipped). For each hit, the slot(s) and the play's
+   game category are shown, e.g. (Run Middle), (Field Goal/PAT). No pool
+   setup needed -- the category is read from the .pln. Single file: a miss
+   prints `not found`; directory/tree: misses are silent unless --verbose,
+   ending with a per-play summary.
+
+   Show help:
+      athc gameplan find-play --help
+
+   Example terminal calls:
+      athc gameplan find-play OR45RL01 offense.pln
+      athc gameplan find-play OR45RL01 BCFGPAT plans\ -r --verbose
+
+
+5) gameplan set-normals  --  set the 64 normal plays in a .pln
+   -----------------------------------------------------------
+
+   Replaces the normal slots of one .pln from a play list. A timestamped
+   backup is created first (suppress with --no-backup). Input lines starting
+   with `::` are comments; ` ::` after a name (with a space) is inline. The
+   pool resolves names; run `check` to validate. Use --stdin to read the
+   list from stdin instead of a file.
+
+   Show help:
+      athc gameplan set-normals --help
+
+   Example terminal calls:
+      athc gameplan set-normals offense.pln plays.txt
+      athc gameplan set-normals offense.pln plays.txt --no-backup -q
+
+
+6) gameplan set-specials  --  set the custom special-teams plays
+   -------------------------------------------------------------
+
+   Updates one .pln, every .pln in a directory, or a tree (-r). Wrong-side
+   files are skipped silently (offense .pln are even-sized, defense odd).
+   Merge semantics: unlisted special categories are kept. A timestamped
+   backup is created per file. Comment syntax: same as set-normals.
+
+   Show help:
+      athc gameplan set-specials --help
+
+   Example terminal calls:
+      athc gameplan set-specials offense.pln spec.txt
+      athc gameplan set-specials plans\ spec.txt -r --no-backup
+
+
+7) profile check  --  validate a .prf coaching profile against league rules
+   ------------------------------------------------------------------------
+
+   Rules come from athc.ini ([profile] rule_files, one path per line) or
+   --rules (repeatable). The PNFL rule set ships at rules\PNFL.profile.toml.
+   With no rules configured, check reports an error and stops.
+
+   --gameplan FILE also checks the profile's play categories against a .pln
+   gameplan: every category the profile uses (normal and special teams) must
+   have a custom play in the gameplan. Profile and gameplan must be the same
+   side (offense or defense).
+
+   Show help:
+      athc profile check --help
+
+   Example terminal calls:
+      athc profile check OFF1.prf
+      athc profile check profiles\ -r --rules rules\PNFL.profile.toml
+      athc profile check OFF1.prf --gameplan OFF.pln
+
+
+8) profile copy  --  copy fields from a source .prf into targets
+   --------------------------------------------------------------
+
+   Updates a single .prf, every .prf in a directory, or a tree (-r).
+   Wrong-side files are skipped silently. A timestamped backup is created
+   per target. Copy does not validate -- use `profile check` for that.
+
+   Show help:
+      athc profile copy --help
+
+   Example terminal calls:
+      athc profile copy SRC.prf DST.prf --stop-clock --goal-line
+      athc profile copy SRC.prf profiles\ --stop-clock -r
+
+
+9) profile diff  --  show differences between two coaching profiles
+   ----------------------------------------------------------------
+
+   Compares situations, PAT situations, substitutions, field-goal range,
+   and audibles; only changed records are shown. Both files must be the
+   same side. Exit code 1 means differences were found. Prints to the
+   screen, or with --output FILE writes a report (.txt report, .csv one row
+   per changed record for Excel).
+
+   Show help:
+      athc profile diff --help
+
+   Example terminal calls:
+      athc profile diff OFF1.prf OFF2.prf
+      athc profile diff OFF1.prf OFF2.prf --output changes.csv
+
+
+10) convert-pdb  --  WinLogStats stats (.pdb) into Excel
+    ----------------------------------------------------
+
+   Builds an Excel workbook (.xlsx, or .xlsm for embedded sorting macros)
+   from a WinLogStats .pdb. Cross-reference up to two offensive (-o/-o2)
+   and two defensive (-d/-d2) game plans to tag plays. Needs the convert-pdb
+   extra: install with athc[convert-pdb].
+
+   Show help:
+      athc convert-pdb --help
+
+   Example terminal calls:
+      athc convert-pdb stats.pdb output.xlsm
+      athc convert-pdb stats.pdb output.xlsm -d defense.pln -o offense.pln
+
+
+11) autocontinue  --  auto-click the FbPro '98 'Continue' button between plays
+    --------------------------------------------------------------------------
+
+   Watches for the 'Continue' button and clicks it between plays. Settings
+   live in athc.ini ([autocontinue] mouse_move_duration, delay_before_continue)
+   and are re-read whenever the file changes. Press CTRL-C to stop; move the
+   mouse to a screen corner for PyAutoGUI's fail-safe. Needs the autocontinue
+   extra: install with athc[autocontinue].
+
+   Show help:
+      athc autocontinue --help
+
+   Example terminal call:
+      athc autocontinue
+
+
+12) config  --  locate, edit, or reveal your athc settings
+    -----------------------------------------------------
+
+   Helpers for the settings file (athc.ini) and its folder. `path` prints
+   the file's full path; `edit` opens it in your editor, created if missing
+   (uses $EDITOR/$VISUAL, else Notepad); `reveal` shows athc.ini in File
+   Explorer (selected), or its folder if it doesn't exist yet.
+
+   Show help:
+      athc config --help
+
+   Example terminal calls:
+      athc config path
+      athc config edit
+      athc config reveal

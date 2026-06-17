@@ -1,0 +1,207 @@
+/*****************************************************************************
+ * fbpro_prf.hsl - Structure definitions for the .prf file format
+ *  
+ * Copyright (c) 2024 Brian Jacobs, All Rights Reserved
+ *
+ *****************************************************************************
+ * Revision History:
+ *  2024-03-24 - BAJ - Original
+ */
+
+#include "standard-types.hsl"
+
+#pragma displayname("FBPro98 prf structures")
+#pragma fileextensions(".prf")
+#pragma byteorder(little_endian)
+#pragma maxarray(3072);
+
+#pragma hide()
+
+struct SUBSTITUTION_SETTINGS
+{
+    WORD        outPercent;         // 0x00
+    WORD        inPercent;          // 0x02
+                                    // 0x04
+
+    __verify(outPercent >= 0x00 && outPercent <= 0x64);
+    __verify(inPercent >= 0x00 && inPercent <= 0x64);
+    __verify(outPercent <= inPercent);
+};
+
+struct SUBSTITUTION_DATA
+{
+    struct SUBSTITUTION_SETTINGS    offensiveLinemen;       // 0x00
+    struct SUBSTITUTION_SETTINGS    quarterbacks;           // 0x04
+    struct SUBSTITUTION_SETTINGS    runningBacks;           // 0x08
+    struct SUBSTITUTION_SETTINGS    receivers;              // 0x0C
+    struct SUBSTITUTION_SETTINGS    defensiveLinemen;       // 0x10
+    struct SUBSTITUTION_SETTINGS    linebackers;            // 0x14
+    struct SUBSTITUTION_SETTINGS    defensiveBacks;         // 0x18
+    struct SUBSTITUTION_SETTINGS    kickers;                // 0x1C
+                                                            // 0x20
+};
+
+#pragma enumsize(1)
+#pragma enumsign("unsigned")
+typedef enum PLAY_TYPE
+{
+    GOAL_LINE_RUN               = 0x00,     // OFFENSE/DEFENSE
+    RAZZLE_DAZZLE_RUN           = 0x01,     // OFFENSE/DEFENSE
+    RUN_LEFT                    = 0x02,     // OFFENSE/DEFENSE
+    RUN_MIDDLE                  = 0x03,     // OFFENSE/DEFENSE
+    RUN_RIGHT                   = 0x04,     // OFFENSE/DEFENSE
+    GOAL_LINE_PASS              = 0x05,     // OFFENSE/DEFENSE
+    RAZZLE_DAZZLE_PASS          = 0x06,     // OFFENSE/DEFENSE
+    PASS_LONG_LEFT              = 0x07,     // OFFENSE/DEFENSE (DEFENSE: "PASS LONG")
+    PASS_LONG_MIDDLE            = 0x08,     // OFFENSE
+    PASS_LONG_RIGHT             = 0x09,     // OFFENSE
+    PASS_MEDIUM_LEFT            = 0x0A,     // OFFENSE/DEFENSE (DEFENSE: "PASS MEDIUM")
+    PASS_MEDIUM_MIDDLE          = 0x0B,     // OFFENSE
+    PASS_MEDIUM_RIGHT           = 0x0C,     // OFFENSE
+    PASS_SHORT_LEFT             = 0x0D,     // OFFENSE/DEFENSE (DEFENSE: "PASS SHORT")
+    PASS_SHORT_MIDDLE           = 0x0E,     // OFFENSE
+    PASS_SHORT_RIGHT            = 0x0F,     // OFFENSE
+    FIELD_GOAL_PAT              = 0x10,     // OFFENSE/DEFENSE
+    FAKE_FIELD_GOAL_RUN         = 0x11,     // OFFENSE/DEFENSE
+    FAKE_FIELD_GOAL_PASS        = 0x12,     // OFFENSE/DEFENSE
+    PUNT                        = 0x13,     // OFFENSE/DEFENSE
+    FAKE_PUNT_RUN               = 0x14,     // OFFENSE/DEFENSE
+    FAKE_PUNT_PASS              = 0x15,     // OFFENSE/DEFENSE
+    RUN_CLOCK                   = 0x16,     // OFFENSE
+    RUN RANDOM                  = 0x17,     // OFFENSE
+    PASS_LONG_RANDOM            = 0x18,     // OFFENSE
+    PASS_MEDIUM_RANDOM          = 0x19,     // OFFENSE
+    PASS_SHORT_RANDOM           = 0x1A      // OFFENSE
+
+} PLAY_TYPE;
+
+// Used in both the 2520-entry regular situations array and the 60-entry PAT
+// array. For regular situations, bit 7 (0x80) of weight1 is the Stop-Clock
+// flag (so weight1 in [0x00,0x0A] | [0x80,0x8A]). For PAT situations, weight1
+// is a plain weight in [0x00,0x0A]; bit 7 is not used. The verify below
+// permits both forms.
+struct CATEGORY_WEIGHTS
+{
+    PLAY_TYPE   playType1;
+    BYTE        weight1;        // Regular: 0x00-0x0A | 0x80-0x8A (bit 7 = Stop Clock); PAT: 0x00-0x0A
+    PLAY_TYPE   playType2;
+    BYTE        weight2;
+    PLAY_TYPE   playType3;
+    BYTE        weight3;
+
+    __verify(playType1 >= PLAY_TYPE.GOAL_LINE_RUN &&
+             playType1 <= PLAY_TYPE.PASS_SHORT_RANDOM);
+    __verify((weight1 >= 0x00 && weight1 <= 0x0A) ||
+             (weight1 >= 0x80 && weight1 <= 0x8A));     // Handle Stop Clock enabled (regular only)
+    __verify(playType2 >= PLAY_TYPE.GOAL_LINE_RUN &&
+             playType2 <= PLAY_TYPE.PASS_SHORT_RANDOM);
+    __verify(weight2 >= 0x00 && weight2 <= 0x0A);
+    __verify(playType3 >= PLAY_TYPE.GOAL_LINE_RUN &&
+             playType3 <= PLAY_TYPE.PASS_SHORT_RANDOM);
+    __verify(weight3 >= 0x00 && weight3 <= 0x0A);
+};
+
+#pragma enumsize(4)
+typedef enum BLOCK_TYPE
+{
+    F95 = "F95:",
+    G95 = "G95:",
+    I95 = "I95:",
+    J95 = "J95:",
+    S98 = "S98:"
+
+} BLOCK_TYPE;
+
+#pragma show()
+
+// Regular situations array (2520 entries) is indexed by situation number, with
+// the position determined by the 5-bucket game-state cross-product and one
+// structural gap. See prf.md section 2.3.4 for the layout.
+//   minutes_remaining (5) x down (4) x yards_to_go (4) x field_position (5) x point_spread (7)
+//   = 5*4*4*5*7 = 2800 dense, minus 280 invalid combos (INSIDE_DEF_5 x yards >= 6) = 2520.
+//
+// PAT situations array (60 entries) varies only by minutes_remaining (4) and
+// point_spread (15). See prf.md section 2.5.1.
+//   minutes_remaining (4) x point_spread (15) = 60. No gaps.
+struct F95
+{
+    BLOCK_TYPE id;                                      // 0x00
+    DWORD size;                                         // 0x04 // size of data // 0x3C9D
+    struct SUBSTITUTION_DATA        substitutions;            // 0x08
+    struct CATEGORY_WEIGHTS         categoryWeights[2520];    // 0x28; situation number = index
+    BYTE                            fieldGoalRange;           // 0x3B38
+    struct CATEGORY_WEIGHTS         patCategoryWeights[60];   // 0x3B39; PAT situation number = index
+    DWORD                           useAudibles;              // 0x3CA1
+
+    __verify(id == BLOCK_TYPE.F95);
+    __verify(size == 0x3C9D);
+    __verify(fieldGoalRange >= 0x05 && fieldGoalRange <= 0x32);
+    __verify(useAudibles == 0x00 || useAudibles == 0x01);
+};
+
+struct G95
+{
+    BLOCK_TYPE      id;                 // 0x00
+    DWORD           size;               // 0x04 // size of data
+    BYTE            data[size];         // 0X08
+
+    __verify(id == BLOCK_TYPE.G95);
+};
+
+#pragma enumsize(1)
+typedef enum PROFILE_TYPE
+{
+    DEFENSE = 0,
+    OFFENSE = 1
+
+} PROFILE_TYPE;
+
+
+struct I95
+{
+    BLOCK_TYPE      id;                 // 0x00
+    DWORD           size;               // 0x04 // size of data // 0x0A
+    PROFILE_TYPE    type;               // 0x08
+    WORD            reserved;           // 0x09 // 0x0000
+    BYTE            fieldGoalRange;     // 0x0B
+    WORD            numGamePlanBlocks;  // 0x0C (guessing)
+    DWORD           useAudibles;        // 0x0E
+                                        // 0x12
+
+    __verify(id == BLOCK_TYPE.I95);
+    __verify(size == 0x0A);
+    __verify(fieldGoalRange >= 0x05 && fieldGoalRange <= 0x32);
+    __verify(useAudibles == 0x00 || useAudibles == 0x01);
+};
+
+struct J95
+{
+    BLOCK_TYPE      id;                 // 0x00
+    DWORD           size;               // 0x04 // size of data // 0x07
+    PROFILE_TYPE    type;               // 0x08
+    WORD            numCustomPlays;     // 0x09
+    WORD            numStockPlays;      // 0x0B (guessing)
+    WORD            numSpecialPlays;    // 0x0D
+                                        // 0x0F
+
+    __verify(id == BLOCK_TYPE.J95);
+    __verify(size == 0x07);
+};
+
+struct S98
+{
+    BLOCK_TYPE      id;                 // 0x00
+    DWORD           size;               // 0x04 // size of data
+    BYTE            mapFilename[size];  // 0x08
+
+    __verify(id == BLOCK_TYPE.S98);
+};
+
+struct PRFFILE
+{
+#pragma lockAt(0x00000000)
+    struct F95      f95;                // 0x00
+    struct I95      i95;                // 0x3CA5
+    
+    __verify(sizeof(i95) == 0x3CA5);    // sizeof() somehow evaluates to addrof(), and vice-versa
+};

@@ -105,35 +105,45 @@ def list_plays(league):
 
 ## Running from source (dev config)
 
-For local dev runs where your paths differ from production (e.g., game files on `E:\` instead of the default `C:\SIERRA\...`), point athc at a per-machine config without touching the production file.
+Dev runs read a per-machine `dev/athc.ini` instead of the installed config, selected by `ATHC_CONFIG_DIR` (design: [config.md](config.md#dev-config-running-from-source)). Both methods below use `${workspaceFolder}/dev`, so they work on any clone.
 
-Set `ATHC_CONFIG_DIR` to a directory containing `athc.ini`:
+### Run in VS Code (terminal)
 
-```
-$env:ATHC_CONFIG_DIR = "$PWD\dev"
-athc autocontinue
-```
+In `.vscode/settings.json`:
 
-Convention: keep dev config in `dev/` at the repo root, gitignored. Matches the layout of `release/` (end-user-facing). The dev folder isn't tracked, so each developer's machine-specific paths stay local.
-
-```
-athc/
-  dev/                # gitignored — your local athc.ini
-  release/            # ships to end users
+```json
+"terminal.integrated.env.windows": {
+  "ATHC_CONFIG_DIR": "${workspaceFolder}/dev"
+}
 ```
 
-Mechanism is config-side; resolution lives in `athc.config.config_dir()`:
+In a multi-root workspace, folder settings are ignored for this key — put the block in the `.code-workspace` `settings` with `${workspaceFolder:athc}/dev` instead. Open a new terminal to pick it up.
 
-```python
-def config_dir() -> Path:
-    if override := os.environ.get("ATHC_CONFIG_DIR"):
-        return Path(override)
-    return user_config_path("athc", appauthor=False, ensure_exists=False)
+### Debug in VS Code (F5)
+
+Per command in `.vscode/launch.json`; `env` sets the var on the debug process:
+
+```json
+{
+  "name": "athc profile check",
+  "type": "debugpy",
+  "request": "launch",
+  "module": "athc",
+  "args": ["profile", "check"],
+  "console": "integratedTerminal",
+  "env": { "ATHC_CONFIG_DIR": "${workspaceFolder}/dev" }
+}
 ```
 
-Production users never set the env var; the default path wins.
+Edit `args` per command. Terminal and launch `env` are independent — set both if you run both ways.
 
-Matches the dominant pattern in small Python CLIs — `llm` (`LLM_USER_PATH`), `httpie` (`HTTPIE_CONFIG_DIR`), `tmuxp` (`TMUXP_CONFIGDIR`).
+### One-off
+
+```powershell
+$env:ATHC_CONFIG_DIR = "$PWD\dev"   # this session only
+```
+
+Production users never set the var; the default `%LOCALAPPDATA%\athc` wins.
 
 ## Standard idioms
 
@@ -155,7 +165,7 @@ def league_option(f):
         "--league",
         envvar="ATHC_LEAGUE",
         default=None,
-        help="League name (matches a section like [PNFL] in athc.ini).",
+        help="League name (matches a section like [league.PNFL] in athc.ini).",
     )(f)
 ```
 
@@ -168,6 +178,14 @@ For a command group, putting the decorator on the group means every leaf inherit
 - Every `@click.command` / `@click.group` gets a one-line `help="..."` describing what it does.
 - Help text refers to the user's perspective ("Advance the sim to the next decision") rather than implementation ("Read the [autocontinue] section").
 - Default values shown via `show_default=True` on `@click.option` where useful.
+
+## Output and logging
+
+Two channels: stdout (`click.echo`) for everything the user reads (results and
+status), stderr (`logging`) for errors and warnings only. Full convention — log
+levels, library behavior, exit-code timing: [logging.md](logging.md).
+
+**Libraries** (`<pkg>/<tool>/`, `playpool`, …) call `getLogger(__name__)` but **never** `basicConfig` (the app owns handler setup). They use `logger.warning` for recoverable "skipped X" notices (duplicate play, missing file) and `logger.info` for progress — they don't print results.
 
 ## What goes where
 

@@ -28,7 +28,7 @@ For athc's multi-league pattern (selected via `--league NAME`).
 - [Snowflake CLI](https://github.com/snowflakedb/snowflake-cli) — `~/.snowflake/connections.toml` with `[NAME]` flat sections; `--connection` + `SNOWFLAKE_DEFAULT_CONNECTION_NAME` env.
 - [dbt-core](https://github.com/dbt-labs/dbt-core) — `~/.dbt/profiles.yml` with named targets; `--target` + `DBT_TARGET` env.
 
-**Adaptation for athc**: flat UPPERCASE section names (`[PNFL]`, `[PCFL]`) instead of `[league NAME]`, and `--league` per-command instead of umbrella-level. `configparser`'s `[DEFAULT]` + `%(key)s` interpolation handle inheritance natively. Selection priority: `--league` → `ATHC_LEAGUE` → `[athc] default_league` → error.
+**Adaptation for athc**: dotted `[league.NAME]` sections (after setuptools' `setup.cfg`, e.g. `[options.extras_require]`) instead of AWS's space form `[profile NAME]`, and `--league` per-command instead of umbrella-level. Dot is the one delimiter that's also valid TOML, so it survives a future move off INI. `configparser`'s `[DEFAULT]` + `%(key)s` interpolation handle inheritance natively. Selection priority: `--league` → `ATHC_LEAGUE` → `[athc] default_league` → error.
 
 Example:
 
@@ -39,11 +39,11 @@ RosterPath = %(LeagueRoot)s\rosters
 [athc]
 default_league = PNFL
 
-[PNFL]
+[league.PNFL]
 LeagueRoot = D:\Leagues\PNFL
 PlayPath = D:\Leagues\PNFL\plays
 
-[PCFL]
+[league.PCFL]
 LeagueRoot = E:\Leagues\PCFL
 PlayPath = E:\Leagues\PCFL\plays_v2
 ```
@@ -70,6 +70,15 @@ Pattern adopted for athc: `ATHC_CONFIG_DIR` env var, no `--config` flag. Mechani
 
 - [Inno Setup](https://jrsoftware.org/isinfo.php) — open-source de-facto Windows installer toolkit. Used by Audacity, qBittorrent, many Python apps. Likely future direction.
 
+## Testing exemplars
+
+Test suites athc's testing models. Details: [testing-unit.md](testing-unit.md), [testing-integration.md](testing-integration.md).
+
+- [Black](https://github.com/psf/black) — **input→expected-output cases**: each `tests/data/cases/*.py` holds input + expected in one file split by a `# output` marker, auto-parametrized over the dir.
+- [sqlfluff](https://github.com/sqlfluff/sqlfluff) — **sidecar expected-output fixtures** (`name.sql` + generated `name.yml`) with a regen script and an in-repo testing guide (`test/AGENTS.md`); closest to our binary→structured-output case.
+- [pip-tools](https://github.com/jazzband/pip-tools) — clean **`CliRunner` + `isolated_filesystem`** model for a CLI whose product is a generated file: write input, invoke, assert exit code + contents.
+- [sqlite-utils](https://github.com/simonw/sqlite-utils) — closest structural match (Click CLI over data files): separate `test_cli*.py`, `CliRunner`, **reopen-the-produced-artifact** asserts.
+
 ## Direct design influences
 
 The specific decisions and which projects informed each.
@@ -85,7 +94,7 @@ The specific decisions and which projects informed each.
 | `athc.ini` + `athc.ini.example` pattern | Notepad++, Sublime Text |
 | In-code defaults; missing section → no error | pytest, mkdocs, Sphinx, Flask, Hatch |
 | Deprecation: log warning for 2–3 releases | VS Code (`deprecationMessage`) |
-| Multi-league sections + `[DEFAULT]` cascade | AWS CLI `[profile NAME]` |
+| Multi-league sections + `[DEFAULT]` cascade | AWS CLI `[profile NAME]`; setuptools dotted `setup.cfg` sections |
 | Dev config override (`ATHC_CONFIG_DIR` env var) | llm (`LLM_USER_PATH`), httpie, tmuxp |
 | Build script location (inside `release/`) | PyInstaller, Hatch |
 | Release artifact location (`dist/`) | PyInstaller, Briefcase, Hatch, pnfl predecessor |
@@ -94,3 +103,4 @@ The specific decisions and which projects informed each.
 | Doc format: `.txt` over `.md` for end users | Classic Unix `README.txt` / man pages |
 | Windows installer toolkit (future): Inno Setup | Audacity, qBittorrent |
 | Winget install command for uv | astral-sh.uv |
+| Testing layout + golden-file discipline | Black, sqlfluff, pip-tools, sqlite-utils |

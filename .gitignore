@@ -31,6 +31,9 @@ env/
 !.vscode/launch.json
 !.vscode/tasks.json
 
+# uv
+uv.lock
+
 # Node/Prettier stuff (if present)
 node_modules/
 package-lock.json

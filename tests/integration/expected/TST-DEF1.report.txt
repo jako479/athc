@@ -1,0 +1,8 @@
+TST-DEF1.prf: 7 violation(s) (defense, FG range 36)
+  [situation 246] Situation 246 has 2 category(ies) with non-zero weight; requires 3.
+  [situation 247] Situation 247 has 2 category(ies) with non-zero weight; requires 3.
+  [situation 248] Situation 248 has 2 category(ies) with non-zero weight; requires 3.
+  [situation 249] Situation 249 has 2 category(ies) with non-zero weight; requires 3.
+  [situation 250] Situation 250 has 2 category(ies) with non-zero weight; requires 3.
+  [situation 251] Situation 251 has 2 category(ies) with non-zero weight; requires 3.
+  [situation 252] Situation 252 has 2 category(ies) with non-zero weight; requires 3.

@@ -13,10 +13,31 @@ Deploy mechanics (install/upgrade overwrite rules) live in [installer.md](instal
 `configparser` is the only mainstream Python option that gives non-dev users a Notepad-editable INI file with native `[DEFAULT]` cascade and `%(key)s` interpolation out of the box. The popular alternatives in 2026 don't fit:
 
 - **pydantic-settings** (370M downloads/month, FastAPI's standard) targets env vars, `.env`, secrets — no native INI reading.
-- **dynaconf** reads INI but its layering model is dev/staging/prod, not `[PNFL]`/`[PCFL]`; loses `%(key)s` (uses Jinja, Notepad-unfriendly).
+- **dynaconf** reads INI but its layering model is dev/staging/prod, not `[league.PNFL]`/`[league.PCFL]`; loses `%(key)s` (uses Jinja, Notepad-unfriendly).
 - **confuse** is YAML-only.
 
 If load-site validation becomes a real pain (user typos `Defualt_League`), the proportionate upgrade is `pydantic` (the core lib, **not** `pydantic-settings`) — swap `@dataclasses.dataclass` for `@pydantic.dataclasses.dataclass` on each `Config` class. One-line change per Config; keep `configparser` as the loader.
+
+## Editing the config
+
+The `athc config` group locates and opens the settings file so users don't hunt for the hidden `%LOCALAPPDATA%` path:
+
+- `athc config path` — print the full path to `athc.ini`.
+- `athc config edit` — open `athc.ini` in an editor (created if missing); `$VISUAL`/`$EDITOR` if set, else the OS-associated app (Notepad by default).
+- `athc config reveal` — reveal `athc.ini` in the file manager (Explorer), or its folder if absent.
+
+Thin wrappers over `click.edit` / `click.launch`; no `[config]` section (the group operates on the file, it reads no settings).
+
+## Dev config (running from source)
+
+Source runs read a per-machine **dev config** instead of the installed one:
+
+- **Override**: `ATHC_CONFIG_DIR`, if set, replaces the whole config dir; else the default `%LOCALAPPDATA%\athc` wins. Resolution: [`athc.config.config_dir()`](../../src/athc/config.py).
+- **Location**: a full `athc.ini` in a gitignored `dev/` at the repo root (mirrors `release/`).
+- **Shared dir**: athc and athc-admin read the same dir, so one `dev/` serves both.
+- **Production**: end users never set the var.
+
+VS Code terminal/F5 steps: [cli.md](cli.md#running-from-source-dev-config).
 
 ## Section taxonomy
 
@@ -24,11 +45,11 @@ Three kinds of sections, distinguished by naming convention:
 
 | Section | Convention | Example | Purpose |
 |---|---|---|---|
-| **Umbrella / tool** | lowercase | `[athc]`, `[gameplan]`, `[profile]` | Settings owned by the umbrella or a specific tool. One section per command name. |
-| **League** | UPPERCASE | `[PNFL]`, `[PCFL]` | Per-league overrides for tools that operate on league-specific data. |
+| **Umbrella / tool** | bare name | `[athc]`, `[gameplan]`, `[profile]` | Settings owned by the umbrella or a specific tool. One section per command name. |
+| **League** | `league.` prefix | `[league.PNFL]`, `[league.PCFL]` | Per-league overrides for tools that operate on league-specific data. |
 | **Cross-cutting defaults** | `[DEFAULT]` | `[DEFAULT]` | Native to `configparser`. Keys here cascade into every other section unless overridden. |
 
-The uppercase-vs-lowercase split lets code (and humans) tell at a glance whether a section is a tool or a league. Don't name a league after a tool — the convention is the safeguard.
+The `league.` prefix tells code (and humans) whether a section is a tool or a league, and namespaces the name so a league can't collide with a tool section.
 
 ## Example
 
@@ -43,18 +64,18 @@ default_league = PNFL
 [gameplan]
 rule_files = house-rules.txt
 
-[PNFL]
+[league.PNFL]
 LeagueRoot = D:\Leagues\PNFL
 PlayPath = D:\Leagues\PNFL\plays
 Season = 2026
 
-[PCFL]
+[league.PCFL]
 LeagueRoot = E:\Leagues\PCFL
 PlayPath = E:\Leagues\PCFL\plays_v2
 LogLevel = DEBUG
 ```
 
-`RosterPath` cascades from `[DEFAULT]` into every league section. `configparser`'s `%(key)s` interpolation resolves `%(LeagueRoot)s` against the section being read, so each league gets its own roster path automatically. `LogLevel` cascades into `[PNFL]` (uses default `INFO`) and is overridden in `[PCFL]` (`DEBUG`).
+`RosterPath` cascades from `[DEFAULT]` into every league section. `configparser`'s `%(key)s` interpolation resolves `%(LeagueRoot)s` against the section being read, so each league gets its own roster path automatically. `LogLevel` cascades into `[league.PNFL]` (uses default `INFO`) and is overridden in `[league.PCFL]` (`DEBUG`).
 
 ## Multi-league selection
 
@@ -69,7 +90,7 @@ def league_option(f):
         "--league",
         envvar="ATHC_LEAGUE",
         default=None,
-        help="League name (matches a section like [PNFL] in athc.ini).",
+        help="League name (matches a section like [league.PNFL] in athc.ini).",
     )(f)
 ```
 
@@ -89,7 +110,7 @@ def gameplan_check(league):
 1. `--league NAME` flag (explicit).
 2. `ATHC_LEAGUE` environment variable.
 3. `[athc] default_league` key.
-4. Error with a helpful listing of configured leagues (`athc leagues list`).
+4. Error listing the configured leagues (`league.*` sections in `athc.ini`).
 
 No stateful "current league" pointer — explicit beats hidden state for non-dev users.
 

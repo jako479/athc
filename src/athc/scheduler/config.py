@@ -1,0 +1,263 @@
+from __future__ import annotations
+
+import configparser
+import tomllib
+from collections.abc import Mapping
+from dataclasses import dataclass, field, fields
+from os import PathLike
+from pathlib import Path
+from typing import Any
+
+from athc.config import config_dir
+from athc.scheduler.domain.league import League, build_league
+
+StrPath = str | PathLike[str]
+
+LEAGUE_FILE = "league.ini"
+HISTORY_FILE = "nonconf_history.json"
+SCHEDULER_RULES_FILE = "PNFL.scheduler.toml"  # in the config dir's rules/ folder
+
+# Scheduler tunables; overridable in PNFL.scheduler.toml (missing -> these).
+DEFAULT_TIME_LIMIT = 1800.0  # phase-2 (week-placement) solve seconds
+DEFAULT_PHASE1_TIME_LIMIT = 60.0  # phase-1 (matchup) solve seconds
+DEFAULT_DIFFICULTY_SPREAD = 3.19  # curve ends 9.5 -/+ spread on the 1-18 scale
+DEFAULT_DIFFICULTY_SHAPE = 2.0
+
+
+class ConfigError(Exception):
+    """The config file is missing, or present but invalid."""
+
+
+@dataclass(frozen=True)
+class DifficultyConfig:
+    """Non-conference difficulty curve knobs."""
+
+    spread: float = DEFAULT_DIFFICULTY_SPREAD
+    shape: float = DEFAULT_DIFFICULTY_SHAPE
+
+
+@dataclass(frozen=True)
+class SolverConfig:
+    time_limit: float = DEFAULT_TIME_LIMIT
+    phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT
+
+
+@dataclass(frozen=True)
+class Phase2Config:
+    """Phase-2 (week-placement) rule amounts; defaults are the current values.
+
+    Only amounts are configurable -- not the rules themselves, nor league or
+    conference sizes.
+    """
+
+    # Home/away sequencing
+    max_consecutive_home_or_away: int = 3
+    min_home_per_six_weeks: int = 2
+    max_home_per_six_weeks: int = 4
+    max_three_game_home_away_streaks: int = 1
+    # Divisional sequencing
+    max_consecutive_divisional: int = 3
+    max_three_game_divisional_streaks: int = 1
+    max_non_interleaved_divisional_opponents: int = 2
+    # Divisional density (max divisional games within a span of weeks)
+    five_team_max_divisional_in_10: int = 7
+    five_team_max_divisional_in_9: int = 6
+    four_team_max_divisional_in_8: int = 5
+    four_team_max_divisional_in_7: int = 3
+    # Divisional games in the second half of the season
+    five_team_second_half_divisional_min: int = 4
+    four_team_second_half_divisional_min: int = 3
+    # Conference cross-division home games hosted
+    five_team_conference_home: int = 2
+    four_team_conference_home_min: int = 2
+    four_team_conference_home_max: int = 3
+    # Non-conference home games hosted
+    five_team_nonconference_home: int = 2
+    four_team_nonconference_home_min: int = 2
+    four_team_nonconference_home_max: int = 3
+    # Week 16 / late season
+    week_16_divisional_games: int = 8
+    min_late_divisional_games: int = 1
+
+
+@dataclass(frozen=True)
+class SchedulerConfig:
+    difficulty: DifficultyConfig = field(default_factory=DifficultyConfig)
+    solver: SolverConfig = field(default_factory=SolverConfig)
+    phase2: Phase2Config = field(default_factory=Phase2Config)
+
+
+def scheduler_rules_path() -> Path:
+    """The scheduler tunables file (may not exist; values then default).
+
+    Set `ATHC_CONFIG_DIR` to override the config dir.
+    """
+    return config_dir() / "rules" / SCHEDULER_RULES_FILE
+
+
+def load_scheduler_config() -> SchedulerConfig:
+    """Read scheduler tunables from `rules/PNFL.scheduler.toml`, defaulting when
+    the file or any key is absent. Invalid TOML or a non-numeric value errors."""
+    path = scheduler_rules_path()
+    if not path.is_file():
+        return SchedulerConfig()
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as error:
+        raise ConfigError(f"Config file '{path}' is not valid TOML: {error}") from error
+    difficulty = data.get("difficulty", {})
+    solver = data.get("solver", {})
+    phase2 = data.get("phase2", {})
+    return SchedulerConfig(
+        difficulty=DifficultyConfig(
+            spread=_number(difficulty, "spread", DEFAULT_DIFFICULTY_SPREAD, path),
+            shape=_number(difficulty, "shape", DEFAULT_DIFFICULTY_SHAPE, path),
+        ),
+        solver=SolverConfig(
+            time_limit=_number(solver, "time_limit", DEFAULT_TIME_LIMIT, path),
+            phase1_time_limit=_number(
+                solver, "phase1_time_limit", DEFAULT_PHASE1_TIME_LIMIT, path
+            ),
+        ),
+        phase2=_phase2(phase2, path),
+    )
+
+
+def load_league(path: StrPath | None = None) -> League:
+    """Read a league from `[Divisions]` plus either `[Standings]` (overall 1-18,
+    needed by the new scheduler) or `[ConferenceRanking]` (AFC/NFC 1-9, the older
+    format -- only drives the fixed-matchup scheduler)."""
+    resolved = _resolve_config_path(LEAGUE_FILE, path)
+    cp = _read_config(resolved)
+    _require_section(cp, resolved, "Divisions")
+    divisions = {
+        key: _parse_multiline(cp, "Divisions", key) for key in cp.options("Divisions")
+    }
+    has_standings = cp.has_section("Standings")
+    has_conference = cp.has_section("ConferenceRanking")
+    if not (has_standings or has_conference):
+        raise ConfigError(
+            f"Config file '{resolved}' needs a [Standings] (overall 1-18) or "
+            f"[ConferenceRanking] (AFC/NFC 1-9) section."
+        )
+    try:
+        overall = (
+            _required_multiline(cp, resolved, "Standings", "Order")
+            if has_standings
+            else None
+        )
+        afc = (
+            _required_multiline(cp, resolved, "ConferenceRanking", "AFC")
+            if has_conference
+            else None
+        )
+        nfc = (
+            _required_multiline(cp, resolved, "ConferenceRanking", "NFC")
+            if has_conference
+            else None
+        )
+        return build_league(
+            divisions, overall_ranking=overall, afc_ranking=afc, nfc_ranking=nfc
+        )
+    except ValueError as error:
+        raise ConfigError(
+            f"Config file '{resolved}' has invalid league data: {error}"
+        ) from error
+
+
+def find_config_path() -> Path:
+    """Scheduler config path, for report provenance (may not exist)."""
+    return scheduler_rules_path()
+
+
+def find_league_path() -> Path:
+    """Return the league data file, or raise ConfigError if it does not exist."""
+    return _resolve_config_path(LEAGUE_FILE, None)
+
+
+def find_history_path() -> Path:
+    return config_dir() / HISTORY_FILE
+
+
+def _number(section: Mapping[str, Any], key: str, default: float, path: Path) -> float:
+    if key not in section:
+        return default
+    value = section[key]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ConfigError(f"Config file '{path}': '{key}' must be a number.")
+    return float(value)
+
+
+def _int(section: Mapping[str, Any], key: str, default: int, path: Path) -> int:
+    if key not in section:
+        return default
+    value = section[key]
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ConfigError(f"Config file '{path}': '{key}' must be an integer.")
+    return value
+
+
+def _phase2(table: Mapping[str, Any], path: Path) -> Phase2Config:
+    defaults = Phase2Config()
+    unknown = sorted(set(table) - {f.name for f in fields(defaults)})
+    if unknown:
+        raise ConfigError(
+            f"Config file '{path}': unknown [phase2] key(s): {', '.join(unknown)}."
+        )
+    return Phase2Config(
+        **{
+            f.name: _int(table, f.name, getattr(defaults, f.name), path)
+            for f in fields(defaults)
+        }
+    )
+
+
+def _resolve_config_path(filename: str, path: StrPath | None) -> Path:
+    if path is not None:
+        resolved = Path(path)
+        if not resolved.is_file():
+            raise ConfigError(f"Config file not found: '{resolved}'.")
+        return resolved
+    resolved = config_dir() / filename
+    if not resolved.is_file():
+        raise ConfigError(
+            f"No config file found. Pass --config, or create:\n  {resolved}"
+        )
+    return resolved
+
+
+def _read_config(path: Path) -> configparser.ConfigParser:
+    cp = configparser.ConfigParser()
+    cp.optionxform = str  # type: ignore[assignment]
+    try:
+        cp.read(path, encoding="utf-8")
+    except configparser.Error as error:
+        raise ConfigError(f"Config file '{path}' is not valid INI: {error}") from error
+    return cp
+
+
+def _require_section(cp: configparser.ConfigParser, path: Path, section: str) -> None:
+    if not cp.has_section(section):
+        raise ConfigError(
+            f"Config file '{path}' is missing the required [{section}] section."
+        )
+
+
+def _required_multiline(
+    cp: configparser.ConfigParser, path: Path, section: str, key: str
+) -> tuple[str, ...]:
+    if not cp.has_option(section, key):
+        raise ConfigError(
+            f"Config file '{path}' is missing required setting '{key}' in [{section}]."
+        )
+    values = _parse_multiline(cp, section, key)
+    if not values:
+        raise ConfigError(f"Config file '{path}' has an empty '{key}' in [{section}].")
+    return values
+
+
+def _parse_multiline(
+    cp: configparser.ConfigParser, section: str, key: str
+) -> tuple[str, ...]:
+    raw = cp.get(section, key, fallback="")
+    return tuple(line.strip() for line in raw.splitlines() if line.strip())

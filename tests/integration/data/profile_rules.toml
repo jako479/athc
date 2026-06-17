@@ -1,0 +1,166 @@
+# PNFL coaching-profile validation rules.
+# Source: https://pnfl.biz/messageboard/viewtopic.php?f=18&t=28
+
+schema_version = 1
+audibles_allowed = false
+min_categories = 2
+
+[substitutions]
+qb = { out_percent = 75, in_percent = 80 }
+
+# Categories that don't count toward the minimum when they're all a situation uses.
+[exempt_categories]
+offense = ["Field Goal/PAT", "Punt", "Run Clock"]
+defense = ["Field Goal/PAT", "Punt"]
+
+# Min rises to 3 above 5:00, except backed up to a team's own goal line.
+[offense.min_categories_three]
+time = ">5:00"
+fields = ["inside_def_5", "def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+min_categories = 3
+
+[defense.min_categories_three]
+time = ">5:00"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5", "inside_off_5"]
+min_categories = 3
+
+# ── OFFENSE matrix ────────────────────────────────────────────────────────────
+
+[offense.first_and_0_1]
+time = ">5:00"
+down = "first"
+yards = "0-1"
+fields = [
+    "inside_def_5",
+    "def_5_to_def_35",
+    "def_35_to_off_35",
+    "off_35_to_off_5",
+    "inside_off_5",
+]
+allowed = ["RL", "RM", "PSL", "PML", "GLR", "GLP"]
+
+[offense.first_and_2_5_goal_lines]
+time = ">5:00"
+down = "first"
+yards = "2-5"
+fields = ["inside_def_5", "inside_off_5"]
+allowed = ["RL", "RM", "PSL", "PML", "GLR", "GLP"]
+
+[offense.first_and_2_5]
+time = ">5:00"
+down = "first"
+yards = "2-5"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+allowed = ["RL", "RM", "PSL", "PML"]
+
+[offense.first_and_6_10]
+time = ">5:00"
+down = "first"
+yards = "6-10"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+allowed = ["RM", "PSL", "PML"]
+
+[offense.first_and_6_10_off_5]
+time = ">5:00"
+down = "first"
+yards = "6-10"
+fields = ["inside_off_5"]
+allowed = ["RL", "RM", "PSL", "PML", "GLR", "GLP"]
+
+[offense.second_and_0_1]
+time = ">5:00"
+down = "second"
+yards = "0-1"
+fields = [
+    "inside_def_5",
+    "def_5_to_def_35",
+    "def_35_to_off_35",
+    "off_35_to_off_5",
+    "inside_off_5",
+]
+allowed = ["RL", "RM", "PSM", "PMM", "GLR", "GLP"]
+
+[offense.second_and_2_5_goal_lines]
+time = ">5:00"
+down = "second"
+yards = "2-5"
+fields = ["inside_def_5", "inside_off_5"]
+allowed = ["RL", "RM", "PSM", "PMM", "GLR", "GLP"]
+
+[offense.second_and_2_5]
+time = ">5:00"
+down = "second"
+yards = "2-5"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+allowed = ["RL", "RM", "PSM", "PMM"]
+
+[offense.second_and_6_10]
+time = ">5:00"
+down = "second"
+yards = "6-10"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+allowed = ["RM", "RR", "PSM", "PMM"]
+
+[offense.second_and_6_10_off_5]
+time = ">5:00"
+down = "second"
+yards = "6-10"
+fields = ["inside_off_5"]
+allowed = ["RL", "RM", "RR", "PSM", "PMM", "GLR", "GLP"]
+
+[offense.third_and_0_1]
+time = ">5:00"
+down = "third"
+yards = "0-1"
+fields = [
+    "inside_def_5",
+    "def_5_to_def_35",
+    "def_35_to_off_35",
+    "off_35_to_off_5",
+    "inside_off_5",
+]
+disallowed = ["PRD"]
+
+[offense.third_and_2_5]
+time = ">5:00"
+down = "third"
+yards = "2-5"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+mandatory = ["PSR"]
+
+[offense.third_and_6_10]
+time = ">5:00"
+down = "third"
+yards = "6-10"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+mandatory = ["PMR"]
+
+[offense.third_and_over_10_midfield]
+time = ">5:00"
+down = "third"
+yards = ">10"
+fields = ["def_35_to_off_35", "off_35_to_off_5"]
+mandatory = ["PLR"]
+
+# ── DEFENSE matrix ────────────────────────────────────────────────────────────
+
+[defense.third_and_2_5]
+time = ">5:00"
+down = "third"
+yards = "2-5"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+mandatory = ["PassShort"]
+
+[defense.third_and_6_10]
+time = ">5:00"
+down = "third"
+yards = "6-10"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+mandatory = ["PassMedium"]
+
+[defense.third_and_over_10]
+time = ">5:00"
+down = "third"
+yards = ">10"
+fields = ["def_35_to_off_35", "off_35_to_off_5"]
+mandatory = ["PassLong"]

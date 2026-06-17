@@ -1,0 +1,4 @@
+offense.pln: 3 violation(s) (offense, 64 normal)
+  [Pass Short Right] Offensive category 'Pass Short Right' has 3 of 5 timed passes; allows at most 50%.
+  [Razzle Dazzle Pass] Offensive category 'Razzle Dazzle Pass' has 3 plays; requires at least 4.
+  [Goal Line Pass] Offensive category 'Goal Line Pass' has 2 of 3 timed passes; allows at most 50%.

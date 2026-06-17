@@ -1,0 +1,19 @@
+TST-OFF1.prf: 18 violation(s) (offense, FG range 36)
+  [situation 1] Situation 1 uses disallowed categories: 0x09, 0x0C
+  [situation 37] Situation 37 uses disallowed categories: 0x09
+  [situation 43] Situation 43 has 2 category(ies) with non-zero weight; requires 3.
+  [situation 162] Situation 162 uses disallowed categories: 0x0D
+  [situation 164] Situation 164 uses disallowed categories: 0x0F
+  [situation 204] Situation 204 uses disallowed categories: 0x0A
+  [situation 300] Situation 300 is missing a mandatory category (one of: 0x0F)
+  [situation 301] Situation 301 is missing a mandatory category (one of: 0x0F)
+  [situation 303] Situation 303 is missing a mandatory category (one of: 0x0F)
+  [situation 305] Situation 305 is missing a mandatory category (one of: 0x0F)
+  [situation 306] Situation 306 is missing a mandatory category (one of: 0x0F)
+  [situation 309] Situation 309 is missing a mandatory category (one of: 0x0F)
+  [situation 313] Situation 313 is missing a mandatory category (one of: 0x0F)
+  [situation 314] Situation 314 is missing a mandatory category (one of: 0x0F)
+  [situation 315] Situation 315 is missing a mandatory category (one of: 0x0F)
+  [situation 327] Situation 327 is missing a mandatory category (one of: 0x0C)
+  [situation 342] Situation 342 is missing a mandatory category (one of: 0x0C)
+  [situation 414] Situation 414 has 2 category(ies) with non-zero weight; requires 3.

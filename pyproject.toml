@@ -14,17 +14,27 @@ requires-python = ">=3.12"
 dependencies = [
     "click>=8.1",
     "platformdirs>=4.0",
+    "xlsxwriter>=3.0",  # convert-pdb writes Excel
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pyright==1.1.409", "ruff", "ipython"]
+# autocontinue needs a display + Windows; keep it out of the core install.
+autocontinue = ["pyautogui>=0.9"]
+# generate-schedule solves with OR-Tools; large, so keep it out of the core install.
+schedule = ["ortools>=9.10"]
+dev = ["pytest", "pyright==1.1.409", "ruff", "ipython", "pyautogui>=0.9", "openpyxl>=3.1", "ortools>=9.10"]
 
 [project.scripts]
 athc = "athc.cli:main"
 
 # Built-in subcommands register here, same as third-party extensions.
-# [project.entry-points."athc.commands"]
-# gameplan = "athc.cli.gameplan:gameplan"
+[project.entry-points."athc.commands"]
+autocontinue = "athc.cli.autocontinue:autocontinue"
+config = "athc.cli.config:config"
+convert-pdb = "athc.cli.convert_pdb:convert_pdb"
+gameplan = "athc.cli.gameplan:gameplan"
+generate-schedule = "athc.cli.generate_schedule:generate_schedule"
+profile = "athc.cli.profile:profile"
 
 # [project.urls]
 # Homepage = "https://github.com/jako479/athc"
@@ -33,9 +43,16 @@ athc = "athc.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"athc.autocontinue" = ["images/*.png"]
+"athc.pdbtoexcel" = ["resources/*.bin"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers --strict-config"
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib -m 'not slow'"
+markers = [
+    "slow: long-running scheduler solver tests; opt-in via `pytest -m slow` or `pytest -m ''`",
+]
 
 [tool.ruff]
 line-length = 88
@@ -54,8 +71,6 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
     "E501",   # long assertion messages are common in tests
-    "B905",   # zip(x, x[1:]) without strict= is idiomatic for adjacent-pair iteration in tests
-    "RUF007", # same idiom — itertools.pairwise rewrite is unnecessary churn in tests
 ]
 
 [tool.ruff.format]

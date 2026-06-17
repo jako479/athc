@@ -1,0 +1,14 @@
+# diff_base.prf -> diff_modified.prf
+# field_goal_range: 20 -> 21
+# audibles: Off -> On
+# sub.OL: 80/90 -> 10/20
+# sub.QB: 80/90 -> 11/21
+# sub.RB: 80/90 -> 12/22
+# sub.WR: 80/90 -> 13/23
+# sub.DL: 80/90 -> 14/24
+# sub.LB: 80/90 -> 15/25
+# sub.DB: 80/90 -> 16/26
+# sub.K: 80/90 -> 17/27
+sit,minutes,down,yards,field,spread,stop_old,stop_new,slot1_old,slot1_new,slot2_old,slot2_new,slot3_old,slot3_new
+1,>5,1st,0-1,<DEF5,Ahd8+,No,Yes,RM:4,RM:8,PSL:3,RM:3,PML:3,RR:5
+PAT 1,>5,,,,Ahd12+,,,0x10:10,GLP:9,0x11:0,0x11:7,0x12:0,RL:0

@@ -4,16 +4,15 @@ athc
 Assistant to the Head Coach -- umbrella CLI for Front Page
 Sports Football Pro '98 league management.
 
-No tools are wired up yet. Real subcommands (gameplan, profile,
-generate-schedule, etc.) are being added as the project is ported
-in.
+Provides the 'athc' command and its tools. Run 'athc --help'
+to list them.
 
 
 WHAT'S NEW IN v0.1.0
 --------------------
 
-- Initial release. Install/build pipeline in place; subcommands
-  land as the project is ported in.
+- Initial release: install/build pipeline plus the core athc
+  commands (run 'athc --help').
 
 
 REQUIREMENTS
@@ -73,10 +72,11 @@ That folder will contain:
                         and key supported by the installed version
    README.txt           this file
    COMMANDS.txt         per-command reference
+   rules\               PNFL rule sets (PNFL.*.toml) for
+                        gameplan/profile/playpool
 
-To open the folder, paste this into File Explorer's address bar:
-
-   %LOCALAPPDATA%\athc
+To open this folder, run 'athc config reveal' (or paste
+%LOCALAPPDATA%\athc into File Explorer's address bar).
 
 What survives reinstalls:
    athc.ini             YES -- your edits are preserved on every reinstall.
@@ -85,6 +85,8 @@ What survives reinstalls:
    athc.ini.example     overwritten every install (always shows the latest)
    README.txt           overwritten every install
    COMMANDS.txt         overwritten every install
+   rules\               overwritten every install (copy a file before editing
+                        your own league's rules)
 
 When a new version adds a tool with new settings:
    The new tool runs with sensible defaults out of the box -- you do

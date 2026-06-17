@@ -1,0 +1,64 @@
+; athc.ini.example -- reference for every setting athc tools read.
+;
+; Everything here is OPTIONAL: a missing file, section, or key falls back to the
+; tool's in-code default (the one exception is [autocontinue], which is required).
+; To customize, copy a section into athc.ini and uncomment the setting line.
+;
+; Section conventions:
+;   bare name   -> a tool ([gameplan], [profile], ...), one per command
+;   league.NAME -> a league ([league.PNFL], [league.PCFL])
+;   [DEFAULT]   -> keys cascade into every other section unless overridden
+
+[DEFAULT]
+; Keys here apply to every section below unless overridden. configparser also
+; resolves %(key)s references against the section being read, e.g.:
+; LeagueRoot is set per-league, and PlayPath = %(LeagueRoot)s\plays reuses it.
+
+[athc]
+; league used by --league tools when no flag/env is set
+; default_league = PNFL
+
+; ---- tools ------------------------------------------------------------------
+
+[autocontinue]
+; REQUIRED -- this tool errors if the section or a key is missing (no silent default).
+; seconds to move the mouse to the button (0.0 = instant)
+mouse_move_duration = 0.0
+; seconds before clicking; 0.0 = instant, -1.0 = find but don't click
+delay_before_continue = 1.0
+
+[gameplan]
+; one gameplan-rules TOML path per line; default: no rules
+; rule_files =
+;     C:\Users\you\athc\rules\gameplan.toml
+
+[profile]
+; one profile-rules TOML path per line; default: no rules
+; rule_files =
+;     C:\Users\you\athc\rules\profile.toml
+
+[convert-pdb]
+; play pool for tagging; default: none
+; play_path = D:\SIERRA\FBPRO98\PNFL\plays
+; optional playpool rules TOML (filename filters for play tags)
+; playpool_rules = C:\Users\you\athc\rules\PNFL.playpool.toml
+; default true
+; calculate_total_stats = true
+; default true
+; calculate_percentages = true
+; default false
+; include_category_worksheets = false
+; default true
+; exclude_sacks_from_pass_attempts = true
+
+; ---- leagues ----------------------------------------------------------------
+; Tools that take --league read a league section. gameplan check/set need
+; PlayPath (required); PlayPoolRules is an optional playpool rules TOML. Pick the
+; league with --league, ATHC_LEAGUE, or [athc] default_league above.
+; PlayPath must use the standard play-folder layout (Offense/Defense/Special
+; folders, category subfolders); only PlayPoolRules varies by league.
+
+[league.PNFL]
+; LeagueRoot = D:\SIERRA\FBPRO98\PNFL
+; PlayPath = %(LeagueRoot)s\plays
+; PlayPoolRules = C:\Users\you\athc\rules\PNFL.playpool.toml

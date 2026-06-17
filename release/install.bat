@@ -26,7 +26,8 @@ REM Make sure uv's tool directory is on PATH (no-op if already there).
 uv tool update-shell
 
 REM Deploy files to the athc config folder.
-REM   - Docs are shipped reference material -> always overwrite (no guard).
+REM   - Docs and the rules\ folder are shipped reference material -> always
+REM     overwrite (no guard). Users copy a rule file before editing their own.
 REM   - athc.ini.example is the always-current reference for new sections/keys.
 REM     Always overwrite so the user can diff against their athc.ini after upgrades.
 REM   - athc.ini is user-owned -> guard with 'if not exist' so user edits survive.
@@ -34,10 +35,13 @@ REM     New tool sections take effect via in-code defaults; user adds overrides
 REM     to athc.ini by copying from athc.ini.example.
 set "DEST=%LOCALAPPDATA%\athc"
 if not exist "%DEST%" mkdir "%DEST%"
+if not exist "%DEST%\rules" mkdir "%DEST%\rules"
 
-copy /Y "README.txt"   "%DEST%\README.txt"        >NUL
-copy /Y "COMMANDS.txt" "%DEST%\COMMANDS.txt"      >NUL
-copy /Y "athc.ini"     "%DEST%\athc.ini.example" >NUL
+copy /Y "README.txt"             "%DEST%\README.txt"             >NUL
+copy /Y "COMMANDS.txt"           "%DEST%\COMMANDS.txt"           >NUL
+copy /Y "SCHEDULER-COMMANDS.txt" "%DEST%\SCHEDULER-COMMANDS.txt" >NUL
+copy /Y "athc.ini.example"       "%DEST%\athc.ini.example"       >NUL
+copy /Y "rules\*.toml"           "%DEST%\rules\"                 >NUL
 if not exist "%DEST%\athc.ini" copy /Y "athc.ini" "%DEST%\athc.ini" >NUL
 
 echo.

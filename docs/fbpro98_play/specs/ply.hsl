@@ -1,0 +1,478 @@
+/*****************************************************************************
+ * fbpro_prf.hsl - Structure definitions for the .prf file format
+ *
+ * Copyright (c) 2024 Brian Jacobs, All Rights Reserved
+ *
+ *****************************************************************************
+ * Revision History:
+ *  2024-03-24 - BAJ - Original
+ */
+
+#include "standard-types.hsl"
+
+#pragma displayname("FBPro98 prf structures")
+#pragma fileextensions(".prf")
+#pragma byteorder(little_endian)
+#pragma maxarray(3072);
+
+#pragma hide()
+
+#pragma enumsize(1)
+#pragma enumsign("unsigned")
+typedef enum PLAY_TYPE
+{
+    GOAL_LINE_RUN               = 0x00,     // OFFENSE/DEFENSE
+    RAZZLE_DAZZLE_RUN           = 0x01,     // OFFENSE/DEFENSE
+    RUN_LEFT                    = 0x02,     // OFFENSE/DEFENSE
+    RUN_MIDDLE                  = 0x03,     // OFFENSE/DEFENSE
+    RUN_RIGHT                   = 0x04,     // OFFENSE/DEFENSE
+    GOAL_LINE_PASS              = 0x05,     // OFFENSE/DEFENSE
+    RAZZLE_DAZZLE_PASS          = 0x06,     // OFFENSE/DEFENSE
+    PASS_LONG_LEFT              = 0x07,     // OFFENSE/DEFENSE (DEFENSE: "PASS LONG")
+    PASS_LONG_MIDDLE            = 0x08,     // OFFENSE
+    PASS_LONG_RIGHT             = 0x09,     // OFFENSE
+    PASS_MEDIUM_LEFT            = 0x0A,     // OFFENSE/DEFENSE (DEFENSE: "PASS MEDIUM")
+    PASS_MEDIUM_MIDDLE          = 0x0B,     // OFFENSE
+    PASS_MEDIUM_RIGHT           = 0x0C,     // OFFENSE
+    PASS_SHORT_LEFT             = 0x0D,     // OFFENSE/DEFENSE (DEFENSE: "PASS SHORT")
+    PASS_SHORT_MIDDLE           = 0x0E,     // OFFENSE
+    PASS_SHORT_RIGHT            = 0x0F,     // OFFENSE
+    FIELD_GOAL_PAT              = 0x10,     // OFFENSE/DEFENSE
+    FAKE_FIELD_GOAL_RUN         = 0x11,     // OFFENSE/DEFENSE
+    FAKE_FIELD_GOAL_PASS        = 0x12,     // OFFENSE/DEFENSE
+    PUNT                        = 0x13,     // OFFENSE/DEFENSE
+    FAKE_PUNT_RUN               = 0x14,     // OFFENSE/DEFENSE
+    FAKE_PUNT_PASS              = 0x15,     // OFFENSE/DEFENSE
+    RUN_CLOCK                   = 0x16,     // OFFENSE
+    RUN_RANDOM                  = 0x17,     // OFFENSE
+    PASS_LONG_RANDOM            = 0x18,     // OFFENSE
+    PASS_MEDIUM_RANDOM          = 0x19,     // OFFENSE
+    PASS_SHORT_RANDOM           = 0x1A      // OFFENSE
+
+} PLAY_TYPE;
+
+struct SITUATION
+{
+    PLAY_TYPE   playType1;
+    BYTE        weight1;        // Bit 7 (0x80): Stop Clock setting
+    PLAY_TYPE   playType2;
+    BYTE        weight2;
+    PLAY_TYPE   playType3;
+    BYTE        weight3;
+
+    __verify(playType1 >= PLAY_TYPE.GOAL_LINE_RUN &&
+             playType1 <= PLAY_TYPE.PASS_SHORT_RANDOM);
+    __verify((weight1 >= 0x00 && weight1 <= 0x0A) ||
+             (weight1 >= 0x80 && weight1 <= 0x8A));     // Handle Stop Clock enabled
+    __verify(playType2 >= PLAY_TYPE.GOAL_LINE_RUN &&
+             playType2 <= PLAY_TYPE.PASS_SHORT_RANDOM);
+    __verify(weight2 >= 0x00 && weight2 <= 0x0A);
+    __verify(playType3 >= PLAY_TYPE.GOAL_LINE_RUN &&
+             playType3 <= PLAY_TYPE.PASS_SHORT_RANDOM);
+    __verify(weight3 >= 0x00 && weight3 <= 0x0A);
+};
+
+#pragma enumsize(4)
+typedef enum BLOCK_TYPE
+{
+    P95 = "P95:",
+    G95 = "G95:",
+    I95 = "I95:",
+    J95 = "J95:",
+    S98 = "S98:"
+
+} BLOCK_TYPE;
+
+struct COMMAND
+{
+	WORD            type;                     // 0x00 (see PLAY.CPP for understanding value)
+	WORD            x;                        // 0x02 command->data1 (or command->data1 scaled to field data)
+	WORD            y;                        // 0x04 command->data2 (or command->data2 scaled to field data)
+}
+
+struct LOGICBOX
+{
+	WORD            numLogic;                 // 0x00; Starts at 1 and increments for each logic box
+                                              //       Resets to 1 for each play part (e.g. presnap, middle of play, end of play)
+    WORD            x;                        // 0x02 // scaled due to new field size
+	WORD            y;                        // 0x04 // scaled due to new field size
+	WORD            commandCount;             // 0x06
+	struct COMMAND  commands[*];              // 0x08 // Variable number of commands
+}
+
+struct PLAYER
+{
+	BYTE            rank;                     // 0x00 // rank/depth
+	BYTE            type;                     // 0x01 // type of player:
+	                                                  //   0x01=PreSnapPlayer
+	                                                  //   0x02=AfterSnapPlayer
+													  //   0x04=KickingPlayer
+	WORD            position;                 // 0x02
+	struct LOGICBOX preSnapLogicBox[*];       // 0x04 // Variable number of logic boxes
+	struct LOGICBOX middleOfPlayLogicBox[*];
+	struct LOGICBOX endOfPlayLogicBox[*];
+}
+
+#pragma show()
+#pragma enumsize(1)
+struct P95
+{
+    BLOCK_TYPE      id;                 // 0x00
+    DWORD           size;               // 0x04 // size of data
+    WORD            offset[11];         // 0x08 // offset to player data for each player
+	BYTE            playCategory;       // 0x1A // category determined by the game
+	BYTE            specialFlag;        // 0x1B
+	BYTE            userCategory;       // 0x1C // category supplied by the user
+	struct PLAYER   players[11];		// 0x1D // variable-length player data (pointed to by offsets above)
+};
+
+// Index (Pro-set) 89 00 89
+// 0	// QB
+// 1	// C
+// 2	// LT
+// 3	// LG
+// 4	// RG
+// 5	// RT
+// 6	// TE
+// 7	// RWR
+// 8	// LWR
+// 9	// LHB
+// 10	// RHB
+
+//Position:
+// 0x20 : QB
+// 0x12 : C
+// 0x11 : T
+// 0x10 : G
+// 0x81 : TE
+// 0x80 : WR
+// 0x42 : HB (2)
+
+struct QB // 1
+{
+	BYTE			rank;               // 0x00 // QB1: 0x01 QB2: 0x02
+	BYTE            type;      			// 0x01 // 0x01: presnap player; 0x02: after snap player; 0x04: kicking player
+	WORD            position;           // 0x02 // 0x0020 (32)	// Position
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0x000A (10) // Pixels left or right of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFF10
+	WORD            unknown6;           // 0x0A // 0x0000	// trailer for pre-snap
+	WORD            unknown7;           // 0x0C // 0x0001 (1)
+	WORD            post_hor_pos;       // 0x0E // 0x000A (10)
+	WORD            post_hor_pos;       // 0x10 // 0xFF10
+	WORD            unknown10;          // 0x12 // 0x0000	// trailer for post-snap
+};
+
+struct QB // after dropping back (post-snap)
+{
+	BYTE			depth;              // 0x00 // QB1: 0x01 QB2: 0x02
+	BYTE            unknown1;			// 0x01 // 0x02	// shotgun or under center?
+	WORD            position;           // 0x02 // 0x0020 (32)	// Position
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0x000A (10)  // Pixels right/left of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFF10		// Pixels ahead/behind LOS
+	WORD            unknown6;           // 0x0A // 0x0000		// trailer for pre-snap
+	WORD            unknown7;           // 0x0C // 0x0002 (1)	// Structure type 0x01 = location
+																// or Number of instructions?
+	WORD            unknown8;           // 0x0E // 0x000A (10)	// Pixels right/left of center
+	WORD            unknown9;           // 0x10 // 0xFF10		// Pixels ahead/behind LOS
+	// start of new data for moving QB back post-snap
+	BYTE            unknown10;          // 0x12 // 0x01   // number of actions/components
+	BYTE            unknown10;          // 0x12 // 0x00
+	BYTE            unknown10;          // 0x12 // 0x02 (or 0x0202?) // Move
+	BYTE            unknown10;          // 0x12 // 0x02    // Version?
+	WORD            unknown10;          // 0x12 // 0x0046  // Pixels right/left of center (not distance moved)
+	WORD            unknown10;          // 0x12 // 0xFE52  // Pixels ahead/behind LOS (not distance moved)
+	WORD            unknown10;          // 0x12 // 0x0046  // Pixels right/left of center (not distance moved)
+	WORD            unknown10;          // 0x12 // 0xFE52  // Pixels ahead/behind LOS (not distance moved)
+	WORD            unknown10;          // 0x12 // 0x0000
+};
+
+struct QB // timed pass immediately after snap (stop and wait 0.8; bullet pass)
+{
+	BYTE			depth;              // 0x00 // QB1: 0x01 QB2: 0x02
+	BYTE            unknown1;			// 0x01 // 0x02	// shotgun or under center?
+	WORD            position;           // 0x02 // 0x0020 (32)	// Position
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0x000A (10)  // Pixels right/left of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFF10		// Pixels ahead/behind LOS
+	WORD            unknown6;           // 0x0A // 0x0000		// trailer for pre-snap
+	WORD            unknown7;           // 0x0C // 0x0001 (1)	// Structure type 0x01 = location
+																// or Number of instructions?
+	WORD            unknown8;           // 0x0E // 0x000A (10)	// Pixels right/left of center
+	WORD            unknown9;           // 0x10 // 0xFF10		// Pixels ahead/behind LOS
+	// start of new data // timed pass
+	BYTE            unknown10;          // 0x12 // 0x03   // number of actions/components
+	BYTE            unknown10;          // 0x12 // 0x00
+	BYTE            unknown10;          // 0x12 // 0x06   // Timed pass
+	BYTE            unknown10;          // 0x12 // 0x01   // seconds? version? always  before time
+	WORD                                //      // 0x0008 (0.8 // 0x0024 (3.6) // 0x0023 (3.5) // max 9.9 0x0063
+	BYTE            unknown10;          // 0x12 // 0x05   // 0x05
+	BYTE            unknown10;          // 0x12 // 0x02   // 0x02
+	WORD            unknown9;           // 0x10 // 0xF72D // 0xFD0F // FCF0 (i.e. left)
+	WORD            unknown9;           // 0x10 // 0x04BA // 0x0050 (likely 0x04BA and 0x0050)
+	BYTE            unknown9;           // 0x10 // 0x07   // 0x07
+	BYTE            unknown9;           // 0x10 // 0x01   // 0x01
+	BYTE            unknown9;           // 0x10 // 0x01   // 0x01 // 0x01 Bullet; 0x02 Lob
+	BYTE            unknown9;           // 0x10 // 0x00   // 0x00 // Trailer
+
+	// start of new data // check receivers
+	BYTE            unknown10;          // 0x12 // 0x03   // number of actions/components
+	BYTE            unknown10;          // 0x12 // 0x00
+	BYTE            unknown10;          // 0x12 // 0x08   // Checked pass
+	BYTE            unknown10;          // 0x12 // 0x01
+	BYTE            unknown10;          // 0x12 // 0x02   // number of check receivers
+	BYTE            unknown10;          // 0x12 // 0x00
+	BYTE            unknown10;          // 0x12 // 0x01
+	BYTE            unknown10;          // 0x12 // 0x01
+	BYTE            unknown10;          // 0x12 // 0x08   // index of 1st receiver
+	BYTE            unknown10;          // 0x12 // 0x00
+	BYTE            unknown10;          // 0x12 // 0x01
+	BYTE            unknown10;          // 0x12 // 0x01
+	BYTE            unknown10;          // 0x12 // 0x07   // index of 2nd receiver
+	BYTE            unknown10;          // 0x12 // 0x00
+
+	// start of new data // fake pass (fake pass has location on field)
+	BYTE            unknown10;          // 0x12 // 0x01   // number of actions/components
+	BYTE            unknown10;          // 0x12 // 0x00
+	BYTE            unknown10;          // 0x12 // 0x1D   // Fake pass
+	BYTE            unknown10;          // 0x12 // 0x02
+	WORD            unknown10;          // 0x12 // 0x0319 // right/left
+	WORD            unknown10;          // 0x12 // 0x01E0 // in front/behind
+										// no trailer
+
+	// start of new data // stop and wait 0.9 seconds
+	BYTE            unknown10;          // 0x12 // 0x01   // number of actions/components
+	BYTE            unknown10;          // 0x12 // 0x00
+	BYTE            unknown10;          // 0x12 // 0x04   // Stop and wait
+	BYTE            unknown10;          // 0x12 // 0x01   // seconds? version? always 1 before
+	WORD            unknown10;          // 0x12 // 0x0009 // 0.9 seconds
+										// no trailer
+
+	// start of new data // stop and wait 0.9 seconds, then throw fake
+	BYTE            unknown10;          // 0x12 // 0x02   // number of actions/components
+	BYTE            unknown10;          // 0x12 // 0x00
+	BYTE            unknown10;          // 0x12 // 0x04   // Stop and wait
+	BYTE            unknown10;          // 0x12 // 0x01	  // seconds? always 1 before
+	WORD            unknown10;          // 0x12 // 0x0009 // 0.9 seconds
+	BYTE            unknown10;          // 0x12 // 0x1E   // throw a fake
+										// 0x00 trailer (trailer on odd sized data only?)
+
+	// start of new data // throw a fake
+	BYTE            unknown10;          // 0x12 // 0x01   // number of actions/components
+	BYTE            unknown10;          // 0x12 // 0x00
+	BYTE            unknown10;          // 0x12 // 0x1E   // Throw a fake
+										// 0x00 trailer (trailer on odd sized data only?)
+
+	// start of new data // stop and wait 0.9 seconds, then throw fake
+	BYTE            unknown10;          // 0x12 // 0x02   // number of actions/components
+	BYTE            unknown10;          // 0x12 // 0x00
+	BYTE            unknown10;          // 0x12 // 0x1E   // Stop and wait
+	BYTE            unknown10;          // 0x12 // 0x00
+	BYTE            unknown10;          // 0x12 // 0x04   // Stop and wait
+	BYTE            unknown10;          // 0x12 // 0x01	  // seconds? always 1 before
+	WORD            unknown10;          // 0x12 // 0x0007 // 0.7 seconds
+										// no trailer
+
+
+
+struct C  // 2
+{
+	BYTE			depth;              // 0x00 // 0x01
+	BYTE            unknown1;			// 0x01 // 0x01
+	WORD            position;           // 0x02 // 0x0012 (18)	// Position
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0x0000		// Pixels right/left of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFFA6		// Pixels ahead/behind LOS
+	WORD            unknown6;           // 0x0A // 0x0000
+	WORD            unknown7;           // 0x0C // 0x0001
+	WORD            unknown8;           // 0x0E // 0x0000		// Pixels right/left of center
+	WORD            unknown9;           // 0x10 // 0xFFA6		// Pixels ahead/behind LOS
+	WORD            unknown10;          // 0x12 // 0x0000
+};
+
+struct LT  // 3
+{
+	BYTE			depth;           	// 0x00 // 0x01
+	BYTE            unknown1;			// 0x01 // 0x00
+	WORD            position;           // 0x02 // 0x0011 (17)	// Position
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0xFEB4		// Pixels right/left of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFF74		// Pixels ahead/behind LOS
+	WORD            unknown6;           // 0x0A // 0x0000
+	WORD            unknown7;           // 0x0C // 0x0001
+	WORD            unknown8;           // 0x0E // 0xFEB4		// Pixels right/left of center
+	WORD            unknown9;           // 0x10 // 0xFF74		// Pixels ahead/behind LOS
+	WORD            unknown10;          // 0x12 // 0x0000
+};
+
+struct LG // 4
+{
+	BYTE			depth;           	// 0x00 // 0x01
+	BYTE            unknown1;			// 0x01 // 0x00
+	WORD            position;           // 0x02 // 0x0010 (16)	// Position
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0xFF55		// Pixels right/left of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFF74		// Pixels ahead/behind LOS
+	WORD            unknown6;           // 0x0A // 0x0000
+	WORD            unknown7;           // 0x0C // 0x0001
+	WORD            unknown8;           // 0x0E // 0xFF55		// Pixels right/left of center
+	WORD            unknown9;           // 0x10 // 0xFF74		// Pixels ahead/behind LOS
+	WORD            unknown10;          // 0x12 // 0x0000
+};
+
+struct RG // 5
+{
+	BYTE			depth;           	// 0x00 // 0x02
+	BYTE            unknown1;			// 0x01 // 0x00
+	WORD            position;           // 0x02 // 0x0010 (16)	// Position
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0x00BE		// Pixels right/left of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFF74		// Pixels ahead/behind LOS
+	WORD            unknown6;           // 0x0A // 0x0000
+	WORD            unknown7;           // 0x0C // 0x0001
+	WORD            unknown8;           // 0x0E // 0x00BE		// Pixels right/left of center
+	WORD            unknown9;           // 0x10 // 0xFF74		// Pixels ahead/behind LOS
+	WORD            unknown10;          // 0x12 // 0x0000
+};
+
+struct RT // 6
+{
+	BYTE			depth;           	// 0x00 // 0x02
+	BYTE            unknown1;			// 0x01 // 0x00
+	WORD            position;           // 0x02 // 0x0011 (17)
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0x0155		// Pixels right/left of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFF74		// Pixels ahead/behind LOS
+	WORD            unknown6;           // 0x0A // 0x0000
+	WORD            unknown7;           // 0x0C // 0x0001
+	WORD            unknown8;           // 0x0E // 0x0155		// Pixels right/left of center
+	WORD            unknown9;           // 0x10 // 0xFF74		// Pixels ahead/behind LOS
+	WORD            unknown10;          // 0x12 // 0x0000
+};
+
+struct TE // 7
+{
+	BYTE			depth;           	// 0x00 // 0x01
+	BYTE            unknown1;			// 0x01 // 0x00
+	WORD            position;           // 0x02 // 0x0081 ()
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0x01F5		// Pixels right/left of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFF74		// Pixels ahead/behind LOS
+	WORD            unknown6;           // 0x0A // 0x0000
+	WORD            unknown7;           // 0x0C // 0x0001
+	WORD            unknown8;           // 0x0E // 0x01F5		// Pixels right/left of center
+	WORD            unknown9;           // 0x10 // 0xFF74		// Pixels ahead/behind LOS
+	WORD            unknown10;          // 0x12 // 0x0000
+};
+
+struct RWR // 8
+{
+	BYTE			depth;           	// 0x00 // 0x01
+	BYTE            unknown1;			// 0x01 // 0x00
+	WORD            position;           // 0x02 // 0x0080 ()
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0x055F		// Pixels right/left of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFF10		// Pixels ahead/behind LOS
+	WORD            unknown6;           // 0x0A // 0x0000
+	WORD            unknown7;           // 0x0C // 0x0001
+	WORD            unknown8;           // 0x0E // 0x055F		// Pixels right/left of center
+	WORD            unknown9;           // 0x10 // 0xFF10		// Pixels ahead/behind LOS
+	WORD            unknown10;          // 0x12 // 0x0000
+};
+
+struct LWR // 9
+{
+	BYTE			depth;           	// 0x00 // 0x02
+	BYTE            unknown1;			// 0x01 // 0x00
+	WORD            position;           // 0x02 // 0x0080 ()
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0xF9F5		// Pixels right/left of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFF74		// Pixels ahead/behind LOS
+	WORD            unknown6;           // 0x0A // 0x0000
+	WORD            unknown7;           // 0x0C // 0x0001
+	WORD            unknown8;           // 0x0E // 0xF9F5		// Pixels right/left of center
+	WORD            unknown9;           // 0x10 // 0xFF74		// Pixels ahead/behind LOS
+	WORD            unknown10;          // 0x12 // 0x0000
+};
+
+struct LEFT_HB // 10
+{
+	BYTE			depth;              // 0x00 // 0x01	// HB1: 0x01 HB3: 0x03
+	BYTE            unknown1;			// 0x01 // 0x00
+	WORD            position;           // 0x02 // 0x0042 ()
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0xFF4B		// Pixels right/left of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFDDA		// Pixels ahead/behind LOS
+	WORD            unknown6;           // 0x0A // 0x0000
+	WORD            unknown7;           // 0x0C // 0x0001
+	WORD            unknown8;           // 0x0E // 0xFF4B		// Pixels right/left of center
+	WORD            unknown9;           // 0x10 // 0xFDDA		// Pixels ahead/behind LOS
+	WORD            unknown10;          // 0x12 // 0x0000
+};
+
+struct RIGHT_HB // 11
+{
+	BYTE			depth;              // 0x00 // 0x02 // HB2: 0x02 HB1: 0x01
+	BYTE            unknown1;			// 0x01 // 0x00
+	WORD            position;           // 0x02 // 0x0042 ()
+	WORD            unknown3;           // 0x04 // 0x0001 (1)
+	WORD            pre_hor_pos;        // 0x06 // 0x00D2		// Pixels right/left of center
+	WORD            pre_ver_pos;        // 0x08 // 0xFDDA		// Pixels ahead/behind LOS
+	WORD            unknown6;           // 0x0A // 0x0000
+	WORD            unknown7;           // 0x0C // 0x0001
+	WORD            unknown8;           // 0x0E // 0x00D2		// Pixels right/left of center
+	WORD            unknown9;           // 0x10 // 0xFDDA		// Pixels ahead/behind LOS
+	WORD            unknown10;          // 0x12 // 0x0000
+};
+
+
+
+struct I95
+{
+    BLOCK_TYPE      id;                 // 0x00
+    DWORD           size;               // 0x04 // size of data // 0x0A
+    PROFILE_TYPE    type;               // 0x08
+    WORD            reserved;           // 0x09 // 0x0000
+    BYTE            fieldGoalRange;     // 0x0B
+    WORD            numGamePlanBlocks;  // 0x0C (guessing)
+    DWORD           useAudibles;        // 0x0E
+                                        // 0x12
+
+    __verify(id == BLOCK_TYPE.I95);
+    __verify(size == 0x0A);
+    __verify(fieldGoalRange >= 0x05 && fieldGoalRange <= 0x32);
+    __verify(useAudibles == 0x00 || useAudibles == 0x01);
+};
+
+struct J95
+{
+    BLOCK_TYPE      id;                 // 0x00
+    DWORD           size;               // 0x04 // size of data // 0x07
+    PROFILE_TYPE    type;               // 0x08
+    WORD            numCustomPlays;     // 0x09
+    WORD            numStockPlays;      // 0x0B (guessing)
+    WORD            numSpecialPlays;    // 0x0D
+                                        // 0x0F
+
+    __verify(id == BLOCK_TYPE.J95);
+    __verify(size == 0x07);
+};
+
+struct S98
+{
+    BLOCK_TYPE      id;                 // 0x00
+    DWORD           size;               // 0x04 // size of data
+    BYTE            mapFilename[size];  // 0x08
+
+    __verify(id == BLOCK_TYPE.S98);
+};
+
+struct PRFFILE
+{
+#pragma lockAt(0x00000000)
+    struct F95      f95;                // 0x00
+    struct I95      i95;                // 0x3CA5
+
+    __verify(sizeof(i95) == 0x3CA5);    // sizeof() somehow evaluates to addrof(), and vice-versa
+};
