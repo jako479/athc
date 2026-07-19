@@ -76,14 +76,14 @@ PASS_SHORT_ANY: Final[frozenset[int]] = frozenset(
 # Label -> (display name, side). The game exposes a side's own groups only; the
 # other side's stay at the 80/90 default and aren't user-editable.
 SUBSTITUTION_POSITIONS: Final[Mapping[str, tuple[str, str]]] = {
-    "ol": ("Offensive linemen", "offense"),
-    "qb": ("Quarterbacks", "offense"),
-    "rb": ("Running backs", "offense"),
-    "wr": ("Receivers", "offense"),
-    "k": ("Kickers", "offense"),
-    "dl": ("Defensive linemen", "defense"),
-    "lb": ("Linebackers", "defense"),
-    "db": ("Defensive backs", "defense"),
+    "OL": ("Offensive linemen", "offense"),
+    "QB": ("Quarterbacks", "offense"),
+    "RB": ("Running backs", "offense"),
+    "WR": ("Receivers", "offense"),
+    "K": ("Kickers", "offense"),
+    "DL": ("Defensive linemen", "defense"),
+    "LB": ("Linebackers", "defense"),
+    "DB": ("Defensive backs", "defense"),
 }
 
 
@@ -145,8 +145,6 @@ class ProfileRules:
     offense_situations: tuple[SituationRule, ...] = ()
     defense_situations: tuple[SituationRule, ...] = ()
     min_categories: int = 0
-    offense_exempt_categories: frozenset[int] = frozenset()
-    defense_exempt_categories: frozenset[int] = frozenset()
     offense_disallowed_categories: frozenset[int] = frozenset()
     defense_disallowed_categories: frozenset[int] = frozenset()
 
@@ -211,8 +209,8 @@ _DEFENSE_CATEGORY_BY_NAME: Final[Mapping[str, frozenset[int]]] = {
     "PassShort":  PASS_SHORT_ANY,
 }  # fmt: skip
 # Full game-category names (as the game shows them), used by the top-level
-# exempt_categories and disallowed_categories lists — these categories have no
-# league short labels. Each maps to its .prf category byte.
+# disallowed_categories lists — these categories have no league short labels.
+# Each maps to its .prf category byte.
 _GAME_CATEGORY_BY_NAME: Final[Mapping[str, int]] = {
     "Goal Line Run": GOAL_LINE_RUN,
     "Razzle Dazzle Run": RAZZLE_DAZZLE_RUN,
@@ -251,7 +249,6 @@ _ALLOWED_TOP_KEYS: Final[frozenset[str]] = frozenset(
         "audibles_allowed",
         "min_categories",
         "substitutions",
-        "exempt_categories",
         "disallowed_offensive_categories",
         "disallowed_defensive_categories",
         "offense",
@@ -259,7 +256,6 @@ _ALLOWED_TOP_KEYS: Final[frozenset[str]] = frozenset(
     }
 )
 _ALLOWED_SUB_KEYS: Final[frozenset[str]] = frozenset({"out_percent", "in_percent"})
-_ALLOWED_SIDE_KEYS: Final[frozenset[str]] = frozenset({"offense", "defense"})
 _ALLOWED_SITUATION_KEYS: Final[frozenset[str]] = frozenset(
     {"time", "down", "yards", "fields", "allowed", "disallowed", "mandatory",
      "min_categories"}
@@ -290,8 +286,6 @@ class _MergedData:
     audibles_allowed: bool | None = None
     min_categories: int | None = None
     substitutions: dict[str, SubstitutionPair] = field(default_factory=dict)
-    offense_exempt: frozenset[int] = field(default_factory=frozenset)
-    defense_exempt: frozenset[int] = field(default_factory=frozenset)
     offense_disallowed: frozenset[int] = field(default_factory=frozenset)
     defense_disallowed: frozenset[int] = field(default_factory=frozenset)
     # Keyed by section label so a later file's same-named rule replaces it.
@@ -371,8 +365,6 @@ def _merge_file(
             merged.min_categories = val
     if "substitutions" in data:
         _merge_substitutions(merged, data["substitutions"], errors, source=source)
-    if "exempt_categories" in data:
-        _merge_exempt(merged, data["exempt_categories"], errors, source=source)
     if "disallowed_offensive_categories" in data:
         val, ok = _attempt(
             errors,
@@ -420,39 +412,6 @@ def _merge_file(
         )
         if ok:
             merged.defense_rules[label] = val
-
-
-def _merge_exempt(
-    merged: _MergedData, ec: object, errors: list[str], *, source: Path
-) -> None:
-    if not isinstance(ec, Mapping):
-        errors.append(f"{source}: [exempt_categories]: must be a table")
-        return
-    _attempt(
-        errors, lambda: _reject_unknown_keys(ec, _ALLOWED_SIDE_KEYS, source, "[exempt]")
-    )
-    if "offense" in ec:
-        val, ok = _attempt(
-            errors,
-            lambda: frozenset(
-                _map_each(
-                    ec["offense"], _GAME_CATEGORY_BY_NAME, source, "exempt.offense"
-                )
-            ),
-        )
-        if ok:
-            merged.offense_exempt = val
-    if "defense" in ec:
-        val, ok = _attempt(
-            errors,
-            lambda: frozenset(
-                _map_each(
-                    ec["defense"], _GAME_CATEGORY_BY_NAME, source, "exempt.defense"
-                )
-            ),
-        )
-        if ok:
-            merged.defense_exempt = val
 
 
 def _build_situation_rule(
@@ -698,8 +657,6 @@ def _build_rules(m: _MergedData) -> ProfileRules:
         substitutions=dict(m.substitutions),
         offense_situations=tuple(m.offense_rules.values()),
         defense_situations=tuple(m.defense_rules.values()),
-        offense_exempt_categories=m.offense_exempt,
-        defense_exempt_categories=m.defense_exempt,
         offense_disallowed_categories=m.offense_disallowed,
         defense_disallowed_categories=m.defense_disallowed,
         **scalars,

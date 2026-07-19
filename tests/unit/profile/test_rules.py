@@ -52,7 +52,7 @@ def test_load_valid_full() -> None:
     rules = load_rules([DATA / "profile_rules.toml"])
     assert rules.audibles_allowed is False
     assert rules.min_categories == 2
-    assert rules.substitutions["qb"] == SubstitutionPair(75, 80)
+    assert rules.substitutions["QB"] == SubstitutionPair(75, 80)
     assert rules.offense_situations and rules.defense_situations
 
 
@@ -260,7 +260,7 @@ def test_unknown_field_name(tmp_path: Path) -> None:
 
 # ── substitutions ───────────────────────────────────────────────────────────────
 
-ALL_POSITIONS = ["ol", "qb", "rb", "wr", "k", "dl", "lb", "db"]
+ALL_POSITIONS = ["OL", "QB", "RB", "WR", "K", "DL", "LB", "DB"]
 
 
 def _subs(body: str) -> str:
@@ -268,9 +268,9 @@ def _subs(body: str) -> str:
 
 
 def test_substitutions_single_group(tmp_path: Path) -> None:
-    text = _subs("qb = { out_percent = 75, in_percent = 80 }\n")
+    text = _subs("QB = { out_percent = 75, in_percent = 80 }\n")
     rules = load_rules([write(tmp_path, text)])
-    assert rules.substitutions == {"qb": SubstitutionPair(75, 80)}
+    assert rules.substitutions == {"QB": SubstitutionPair(75, 80)}
 
 
 def test_substitutions_all_groups(tmp_path: Path) -> None:
@@ -289,18 +289,18 @@ def test_substitutions_omitted_is_empty(tmp_path: Path) -> None:
 def test_substitutions_layering_override_and_accumulate(tmp_path: Path) -> None:
     a = tmp_path / "a.toml"
     a.write_text(
-        "[substitutions]\nqb = { out_percent = 75, in_percent = 80 }\n",
+        "[substitutions]\nQB = { out_percent = 75, in_percent = 80 }\n",
         encoding="utf-8",
     )
     b = tmp_path / "b.toml"
     b.write_text(
-        "[substitutions]\nqb = { out_percent = 70, in_percent = 90 }\n"
-        "dl = { out_percent = 60, in_percent = 70 }\n",
+        "[substitutions]\nQB = { out_percent = 70, in_percent = 90 }\n"
+        "DL = { out_percent = 60, in_percent = 70 }\n",
         encoding="utf-8",
     )
     rules = load_rules([a, b])
-    assert rules.substitutions["qb"] == SubstitutionPair(70, 90)  # later file wins
-    assert rules.substitutions["dl"] == SubstitutionPair(60, 70)  # accumulated
+    assert rules.substitutions["QB"] == SubstitutionPair(70, 90)  # later file wins
+    assert rules.substitutions["DL"] == SubstitutionPair(60, 70)  # accumulated
 
 
 # Percent limits (min 0, max 100, out == in) accepted for every group.
@@ -334,7 +334,7 @@ def test_substitutions_percent_invalid(
 
 def test_substitutions_missing_key(tmp_path: Path) -> None:
     with pytest.raises(RulesFileError, match="requires"):
-        load_rules([write(tmp_path, _subs("qb = { out_percent = 75 }\n"))])
+        load_rules([write(tmp_path, _subs("QB = { out_percent = 75 }\n"))])
 
 
 def test_substitutions_unknown_position(tmp_path: Path) -> None:
@@ -344,7 +344,7 @@ def test_substitutions_unknown_position(tmp_path: Path) -> None:
 
 
 def test_substitutions_unknown_pair_key(tmp_path: Path) -> None:
-    text = _subs("qb = { out_percent = 75, in_percent = 80, foo = 1 }\n")
+    text = _subs("QB = { out_percent = 75, in_percent = 80, foo = 1 }\n")
     with pytest.raises(RulesFileError, match="unknown key"):
         load_rules([write(tmp_path, text)])
 
@@ -356,11 +356,11 @@ def test_substitutions_not_a_table(tmp_path: Path) -> None:
 
 def test_substitutions_position_not_a_table(tmp_path: Path) -> None:
     with pytest.raises(RulesFileError, match="must be a table"):
-        load_rules([write(tmp_path, _subs("qb = 5\n"))])
+        load_rules([write(tmp_path, _subs("QB = 5\n"))])
 
 
 def test_substitutions_non_integer(tmp_path: Path) -> None:
-    text = _subs('qb = { out_percent = "x", in_percent = 80 }\n')
+    text = _subs('QB = { out_percent = "x", in_percent = 80 }\n')
     with pytest.raises(RulesFileError, match="must be an integer"):
         load_rules([write(tmp_path, text)])
 

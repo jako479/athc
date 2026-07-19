@@ -8,6 +8,10 @@ backed by individual custom plays and are skipped.
 
 Profile and gameplan must be the same side (offense/defense) — the caller checks
 that first. Rules are not consulted here; this only compares categories to plays.
+
+`check_gameplan_compatibility` reports profile categories the gameplan does not
+back (issues); `gameplan_extra_categories` reports the reverse — gameplan custom
+plays the profile never weights (warnings).
 """
 
 from __future__ import annotations
@@ -15,8 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from athc.fbpro98_gameplan import GamePlan, Play
-from athc.fbpro98_play.model import DEFENSIVE_CATEGORIES, OFFENSIVE_CATEGORIES
+from athc.fbpro98_gameplan import GamePlan, PlayRef
+from athc.fbpro98_play import resolve_category
 from athc.fbpro98_profile import CategoryWeights, Profile
 from athc.profile.display import category_label
 from athc.profile.rules import (
@@ -51,7 +55,7 @@ from athc.profile.rules import (
 _NORMAL_CODES: frozenset[int] = frozenset(range(0x00, 0x10))
 
 # Gameplan offense category name -> the profile code it covers. Names match the
-# fbpro98_play OFFENSIVE_CATEGORIES table; offense keeps pass directions.
+# OffensiveCategory enum's long names; offense keeps pass directions.
 _OFFENSE_NORMAL_CODES: dict[str, frozenset[int]] = {
     "Goal Line Run": frozenset({GOAL_LINE_RUN}),
     "Razzle Dazzle Run": frozenset({RAZZLE_DAZZLE_RUN}),
@@ -72,7 +76,7 @@ _OFFENSE_NORMAL_CODES: dict[str, frozenset[int]] = {
 }
 
 # Gameplan defense category name -> profile codes covered. Names match the
-# fbpro98_play DEFENSIVE_CATEGORIES table; defense collapses pass directions, so
+# DefensiveCategory enum's long names; defense collapses pass directions, so
 # one play covers all three (e.g. "Pass Long" -> long left/middle/right).
 _DEFENSE_NORMAL_CODES: dict[str, frozenset[int]] = {
     "Goal Line Run": frozenset({GOAL_LINE_RUN}),
@@ -114,6 +118,8 @@ class CompatKind(StrEnum):
 
     MISSING_NORMAL_CATEGORY = "missing_normal_category"
     MISSING_SPECIAL_CATEGORY = "missing_special_category"
+    EXTRA_NORMAL_CATEGORY = "extra_normal_category"
+    EXTRA_SPECIAL_CATEGORY = "extra_special_category"
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,6 +129,15 @@ class CompatIssue:
 
     kind: CompatKind
     category_code: int
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class CompatWarning:
+    """A gameplan custom-play category the profile never weights — the gameplan
+    has plays this profile will never call. Informational; does not fail check."""
+
+    kind: CompatKind
     message: str
 
 
@@ -166,6 +181,43 @@ def check_gameplan_compatibility(
     return tuple(issues)
 
 
+def gameplan_extra_categories(
+    profile: Profile, gameplan: GamePlan
+) -> tuple[CompatWarning, ...]:
+    """Report gameplan custom-play categories the profile never weights.
+
+    The reverse of `check_gameplan_compatibility`: plays the profile will never
+    call. Reported per gameplan category (defense pass directions stay collapsed),
+    not per profile code. Profile and gameplan must already be the same side.
+    """
+    used = _used_categories(profile)
+    warnings: list[CompatWarning] = []
+
+    name_codes = _OFFENSE_NORMAL_CODES if profile.is_offense else _DEFENSE_NORMAL_CODES
+    present = _present_normal_names(gameplan, name_codes)
+    for name in sorted(present, key=lambda n: min(name_codes[n])):
+        if not (name_codes[name] & used):
+            warnings.append(
+                CompatWarning(
+                    CompatKind.EXTRA_NORMAL_CATEGORY,
+                    f"gameplan play category {name} is not used by the profile",
+                )
+            )
+
+    for code in sorted(_SPECIAL_SLOT_BY_CODE):
+        slot = _SPECIAL_SLOT_BY_CODE[code]
+        if gameplan.custom_special_plays[slot - 1] is not None and code not in used:
+            warnings.append(
+                CompatWarning(
+                    CompatKind.EXTRA_SPECIAL_CATEGORY,
+                    f"gameplan special-teams category {_SPECIAL_NAME[code]} "
+                    f"is not used by the profile",
+                )
+            )
+
+    return tuple(warnings)
+
+
 def _used_categories(profile: Profile) -> frozenset[int]:
     """Distinct play-category codes weighted > 0 across situations and PATs."""
     codes: set[int] = set()
@@ -196,24 +248,35 @@ def _present_normal_codes(
     for play in gameplan.normal_plays:
         if play is None:
             continue
-        name = _normal_category_name(play, offense=gameplan.is_offense)
-        if name is not None:
-            codes |= name_codes.get(name, frozenset())
+        codes |= name_codes.get(_category_name(play), frozenset())
     return frozenset(codes)
 
 
-def _normal_category_name(play: Play, *, offense: bool) -> str | None:
-    """Game category name for a normal custom play, via its `user_category`.
+def _present_normal_names(
+    gameplan: GamePlan, name_codes: dict[str, frozenset[int]]
+) -> frozenset[str]:
+    """Gameplan category names backed by a custom normal play (known names only)."""
+    names: set[str] = set()
+    for play in gameplan.normal_plays:
+        if play is None:
+            continue
+        name = _category_name(play)
+        if name in name_codes:
+            names.add(name)
+    return frozenset(names)
 
-    Mirrors `PlayFile.category_name`'s normal-play branch (full byte, then the
-    masked base) over the same offense/defense tables.
-    """
-    table = OFFENSIVE_CATEGORIES if offense else DEFENSIVE_CATEGORIES
-    return table.get(play.user_category, table.get(play.user_category & 0x3F))
+
+def _category_name(play: PlayRef) -> str:
+    """Game category name for a custom play, from its category bytes."""
+    return resolve_category(
+        play.play_category, play.special_category, play.user_category
+    ).long
 
 
 __all__ = [
     "CompatIssue",
     "CompatKind",
+    "CompatWarning",
     "check_gameplan_compatibility",
+    "gameplan_extra_categories",
 ]

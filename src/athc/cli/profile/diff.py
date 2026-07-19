@@ -48,8 +48,7 @@ def diff(ctx: click.Context, a: Path, b: Path, output: Path | None) -> None:
     """Show the differences between two .prf coaching profiles (same side only).
 
     Compares situations, PAT situations, substitution percentages, field-goal
-    range, and audibles; only changed records are shown. Exit 0 = identical,
-    1 = differences, 2 = I/O error or side mismatch.
+    range, and audibles; only changed records are shown.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 

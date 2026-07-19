@@ -3,7 +3,9 @@
 from athc.profile.compat import (
     CompatIssue,
     CompatKind,
+    CompatWarning,
     check_gameplan_compatibility,
+    gameplan_extra_categories,
 )
 from athc.profile.diff import (
     ProfileDiff,
@@ -30,6 +32,7 @@ __all__ = [
     "OFFENSE_CATEGORIES",
     "CompatIssue",
     "CompatKind",
+    "CompatWarning",
     "ProfileDiff",
     "ProfileRules",
     "ProfileTypeMismatchError",
@@ -44,6 +47,7 @@ __all__ = [
     "category_label",
     "check_gameplan_compatibility",
     "diff_profiles",
+    "gameplan_extra_categories",
     "load_rules",
     "pat_label",
     "situation_label",

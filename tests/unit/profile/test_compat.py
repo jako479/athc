@@ -5,12 +5,12 @@ which categories are used and which custom plays exist.
 
 from __future__ import annotations
 
-from athc.fbpro98_gameplan import CustomPlay, GamePlan, StockPlay
+from athc.fbpro98_gameplan import CustomPlayRef, GamePlan, StockPlayRef
 from athc.fbpro98_gameplan import ProfileType as GamePlanType
-from athc.fbpro98_play.model import (
-    DEFENSIVE_CATEGORIES,
-    OFFENSIVE_CATEGORIES,
-    SPECIAL_TEAMS_OFFENSIVE_CATEGORIES,
+from athc.fbpro98_play import (
+    DefensiveCategory,
+    OffensiveCategory,
+    resolve_category,
 )
 from athc.fbpro98_profile import (
     CategoryWeights,
@@ -20,7 +20,11 @@ from athc.fbpro98_profile import (
     Situation,
     SubstitutionSettings,
 )
-from athc.profile import CompatKind, check_gameplan_compatibility
+from athc.profile import (
+    CompatKind,
+    check_gameplan_compatibility,
+    gameplan_extra_categories,
+)
 from athc.profile.compat import (
     _DEFENSE_NORMAL_CODES,
     _OFFENSE_NORMAL_CODES,
@@ -45,8 +49,12 @@ DEF_PASS_LONG = 0x22  # collapses long left/middle/right
 DEF_GOAL_LINE_PASS = 0x32
 
 _CLOCK = (
-    CustomPlay("C1.PLY", play_category=0x01, special_category=11, user_category=0x09),
-    CustomPlay("C2.PLY", play_category=0x01, special_category=12, user_category=0x09),
+    CustomPlayRef(
+        "C1.PLY", play_category=0x01, special_category=11, user_category=0x09
+    ),
+    CustomPlayRef(
+        "C2.PLY", play_category=0x01, special_category=12, user_category=0x09
+    ),
 )
 
 
@@ -86,13 +94,15 @@ def make_gameplan(
     """Gameplan with one custom normal play per `normal` user_category, and custom
     (or stock) special plays in the given special-category slots (1-10)."""
     parity = 0x01 if offense else 0x00
-    plays = tuple(CustomPlay(f"N{i}.PLY", parity, 0, uc) for i, uc in enumerate(normal))
+    plays = tuple(
+        CustomPlayRef(f"N{i}.PLY", parity, 0, uc) for i, uc in enumerate(normal)
+    )
     normal_plays = plays + (None,) * (64 - len(plays))
-    slots: list[CustomPlay | StockPlay | None] = [None] * 20
+    slots: list[CustomPlayRef | StockPlayRef | None] = [None] * 20
     for s in special:
-        slots[(s - 1) * 2] = CustomPlay(f"SP{s}.PLY", parity, s, 0)
+        slots[(s - 1) * 2] = CustomPlayRef(f"SP{s}.PLY", parity, s, 0)
     for s in stock_special:
-        slots[(s - 1) * 2 + 1] = StockPlay(f"ST{s}", 0, 0, parity, s, 0)
+        slots[(s - 1) * 2 + 1] = StockPlayRef(f"ST{s}", 0, 0, parity, s, 0)
     return GamePlan(
         profile_type=GamePlanType.OFFENSE if offense else GamePlanType.DEFENSE,
         normal_plays=normal_plays,
@@ -287,18 +297,95 @@ def test_fully_compatible_returns_empty() -> None:
     assert check_gameplan_compatibility(prof, gp) == ()
 
 
+# ── reverse: gameplan categories not used by the profile (warnings) ─────────────
+
+
+def test_extra_offense_normal_category_warned() -> None:
+    """A gameplan normal play whose category the profile never weights -> warning."""
+    prof = make_profile(
+        offense=True,
+        sit=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
+        pat=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
+    )
+    gp = make_gameplan(offense=True, normal=(OFF_RUN_MIDDLE, OFF_GOAL_LINE_RUN))
+    warnings = gameplan_extra_categories(prof, gp)
+    assert len(warnings) == 1
+    assert warnings[0].kind == CompatKind.EXTRA_NORMAL_CATEGORY
+    assert "Goal Line Run" in warnings[0].message
+
+
+def test_extra_special_category_warned() -> None:
+    prof = make_profile(
+        offense=True,
+        sit=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
+        pat=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
+    )
+    gp = make_gameplan(offense=True, normal=(OFF_RUN_MIDDLE,), special=(1,))
+    warnings = gameplan_extra_categories(prof, gp)
+    assert [w.kind for w in warnings] == [CompatKind.EXTRA_SPECIAL_CATEGORY]
+    assert "Field Goal/PAT" in warnings[0].message
+
+
+def test_used_categories_are_not_warned() -> None:
+    prof = make_profile(
+        offense=True,
+        sit=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
+        pat=weights(FIELD_GOAL_PAT, 10, FIELD_GOAL_PAT, 0, FIELD_GOAL_PAT, 0),
+    )
+    gp = make_gameplan(offense=True, normal=(OFF_RUN_MIDDLE,), special=(1,))
+    assert gameplan_extra_categories(prof, gp) == ()
+
+
+def test_defense_direction_collapse_not_falsely_warned() -> None:
+    """A defense 'Pass Long' play covers L/M/R; if the profile uses any one of
+    them the category is used, so no false 'extra' warning for the others."""
+    prof = make_profile(
+        offense=False,
+        sit=weights(PASS_LONG_LEFT, 4, PASS_LONG_LEFT, 0, PASS_LONG_LEFT, 0),
+        pat=weights(PASS_LONG_LEFT, 4, PASS_LONG_LEFT, 0, PASS_LONG_LEFT, 0),
+    )
+    gp = make_gameplan(offense=False, normal=(DEF_PASS_LONG,))
+    assert gameplan_extra_categories(prof, gp) == ()
+
+
+def test_extra_normal_sorted_by_code() -> None:
+    prof = make_profile(
+        offense=True,
+        sit=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
+        pat=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
+    )
+    # Goal Line Run (0x00) before Goal Line Pass (0x05) by minimum code.
+    gp = make_gameplan(offense=True, normal=(0x33, OFF_GOAL_LINE_RUN, OFF_RUN_MIDDLE))
+    msgs = [w.message for w in gameplan_extra_categories(prof, gp)]
+    assert msgs == [
+        "gameplan play category Goal Line Run is not used by the profile",
+        "gameplan play category Goal Line Pass is not used by the profile",
+    ]
+
+
+def test_stock_special_play_is_not_an_extra() -> None:
+    """A stock-only special slot has no custom play, so it is never flagged."""
+    prof = make_profile(
+        offense=True,
+        sit=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
+        pat=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
+    )
+    gp = make_gameplan(offense=True, normal=(OFF_RUN_MIDDLE,), stock_special=(1,))
+    assert gameplan_extra_categories(prof, gp) == ()
+
+
 # ── map consistency with the model tables (guards transcription) ────────────────
 
 
 def test_offense_normal_map_covers_all_offense_categories() -> None:
-    names = {n for n in OFFENSIVE_CATEGORIES.values() if n != "User Specific"}
+    names = {c.long for c in OffensiveCategory if c.long != "User Specific"}
     assert set(_OFFENSE_NORMAL_CODES) == names
     codes = frozenset().union(*_OFFENSE_NORMAL_CODES.values())
     assert codes == frozenset(range(0x00, 0x10))
 
 
 def test_defense_normal_map_covers_all_defense_categories() -> None:
-    names = {n for n in DEFENSIVE_CATEGORIES.values() if n != "User Specific"}
+    names = {c.long for c in DefensiveCategory if c.long != "User Specific"}
     assert set(_DEFENSE_NORMAL_CODES) == names
     codes = frozenset().union(*_DEFENSE_NORMAL_CODES.values())
     assert codes == frozenset(range(0x00, 0x10))
@@ -313,4 +400,4 @@ def test_special_slot_map_matches_model_names() -> None:
     }
     for code, name in expected.items():
         slot = _SPECIAL_SLOT_BY_CODE[code]
-        assert SPECIAL_TEAMS_OFFENSIVE_CATEGORIES[slot] == name
+        assert resolve_category(0x01, slot, 0x00).long == name

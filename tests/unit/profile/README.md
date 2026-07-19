@@ -70,7 +70,12 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | Multiple groups each fire | built + make | two `SUBSTITUTION` | `test_substitution_multiple_groups_each_fire` | ☑ |
 | No substitutions → no violation | OFF1 + make | no `SUBSTITUTION` | `test_no_substitutions_no_violation` | ☑ |
 | Min-categories scales with threshold | OFF1 + make | higher min flags more | `test_min_categories_scales_with_threshold` | ☑ |
-| Min-categories waived when all exempt | OFF1 + make | exempt-only situations waived | `test_min_categories_waived_when_all_exempt` | ☑ |
+| Exempt sets are built in | const | offense `{FG,PUNT,RUN_CLOCK}`, defense `{FG,PUNT}` | `test_exempt_sets_are_built_in` | ☑ |
+| Min-categories waived when all exempt | built + make | exempt-only waived; lone non-exempt fires | `test_min_categories_waived_when_all_exempt` | ☑ |
+| Exempt combination waived | built + make | punt+punt+kick waived at min 3 | `test_exempt_combination_waived` | ☑ |
+| Exempt + non-exempt obeys minimum | built + make | punt+punt+PSL: fires @3, ok @2 | `test_exempt_plus_non_exempt_obeys_minimum` | ☑ |
+| Fakes are not exempt | built + make | fake-only still obeys min | `test_fakes_are_not_exempt` | ☑ |
+| Defense waived when all exempt | built + make | kick-only defense waived | `test_defense_min_categories_waived_when_all_exempt` | ☑ |
 | Rule `min_categories` raises baseline | OFF1 + make | >5:00 lifted to 3 | `test_min_categories_rule_raises_baseline` | ☑ |
 | Baseline wins over lower rule min | OFF1 + make | rule's 2 ignored under baseline 3 | `test_min_categories_baseline_wins_over_lower_rule` | ☑ |
 | Not waived with a non-exempt category | built + make | min fires | `test_min_categories_not_waived_with_non_exempt_category` | ☑ |
@@ -102,6 +107,15 @@ One row per behavior. Input: `built` = `Profile`/`GamePlan` constructed in-test.
 | PAT-only category checked | built | FG/PAT flagged | `test_pat_only_category_is_checked` | ☑ |
 | Fully compatible | built | empty | `test_fully_compatible_returns_empty` | ☑ |
 | Maps consistent with model tables | built | offense/defense names + special slots | `test_offense_normal_map_covers_all_offense_categories` / `test_defense_normal_map_covers_all_defense_categories` / `test_special_slot_map_matches_model_names` | ☑ |
+
+## compat.py — `gameplan_extra_categories` (gameplan categories the profile never uses)
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Extra normal / special category warned | built | `EXTRA_NORMAL` (Goal Line Run) / `EXTRA_SPECIAL` (FG/PAT) | `test_extra_offense_normal_category_warned` / `test_extra_special_category_warned` | ☑ |
+| Used categories not warned | built | empty | `test_used_categories_are_not_warned` | ☑ |
+| Defense direction collapse not false-warned | built | one used dir ⇒ category not extra | `test_defense_direction_collapse_not_falsely_warned` | ☑ |
+| Extra normals sorted by code | built | GLR before GLP | `test_extra_normal_sorted_by_code` | ☑ |
+| Stock-only special is not extra | built | empty | `test_stock_special_play_is_not_an_extra` | ☑ |
 
 ## diff.py — `diff_profiles`
 | Case | Input | Expected | Test | Status |

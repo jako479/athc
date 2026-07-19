@@ -18,10 +18,12 @@ or a glob. Each profile prints `OK` or its violations; exit 0 (clean), 1
 
 `--gameplan FILE` (no short form) also checks play-category coverage: every
 category the profile weights — normal run/pass and special teams (FG/PAT, punt,
-the fakes) — must have a custom play in the `.pln`. Profile and gameplan must be
-the same side; a mismatch is an error (exit 2). Clock and "random" categories
-aren't backed by custom plays and are skipped. Gameplan rules are not checked
-(use `gameplan check`).
+the fakes) — must have a custom play in the `.pln`. It also warns (`gameplan
+warning:` lines) about gameplan categories the profile never uses; warnings are
+informational and don't affect the exit code. Profile and gameplan must be the
+same side; a mismatch is an error (exit 2). Clock and "random" categories aren't
+backed by custom plays and are skipped. Gameplan rules are not checked (use
+`gameplan check`).
 
 ## diff
 
@@ -46,7 +48,7 @@ Copies selected fields from SRC into one or more targets (a `.prf` file, a
 directory, or the tree with `-r`). Pick at least one: `--stop-clock`,
 `--sub-percent`, `--field-goal-range`, `--fourth-down`, `--goal-line`. Wrong-side
 targets are skipped; a timestamped `.bak` is made before each write unless
-`--no-backup`. Exit 0 (ok), 1 (a failure), or 2 (usage). No rules needed —
+`--no-backup`. Exit 0 (ok), 1 (a target failed), or 2 (usage or unreadable source). No rules needed —
 validate afterward with `check`.
 
 ## Rules

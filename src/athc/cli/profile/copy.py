@@ -86,7 +86,7 @@ def copy(
     TARGET is a .prf file or a directory (top level, or the whole tree with -r).
     Files of the wrong side (offense vs defense) are skipped. A timestamped .bak
     is made next to each target before it is written (suppress with --no-backup).
-    At least one copy flag is required. Exit 0 = all ok, 1 = a failure, 2 = usage.
+    At least one copy flag is required.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     if not any(flags.values()):
@@ -100,7 +100,7 @@ def copy(
         side = "offense" if read_profile(str(source)).is_offense else "defense"
     except (OSError, InvalidProfileError, UnsupportedProfileError) as error:
         logger.error("%s: %s", PROG, error)
-        ctx.exit(1)
+        ctx.exit(2)
 
     files, path_errors = collect_files(
         [str(target)], suffix=".prf", recursive=recursive
@@ -108,7 +108,7 @@ def copy(
     for error in path_errors:
         logger.error("%s: %s", PROG, error)
     if not files:
-        ctx.exit(1)
+        ctx.exit(2)
 
     source_resolved = source.resolve()
     updated = failed = 0

@@ -1,44 +1,20 @@
-# PNFL coaching-profile rules. Point [profile] rule_files (athc.ini) at this file.
+# PNFL coaching-profile rules — the official set, ready to use as-is.
+# Wire it up: point [profile] rule_files (in athc.ini) at this file.
 # Source: https://pnfl.biz/messageboard/viewtopic.php?f=18&t=28
 #
-# Everything is optional; an omitted key is not enforced.
-#
-# Top-level:
-#   audibles_allowed = true|false   if false, audibles must be off
-#   min_categories   = <int>        baseline distinct categories per situation (>= 0)
-#   [substitutions] per group: out_percent / in_percent  (each 0-100, out <= in)
-#   [exempt_categories] offense / defense       don't count toward min_categories
-#   disallowed_offensive_categories / disallowed_defensive_categories
-#
-# Situation rules — one [offense.<name>] / [defense.<name>] each. An omitted filter
-# matches all values; a situation gets every rule it matches.
-#   Filters: time down yards fields
-#     time   ">5:00" ">2:00-5:00" ">1:00-2:00" ">0:15-1:00" "0:00-0:15"
-#     down   "first" "second" "third" "fourth"
-#     yards  "0-1" "2-5" "6-10" ">10"
-#     fields "inside_def_5" "def_5_to_def_35" "def_35_to_off_35" "off_35_to_off_5"
-#            "inside_off_5"
-#
-#   Constraints (at least one): allowed / disallowed (exclusive) / mandatory /
-#   min_categories (>= 0).
-#   Category labels (allowed / disallowed / mandatory):
-#     offense: GLR RL RM RR GLP PRD PLR PML PMM PMR PSL PSM PSR
-#     defense: GLrun RunDazzle RunLeft RunMiddle RunRight GLpass PassDazzle
-#              PassLong PassMedium PassShort
-#
-#   Game names (exempt_categories / disallowed_*): "Goal Line Run" "Razzle Dazzle
-#   Run" "Run Left" "Run Middle" "Run Right" "Goal Line Pass" "Razzle Dazzle Pass"
-#   "Pass Long Left/Middle/Right" "Pass Medium Left/Middle/Right" "Pass Short
-#   Left/Middle/Right" "Field Goal/PAT" "Fake FG Run" "Fake FG Pass" "Punt" "Fake
-#   Punt Run" "Fake Punt Pass" "Run Clock" "Run Random" "Pass Long/Medium/Short
-#   Random"
+# Every key is optional (omitted = not enforced). A situation section
+# ([offense.<name>] / [defense.<name>]) applies when ALL its filters match; an
+# omitted filter matches every value. Filter/label glossaries are inline below.
 
 schema_version = 1
 
-audibles_allowed = false
-min_categories = 2
+audibles_allowed = false   # if false, profiles must save with audibles off
+min_categories = 2         # baseline distinct categories per situation (>= 0)
 
-# Categories a profile must never use (weight 0 in every situation).
+# Categories a profile must never use (weight 0 in every situation). Full game
+# names: Goal Line Run/Pass, Razzle Dazzle Run/Pass, Run Left/Middle/Right,
+# Pass Long/Medium/Short Left/Middle/Right, Field Goal/PAT, Fake FG Run/Pass,
+# Punt, Fake Punt Run/Pass, Run Clock, Run Random, Pass Long/Medium/Short Random.
 disallowed_offensive_categories = [
     "Razzle Dazzle Run",
     "Run Random",
@@ -52,17 +28,23 @@ disallowed_defensive_categories = []
 
 # Substitution thresholds by position group, each out_percent / in_percent
 # (both 0-100, out <= in). Settable groups, by profile side:
-#   offense: ol qb rb wr k    defense: dl lb db
+#   offense: OL QB RB WR K    defense: DL LB DB
 # Omit a group to leave it unchecked. PNFL mandates only the QB pair.
 [substitutions]
-qb = { out_percent = 75, in_percent = 80 }
+QB = { out_percent = 75, in_percent = 80 }
 
-# Exempt categories don't count toward min_categories: a situation using only
-# exempt categories (e.g. a pure field-goal or punt situation) is never flagged
-# for too few categories. Add a non-exempt category and the minimum applies.
-[exempt_categories]
-offense = ["Field Goal/PAT", "Punt", "Run Clock"]
-defense = ["Field Goal/PAT", "Punt"]
+# Note: min_categories is automatically waived for a situation that uses only
+# kick/punt (plus run-clock on offense) — a pure field-goal or punt situation is
+# never flagged for too few categories. This is built in, not configured here.
+
+# ── Situation sections ─────────────────────────────────────────────────────────
+# Filters (all optional, AND-matched): time / down / yards / fields.
+# Each section needs >= 1 constraint: allowed | disallowed (exclusive) |
+# mandatory | min_categories.
+#   time   ">5:00" ">2:00-5:00" ">1:00-2:00" ">0:15-1:00" "0:00-0:15"
+#   down   "first" "second" "third" "fourth"
+#   yards  "0-1" "2-5" "6-10" ">10"
+#   fields inside_def_5  def_5_to_def_35  def_35_to_off_35  off_35_to_off_5  inside_off_5
 
 # Minimum of 3 above 5:00, except backed up to a team's own goal line.
 [offense.min_categories_three]
@@ -87,6 +69,7 @@ fields = [
 min_categories = 3
 
 # ── OFFENSE matrix ────────────────────────────────────────────────────────────
+# Labels: GLR RL RM RR  GLP PRD PLR PML PMM PMR  PSL PSM PSR
 
 [offense.first_and_0_1]
 time = ">5:00"
@@ -205,6 +188,7 @@ fields = ["def_35_to_off_35", "off_35_to_off_5"]
 mandatory = ["PLR"]
 
 # ── DEFENSE matrix ────────────────────────────────────────────────────────────
+# Labels: GLrun RunDazzle RunLeft RunMiddle RunRight  GLpass PassDazzle PassLong PassMedium PassShort
 
 [defense.third_and_2_5]
 time = ">5:00"

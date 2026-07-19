@@ -20,12 +20,18 @@ from athc.fbpro98_profile import (
 )
 from athc.profile import ProfileRules, RuleName, load_rules, validate_profile
 from athc.profile.rules import (
+    FAKE_PUNT_PASS,
     FIELD_GOAL_PAT,
+    PASS_SHORT_LEFT,
     PUNT,
     RUN_CLOCK,
     RUN_LEFT,
     RUN_MIDDLE,
     SituationRule,
+)
+from athc.profile.validators import (
+    DEFENSE_EXEMPT_CATEGORIES,
+    OFFENSE_EXEMPT_CATEGORIES,
 )
 from tests.unit.profile.conftest import DATA, make_profile, weights
 
@@ -105,14 +111,14 @@ def test_audibles_omitted_allows_either_state(tmp_path: Path) -> None:
 
 # label -> (SubstitutionSettings attribute, the side that may set it)
 _SUB_GROUPS = [
-    ("ol", "offensive_linemen", ProfileType.OFFENSE),
-    ("qb", "quarterbacks", ProfileType.OFFENSE),
-    ("rb", "running_backs", ProfileType.OFFENSE),
-    ("wr", "receivers", ProfileType.OFFENSE),
-    ("k", "kickers", ProfileType.OFFENSE),
-    ("dl", "defensive_linemen", ProfileType.DEFENSE),
-    ("lb", "linebackers", ProfileType.DEFENSE),
-    ("db", "defensive_backs", ProfileType.DEFENSE),
+    ("OL", "offensive_linemen", ProfileType.OFFENSE),
+    ("QB", "quarterbacks", ProfileType.OFFENSE),
+    ("RB", "running_backs", ProfileType.OFFENSE),
+    ("WR", "receivers", ProfileType.OFFENSE),
+    ("K", "kickers", ProfileType.OFFENSE),
+    ("DL", "defensive_linemen", ProfileType.DEFENSE),
+    ("LB", "linebackers", ProfileType.DEFENSE),
+    ("DB", "defensive_backs", ProfileType.DEFENSE),
 ]
 
 
@@ -151,8 +157,8 @@ def test_substitution_skipped_on_other_side(
 
 
 def test_substitution_message_names_group() -> None:
-    profile = make_profile(ProfileType.OFFENSE)  # default subs (qb 80/90)
-    rules = make_rules(substitutions={"qb": SubstitutionPair(70, 80)})
+    profile = make_profile(ProfileType.OFFENSE)  # default subs (QB 80/90)
+    rules = make_rules(substitutions={"QB": SubstitutionPair(70, 80)})
     msg = next(
         v.message
         for v in validate_profile(profile, rules)
@@ -164,7 +170,7 @@ def test_substitution_message_names_group() -> None:
 def test_substitution_multiple_groups_each_fire() -> None:
     profile = make_profile(ProfileType.OFFENSE)  # default subs all 80/90
     rules = make_rules(
-        substitutions={"qb": SubstitutionPair(70, 75), "ol": SubstitutionPair(60, 65)}
+        substitutions={"QB": SubstitutionPair(70, 75), "OL": SubstitutionPair(60, 65)}
     )
     fired = [
         v
@@ -205,13 +211,65 @@ def test_min_categories_rule_raises_baseline() -> None:
     assert n_raised > n_baseline  # the >5:00 rule lifts those situations to 3
 
 
+def test_exempt_sets_are_built_in() -> None:
+    """The exemption is hardcoded, not rules-driven: kick/punt (+ run-clock on
+    offense); fakes are never exempt."""
+    assert OFFENSE_EXEMPT_CATEGORIES == frozenset({FIELD_GOAL_PAT, PUNT, RUN_CLOCK})
+    assert DEFENSE_EXEMPT_CATEGORIES == frozenset({FIELD_GOAL_PAT, PUNT})
+
+
 def test_min_categories_waived_when_all_exempt() -> None:
-    exempt = frozenset({FIELD_GOAL_PAT, PUNT, RUN_CLOCK})
-    n_exempt = _min_category_count(
-        make_rules(min_categories=3, offense_exempt_categories=exempt)
+    """A situation using only exempt categories is never flagged, even at a high
+    minimum; a lone non-exempt category is."""
+    fg_only = make_profile(category_weights=weights(FIELD_GOAL_PAT, 10, 0, 0, 0, 0))
+    run_only = make_profile(category_weights=weights(RUN_MIDDLE, 4, 0, 0, 0, 0))
+    assert RuleName.OFFENSE_MIN_CATEGORIES not in names(
+        fg_only, make_rules(min_categories=3)
     )
-    n_plain = _min_category_count(make_rules(min_categories=3))
-    assert n_exempt < n_plain  # exempt-only situations are waived
+    assert RuleName.OFFENSE_MIN_CATEGORIES in names(
+        run_only, make_rules(min_categories=3)
+    )
+
+
+def test_exempt_combination_waived() -> None:
+    """Any mix of exempt categories (e.g. punt + punt + kick) is still waived."""
+    profile = make_profile(
+        category_weights=weights(PUNT, 4, PUNT, 4, FIELD_GOAL_PAT, 2)
+    )
+    assert RuleName.OFFENSE_MIN_CATEGORIES not in names(
+        profile, make_rules(min_categories=3)
+    )
+
+
+def test_exempt_plus_non_exempt_obeys_minimum() -> None:
+    """punt + punt + PSL = 2 distinct categories: flagged when min is 3, allowed at 2."""
+    profile = make_profile(
+        category_weights=weights(PUNT, 4, PUNT, 4, PASS_SHORT_LEFT, 2)
+    )
+    assert RuleName.OFFENSE_MIN_CATEGORIES in names(
+        profile, make_rules(min_categories=3)
+    )
+    assert RuleName.OFFENSE_MIN_CATEGORIES not in names(
+        profile, make_rules(min_categories=2)
+    )
+
+
+def test_fakes_are_not_exempt() -> None:
+    """A situation using only a fake (here Fake Punt Pass) still obeys the minimum."""
+    fake_only = make_profile(category_weights=weights(FAKE_PUNT_PASS, 4, 0, 0, 0, 0))
+    assert RuleName.OFFENSE_MIN_CATEGORIES in names(
+        fake_only, make_rules(min_categories=2)
+    )
+
+
+def test_defense_min_categories_waived_when_all_exempt() -> None:
+    """Defense exempts only kick/punt; a defense situation using only kick is waived."""
+    fg_only = make_profile(
+        ProfileType.DEFENSE, category_weights=weights(FIELD_GOAL_PAT, 10, 0, 0, 0, 0)
+    )
+    assert RuleName.DEFENSE_MIN_CATEGORIES not in names(
+        fg_only, make_rules(min_categories=2)
+    )
 
 
 def test_min_categories_baseline_wins_over_lower_rule() -> None:
@@ -229,17 +287,13 @@ def test_min_categories_not_waived_with_non_exempt_category() -> None:
     mixed = make_profile(
         category_weights=weights(FIELD_GOAL_PAT, 10, RUN_MIDDLE, 4, 0, 0)
     )
-    exempt = frozenset({FIELD_GOAL_PAT, PUNT, RUN_CLOCK})
-    rules = make_rules(min_categories=3, offense_exempt_categories=exempt)
-    assert RuleName.OFFENSE_MIN_CATEGORIES in names(mixed, rules)
+    assert RuleName.OFFENSE_MIN_CATEGORIES in names(mixed, make_rules(min_categories=3))
 
 
 def test_min_categories_fires_on_all_zero_weights() -> None:
     """A situation with no weighted category (0 categories) is never waived."""
     empty = make_profile(category_weights=weights(0, 0, 0, 0, 0, 0))
-    exempt = frozenset({FIELD_GOAL_PAT, PUNT, RUN_CLOCK})
-    rules = make_rules(min_categories=2, offense_exempt_categories=exempt)
-    assert RuleName.OFFENSE_MIN_CATEGORIES in names(empty, rules)
+    assert RuleName.OFFENSE_MIN_CATEGORIES in names(empty, make_rules(min_categories=2))
 
 
 def test_no_minimum_passes_single_category() -> None:

@@ -265,19 +265,19 @@ def test_cli_continues_past_failed_file(runner, tmp_path: Path) -> None:
     assert "1 updated" in result.output and "1 failed" in result.output
 
 
-def test_cli_missing_source_exit_1(runner, tmp_path: Path) -> None:
+def test_cli_missing_source_exit_2(runner, tmp_path: Path) -> None:
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     pre = target.read_bytes()
     result = runner.invoke(
         copy, [str(tmp_path / "nope.prf"), str(target), "--stop-clock"]
     )
-    assert result.exit_code == 1
+    assert result.exit_code == 2
     assert target.read_bytes() == pre  # untouched when source can't be read
 
 
-def test_cli_missing_target_exit_1(runner, tmp_path: Path) -> None:
+def test_cli_missing_target_exit_2(runner, tmp_path: Path) -> None:
     source = _copy_prf(OFF1, tmp_path, name="source.prf")
     result = runner.invoke(
         copy, [str(source), str(tmp_path / "nope.prf"), "--stop-clock"]
     )
-    assert result.exit_code == 1
+    assert result.exit_code == 2

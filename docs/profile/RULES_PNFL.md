@@ -58,7 +58,7 @@ Applies to both offense and defense, all situations.
 
 - **Baseline 2** distinct categories with weight > 0 (the rule set's `min_categories`).
 - **Raised to 3** above 5:00, except a team backed up inside its own 5-yard line (offense `INSIDE_OFF_5`, defense `INSIDE_DEF_5`). Expressed as a `min_categories = 3` rule scoped to `time = ">5:00"` and those field positions.
-- **Waived** when every category with weight > 0 is in the exempt set: offense `{FG, PUNT, RUN_CLOCK}`, defense `{FG, PUNT}`. Add a non-exempt category and the minimum applies.
+- **Waived** when every category with weight > 0 is exempt: offense `{FG, PUNT, RUN_CLOCK}`, defense `{FG, PUNT}` (fakes are never exempt). Add a non-exempt category and the minimum applies. This exemption is built into the validator, not configured in the rules file.
 
 ## Matrix rules vs. category-count
 

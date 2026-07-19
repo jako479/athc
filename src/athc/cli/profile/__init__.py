@@ -7,7 +7,7 @@ import click
 
 @click.group()
 def profile() -> None:
-    """Validate and edit FbPro98 coaching profiles (.prf)."""
+    """Validate and edit Front Page Sports Football Pro '98 coaching profiles (.prf)."""
 
 
 from athc.cli.profile import check as check  # noqa: E402  (registers the leaf command)

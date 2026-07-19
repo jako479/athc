@@ -6,12 +6,7 @@ audibles_allowed = false
 min_categories = 2
 
 [substitutions]
-qb = { out_percent = 75, in_percent = 80 }
-
-# Categories that don't count toward the minimum when they're all a situation uses.
-[exempt_categories]
-offense = ["Field Goal/PAT", "Punt", "Run Clock"]
-defense = ["Field Goal/PAT", "Punt"]
+QB = { out_percent = 75, in_percent = 80 }
 
 # Min rises to 3 above 5:00, except backed up to a team's own goal line.
 [offense.min_categories_three]

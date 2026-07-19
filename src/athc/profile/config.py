@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from athc.config import CONFIG_FILE, config_dir
+from athc.config import CONFIG_FILE, config_dir, resolve_path
 
 SECTION = "profile"
 
@@ -30,7 +30,7 @@ def load_config(*, rule_files: Sequence[Path] | None = None) -> Config:
     raw = cp.get(SECTION, "rule_files", fallback="")
     return Config(
         rule_files=tuple(
-            Path(line.strip()) for line in raw.splitlines() if line.strip()
+            resolve_path(line.strip()) for line in raw.splitlines() if line.strip()
         )
     )
 

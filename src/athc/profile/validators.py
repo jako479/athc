@@ -1,19 +1,34 @@
 """Validators that surface rule violations in a `Profile`.
 
 Each validator returns a list of `Violation`; `validate_profile` is the public
-entry point. All thresholds come from the supplied `ProfileRules` — nothing is
-hardcoded here. A situation is checked against every rule it matches: `allowed`
-sets intersect, `mandatory` requirements accumulate, and `min_categories` takes
-the strictest (highest) value, falling back to the rule set's baseline.
+entry point. Thresholds come from the supplied `ProfileRules`; the only built-in
+policy is the min-categories exemption (below). A situation is checked against
+every rule it matches: `allowed` sets intersect, `mandatory` requirements
+accumulate, and `min_categories` takes the strictest (highest) value, falling
+back to the rule set's baseline.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
 
 from athc.fbpro98_profile import CategoryWeights, Profile, Situation
 from athc.profile.model import RuleName, Violation
-from athc.profile.rules import SUBSTITUTION_POSITIONS, ProfileRules, SituationRule
+from athc.profile.rules import (
+    FIELD_GOAL_PAT,
+    PUNT,
+    RUN_CLOCK,
+    SUBSTITUTION_POSITIONS,
+    ProfileRules,
+    SituationRule,
+)
+
+# Categories exempt from min_categories: a situation that uses only these is never
+# flagged for too few categories. Built in (not rules-driven): kick (FG/PAT) and
+# punt on both sides, plus run-clock on offense; fakes are never exempt.
+OFFENSE_EXEMPT_CATEGORIES: Final = frozenset({FIELD_GOAL_PAT, PUNT, RUN_CLOCK})
+DEFENSE_EXEMPT_CATEGORIES: Final = frozenset({FIELD_GOAL_PAT, PUNT})
 
 
 def validate_profile(profile: Profile, rules: ProfileRules) -> tuple[Violation, ...]:
@@ -38,14 +53,14 @@ def _validate_audibles(profile: Profile, rules: ProfileRules) -> list[Violation]
 
 # Substitution position label -> the SubstitutionSettings attribute it checks.
 _SUBSTITUTION_ATTR = {
-    "ol": "offensive_linemen",
-    "qb": "quarterbacks",
-    "rb": "running_backs",
-    "wr": "receivers",
-    "k": "kickers",
-    "dl": "defensive_linemen",
-    "lb": "linebackers",
-    "db": "defensive_backs",
+    "OL": "offensive_linemen",
+    "QB": "quarterbacks",
+    "RB": "running_backs",
+    "WR": "receivers",
+    "K": "kickers",
+    "DL": "defensive_linemen",
+    "LB": "linebackers",
+    "DB": "defensive_backs",
 }
 
 
@@ -101,12 +116,12 @@ _DEFENSE_NAMES = _SideRuleNames(
 def _validate_situations(profile: Profile, rules: ProfileRules) -> list[Violation]:
     if profile.is_offense:
         side_rules = rules.offense_situations
-        exempt = rules.offense_exempt_categories
+        exempt = OFFENSE_EXEMPT_CATEGORIES
         disallowed = rules.offense_disallowed_categories
         names = _OFFENSE_NAMES
     else:
         side_rules = rules.defense_situations
-        exempt = rules.defense_exempt_categories
+        exempt = DEFENSE_EXEMPT_CATEGORIES
         disallowed = rules.defense_disallowed_categories
         names = _DEFENSE_NAMES
 
@@ -219,4 +234,8 @@ def _categories_with_weight(weights: CategoryWeights) -> frozenset[int]:
     )
 
 
-__all__ = ["validate_profile"]
+__all__ = [
+    "DEFENSE_EXEMPT_CATEGORIES",
+    "OFFENSE_EXEMPT_CATEGORIES",
+    "validate_profile",
+]
