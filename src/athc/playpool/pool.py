@@ -1,32 +1,127 @@
-"""Build a PlayPool: walk a play tree, classify each .ply, index by name.
+"""Build a PlayPool: walk a tree, classify each .ply from its file, index by name.
 
-Side and pool category come from the folder layout (fixed in code); the
-filename-derived flags/enums (`rollout`, `qb_draw`, `pass_logic`) come from the
-league's filename filters in `PlaypoolRules`.
+Side and category come from the parsed play file, so any folder layout works —
+a PNFL tree, an arbitrary tree, or a flat directory. Folders are optional: a PNFL
+folder adds an attribute the bytes can't carry (offense `screen`, defense
+`defensive_front`) and lets the pool warn (with the play's path) when a play sits
+in a PNFL folder that contradicts its file. The filename-derived flags
+(`rollout`, `qb_draw`, `pass_logic`) come from the league's `PlaypoolRules`.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
+from dataclasses import dataclass
 from os import PathLike
-from pathlib import Path
+from pathlib import Path, PurePath
 
-from athc.fbpro98_play import InvalidPlayFileError, PlayFile, read_play
+from athc.fbpro98_play import (
+    InvalidPlayFileError,
+    OffensiveCategory,
+    PlayCategory,
+    PlayFile,
+    category_by_short,
+    read_play,
+)
 from athc.playpool.records import (
-    PASS_CATEGORIES,
-    RUN_CATEGORIES,
     DefensiveFront,
-    DefensivePlayRecord,
-    OffensivePlayRecord,
+    DefensivePlay,
+    OffensivePlay,
     PassLogic,
-    PlayRecord,
-    SpecialTeamsPlayRecord,
+    Play,
+    SpecialTeamsPlay,
 )
 from athc.playpool.rules import PlaypoolRules
 
 StrPath = str | PathLike[str]
 
 logger = logging.getLogger(__name__)
+
+# ── PNFL folder conventions (optional; only these names mean anything) ──────────
+SCREENS_FOLDER = "Screens"  # offense pass screen
+RNS_FOLDER = "R&SDefs"  # Run-and-Shoot defense → 2-DL front
+SIDE_FOLDERS = ("Offense", "Defense", "Special")
+_SIDE_ADJECTIVE = {
+    "Offense": "Offensive",
+    "Defense": "Defensive",
+    "Special": "Special-teams",
+}
+# Category folders use the league short labels (e.g. PSM, RunLeft) — resolved via
+# fbpro98_play's `category_by_short`.
+
+
+def _file_side(play: PlayFile) -> str:
+    """'Offense' | 'Defense' | 'Special' from the play file's own bytes."""
+    if play.is_special_teams:
+        return "Special"
+    return "Offense" if play.is_offensive else "Defense"
+
+
+@dataclass(frozen=True, slots=True)
+class _FolderInfo:
+    """What a play's folder names imply under PNFL conventions (empty if none do)."""
+
+    side: str | None = None
+    category: PlayCategory | None = None
+    screen: bool = False
+    front: DefensiveFront | None = None
+
+
+def _folder_info(parts: Sequence[str]) -> _FolderInfo:
+    """Read PNFL conventions from a play's folder names (root→file order).
+    Deeper category folders win; unrecognized names are ignored."""
+    side = None
+    category: PlayCategory | None = None
+    screen = False
+    front: DefensiveFront | None = None
+    for part in parts:
+        if part in SIDE_FOLDERS:
+            side = part
+        elif part == SCREENS_FOLDER:
+            side, screen = "Offense", True
+        elif part == RNS_FOLDER:
+            side, front = "Defense", DefensiveFront.TWO_DL
+        elif part[:2] in ("34", "43"):
+            side = "Defense"
+            front = (
+                DefensiveFront.THREE_FOUR
+                if part[:2] == "34"
+                else DefensiveFront.FOUR_THREE
+            )
+            member = category_by_short(part[2:])
+            if member is not None:
+                category = member
+        else:
+            member = category_by_short(part)
+            if member is not None:
+                side = "Offense" if isinstance(member, OffensiveCategory) else "Defense"
+                category = member
+    return _FolderInfo(side, category, screen, front)
+
+
+def _warnings(info: _FolderInfo, play: PlayFile, path: str) -> list[str]:
+    """Warning (ending in the play's path) when a recognized PNFL folder
+    contradicts the play file: a wrong side, or — when the side matches — a
+    category that differs from the folder's. Unrecognized folders never warn.
+    A wrong side is reported alone (a cross-side category comparison would be
+    noise)."""
+    file_side = _file_side(play)
+    if info.side and info.side != file_side:
+        return [
+            f"{_SIDE_ADJECTIVE[file_side]} play in the {info.side.lower()} tree: {path}"
+        ]
+    file_category = play.category
+    if info.category is not None and file_category != info.category:
+        return [f"{file_category.long} play in a {info.category.long} folder: {path}"]
+    return []
+
+
+def folder_warnings(rel_path: StrPath, play: PlayFile) -> list[str]:
+    """PNFL folder/file mismatch warnings for a play at `rel_path` (relative to
+    the pool root); empty when nothing is wrong."""
+    rel = PurePath(rel_path)
+    return _warnings(_folder_info(rel.parent.parts), play, rel.as_posix())
 
 
 class PlayPool:
@@ -37,15 +132,15 @@ class PlayPool:
     ) -> None:
         self.root_dir = Path(root_dir)
         self.rules = rules if rules is not None else PlaypoolRules()
-        self.offensive_plays: list[OffensivePlayRecord] = []
-        self.defensive_plays: list[DefensivePlayRecord] = []
-        self.special_teams_plays: list[SpecialTeamsPlayRecord] = []
-        self._plays_by_name: dict[str, PlayRecord] = {}
+        self.offensive_plays: list[OffensivePlay] = []
+        self.defensive_plays: list[DefensivePlay] = []
+        self.special_teams_plays: list[SpecialTeamsPlay] = []
+        self._plays_by_name: dict[str, Play] = {}
 
-    def find_by_name(self, name: str) -> PlayRecord | None:
+    def find_by_name(self, name: str) -> Play | None:
         return self._plays_by_name.get(name.upper())
 
-    def _register(self, play: PlayRecord) -> None:
+    def _register(self, play: Play) -> None:
         key = play.name.upper()
         if key in self._plays_by_name:
             logger.warning("Duplicate play name '%s'; last loaded wins", play.name)
@@ -59,86 +154,56 @@ class PlayPool:
             return
 
         name = file_path.stem
-        parent = file_path.parent.name
-        grandparent = file_path.parent.parent.name
-        side = self._side_for(file_path)
-        if side == "Offense":
-            self._process_offensive(name, parent, grandparent, play_file)
-        elif side == "Defense":
-            self._process_defensive(name, parent, grandparent, play_file)
-        elif side == "Special":
-            self._process_special(name, play_file)
+        try:
+            rel = file_path.relative_to(self.root_dir)
+        except ValueError:
+            rel = Path(file_path.name)
+        info = _folder_info(rel.parent.parts)
+        for message in _warnings(info, play_file, rel.as_posix()):
+            logger.warning(message)
+
+        if play_file.is_special_teams:
+            self._add(SpecialTeamsPlay(name=name, play_file=play_file))
+        elif play_file.is_offensive:
+            self._add(self._offensive(name, play_file, screen=info.screen))
         else:
-            logger.warning(
-                "Skipping play outside Offense/Defense/Special: %s", file_path
+            self._add(
+                DefensivePlay(
+                    name=name, play_file=play_file, defensive_front=info.front
+                )
             )
 
-    def _side_for(self, file_path: Path) -> str | None:
-        """Side from the first Offense/Defense/Special ancestor folder, else None."""
-        try:
-            folders = file_path.relative_to(self.root_dir).parent.parts
-        except ValueError:
-            folders = file_path.parent.parts
-        for side in ("Offense", "Defense", "Special"):
-            if side in folders:
-                return side
-        return None
-
-    def _process_offensive(
-        self, name: str, parent: str, grandparent: str, play_file: PlayFile
-    ) -> None:
-        screen = parent == "Screens"
-        pool_category = grandparent if screen else parent
-        is_pass = pool_category in PASS_CATEGORIES
-        is_run = pool_category in RUN_CATEGORIES
-
+    def _offensive(
+        self, name: str, play_file: PlayFile, *, screen: bool
+    ) -> OffensivePlay:
+        category = play_file.category
+        is_run = category.is_run
+        is_pass = category.is_pass
         qb_draw = is_run and self.rules.qb_draw.matches(name)
         rollout = is_pass and self.rules.rollout.matches(name)
         pass_logic: PassLogic | None = None
         if is_pass:
-            timed = self.rules.timed.matches(name)
-            pass_logic = PassLogic.TIMED if timed else PassLogic.CHECK_RECEIVERS
-
-        play = OffensivePlayRecord(
+            pass_logic = (
+                PassLogic.TIMED
+                if self.rules.timed.matches(name)
+                else PassLogic.CHECK_RECEIVERS
+            )
+        return OffensivePlay(
             name=name,
             play_file=play_file,
-            pool_category=pool_category,
             screen=screen,
             rollout=rollout,
             qb_draw=qb_draw,
             pass_logic=pass_logic,
         )
-        self.offensive_plays.append(play)
-        self._register(play)
 
-    def _process_defensive(
-        self, name: str, parent: str, grandparent: str, play_file: PlayFile
-    ) -> None:
-        front: DefensiveFront | None = None
-        if grandparent == "R&SDefs":
-            pool_category = parent
-            front = DefensiveFront.TWO_DL
-        elif parent.startswith("34"):
-            pool_category = parent[2:]
-            front = DefensiveFront.THREE_FOUR
-        elif parent.startswith("43"):
-            pool_category = parent[2:]
-            front = DefensiveFront.FOUR_THREE
-        else:
-            pool_category = parent
-
-        play = DefensivePlayRecord(
-            name=name,
-            play_file=play_file,
-            pool_category=pool_category,
-            defensive_front=front,
-        )
-        self.defensive_plays.append(play)
-        self._register(play)
-
-    def _process_special(self, name: str, play_file: PlayFile) -> None:
-        play = SpecialTeamsPlayRecord(name=name, play_file=play_file)
-        self.special_teams_plays.append(play)
+    def _add(self, play: Play) -> None:
+        if isinstance(play, OffensivePlay):
+            self.offensive_plays.append(play)
+        elif isinstance(play, DefensivePlay):
+            self.defensive_plays.append(play)
+        elif isinstance(play, SpecialTeamsPlay):
+            self.special_teams_plays.append(play)
         self._register(play)
 
     def to_dict(self, *, relative_to: StrPath | None = None) -> dict[str, object]:
@@ -165,8 +230,8 @@ def read_play_pool(
 ) -> PlayPool:
     """Scan `root_dir` for .ply files and classify them; invalid files skipped.
 
-    With no `rules`, filename-derived attributes stay off (folder classification
-    still applies).
+    Each play's side and category come from the file itself. With no `rules`,
+    filename-derived attributes stay off.
     """
     pool = PlayPool(root_dir, rules=rules)
     logger.info("Processing .ply files in '%s'", pool.root_dir)
@@ -175,4 +240,4 @@ def read_play_pool(
     return pool
 
 
-__all__ = ["PlayPool", "read_play_pool"]
+__all__ = ["PlayPool", "folder_warnings", "read_play_pool"]

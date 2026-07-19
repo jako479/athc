@@ -1,8 +1,9 @@
-"""Typed play records and the category vocabulary they classify into.
+"""Typed play records that wrap a parsed .ply file.
 
-Offensive and defensive plays carry fixed, real attributes (set by the pool's
-folder/filename classification): offense — `screen`, `rollout`, `qb_draw`,
-`pass_logic`; defense — `defensive_front`. Special-teams plays add nothing.
+A record's `category` comes from the play file (`play_file.category`, an
+`fbpro98_play` enum member). Folder-derived attributes (offense `screen`; defense
+`defensive_front`) and filename-derived ones (`rollout`, `qb_draw`, `pass_logic`)
+are set by the pool.
 """
 
 from __future__ import annotations
@@ -10,39 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Final
 
-from athc.fbpro98_play import PlayFile
-
-RUN_CATEGORIES: Final[frozenset[str]] = frozenset({"GLR", "RL", "RM", "RR"})
-PASS_CATEGORIES: Final[frozenset[str]] = frozenset(
-    {"GLP", "PLR", "PML", "PMM", "PMR", "PRD", "PSL", "PSM", "PSR"}
-)
-DEFENSE_CATEGORIES: Final[frozenset[str]] = frozenset(
-    {
-        "GLpass",
-        "GLrun",
-        "PassDazzle",
-        "PassLong",
-        "PassMedium",
-        "PassShort",
-        "RunDazzle",
-        "RunLeft",
-        "RunMiddle",
-        "RunRight",
-    }
-)
-
-
-def play_type(category_name: str | None) -> str | None:
-    """'run' | 'pass' | None from a game category name — a game fact, not a rule."""
-    if category_name is None:
-        return None
-    if "Run" in category_name:
-        return "run"
-    if "Pass" in category_name:
-        return "pass"
-    return None
+from athc.fbpro98_play import PlayCategory, PlayFile
 
 
 class PassLogic(Enum):
@@ -61,7 +31,7 @@ class DefensiveFront(Enum):
 
 
 @dataclass(frozen=True)
-class PlayRecord:
+class Play:
     """A play: its name plus the parsed .ply file behind it."""
 
     name: str
@@ -72,14 +42,9 @@ class PlayRecord:
         return self.play_file.file_path
 
     @property
-    def category(self) -> str | None:
-        """Game category name from the play's user_category (offense/defense table)."""
-        return self.play_file.category_name
-
-    @property
-    def play_type(self) -> str | None:
-        """'run' | 'pass' | None, derived from the game category."""
-        return play_type(self.play_file.category_name)
+    def category(self) -> PlayCategory:
+        """The play's category; `UNKNOWN_CATEGORY` if the code is unrecognized."""
+        return self.play_file.category
 
     @property
     def play_category(self) -> int:
@@ -100,7 +65,7 @@ class PlayRecord:
         return {
             "name": self.name,
             "file_path": file_path.as_posix(),
-            "category": self.category,
+            "category": self.category.long,
             "play_category": self.play_category,
             "special_category": self.special_category,
             "user_category": self.user_category,
@@ -111,26 +76,16 @@ class PlayRecord:
 
 
 @dataclass(frozen=True)
-class OffensivePlayRecord(PlayRecord):
-    """An offensive play, classified from its pool directory and name."""
+class OffensivePlay(Play):
+    """An offensive play: `screen` from the folder, the rest from filename rules."""
 
-    pool_category: str = ""
     screen: bool = False
     rollout: bool = False
     qb_draw: bool = False
     pass_logic: PassLogic | None = None
 
-    @property
-    def is_run(self) -> bool:
-        return self.pool_category in RUN_CATEGORIES
-
-    @property
-    def is_pass(self) -> bool:
-        return self.pool_category in PASS_CATEGORIES
-
     def to_dict(self, *, relative_to: Path | None = None) -> dict[str, object]:
         result = self._base_dict(relative_to=relative_to)
-        result["pool_category"] = self.pool_category
         result["screen"] = self.screen
         result["rollout"] = self.rollout
         result["qb_draw"] = self.qb_draw
@@ -139,15 +94,13 @@ class OffensivePlayRecord(PlayRecord):
 
 
 @dataclass(frozen=True)
-class DefensivePlayRecord(PlayRecord):
-    """A defensive play, classified from its pool directory."""
+class DefensivePlay(Play):
+    """A defensive play: `defensive_front` from the folder when present."""
 
-    pool_category: str = ""
     defensive_front: DefensiveFront | None = None
 
     def to_dict(self, *, relative_to: Path | None = None) -> dict[str, object]:
         result = self._base_dict(relative_to=relative_to)
-        result["pool_category"] = self.pool_category
         result["defensive_front"] = (
             self.defensive_front.value if self.defensive_front else None
         )
@@ -155,18 +108,15 @@ class DefensivePlayRecord(PlayRecord):
 
 
 @dataclass(frozen=True)
-class SpecialTeamsPlayRecord(PlayRecord):
+class SpecialTeamsPlay(Play):
     """A special-teams play; adds no fields beyond the base."""
 
 
 __all__ = [
-    "DEFENSE_CATEGORIES",
-    "PASS_CATEGORIES",
-    "RUN_CATEGORIES",
     "DefensiveFront",
-    "DefensivePlayRecord",
-    "OffensivePlayRecord",
+    "DefensivePlay",
+    "OffensivePlay",
     "PassLogic",
-    "PlayRecord",
-    "SpecialTeamsPlayRecord",
+    "Play",
+    "SpecialTeamsPlay",
 ]

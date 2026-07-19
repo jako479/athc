@@ -1,17 +1,14 @@
-"""Build a play pool from FbPro '98 plays, classified by folder and filename."""
+"""Build a play pool from Front Page Sports Football Pro '98 plays, classified
+from each play file."""
 
 from athc.playpool.pool import PlayPool, read_play_pool
 from athc.playpool.records import (
-    DEFENSE_CATEGORIES,
-    PASS_CATEGORIES,
-    RUN_CATEGORIES,
     DefensiveFront,
-    DefensivePlayRecord,
-    OffensivePlayRecord,
+    DefensivePlay,
+    OffensivePlay,
     PassLogic,
-    PlayRecord,
-    SpecialTeamsPlayRecord,
-    play_type,
+    Play,
+    SpecialTeamsPlay,
 )
 from athc.playpool.rules import (
     FilenameFilter,
@@ -22,21 +19,17 @@ from athc.playpool.rules import (
 )
 
 __all__ = [
-    "DEFENSE_CATEGORIES",
-    "PASS_CATEGORIES",
-    "RUN_CATEGORIES",
     "DefensiveFront",
-    "DefensivePlayRecord",
+    "DefensivePlay",
     "FilenameFilter",
-    "OffensivePlayRecord",
+    "OffensivePlay",
     "PassLogic",
+    "Play",
     "PlayPool",
-    "PlayRecord",
     "PlaypoolRules",
     "RulesFileError",
-    "SpecialTeamsPlayRecord",
+    "SpecialTeamsPlay",
     "build_rules",
     "load_rules",
-    "play_type",
     "read_play_pool",
 ]
