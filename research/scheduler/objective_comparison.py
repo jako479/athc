@@ -48,7 +48,7 @@ from athc.scheduler.schedulers.types import make_matchup
 WORKERS = 8
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-LEAGUE_PATH = REPO_ROOT / "release" / "league.ini"
+LEAGUE_PATH = REPO_ROOT / "release" / "2048.league.ini"
 OBJECTIVES = ("minisum", "minimax")
 BAND_LOW, BAND_HIGH = 3.5, 6.5
 
@@ -70,7 +70,10 @@ def _divisions(teams: Sequence[Team]) -> dict[str, list[str]]:
 def _rankings_from_order(
     teams: Sequence[Team], afc: Sequence[str], nfc: Sequence[str]
 ) -> League:
-    return build_league(_divisions(teams), list(afc), list(nfc))
+    # Interleave the two 9-team orders into one overall 1-18 list so the derived
+    # conference ranks match afc/nfc (1st AFC, 1st NFC, 2nd AFC, ...).
+    overall = [team for pair in zip(afc, nfc, strict=True) for team in pair]
+    return build_league(_divisions(teams), overall)
 
 
 def _ranks(rankings: ConferenceRankings) -> dict[Team, int]:

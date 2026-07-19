@@ -1,0 +1,160 @@
+Week 1
+Atlanta#Miami
+Buffalo#Jacksonville
+Chicago#Minnesota
+Cincinnati#Pittsburgh
+Denver#Las Vegas
+Green Bay#Seattle
+Los Angeles#New England
+New York#San Francisco
+Washington#Philadelphia
+Week 2
+Buffalo#Las Vegas
+Cincinnati#Philadelphia
+Green Bay#Washington
+Los Angeles#Chicago
+Miami#New England
+Minnesota#New York
+Pittsburgh#Denver
+San Francisco#Atlanta
+Seattle#Jacksonville
+Week 3
+Chicago#Atlanta
+Denver#Buffalo
+Jacksonville#Pittsburgh
+Las Vegas#Los Angeles
+Miami#Cincinnati
+New England#San Francisco
+Philadelphia#Minnesota
+Seattle#Green Bay
+Washington#New York
+Week 4
+Atlanta#Philadelphia
+Buffalo#Cincinnati
+Denver#Pittsburgh
+Green Bay#New England
+Las Vegas#Jacksonville
+Miami#Washington
+Minnesota#Seattle
+New York#Chicago
+San Francisco#Los Angeles
+Week 5
+Chicago#San Francisco
+Cincinnati#Los Angeles
+Jacksonville#Buffalo
+Las Vegas#Seattle
+Minnesota#Green Bay
+New England#Miami
+New York#Atlanta
+Philadelphia#Denver
+Pittsburgh#Washington
+Week 6
+Atlanta#Minnesota
+Chicago#Las Vegas
+Denver#Cincinnati
+Jacksonville#Miami
+Los Angeles#Pittsburgh
+Philadelphia#Green Bay
+San Francisco#Buffalo
+Seattle#New York
+Washington#New England
+Week 7
+Buffalo#Los Angeles
+Cincinnati#Jacksonville
+Las Vegas#Atlanta
+Miami#Denver
+Minnesota#Chicago
+New York#Philadelphia
+Pittsburgh#New England
+San Francisco#Green Bay
+Washington#Seattle
+Week 8
+Atlanta#Washington
+Buffalo#New England
+Cincinnati#Las Vegas
+Denver#Minnesota
+Green Bay#New York
+Jacksonville#Chicago
+Los Angeles#Miami
+Philadelphia#Pittsburgh
+Seattle#San Francisco
+Week 9
+Atlanta#Green Bay
+Chicago#Seattle
+Cincinnati#Minnesota
+Denver#Los Angeles
+Jacksonville#San Francisco
+Las Vegas#Miami
+New England#New York
+Philadelphia#Washington
+Pittsburgh#Buffalo
+Week 10
+Chicago#Philadelphia
+Green Bay#Jacksonville
+Los Angeles#Las Vegas
+Miami#New York
+Minnesota#San Francisco
+New England#Atlanta
+Pittsburgh#Cincinnati
+Seattle#Buffalo
+Washington#Denver
+Week 11
+Buffalo#Miami
+Cincinnati#Denver
+Green Bay#Minnesota
+Jacksonville#New England
+Las Vegas#Pittsburgh
+Los Angeles#Atlanta
+New York#Washington
+San Francisco#Chicago
+Seattle#Philadelphia
+Week 12
+Atlanta#Cincinnati
+Denver#Green Bay
+Jacksonville#Los Angeles
+Miami#Pittsburgh
+New England#Buffalo
+New York#Las Vegas
+Philadelphia#San Francisco
+Seattle#Minnesota
+Washington#Chicago
+Week 13
+Atlanta#New York
+Buffalo#Philadelphia
+Chicago#Green Bay
+Los Angeles#Cincinnati
+Miami#Jacksonville
+Minnesota#Washington
+New England#Denver
+Pittsburgh#Las Vegas
+San Francisco#Seattle
+Week 14
+Atlanta#Seattle
+Chicago#Miami
+Cincinnati#New England
+Green Bay#San Francisco
+Jacksonville#Philadelphia
+Las Vegas#Denver
+Minnesota#Los Angeles
+New York#Pittsburgh
+Washington#Buffalo
+Week 15
+Buffalo#Green Bay
+Denver#Jacksonville
+Minnesota#Miami
+New England#Las Vegas
+New York#Cincinnati
+Philadelphia#Atlanta
+Pittsburgh#Los Angeles
+San Francisco#Washington
+Seattle#Chicago
+Week 16
+Green Bay#Chicago
+Las Vegas#Cincinnati
+Los Angeles#Denver
+Miami#Buffalo
+New England#Jacksonville
+Philadelphia#New York
+Pittsburgh#Seattle
+San Francisco#Minnesota
+Washington#Atlanta
