@@ -15,11 +15,11 @@ if %ERRORLEVEL% NEQ 0 (
     goto :error
 )
 
-REM Install athc into an isolated uv-tool environment from the bundled wheels.
-REM --no-index + --find-links + --offline keeps install fully local (no PyPI).
-REM --reinstall replaces any prior athc tool install so the user ends up on
-REM exactly this zip's version.
-uv tool install athc --no-index --find-links packages --offline --reinstall
+REM Install athc into an isolated uv-tool environment from the bundled wheel.
+REM uv pulls the dependencies from PyPI, so this step needs internet.
+REM --reinstall replaces any prior athc install so the user ends up on exactly
+REM this zip's version.
+for %%w in (athc-*.whl) do uv tool install "%%w" --reinstall
 if %ERRORLEVEL% NEQ 0 goto :error
 
 REM Make sure uv's tool directory is on PATH (no-op if already there).
@@ -28,21 +28,21 @@ uv tool update-shell
 REM Deploy files to the athc config folder.
 REM   - Docs and the rules\ folder are shipped reference material -> always
 REM     overwrite (no guard). Users copy a rule file before editing their own.
-REM   - athc.ini.example is the always-current reference for new sections/keys.
-REM     Always overwrite so the user can diff against their athc.ini after upgrades.
 REM   - athc.ini is user-owned -> guard with 'if not exist' so user edits survive.
-REM     New tool sections take effect via in-code defaults; user adds overrides
-REM     to athc.ini by copying from athc.ini.example.
+REM     New tool sections take effect via in-code defaults; the freshly-extracted
+REM     athc.ini in this zip is the always-current reference of every setting.
 set "DEST=%LOCALAPPDATA%\athc"
 if not exist "%DEST%" mkdir "%DEST%"
 if not exist "%DEST%\rules" mkdir "%DEST%\rules"
+if not exist "%DEST%\docs" mkdir "%DEST%\docs"
 
-copy /Y "README.txt"             "%DEST%\README.txt"             >NUL
-copy /Y "COMMANDS.txt"           "%DEST%\COMMANDS.txt"           >NUL
-copy /Y "SCHEDULER-COMMANDS.txt" "%DEST%\SCHEDULER-COMMANDS.txt" >NUL
-copy /Y "athc.ini.example"       "%DEST%\athc.ini.example"       >NUL
-copy /Y "rules\*.toml"           "%DEST%\rules\"                 >NUL
+copy /Y "docs\*.txt"   "%DEST%\docs\"  >NUL
+copy /Y "rules\*.toml" "%DEST%\rules\" >NUL
 if not exist "%DEST%\athc.ini" copy /Y "athc.ini" "%DEST%\athc.ini" >NUL
+
+REM Season config (<season>.league.ini / <season>.nonconf_history.json) is
+REM commissioner-owned -> guard per file so edits survive a reinstall.
+for %%f in (*.league.ini *.nonconf_history.json) do if not exist "%DEST%\%%f" copy /Y "%%f" "%DEST%\%%f" >NUL
 
 echo.
 echo ============================================
@@ -59,8 +59,8 @@ echo.
 echo Your settings and docs live at:
 echo   %DEST%
 echo.
-echo See COMMANDS.txt for what each tool does and examples.
-echo README.txt covers setup and troubleshooting.
+echo See docs\COMMANDS.txt for what each tool does and examples.
+echo docs\README.txt covers setup and troubleshooting.
 echo.
 echo To remove:  uv tool uninstall athc
 echo ============================================

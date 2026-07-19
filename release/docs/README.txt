@@ -41,8 +41,24 @@ INSTALLATION
 1. Extract this zip to a folder on your computer.
 2. Double-click install.bat and wait for it to finish.
 
+install.bat downloads athc's dependencies, so you need an internet
+connection the first time you install.
+
 You only need to run install.bat once. Re-running it later picks up
 new versions without touching your settings.
+
+
+FIRST-TIME SETUP
+----------------
+
+athc ships configured for PNFL out of the box -- the bundled rule sets
+in rules\ are already wired up. The one thing you must set is your
+plays folder. Run 'athc config edit' (or open athc.ini, see below) and
+set PlayPath under [league.PNFL] to your FbPro98 league plays folder,
+for example:
+
+   [league.PNFL]
+   PlayPath = D:\SIERRA\FBPRO98\PNFL\plays
 
 
 USING THE TOOLS
@@ -54,8 +70,8 @@ Once installed, the 'athc' command is available from any terminal
    athc --help                      list top-level commands
    athc <command> --help            show help for one command
 
-For what each tool does, with examples, see COMMANDS.txt in your
-settings folder (see below).
+For what each tool does, with examples, see docs\COMMANDS.txt in
+your settings folder (see below).
 
 
 SETTINGS AND DOCS FOLDER
@@ -67,11 +83,9 @@ After install, settings and documentation live together at:
 
 That folder will contain:
 
-   athc.ini             your settings (edit to customize)
-   athc.ini.example     always-current reference -- shows every section
-                        and key supported by the installed version
-   README.txt           this file
-   COMMANDS.txt         per-command reference
+   athc.ini             your settings (edit to customize; the file
+                        documents every setting inline)
+   docs\                this README plus per-command references
    rules\               PNFL rule sets (PNFL.*.toml) for
                         gameplan/profile/playpool
 
@@ -80,11 +94,9 @@ To open this folder, run 'athc config reveal' (or paste
 
 What survives reinstalls:
    athc.ini             YES -- your edits are preserved on every reinstall.
-                        Delete it to have install.bat seed a fresh copy
-                        from athc.ini.example on the next run.
-   athc.ini.example     overwritten every install (always shows the latest)
-   README.txt           overwritten every install
-   COMMANDS.txt         overwritten every install
+                        Delete it to have install.bat seed a fresh PNFL
+                        starter copy on the next run.
+   docs\                overwritten every install
    rules\               overwritten every install (copy a file before editing
                         your own league's rules)
 
@@ -92,8 +104,9 @@ When a new version adds a tool with new settings:
    The new tool runs with sensible defaults out of the box -- you do
    not have to edit anything.
 
-   To customize the new tool's settings, open athc.ini.example, copy
-   the new section into your athc.ini, and edit the values.
+   To customize it, see the freshly-extracted athc.ini in this zip (it
+   lists every current setting), copy the new section into your athc.ini,
+   and edit the values.
 
 
 TROUBLESHOOTING
@@ -110,3 +123,7 @@ TROUBLESHOOTING
 
 Settings changes aren't picking up:
     Close and reopen the terminal, then re-run the command.
+
+An error with no detail (or filing a bug report):
+    Run  set ATHC_DEBUG=1  first, then re-run the command to see the
+    full technical traceback.

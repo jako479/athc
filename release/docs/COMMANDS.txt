@@ -10,7 +10,7 @@ Run tools from any terminal (Command Prompt or PowerShell):
    athc <group> --help                list subcommands in a group
    athc <group> <subcommand> --help   show help for one subcommand
 
-Settings live in athc.ini (see athc.ini.example for every option). The rules\
+Settings live in athc.ini (the file documents every option inline). The rules\
 folder next to this file holds the ready-to-use PNFL rule sets
 (PNFL.gameplan.toml, PNFL.profile.toml, PNFL.playpool.toml).
 
@@ -21,10 +21,11 @@ folder next to this file holds the ready-to-use PNFL rule sets
    Rules come from athc.ini ([gameplan] rule_files, one path per line) or
    --rules (repeatable). The PNFL rule set ships at rules\PNFL.gameplan.toml.
    The play pool comes from the league's PlayPath (plus an optional playpool
-   rules TOML via PlayPoolRules), or --play-path / --playpool-rules. The play
-   folder must use the standard layout (Offense/Defense/Special folders with
-   category subfolders). With no gameplan rules configured, check reports an
-   error and stops.
+   rules TOML via PlayPoolRules), or --play-path / --playpool-rules. Each play's
+   side and category come from the play file, so any folder layout works; the
+   PNFL layout (Offense/Defense/Special with category subfolders) is optional and
+   only adds play attributes and misfiled-play warnings. With no gameplan rules
+   configured, check reports an error and stops.
 
    Show help:
       athc gameplan check --help
@@ -69,11 +70,12 @@ folder next to this file holds the ready-to-use PNFL rule sets
 
    Searches a single .pln, every .pln in a directory, or a tree (-r).
    Case-insensitive; only the normal and custom-special slots are searched
-   (stock/clock slots skipped). For each hit, the slot(s) and the play's
-   game category are shown, e.g. (Run Middle), (Field Goal/PAT). No pool
-   setup needed -- the category is read from the .pln. Single file: a miss
-   prints `not found`; directory/tree: misses are silent unless --verbose,
-   ending with a per-play summary.
+   (stock/clock slots skipped). Normal-play hits show the short category and
+   the slot(s) in brackets, e.g. 'OR45RL01' (RL) [1-3][16-2]; special-teams
+   hits show the category and "in special slot N". No pool setup needed -- the
+   category is read from the .pln. Single file: a miss prints `not found`;
+   directory/tree: misses are silent unless --verbose, ending with a per-play
+   summary.
 
    Show help:
       athc gameplan find-play --help
@@ -87,7 +89,9 @@ folder next to this file holds the ready-to-use PNFL rule sets
    -----------------------------------------------------------
 
    Replaces the normal slots of one .pln from a play list. A timestamped
-   backup is created first (suppress with --no-backup). Input lines starting
+   backup (file.YYYY-MM-DD-HHMM.bak) is created first, suppress with
+   --no-backup; two edits in the same minute reuse the name, so the second
+   overwrites that backup. Input lines starting
    with `::` are comments; ` ::` after a name (with a space) is inline. The
    pool resolves names; run `check` to validate. Use --stdin to read the
    list from stdin instead of a file.
@@ -106,7 +110,9 @@ folder next to this file holds the ready-to-use PNFL rule sets
    Updates one .pln, every .pln in a directory, or a tree (-r). Wrong-side
    files are skipped silently (offense .pln are even-sized, defense odd).
    Merge semantics: unlisted special categories are kept. A timestamped
-   backup is created per file. Comment syntax: same as set-normals.
+   backup (file.YYYY-MM-DD-HHMM.bak) is created per file; two edits of one
+   file in the same minute reuse the name, so the second overwrites that
+   backup. Comment syntax: same as set-normals.
 
    Show help:
       athc gameplan set-specials --help
@@ -116,7 +122,31 @@ folder next to this file holds the ready-to-use PNFL rule sets
       athc gameplan set-specials plans\ spec.txt -r --no-backup
 
 
-7) profile check  --  validate a .prf coaching profile against league rules
+7) gameplan replace-play  --  swap one play for another across .pln files
+   ----------------------------------------------------------------------
+
+   Replaces every instance of one play with another in a single .pln, every
+   .pln in a directory, or a tree (-r). Searches the normal and custom-special
+   slots, case-insensitive (same as find-play); only matching slots change, the
+   rest are left alone. The replacement play must exist in the play pool (from
+   the league's PlayPath, or --play-path); the play being replaced need not (it
+   may already be gone). A timestamped backup (file.YYYY-MM-DD-HHMM.bak) is
+   created per updated file, suppress with --no-backup. Rules are not checked --
+   run `gameplan check` afterward to validate.
+
+   Each replaced play prints a line; a play in several slots lists them all
+   in brackets at the end, e.g.:
+      offense.pln: 'OR45RL01' (RL) replaced with 'OR43RM02' (RM) [1-3][4-2]
+
+   Show help:
+      athc gameplan replace-play --help
+
+   Example terminal calls:
+      athc gameplan replace-play OLDRUN NEWRUN offense.pln
+      athc gameplan replace-play OLDRUN NEWRUN plans\ -r --no-backup
+
+
+8) profile check  --  validate a .prf coaching profile against league rules
    ------------------------------------------------------------------------
 
    Rules come from athc.ini ([profile] rule_files, one path per line) or
@@ -125,8 +155,9 @@ folder next to this file holds the ready-to-use PNFL rule sets
 
    --gameplan FILE also checks the profile's play categories against a .pln
    gameplan: every category the profile uses (normal and special teams) must
-   have a custom play in the gameplan. Profile and gameplan must be the same
-   side (offense or defense).
+   have a custom play in the gameplan. It also warns about gameplan categories
+   the profile never uses (a warning does not fail the check). Profile and
+   gameplan must be the same side (offense or defense).
 
    Show help:
       athc profile check --help
@@ -137,12 +168,14 @@ folder next to this file holds the ready-to-use PNFL rule sets
       athc profile check OFF1.prf --gameplan OFF.pln
 
 
-8) profile copy  --  copy fields from a source .prf into targets
+9) profile copy  --  copy fields from a source .prf into targets
    --------------------------------------------------------------
 
    Updates a single .prf, every .prf in a directory, or a tree (-r).
-   Wrong-side files are skipped silently. A timestamped backup is created
-   per target. Copy does not validate -- use `profile check` for that.
+   Wrong-side files are skipped silently. A timestamped backup
+   (file.YYYY-MM-DD-HHMM.bak) is created per target; two edits of one file
+   in the same minute reuse the name, so the second overwrites that backup.
+   Copy does not validate -- use `profile check` for that.
 
    Show help:
       athc profile copy --help
@@ -152,14 +185,13 @@ folder next to this file holds the ready-to-use PNFL rule sets
       athc profile copy SRC.prf profiles\ --stop-clock -r
 
 
-9) profile diff  --  show differences between two coaching profiles
-   ----------------------------------------------------------------
+10) profile diff  --  show differences between two coaching profiles
+    ----------------------------------------------------------------
 
    Compares situations, PAT situations, substitutions, field-goal range,
    and audibles; only changed records are shown. Both files must be the
-   same side. Exit code 1 means differences were found. Prints to the
-   screen, or with --output FILE writes a report (.txt report, .csv one row
-   per changed record for Excel).
+   same side. Prints to the screen, or with --output FILE writes a report
+   (.txt report, .csv one row per changed record for Excel).
 
    Show help:
       athc profile diff --help
@@ -169,13 +201,12 @@ folder next to this file holds the ready-to-use PNFL rule sets
       athc profile diff OFF1.prf OFF2.prf --output changes.csv
 
 
-10) convert-pdb  --  WinLogStats stats (.pdb) into Excel
+11) convert-pdb  --  WinLogStats stats (.pdb) into Excel
     ----------------------------------------------------
 
    Builds an Excel workbook (.xlsx, or .xlsm for embedded sorting macros)
    from a WinLogStats .pdb. Cross-reference up to two offensive (-o/-o2)
-   and two defensive (-d/-d2) game plans to tag plays. Needs the convert-pdb
-   extra: install with athc[convert-pdb].
+   and two defensive (-d/-d2) game plans to tag plays.
 
    Show help:
       athc convert-pdb --help
@@ -185,23 +216,29 @@ folder next to this file holds the ready-to-use PNFL rule sets
       athc convert-pdb stats.pdb output.xlsm -d defense.pln -o offense.pln
 
 
-11) autocontinue  --  auto-click the FbPro '98 'Continue' button between plays
+12) autocontinue  --  auto-click the FbPro '98 'Continue' button between plays
     --------------------------------------------------------------------------
 
    Watches for the 'Continue' button and clicks it between plays. Settings
-   live in athc.ini ([autocontinue] mouse_move_duration, delay_before_continue)
-   and are re-read whenever the file changes. Press CTRL-C to stop; move the
-   mouse to a screen corner for PyAutoGUI's fail-safe. Needs the autocontinue
-   extra: install with athc[autocontinue].
+   live in athc.ini ([autocontinue] mouse_move_duration, delay_before_continue,
+   hot_corner) and are re-read whenever the file changes. It only clicks while
+   the game is the active window, so switching to another app is safe. Run the
+   game on your primary monitor (autocontinue only watches that display; a
+   single-display VM works too). Stop it with CTRL-C, or by moving the mouse to
+   the top-left screen corner (the "hot corner", on by default).
+
+   Set hot_corner = false (or pass --no-hot-corner) to turn the corner off and
+   use CTRL-C only; --hot-corner forces it on for one run.
 
    Show help:
       athc autocontinue --help
 
-   Example terminal call:
+   Example terminal calls:
       athc autocontinue
+      athc autocontinue --no-hot-corner
 
 
-12) config  --  locate, edit, or reveal your athc settings
+13) config  --  locate, edit, or reveal your athc settings
     -----------------------------------------------------
 
    Helpers for the settings file (athc.ini) and its folder. `path` prints
@@ -216,3 +253,24 @@ folder next to this file holds the ready-to-use PNFL rule sets
       athc config path
       athc config edit
       athc config reveal
+
+
+EXIT CODES
+==========
+
+   0 always means success. The meaning of 1 and 2 depends on the command.
+
+   Checks and comparisons -- gameplan check, profile check, profile diff,
+   find-play, and the bulk editors set-specials, replace-play, and
+   profile copy:
+      0   clean -- nothing to report
+      1   ran, but found problems (violations, differences, a missing
+          play, nothing replaced, or some files failed)
+      2   could not run (bad arguments, config or I/O error, no rules, or
+          the replacement play is not in the pool)
+
+   All other commands either succeed or fail:
+      0   success
+      1   an error (could not read/write a file, bad config, missing
+          dependency)
+      2   bad command-line arguments
