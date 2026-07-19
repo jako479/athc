@@ -13,7 +13,7 @@ from athc.scheduler.schedulers.fixed_matchup_builder import (
 )
 from athc.scheduler.schedulers.types import MatchupPlan, make_matchup
 
-from ..conftest import HISTORY_PATH, TEST_SEASON
+from ..conftest import HISTORY_PATH
 
 
 @pytest.fixture(scope="session")
@@ -22,7 +22,6 @@ def fixed_matchup_plan(league: League) -> MatchupPlan:
         teams=league.teams,
         rankings=league.rankings,
         history=NonConfHistory.load(HISTORY_PATH),
-        season=TEST_SEASON,
     ).build_matchup_plan()
 
 
@@ -145,7 +144,6 @@ def test_pseudo_inverse_rank_cost_penalizes_unfavorable_direction(league) -> Non
         teams=league.teams,
         rankings=league.rankings,
         history=NonConfHistory.load(HISTORY_PATH),
-        season=TEST_SEASON,
     )
     afc_top = league.rankings.afc[0]  # rank 1; target opponent rank is 6
     at_target = league.rankings.nfc[5]  # rank 6
@@ -170,7 +168,6 @@ def test_unbalanced_assignment_sides_raises(league) -> None:
         teams=league.teams,
         rankings=league.rankings,
         history=NonConfHistory.load(HISTORY_PATH),
-        season=TEST_SEASON,
     )
     teams = league.teams
     with pytest.raises(SchedulerError):

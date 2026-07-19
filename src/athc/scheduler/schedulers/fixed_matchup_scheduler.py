@@ -1,4 +1,4 @@
-"""Fixed-Matchup PNFL scheduler.
+"""Scheduler A (fixed-rank): the fixed-matchup PNFL scheduler.
 
 Phase 1 builds the full opponent inventory for the schedule builder to use
 to build out the schedule: divisional home-and-away games, conference games,
@@ -26,7 +26,6 @@ from athc.scheduler.schedulers.types import SchedulerResult
 def generate_schedule(
     league: League,
     history: NonConfHistory,
-    season: int,
     seed: int = 0,
     scheduler_config: SchedulerConfig | None = None,
 ) -> SchedulerResult:
@@ -36,7 +35,6 @@ def generate_schedule(
         teams=league.teams,
         rankings=league.rankings,
         history=history,
-        season=season,
     ).build_matchup_plan()
 
     schedule_builder = ScheduleBuilder(

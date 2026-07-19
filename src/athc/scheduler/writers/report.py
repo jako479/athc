@@ -1,15 +1,29 @@
-"""Schedule report builder + plain-text report writer."""
+"""Schedule report builder + sortable HTML report writer."""
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from html import escape
 from os import PathLike
 from pathlib import Path
 
+from athc.scheduler.config import (
+    DEFAULT_DIFFICULTY_AMPLITUDE,
+    DEFAULT_DIFFICULTY_C_SPREAD,
+    DEFAULT_DIFFICULTY_D_SPREAD,
+    DEFAULT_DIFFICULTY_PERIOD,
+)
 from athc.scheduler.domain.history import NonConfHistory
 from athc.scheduler.domain.league import League, Team, ordered_teams
 from athc.scheduler.domain.schedule import Schedule
-from athc.scheduler.schedulers.types import MatchupPlan
+from athc.scheduler.schedulers.types import (
+    MatchupPlan,
+    scheduler_display_name,
+    scheduler_uses_difficulty_curve,
+    scheduler_uses_difficulty_line,
+    scheduler_uses_free_difficulty_line,
+)
 
 StrPath = str | PathLike[str]
 
@@ -17,14 +31,18 @@ StrPath = str | PathLike[str]
 @dataclass(frozen=True)
 class TeamScheduleReport:
     team: str
-    conference_rank: int
-    schedule_rank: int
-    nonconference_rank: int
+    conference_rank: int  # 1-9
+    overall_rank: int  # 1-18, previous season's final ranking
+    schedule_rank: int  # 1-18 ordering by total opponent strength
+    avg_sos: float  # average opponent overall rank (1-18), full schedule
+    nonconference_rank: int  # 1-18 ordering by non-conference strength
+    avg_nonconference_sos: float  # average non-conf opponent overall rank (1-18)
+    avg_nonconference_sos_conf: float  # average non-conf opponent conference rank (1-9)
+    nonconference_game_ranks: str  # conference ranks (1-9) of non-conf opponents
     extra_opponent: str
     history_opponent: str
     history_last_played: str
     nonconference_opponents: tuple[str, ...]
-    nonconference_game_ranks: str
 
 
 @dataclass(frozen=True)
@@ -36,51 +54,31 @@ class ScheduleReport:
     elapsed_time_seconds: float
     teams: tuple[TeamScheduleReport, ...]
     command_line: str | None = None
+    difficulty_amplitude: float = DEFAULT_DIFFICULTY_AMPLITUDE
+    difficulty_period: float = DEFAULT_DIFFICULTY_PERIOD
+    difficulty_c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD
+    difficulty_d_spread: float = DEFAULT_DIFFICULTY_D_SPREAD
+
+
+def _opponents(schedule: Schedule, team: Team) -> list[Team]:
+    """All opponents over the team's 16 games (divisional opponents appear twice)."""
+    return [(g.away if g.home == team else g.home) for g in schedule.games_for(team)]
 
 
 def _nonconference_opponents(schedule: Schedule, team: Team) -> tuple[Team, ...]:
     opponents = {
-        (game.away if game.home == team else game.home)
-        for game in schedule.games_for(team)
-        if (game.away if game.home == team else game.home).conference != team.conference
+        opp for opp in _opponents(schedule, team) if opp.conference != team.conference
     }
     return tuple(sorted(opponents, key=lambda opponent: opponent.metro))
 
 
-def _schedule_rank_by_team(
-    schedule: Schedule,
-    league: League,
-) -> tuple[dict[Team, int], dict[Team, int], dict[Team, int]]:
-    rank_by_team: dict[Team, int] = {
-        team: league.rankings.rank_of(team) for team in league.teams
-    }
+def _mean(values: Sequence[int]) -> float:
+    return sum(values) / len(values)
 
-    score_by_team: dict[Team, int] = {}
-    for team in league.teams:
-        score_by_team[team] = sum(
-            rank_by_team[(game.away if game.home == team else game.home)]
-            for game in schedule.games_for(team)
-        )
 
-    ordered = sorted(league.teams, key=lambda t: (score_by_team[t], t.metro))
-    schedule_rank_by_team = {team: idx + 1 for idx, team in enumerate(ordered)}
-
-    nonconference_average_by_team: dict[Team, float] = {}
-    for team in league.teams:
-        opponents = _nonconference_opponents(schedule, team)
-        nonconference_average_by_team[team] = sum(
-            rank_by_team[opp] for opp in opponents
-        ) / len(opponents)
-
-    nonconference_ordered = sorted(
-        league.teams,
-        key=lambda t: (nonconference_average_by_team[t], t.metro),
-    )
-    nonconference_rank_by_team = {
-        team: idx + 1 for idx, team in enumerate(nonconference_ordered)
-    }
-
-    return rank_by_team, schedule_rank_by_team, nonconference_rank_by_team
+def _ordering(teams: Sequence[Team], score: Callable[[Team], float]) -> dict[Team, int]:
+    ordered = sorted(teams, key=lambda team: (score(team), team.metro))
+    return {team: idx + 1 for idx, team in enumerate(ordered)}
 
 
 def build_schedule_report(
@@ -95,12 +93,26 @@ def build_schedule_report(
     history_path: StrPath,
     elapsed_time_seconds: float,
     command_line: str | None = None,
+    difficulty_amplitude: float = DEFAULT_DIFFICULTY_AMPLITUDE,
+    difficulty_period: float = DEFAULT_DIFFICULTY_PERIOD,
+    difficulty_c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD,
+    difficulty_d_spread: float = DEFAULT_DIFFICULTY_D_SPREAD,
 ) -> ScheduleReport:
-    """Compute per-team schedule strength rows and return a structured report."""
-    teams = ordered_teams(league.teams)
-    rank_by_team, schedule_rank_by_team, nonconference_rank_by_team = (
-        _schedule_rank_by_team(schedule, league)
+    """Compute per-team schedule-strength rows and return a structured report."""
+    conf_rank = {team: league.rankings.rank_of(team) for team in league.teams}
+    overall_rank = {team: league.rankings.overall_rank(team) for team in league.teams}
+
+    nonconf = {team: _nonconference_opponents(schedule, team) for team in league.teams}
+    nc_conf_avg = {
+        team: _mean([conf_rank[opp] for opp in nonconf[team]]) for team in league.teams
+    }
+    # Orderings keep the conference-rank basis (unchanged); the SOS averages below
+    # use the overall 1-18 scale, to compare against the difficulty curve.
+    schedule_rank = _ordering(
+        league.teams,
+        lambda team: sum(conf_rank[opp] for opp in _opponents(schedule, team)),
     )
+    nonconference_rank = _ordering(league.teams, lambda team: nc_conf_avg[team])
 
     extra_opponent_by_team: dict[Team, Team] = {}
     for team_a, team_b in matchup_plan.extra_nonconference_pairs:
@@ -113,41 +125,41 @@ def build_schedule_report(
         history_opponent_by_team[team_b] = team_a
 
     rows: list[TeamScheduleReport] = []
-    for team in teams:
-        nonconference_opponents = _nonconference_opponents(schedule, team)
+    for team in ordered_teams(league.teams):
+        opponents = nonconf[team]
         nonconference_game_ranks = ",".join(
-            str(rank)
-            for rank in sorted(rank_by_team[opp] for opp in nonconference_opponents)
+            str(rank) for rank in sorted(conf_rank[opp] for opp in opponents)
         )
         extra_opponent = extra_opponent_by_team.get(team)
         history_opponent = history_opponent_by_team.get(team)
-        extra_opponent_metro = (
-            extra_opponent.metro if extra_opponent is not None else "-"
-        )
         if history_opponent is None:
             history_opponent_metro = "-"
             history_last_played = "-"
         else:
             history_opponent_metro = history_opponent.metro
-            if history is None:
-                history_last_played = "unknown"
-            else:
-                last_played = history.last_played(team, history_opponent)
-                history_last_played = str(last_played)
+            history_last_played = (
+                "unknown"
+                if history is None
+                else str(history.last_played(team, history_opponent))
+            )
 
         rows.append(
             TeamScheduleReport(
                 team=team.metro,
-                conference_rank=rank_by_team[team],
-                schedule_rank=schedule_rank_by_team[team],
-                nonconference_rank=nonconference_rank_by_team[team],
+                conference_rank=conf_rank[team],
+                overall_rank=overall_rank[team],
+                schedule_rank=schedule_rank[team],
+                avg_sos=_mean(
+                    [overall_rank[opp] for opp in _opponents(schedule, team)]
+                ),
+                nonconference_rank=nonconference_rank[team],
+                avg_nonconference_sos=_mean([overall_rank[opp] for opp in opponents]),
+                avg_nonconference_sos_conf=nc_conf_avg[team],
                 nonconference_game_ranks=nonconference_game_ranks,
-                extra_opponent=extra_opponent_metro,
+                extra_opponent=extra_opponent.metro if extra_opponent else "-",
                 history_opponent=history_opponent_metro,
                 history_last_played=history_last_played,
-                nonconference_opponents=tuple(
-                    opponent.metro for opponent in nonconference_opponents
-                ),
+                nonconference_opponents=tuple(opp.metro for opp in opponents),
             )
         )
 
@@ -159,12 +171,74 @@ def build_schedule_report(
         history_path=str(history_path),
         elapsed_time_seconds=elapsed_time_seconds,
         teams=tuple(rows),
+        difficulty_amplitude=difficulty_amplitude,
+        difficulty_period=difficulty_period,
+        difficulty_c_spread=difficulty_c_spread,
+        difficulty_d_spread=difficulty_d_spread,
     )
 
 
+# Column = (header, numeric?, sort-kind). sort-kind None = not sortable; "order"
+# restores the original row order. Columns are grouped by scope.
+_Column = tuple[str, bool, str | None]
+_COLUMNS: tuple[_Column, ...] = (
+    ("Team", False, "order"),
+    ("Conf Rank (1-9)", True, "num"),
+    ("Prev Rank (1-18)", True, "num"),
+    ("Sched Rank (1-18)", True, "num"),
+    ("Avg SOS (1-18)", True, "num"),
+    ("NC Rank (1-18)", True, "num"),
+    ("Avg NC SOS (1-18)", True, "num"),
+    ("Avg NC SOS (1-9)", True, "num"),
+    ("NC Game Ranks (1-9)", False, None),
+    ("Extra Opp", False, None),
+    ("H2H Opp", False, None),
+    ("Last Played", True, "num"),
+    ("Non-Conference Opponents", False, None),
+)
+
+_STYLE = """\
+<style>
+body { font-family: sans-serif; margin: 1rem; }
+table { border-collapse: collapse; }
+th, td { border: 1px solid #ccc; padding: 2px 8px; }
+th { background: #eee; text-align: left; }
+th[data-sort] { cursor: pointer; }
+td.num { text-align: right; }
+</style>"""
+
+# Click a header to sort; the Team header restores the original row order.
+_SCRIPT = """\
+<script>
+function sortTable(table, col, kind) {
+  const tbody = table.tBodies[0];
+  const rows = Array.from(tbody.rows);
+  const th = table.tHead.rows[0].cells[col];
+  const asc = kind === "order" || th.getAttribute("data-dir") !== "asc";
+  for (const c of table.tHead.rows[0].cells) c.removeAttribute("data-dir");
+  th.setAttribute("data-dir", asc ? "asc" : "desc");
+  const cell = (r) => r.cells[col].textContent;
+  rows.sort((a, b) => {
+    let x, y;
+    if (kind === "order") { x = +a.dataset.index; y = +b.dataset.index; }
+    else if (kind === "num") { x = parseFloat(cell(a)); y = parseFloat(cell(b)); }
+    else { x = cell(a); y = cell(b); }
+    return x < y ? (asc ? -1 : 1) : x > y ? (asc ? 1 : -1) : 0;
+  });
+  for (const r of rows) tbody.appendChild(r);
+}
+document.addEventListener("DOMContentLoaded", () => {
+  for (const th of document.querySelectorAll("th[data-sort]")) {
+    th.addEventListener("click", () =>
+      sortTable(th.closest("table"), th.cellIndex, th.getAttribute("data-sort")));
+  }
+});
+</script>"""
+
+
 @dataclass(frozen=True)
-class TxtReportWriter:
-    """Render a `ScheduleReport` as a fixed-width text table to `path`."""
+class HtmlReportWriter:
+    """Render a `ScheduleReport` as a sortable HTML table to `path`."""
 
     path: StrPath
 
@@ -172,56 +246,80 @@ class TxtReportWriter:
         Path(self.path).write_text(self.render(report), encoding="utf-8")
 
     def render(self, report: ScheduleReport) -> str:
-        lines = [
-            "PNFL Schedule Report",
-            "====================",
-            "",
-            f"Seed: {report.seed}",
-            f"Scheduler kind: {report.scheduler_kind}",
-            f"Command line: {report.command_line or '-'}",
-            f"Config path: {report.config_path or '-'}",
-            f"History path: {report.history_path or '-'}",
-            f"Elapsed time (seconds): {report.elapsed_time_seconds:.3f}",
-            "",
-        ]
-
-        headers = (
-            ("Team", 15),
-            ("Conf Rank", 10),
-            ("Sched Rank", 11),
-            ("Non-conf Rank", 13),
-            ("NC Game Ranks", 15),
-            ("Extra Opponent", 15),
-            ("H2H Opponent", 15),
-            ("Last Played", 12),
-            ("Non-Conference Opponents", 0),
-        )
-        header_line = "  ".join(
-            name.ljust(width) if width else name for name, width in headers
-        )
-        rule_line = "  ".join(
-            ("-" * len(name)).ljust(width) if width else "-" * len(name)
-            for name, width in headers
-        )
-        lines.extend([header_line, rule_line])
-
-        for row in report.teams:
-            opponents = ", ".join(row.nonconference_opponents)
-            lines.append(
-                "  ".join(
-                    [
-                        row.team.ljust(15),
-                        str(row.conference_rank).ljust(10),
-                        str(row.schedule_rank).ljust(11),
-                        str(row.nonconference_rank).ljust(13),
-                        row.nonconference_game_ranks.ljust(15),
-                        row.extra_opponent.ljust(15),
-                        row.history_opponent.ljust(15),
-                        row.history_last_played.ljust(12),
-                        opponents,
-                    ]
-                )
+        info_rows = [("Scheduler", scheduler_display_name(report.scheduler_kind))]
+        # a/t drive B's curve; c_spread drives C's line; A uses a fixed table.
+        if scheduler_uses_difficulty_curve(report.scheduler_kind):
+            info_rows.append(
+                ("Difficulty amplitude (a)", f"{report.difficulty_amplitude:g}")
             )
+            info_rows.append(("Difficulty period (t)", f"{report.difficulty_period:g}"))
+        if scheduler_uses_difficulty_line(report.scheduler_kind):
+            info_rows.append(("Difficulty c_spread", f"{report.difficulty_c_spread:g}"))
+        if scheduler_uses_free_difficulty_line(report.scheduler_kind):
+            info_rows.append(("Difficulty d_spread", f"{report.difficulty_d_spread:g}"))
+        info_rows += [
+            ("Seed", str(report.seed)),
+            ("Command line", report.command_line or "-"),
+            ("Config path", report.config_path or "-"),
+            ("History path", report.history_path or "-"),
+            ("Elapsed (s)", f"{report.elapsed_time_seconds:.3f}"),
+        ]
+        info = tuple(info_rows)
+        info_html = "".join(
+            f"<p><b>{escape(label)}:</b> {escape(value)}</p>" for label, value in info
+        )
+        header_cells = "".join(
+            _th(name, numeric, sort) for name, numeric, sort in _COLUMNS
+        )
+        body_rows = "".join(
+            self._row(index, team) for index, team in enumerate(report.teams)
+        )
+        return "\n".join(
+            [
+                "<!DOCTYPE html>",
+                "<html><head><meta charset='utf-8'>",
+                "<title>PNFL Schedule Report</title>",
+                _STYLE,
+                "</head><body>",
+                "<h1>PNFL Schedule Report</h1>",
+                info_html,
+                f"<table><thead><tr>{header_cells}</tr></thead>",
+                f"<tbody>{body_rows}</tbody></table>",
+                _SCRIPT,
+                "</body></html>",
+                "",
+            ]
+        )
 
-        lines.append("")
-        return "\n".join(lines)
+    def _row(self, index: int, team: TeamScheduleReport) -> str:
+        values = (
+            team.team,
+            str(team.conference_rank),
+            str(team.overall_rank),
+            str(team.schedule_rank),
+            f"{team.avg_sos:.2f}",
+            str(team.nonconference_rank),
+            f"{team.avg_nonconference_sos:.2f}",
+            f"{team.avg_nonconference_sos_conf:.2f}",
+            team.nonconference_game_ranks,
+            team.extra_opponent,
+            team.history_opponent,
+            team.history_last_played,
+            ", ".join(team.nonconference_opponents),
+        )
+        cells = "".join(
+            f'<td class="num">{escape(value)}</td>'
+            if numeric
+            else f"<td>{escape(value)}</td>"
+            for (_, numeric, _), value in zip(_COLUMNS, values, strict=True)
+        )
+        return f'<tr data-index="{index}">{cells}</tr>'
+
+
+def _th(name: str, numeric: bool, sort: str | None) -> str:
+    attrs = ""
+    if sort:
+        attrs += f' data-sort="{sort}"'
+    if numeric:
+        attrs += ' class="num"'
+    return f"<th{attrs}>{escape(name)}</th>"

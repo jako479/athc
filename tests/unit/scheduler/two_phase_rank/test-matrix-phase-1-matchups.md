@@ -1,6 +1,6 @@
 # scheduler — Test Matrix: Phase 1 (Matchups)
 
-Cases for `matchup_builder.py`, derived from the code then reconciled with the suite. Convention in [../../../docs/design/testing-unit.md](../../../../docs/design/testing-unit.md). Design: [phase-1-matchups.md](../../../../docs/scheduler/phase-1-matchups.md).
+Cases for `matchup_builder.py` (Scheduler B), derived from the code then reconciled with the suite. Convention in [../../../docs/design/testing-unit.md](../../../../docs/design/testing-unit.md). Design: [phase-1-matchups.md](../../../../docs/scheduler/phase-1-matchups.md).
 
 One row per behavior. Status: ☑ covered · ☐ no test yet. Solver-backed cases are `slow` (`pytest -m slow`).
 

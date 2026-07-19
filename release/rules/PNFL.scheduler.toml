@@ -5,10 +5,27 @@
 schema_version = 1
 
 [difficulty]
-# Non-conference strength-of-schedule curve (a team's average opponent overall
-# rank, 1-18). #1 team aims for 9.5 - spread, #18 team for 9.5 + spread.
-spread = 3.19 # default 3.19 (band ~6.3-12.7)
-shape = 2     # 1 = linear; higher = flatter middle (bell)
+# Scheduler B: non-conference strength-of-schedule curve (a team's average
+# opponent overall rank, 1-18): a linear trend from 9.5 - spread (#1 team) to
+# 9.5 + spread (#18), plus a shallow sine adding near-flat shelves at the top,
+# middle, and bottom.
+spread = 3.19    # default 3.19 (trend ends ~6.3 / ~12.7)
+amplitude = 0.30 # default 0.30; sine height. 0 = straight line; keep below ~0.45
+period = 8       # default 8; sine period in ranks (shelf spacing)
+
+# Scheduler C. Two non-conference games are fixed by division standings
+# (AE1 vs NE1 and NW1, etc.; 5ths play each other). The solver picks the
+# rest, tilting each team's average opponent conference rank (1-9) by
+# c_spread:
+#   0.0 = flat: all teams' opponents average rank 5
+#   1.5 = default: #1's opponents average rank 3.5
+#   2.5 = max: #1's opponents average rank 3
+# Above 2.5 changes nothing.
+c_spread = 1.5
+
+# Scheduler D: same as C, except the tilt counts only the games the solver
+# picks -- the two fixed games don't offset them.
+d_spread = 1.5
 
 [solver]
 time_limit = 1800.0      # max seconds for the week-placement (phase-2) solve

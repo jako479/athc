@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 462" role="img" aria-labelledby="ttl dsc" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<title id="ttl">Non-conference difficulty curve</title>
+<desc id="dsc">Target average opponent rank (1 toughest at top, 18 easiest at bottom) versus a team's overall standing 1 to 18, for shape p = 0.5, 1, 2 and 3 plus a flat parity reference. Every curve runs from about 6.3 at rank 1 to 12.7 at rank 18. p = 1 is a straight diagonal; higher p flattens the middle near 9.5 so only top and bottom teams diverge; lower p steepens the middle; the dashed line is parity at 9.5.</desc>
+<style>
+@media (prefers-color-scheme:dark){.axtext{fill:#cfcfcf}.axline{stroke:#cfcfcf}}
+@media (prefers-color-scheme:light){.axtext{fill:#454545}.axline{stroke:#6a6a6a}}
+</style>
+
+<g stroke="#808080" stroke-opacity="0.22" stroke-width="1">
+<line x1="64" y1="112.6" x2="696" y2="112.6"/>
+<line x1="64" y1="161.1" x2="696" y2="161.1"/>
+<line x1="64" y1="209.7" x2="696" y2="209.7"/>
+<line x1="64" y1="258.3" x2="696" y2="258.3"/>
+<line x1="64" y1="306.9" x2="696" y2="306.9"/>
+<line x1="64" y1="355.4" x2="696" y2="355.4"/>
+</g>
+
+<g class="axline" stroke="#808080" stroke-opacity="0.6" stroke-width="1">
+<line x1="64" y1="64" x2="64" y2="404"/>
+<line x1="64" y1="404" x2="696" y2="404"/>
+<line x1="64" y1="404" x2="64" y2="408"/>
+<line x1="101.2" y1="404" x2="101.2" y2="408"/>
+<line x1="138.4" y1="404" x2="138.4" y2="408"/>
+<line x1="175.5" y1="404" x2="175.5" y2="408"/>
+<line x1="212.7" y1="404" x2="212.7" y2="408"/>
+<line x1="249.9" y1="404" x2="249.9" y2="408"/>
+<line x1="287.1" y1="404" x2="287.1" y2="408"/>
+<line x1="324.2" y1="404" x2="324.2" y2="408"/>
+<line x1="361.4" y1="404" x2="361.4" y2="408"/>
+<line x1="398.6" y1="404" x2="398.6" y2="408"/>
+<line x1="435.8" y1="404" x2="435.8" y2="408"/>
+<line x1="472.9" y1="404" x2="472.9" y2="408"/>
+<line x1="510.1" y1="404" x2="510.1" y2="408"/>
+<line x1="547.3" y1="404" x2="547.3" y2="408"/>
+<line x1="584.5" y1="404" x2="584.5" y2="408"/>
+<line x1="621.6" y1="404" x2="621.6" y2="408"/>
+<line x1="658.8" y1="404" x2="658.8" y2="408"/>
+<line x1="696" y1="404" x2="696" y2="408"/>
+</g>
+
+<line x1="64" y1="234" x2="696" y2="234" stroke="#888888" stroke-width="1.5" stroke-dasharray="5 5"/>
+
+<g fill="none" stroke-linejoin="round" stroke-linecap="round">
+<polyline stroke="#D85A30" stroke-width="2" stroke-dasharray="2 3" points="64,79.1 101.2,88.3 138.4,98.5 175.5,109.2 212.7,121.3 249.9,134.4 287.1,150 324.2,168.9 361.4,196.6 398.6,271.4 435.8,299.1 472.9,318 510.1,333.6 547.3,346.7 584.5,358.8 621.6,369.5 658.8,379.7 696,388.9"/>
+<polyline stroke="#378ADD" stroke-width="2" stroke-dasharray="9 4" points="64,79.1 101.2,97.5 138.4,115.5 175.5,133.9 212.7,151.9 249.9,170.4 287.1,188.3 324.2,206.8 361.4,224.8 398.6,243.2 435.8,261.2 472.9,279.7 510.1,297.6 547.3,316.1 584.5,334.1 621.6,352.5 658.8,370.5 696,388.9"/>
+<polyline stroke="#7F77DD" stroke-width="2" stroke-dasharray="8 3 2 3" points="64,79.1 101.2,127.6 138.4,164.5 175.5,192.2 212.7,211.2 249.9,223.3 287.1,230.1 324.2,233 361.4,234 398.6,234 435.8,235 472.9,237.9 510.1,244.7 547.3,256.8 584.5,275.8 621.6,303.5 658.8,340.4 696,388.9"/>
+<polyline stroke="#1D9E75" stroke-width="3" points="64,79.1 101.2,113.5 138.4,143.2 175.5,168.9 212.7,190.8 249.9,207.8 287.1,220.4 324.2,229.1 361.4,233.5 398.6,234.5 435.8,238.9 472.9,247.6 510.1,260.2 547.3,277.2 584.5,299.1 621.6,324.8 658.8,354.5 696,388.9"/>
+</g>
+
+<g stroke-linecap="round">
+<line x1="64" y1="42" x2="90" y2="42" stroke="#888888" stroke-width="1.5" stroke-dasharray="5 5"/>
+<line x1="134" y1="42" x2="160" y2="42" stroke="#D85A30" stroke-width="2" stroke-dasharray="2 3"/>
+<line x1="228" y1="42" x2="254" y2="42" stroke="#378ADD" stroke-width="2" stroke-dasharray="9 4"/>
+<line x1="308" y1="42" x2="334" y2="42" stroke="#1D9E75" stroke-width="3"/>
+<line x1="448" y1="42" x2="474" y2="42" stroke="#7F77DD" stroke-width="2" stroke-dasharray="8 3 2 3"/>
+</g>
+
+<g class="axtext" fill="#808080">
+<text x="64" y="24" font-size="15" font-weight="500">Non-conference difficulty curve</text>
+<text x="96" y="46" font-size="12">flat</text>
+<text x="166" y="46" font-size="12">p = 0.5</text>
+<text x="260" y="46" font-size="12">p = 1</text>
+<text x="340" y="46" font-size="12">p = 2 (default)</text>
+<text x="480" y="46" font-size="12">p = 3</text>
+<text x="58" y="67.5" font-size="12" text-anchor="end">6</text>
+<text x="58" y="116.1" font-size="12" text-anchor="end">7</text>
+<text x="58" y="164.6" font-size="12" text-anchor="end">8</text>
+<text x="58" y="213.2" font-size="12" text-anchor="end">9</text>
+<text x="58" y="237.5" font-size="12" text-anchor="end">9.5</text>
+<text x="58" y="261.8" font-size="12" text-anchor="end">10</text>
+<text x="58" y="310.4" font-size="12" text-anchor="end">11</text>
+<text x="58" y="358.9" font-size="12" text-anchor="end">12</text>
+<text x="58" y="407.5" font-size="12" text-anchor="end">13</text>
+<text x="64" y="420" font-size="12" text-anchor="middle">1</text>
+<text x="101.2" y="420" font-size="12" text-anchor="middle">2</text>
+<text x="138.4" y="420" font-size="12" text-anchor="middle">3</text>
+<text x="175.5" y="420" font-size="12" text-anchor="middle">4</text>
+<text x="212.7" y="420" font-size="12" text-anchor="middle">5</text>
+<text x="249.9" y="420" font-size="12" text-anchor="middle">6</text>
+<text x="287.1" y="420" font-size="12" text-anchor="middle">7</text>
+<text x="324.2" y="420" font-size="12" text-anchor="middle">8</text>
+<text x="361.4" y="420" font-size="12" text-anchor="middle">9</text>
+<text x="398.6" y="420" font-size="12" text-anchor="middle">10</text>
+<text x="435.8" y="420" font-size="12" text-anchor="middle">11</text>
+<text x="472.9" y="420" font-size="12" text-anchor="middle">12</text>
+<text x="510.1" y="420" font-size="12" text-anchor="middle">13</text>
+<text x="547.3" y="420" font-size="12" text-anchor="middle">14</text>
+<text x="584.5" y="420" font-size="12" text-anchor="middle">15</text>
+<text x="621.6" y="420" font-size="12" text-anchor="middle">16</text>
+<text x="658.8" y="420" font-size="12" text-anchor="middle">17</text>
+<text x="696" y="420" font-size="12" text-anchor="middle">18</text>
+<text transform="rotate(-90)" x="-234" y="20" text-anchor="middle" font-size="12.5">Target avg opponent rank (1 = tough)</text>
+<text x="380" y="446" text-anchor="middle" font-size="12.5">Team's overall standing (1 = best)</text>
+</g>
+</svg>

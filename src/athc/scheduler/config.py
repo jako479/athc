@@ -9,19 +9,23 @@ from pathlib import Path
 from typing import Any
 
 from athc.config import config_dir
+from athc.scheduler.domain.history import NonConfHistory
 from athc.scheduler.domain.league import League, build_league
 
 StrPath = str | PathLike[str]
 
-LEAGUE_FILE = "league.ini"
-HISTORY_FILE = "nonconf_history.json"
+LEAGUE_FILE = "league.ini"  # actual file is "<season>.league.ini"
+HISTORY_FILE = "nonconf_history.json"  # actual file is "<season>.nonconf_history.json"
 SCHEDULER_RULES_FILE = "PNFL.scheduler.toml"  # in the config dir's rules/ folder
 
 # Scheduler tunables; overridable in PNFL.scheduler.toml (missing -> these).
 DEFAULT_TIME_LIMIT = 1800.0  # phase-2 (week-placement) solve seconds
 DEFAULT_PHASE1_TIME_LIMIT = 60.0  # phase-1 (matchup) solve seconds
-DEFAULT_DIFFICULTY_SPREAD = 3.19  # curve ends 9.5 -/+ spread on the 1-18 scale
-DEFAULT_DIFFICULTY_SHAPE = 2.0
+DEFAULT_DIFFICULTY_SPREAD = 3.19  # linear trend ends 9.5 -/+ spread on the 1-18 scale
+DEFAULT_DIFFICULTY_AMPLITUDE = 0.30  # sine height on that trend (0 = straight line)
+DEFAULT_DIFFICULTY_PERIOD = 8.0  # sine period in ranks (shelf spacing)
+DEFAULT_DIFFICULTY_C_SPREAD = 1.5  # Scheduler C: tilt on the 1-9 conference scale
+DEFAULT_DIFFICULTY_D_SPREAD = 1.5  # Scheduler D: same tilt, picked games only
 
 
 class ConfigError(Exception):
@@ -30,10 +34,15 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True)
 class DifficultyConfig:
-    """Non-conference difficulty curve knobs."""
+    """Non-conference difficulty knobs. `spread`/`amplitude`/`period` shape
+    Scheduler B's curve; `c_spread` tilts Scheduler C's line; `d_spread`
+    tilts Scheduler D's (picked games only)."""
 
     spread: float = DEFAULT_DIFFICULTY_SPREAD
-    shape: float = DEFAULT_DIFFICULTY_SHAPE
+    amplitude: float = DEFAULT_DIFFICULTY_AMPLITUDE
+    period: float = DEFAULT_DIFFICULTY_PERIOD
+    c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD
+    d_spread: float = DEFAULT_DIFFICULTY_D_SPREAD
 
 
 @dataclass(frozen=True)
@@ -111,7 +120,12 @@ def load_scheduler_config() -> SchedulerConfig:
     return SchedulerConfig(
         difficulty=DifficultyConfig(
             spread=_number(difficulty, "spread", DEFAULT_DIFFICULTY_SPREAD, path),
-            shape=_number(difficulty, "shape", DEFAULT_DIFFICULTY_SHAPE, path),
+            amplitude=_number(
+                difficulty, "amplitude", DEFAULT_DIFFICULTY_AMPLITUDE, path
+            ),
+            period=_number(difficulty, "period", DEFAULT_DIFFICULTY_PERIOD, path),
+            c_spread=_number(difficulty, "c_spread", DEFAULT_DIFFICULTY_C_SPREAD, path),
+            d_spread=_number(difficulty, "d_spread", DEFAULT_DIFFICULTY_D_SPREAD, path),
         ),
         solver=SolverConfig(
             time_limit=_number(solver, "time_limit", DEFAULT_TIME_LIMIT, path),
@@ -123,41 +137,36 @@ def load_scheduler_config() -> SchedulerConfig:
     )
 
 
-def load_league(path: StrPath | None = None) -> League:
-    """Read a league from `[Divisions]` plus either `[Standings]` (overall 1-18,
-    needed by the new scheduler) or `[ConferenceRanking]` (AFC/NFC 1-9, the older
-    format -- only drives the fixed-matchup scheduler)."""
-    resolved = _resolve_config_path(LEAGUE_FILE, path)
+def load_league(path: StrPath) -> League:
+    """Read a league from `[Divisions]`, `[Standings]` (overall 1-18 `Order`),
+    and the optional `[DivisionStandings]` (per-division finish; Scheduler C).
+
+    All schedulers use the overall order; the per-conference 1-9 ranks are
+    derived from it.
+    """
+    resolved = Path(path)
+    if not resolved.is_file():
+        raise ConfigError(f"Config file not found: '{resolved}'.")
     cp = _read_config(resolved)
     _require_section(cp, resolved, "Divisions")
+    _require_section(cp, resolved, "Standings")
     divisions = {
         key: _parse_multiline(cp, "Divisions", key) for key in cp.options("Divisions")
     }
-    has_standings = cp.has_section("Standings")
-    has_conference = cp.has_section("ConferenceRanking")
-    if not (has_standings or has_conference):
-        raise ConfigError(
-            f"Config file '{resolved}' needs a [Standings] (overall 1-18) or "
-            f"[ConferenceRanking] (AFC/NFC 1-9) section."
-        )
+    overall = _required_multiline(cp, resolved, "Standings", "Order")
+    division_standings = (
+        {
+            key: _parse_multiline(cp, "DivisionStandings", key)
+            for key in cp.options("DivisionStandings")
+        }
+        if cp.has_section("DivisionStandings")
+        else None
+    )
     try:
-        overall = (
-            _required_multiline(cp, resolved, "Standings", "Order")
-            if has_standings
-            else None
-        )
-        afc = (
-            _required_multiline(cp, resolved, "ConferenceRanking", "AFC")
-            if has_conference
-            else None
-        )
-        nfc = (
-            _required_multiline(cp, resolved, "ConferenceRanking", "NFC")
-            if has_conference
-            else None
-        )
         return build_league(
-            divisions, overall_ranking=overall, afc_ranking=afc, nfc_ranking=nfc
+            divisions,
+            overall_ranking=overall,
+            division_standings=division_standings,
         )
     except ValueError as error:
         raise ConfigError(
@@ -165,18 +174,44 @@ def load_league(path: StrPath | None = None) -> League:
         ) from error
 
 
+def load_history(path: StrPath, league: League) -> NonConfHistory:
+    """Load non-conference history and check it against the league teams.
+
+    Empty history if the file is absent. Invalid JSON, bad data, or teams that
+    don't match the league raise ConfigError.
+    """
+    resolved = Path(path)
+    try:
+        history = NonConfHistory.load(resolved)
+        history.validate_teams(league)
+    except ValueError as error:
+        raise ConfigError(f"History file '{resolved}' is invalid: {error}") from error
+    return history
+
+
 def find_config_path() -> Path:
     """Scheduler config path, for report provenance (may not exist)."""
     return scheduler_rules_path()
 
 
-def find_league_path() -> Path:
-    """Return the league data file, or raise ConfigError if it does not exist."""
-    return _resolve_config_path(LEAGUE_FILE, None)
+def find_league_path(season: int) -> Path:
+    """The `<season>.league.ini` file in the config dir; ConfigError if missing."""
+    return _require_season_file(season, LEAGUE_FILE, "league")
 
 
-def find_history_path() -> Path:
-    return config_dir() / HISTORY_FILE
+def find_history_path(season: int) -> Path:
+    """The season's `<season>.nonconf_history.json`; ConfigError if missing."""
+    return _require_season_file(season, HISTORY_FILE, "non-conference history")
+
+
+def _require_season_file(season: int, suffix: str, label: str) -> Path:
+    path = config_dir() / f"{season}.{suffix}"
+    if not path.is_file():
+        raise ConfigError(
+            f"No {label} file for season {season}. Expected:\n  {path}\n"
+            f"Run 'athc config path' to find the config dir, then add the file."
+        )
+    return path
 
 
 def _number(section: Mapping[str, Any], key: str, default: float, path: Path) -> float:
@@ -210,20 +245,6 @@ def _phase2(table: Mapping[str, Any], path: Path) -> Phase2Config:
             for f in fields(defaults)
         }
     )
-
-
-def _resolve_config_path(filename: str, path: StrPath | None) -> Path:
-    if path is not None:
-        resolved = Path(path)
-        if not resolved.is_file():
-            raise ConfigError(f"Config file not found: '{resolved}'.")
-        return resolved
-    resolved = config_dir() / filename
-    if not resolved.is_file():
-        raise ConfigError(
-            f"No config file found. Pass --config, or create:\n  {resolved}"
-        )
-    return resolved
 
 
 def _read_config(path: Path) -> configparser.ConfigParser:

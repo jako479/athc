@@ -1,7 +1,7 @@
 from athc.scheduler.domain.history import NonConfHistory
 from athc.scheduler.domain.league import lookup_team
 
-from .conftest import HISTORY_PATH, TEST_SEASON
+from .conftest import HISTORY_PATH
 
 EXPECTED_H2H_COSTS = {
     "Buffalo|Atlanta": -1,
@@ -88,12 +88,13 @@ EXPECTED_H2H_COSTS = {
 }
 
 
-def test_opponent_cost_uses_contiguous_season_values_and_never_played_below_oldest(teams):
+def test_opponent_cost_is_seasons_since_most_recent_recorded(teams):
     buffalo = lookup_team(teams, "Buffalo")
     atlanta = lookup_team(teams, "Atlanta")
     chicago = lookup_team(teams, "Chicago")
     new_york = lookup_team(teams, "New York")
 
+    # Most recent recorded season here is 2047.
     history = NonConfHistory(
         {
             "Buffalo|Atlanta": 2042,
@@ -102,11 +103,10 @@ def test_opponent_cost_uses_contiguous_season_values_and_never_played_below_olde
         }
     )
 
-    # Played: cost = last_played - season + 1. Last-season = 0, older goes more negative.
-    assert history.opponent_cost(buffalo, new_york, TEST_SEASON) == 0
-    assert history.opponent_cost(buffalo, chicago, TEST_SEASON) == -4
-    # Never played: one lower than the oldest played matchup cost.
-    assert history.opponent_cost(buffalo, atlanta, TEST_SEASON) == -5
+    # cost = last_played - most_recent. Most recent -> 0, each older season one less.
+    assert history.opponent_cost(buffalo, new_york) == 0
+    assert history.opponent_cost(buffalo, chicago) == -4
+    assert history.opponent_cost(buffalo, atlanta) == -5
 
 
 def test_nonconf_history_file_has_expected_h2h_costs_for_all_pairs(teams):
@@ -116,6 +116,9 @@ def test_nonconf_history_file_has_expected_h2h_costs_for_all_pairs(teams):
     for key, expected_cost in EXPECTED_H2H_COSTS.items():
         afc_metro, nfc_metro = key.split("|")
         assert (
-            history.opponent_cost(lookup_team(teams, afc_metro), lookup_team(teams, nfc_metro), TEST_SEASON)
+            history.opponent_cost(
+                lookup_team(teams, afc_metro),
+                lookup_team(teams, nfc_metro),
+            )
             == expected_cost
         )

@@ -1,6 +1,6 @@
 # scheduler — Phase 2: Schedule Placement
 
-Phase 2 takes the fixed 144-pairing inventory from phase 1 and uses OR-Tools CP-SAT to assign every matchup a week (1–16) and a home team. Shared by all schedulers — [`schedule_builder.py`](../../src/athc/scheduler/schedulers/schedule_builder.py).
+Phase 2 takes the fixed 144-pairing inventory from phase 1 and uses OR-Tools CP-SAT to assign every matchup a week (1–16) and a home team. Shared by all three schedulers (A, B, and C) — [`schedule_builder.py`](../../src/athc/scheduler/schedulers/schedule_builder.py).
 
 ## Model
 

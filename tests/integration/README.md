@@ -56,11 +56,14 @@ Real `TST-OFF1.prf`/`TST-DEF1.prf` + real `offense.pln`/`defense.pln`; clean `co
 |---|---|---|---|---|
 | check_file offense reports compat | data | head "gameplan issue(s)"; GLR line; count 19 | `test_check_file_gameplan_offense_reports_compat` | ☑ |
 | check_file defense reports compat | data | FG/PAT special line; count 8 | `test_check_file_gameplan_defense_reports_compat` | ☑ |
-| check_file clean (empty rules) | data | `(0, "... gameplan compatible")` | `test_check_file_gameplan_clean` | ☑ |
+| check_file reverse warnings | data | 4 `gameplan warning:` lines; count still 8 | `test_check_file_gameplan_reverse_warnings` | ☑ |
+| check_file clean, no warnings (mocked) | data | bare `(0, "... gameplan compatible")` | `test_check_file_gameplan_clean_no_warnings` | ☑ |
+| check_file clean, with warnings | data | `(0, ...)`; OK head + 10 warning lines | `test_check_file_gameplan_clean_with_warnings` | ☑ |
 | check_file side mismatch (both ways) | data | `(-1, "profile is X but gameplan is Y")` | `test_check_file_gameplan_side_mismatch` / `_defense` | ☑ |
 | **Golden report (real)** | data ↔ expected | byte-equal (path normalized) | `test_check_file_gameplan_matches_golden` `[P]` | ☑ |
 | CLI offense / defense | data + `--gameplan` | exit 1; compat line | `test_cli_gameplan_offense_exit_1` / `_defense_exit_1` | ☑ |
 | CLI clean | clean + empty rules | exit 0; "gameplan compatible" | `test_cli_gameplan_clean_exit_0` | ☑ |
+| CLI reverse warnings | clean + empty rules | exit 0; `gameplan warning:` line | `test_cli_gameplan_warnings_exit_0` | ☑ |
 | CLI side mismatch | data | exit 2; "profile is offense but gameplan is defense" | `test_cli_gameplan_side_mismatch_exit_2` | ☑ |
 | CLI mixed sides continues | 2 files, 1 gameplan | exit 2; both lines; "2 file(s) checked" | `test_cli_gameplan_mixed_sides_continues` | ☑ |
 | CLI gameplan missing / bad ext / malformed | tmp | exit 2; logged | `test_cli_gameplan_missing_file_exit_2` / `_bad_extension_exit_2` / `_malformed_exit_2` | ☑ |
@@ -152,19 +155,21 @@ In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `d
 
 # `athc gameplan find-play`
 
-In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find_in_gameplan`, `format_hit_line`, `_join_slots`) on constructed gameplans; CLI tier on real `data/offense.pln` / `data/defense.pln` (`OR45RL01` @ 1-1 = Run Left, `SFFGXPAT` = Field Goal/PAT). No pool/rules/config.
+In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find_in_gameplan`, `format_hit_line`, `_join_slots`) on constructed gameplans; CLI tier on real `data/offense.pln` / `data/defense.pln` and tmp-written constructed gameplans. Normal hits show the short category + bracketed slot(s) at the end — `'OR45RL01' (RL) [1-3][16-2]`; special hits keep the long category + `in special slot N`. No pool/rules/config.
 
 ## helpers (constructed gameplans)
 | Case | Expected | Test | Status |
 |---|---|---|---|
-| English slot join (1 / 2 / 3+) | `A` / `A and B` / `A, B, and C` | `test_join_slots_*` | ☑ |
-| No match / normal / multiple / case-insensitive | correct `(normal, special)` hits | `test_find_*` | ☑ |
-| Custom special hit (1-based slot) | special hit | `test_find_matches_custom_special` | ☑ |
-| Skips stock-special + clock slots | no hit | `test_find_skips_stock_special_slots` / `..._clock_slots` | ☑ |
-| Hit line: 1 / 2 / 3 slots, category | composed line | `test_format_normal_*` | ☑ |
-| Masks user_category bits 7-6 | category from low bits | `test_format_masks_high_user_category_bits` | ☑ |
-| Offense vs defense table; special category | right table | `test_format_defense_normal_*` / `..._special_*` | ☑ |
-| Unknown category | parens omitted | `test_format_unknown_category_omits_parens` | ☑ |
+| English slot join (used for specials) | `A` / `A and B` / `A, B, and C` | `test_join_slots_*` | ☑ |
+| find: no match / normal / case-insensitive | correct `(normal, special)` hits | `test_find_no_match_returns_empty` / `test_find_matches_normal_slot` / `test_find_case_insensitive` | ☑ |
+| find: one play in many slots / many plays in one gameplan | hits | `test_find_multiple_in_one_gameplan` / `test_find_multiple_different_plays` | ☑ |
+| find: custom special; skips stock-special + clock | special hit / no hit | `test_find_matches_custom_special` / `test_find_skips_stock_special_slots` / `..._clock_slots` | ☑ |
+| Format — offense normal (short cat, bracket slot) | `'OR45RL01' (RL) [1-1]` | `test_format_offense_normal` | ☑ |
+| Format — normal in 2 / 3 slots | `'DUP' (RM) [1-1][2-2]` / `…[16-4]` | `test_format_normal_two_slots` / `test_format_normal_three_slots` | ☑ |
+| Format — defense normal (defense table) | `'DRL' (RunLeft) [1-1]` | `test_format_defense_normal` | ☑ |
+| Format — offense / defense special (long cat, `special slot N`) | `… in special slot N` | `test_format_offense_special` / `test_format_defense_special` | ☑ |
+| Format — masks user_category bits 7-6 | category from low bits | `test_format_masks_high_user_category_bits` | ☑ |
+| Format — unknown category | `(Unknown)` | `test_format_unrecognized_category_shows_unknown` | ☑ |
 
 ## command (CliRunner)
 | Case | Input | Expected | Test | Status |
@@ -173,7 +178,8 @@ In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find
 | Single file hit (normal / special) | data | slot + category; no summary | `test_cli_single_file_hit` / `test_cli_finds_custom_special` | ☑ |
 | Single file miss | data | exit 1; "not found" | `test_cli_single_file_miss_exit_1` | ☑ |
 | Case-insensitive | data | hit | `test_cli_single_file_case_insensitive` | ☑ |
-| Multiple plays, all hit / one miss | data | exit 0 / 1 | `test_cli_multiple_plays_all_hit` / `test_cli_one_play_misses_exit_1` | ☑ |
+| Several plays over a dir; one play in 2 slots of a gameplan that holds 2 of them; summary | tmp | exit 0; per-play "Found N in M" | `test_cli_multiple_plays_all_hit` | ☑ |
+| Multiple plays, one misses | data | exit 1 | `test_cli_one_play_misses_exit_1` | ☑ |
 | Directory: only matching file + summary | tmp | exit 0; footer | `test_cli_directory_hit_only_matching_file` | ☑ |
 | Directory: no hits silent / `--verbose` | tmp | summary only / misses shown | `test_cli_directory_no_hits_*` / `..._verbose_*` | ☑ |
 | Directory: instance/file counts | tmp | "Found N in M" | `test_cli_directory_summary_counts_multiple_hits` / `..._per_play_summary` | ☑ |
@@ -213,6 +219,74 @@ In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of
 | Directory top-level / recursive | tmp | "2 file(s) processed" | `test_directory_top_level_only` / `test_directory_recursive` | ☑ |
 | Offense input skips defense files | tmp | "1 file(s) processed"; def untouched | `test_offense_input_skips_defense_files` | ☑ |
 | Continues past a failed file | tmp | exit 1; 1 updated, 1 failed | `test_continues_past_failed_file` | ☑ |
+
+---
+
+# `athc gameplan replace-play`
+
+In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `replace_in_gameplan` / `format_replacement_lines` helpers on constructed offense/defense gameplans; CLI tier on tmp copies of `offense.pln` (`OR45RL01` @ 1-1) and constructed gameplans written to tmp, against the curated pool (`--play-path`). Finds the target like `find-play` (normal + custom-special, case-insensitive), swaps each hit for `REPLACEMENT` (must be in the pool), backs up like `set-normals`. A play's normal hits collapse to one line, slots bracketed in order at the end — `'OLD' (cat) replaced with 'NEW' (cat) [1-3][4-2]`; specials print one line each — `Replaced 'OLD' (cat) in special slot N with 'NEW' (cat)`; short category. The GamePlan model validates each swap (side; special category). No rules. Exit 0 = clean, 1 = nothing replaced or some files failed, 2 = setup error.
+
+## `replace_in_gameplan` (constructed gameplans)
+| Case | Expected | Test | Status |
+|---|---|---|---|
+| No match → unchanged | no hits; same gameplan | `test_replace_no_match_unchanged` | ☑ |
+| Offense normal, multiple slots; bystander kept | hits @ 0/5/63; all swapped | `test_replace_offense_normal_multiple_slots` | ☑ |
+| Defense normal; bystander kept | hit @ 0; swapped | `test_replace_defense_normal` | ☑ |
+| Offense special slot; others preserved | special hit @ 1; other special intact | `test_replace_offense_special` | ☑ |
+| Defense special slot; others preserved | special hit @ 2; other special intact | `test_replace_defense_special` | ☑ |
+| Case-insensitive target | hit @ 7 | `test_replace_case_insensitive_target` | ☑ |
+| Special into a normal-slot hit | `ValueError` | `test_replace_special_into_normal_raises` | ☑ |
+| Wrong special category | `ValueError` | `test_replace_wrong_special_category_raises` | ☑ |
+| Wrong-side replacement | `ValueError` | `test_replace_wrong_side_raises` | ☑ |
+
+## `format_replacement_lines` (short category; normal vs special phrasing)
+| Case | Expected | Test | Status |
+|---|---|---|---|
+| Normal slot line | `'OLDRUN' (RL) replaced with 'NEWRUN' (RM) [1-1]` | `test_format_lines_normal_slot` | ☑ |
+| Many normal slots → one line, bracketed in order at end | `'DUP' (RM) replaced with 'NEW' (RM) [1-3][4-2]` | `test_format_lines_multiple_normal_slots` | ☑ |
+| Special slot line | `Replaced … (Field Goal/PAT) in special slot 1 with …` | `test_format_lines_special_slot` | ☑ |
+
+## command — usage / replacement resolution (CliRunner)
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| No args / no PATH | — | usage error, exit 2 | `test_cli_requires_args` / `test_cli_requires_path` | ☑ |
+| One PLAY only (4th positional rejected) | data + flags | usage error, exit 2 | `test_cli_rejects_multiple_plays` | ☑ |
+| `-q` not offered | tmp + flags | usage error, exit 2 | `test_cli_no_quiet_option` | ☑ |
+| Replacement not in pool | tmp + flags | exit 2; "not found in the play pool" | `test_cli_replacement_not_in_pool_exit_2` | ☑ |
+| Replacement case-insensitive | data + flags | exit 0; resolves | `test_cli_replacement_case_insensitive` | ☑ |
+
+## command — single file
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Replaces a normal play in multiple slots; bystander kept | tmp + flags | all set; one line `'OLDRUN' (RL) replaced with … [1-1][2-2][16-4]` | `test_cli_single_file_replaces_normal` | ☑ |
+| Replaces a custom-special play; others kept | tmp + flags | other special intact; `… in special slot 1 with …` | `test_cli_single_file_replaces_special` | ☑ |
+| Case-insensitive target | data + flags | replaced | `test_cli_single_file_target_case_insensitive` | ☑ |
+| Miss (untouched) | data + flags | exit 1; "not found"; unchanged | `test_cli_single_file_miss_exit_1` | ☑ |
+
+## command — backup
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Backup by default / `--no-backup` | data + flags | one `.bak` = original / none | `test_creates_backup_by_default` / `test_no_backup_skips_backup` | ☑ |
+| Reports backup name | data + flags | "backup offense.pln.….bak" | `test_reports_backup_name` | ☑ |
+
+## command — directory / tree
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Directory updates matching files + summary | tmp + flags | exit 0; "replaced 2 … in 2 gameplan(s)" | `test_cli_directory_updates_matching_files` | ☑ |
+| Other-side file has no hit → untouched | tmp + flags | exit 0; "in 1 gameplan(s)"; def unchanged | `test_cli_directory_leaves_other_side_untouched` | ☑ |
+| No hits anywhere | tmp + flags | exit 1; "replaced 0 … in 0 gameplan(s)" | `test_cli_directory_no_hits_exit_1` | ☑ |
+| Recursive subdir | tmp + flags | exit 0; replaced | `test_cli_recursive_replaces_in_subdir` | ☑ |
+
+## command — validation / errors (target left untouched)
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Special replacement for a normal hit | tmp + flags | exit 1; failed; no `.bak`; unchanged | `test_cli_replacement_special_for_normal_fails` | ☑ |
+| Wrong-side replacement | tmp + flags | exit 1; failed; no `.bak`; unchanged | `test_cli_replacement_wrong_side_fails` | ☑ |
+| Wrong special category | tmp + flags | exit 1; failed; no `.bak`; unchanged | `test_cli_replacement_wrong_special_category_fails` | ☑ |
+| Missing PATH | tmp + flags | exit 2; "does not exist" | `test_cli_missing_path_exit_2` | ☑ |
+| Malformed `.pln` | tmp + flags | exit 1; "failed" | `test_cli_malformed_pln_exit_1` | ☑ |
+| Bad `--play-path` | tmp | exit 2; "not a directory" | `test_cli_invalid_play_path_exit_2` | ☑ |
+| Continues past a failed file | tmp + flags | exit 1; 1 replaced, 1 failed | `test_cli_continues_past_failed_file` | ☑ |
 
 ---
 
@@ -291,6 +365,7 @@ In [test_autocontinue.py](test_autocontinue.py). Config-driven (`athc.ini [autoc
 | Explicit path works w/o default | tmp ini | loads | `test_load_config_succeeds_with_explicit_path_when_no_default` | ☑ |
 | Missing setting / bad value / missing section | tmp ini | `ConfigError` | `test_load_config_errors_on_missing_setting` / `..._invalid_value` / `..._missing_section` | ☑ |
 | Release `athc.ini` is valid | release | loads `(0.0, 1.0)` | `test_release_example_config_loads` | ☑ |
+| `hot_corner`: missing → on / parses bools / bad value | tmp ini | enabled / parsed / `ConfigError` | `test_hot_corner_defaults_enabled_when_missing` / `..._parses_boolean` `[P]` / `..._invalid_value_errors` | ☑ |
 | Signature: missing / tuple / stable / changes / config-dir | tmp / config_dir | per change-detection | `test_signature_*` | ☑ |
 
 ## CLI
@@ -299,7 +374,9 @@ In [test_autocontinue.py](test_autocontinue.py). Config-driven (`athc.ini [autoc
 | `--help` | — | exit 0; "Continue" | `test_cli_help_lists_continue` | ☑ |
 | No config / explicit missing | config_dir / tmp | exit 1 | `test_cli_no_config_found` / `test_cli_explicit_missing_config` | ☑ |
 | Runs, passes config path (stubbed) | tmp ini | exit 0; path forwarded | `test_cli_runs_with_config` | ☑ |
+| `--hot-corner/--no-hot-corner` forwarded (else None) | tmp ini | value passed to core | `test_cli_forwards_hot_corner_override` `[P]` | ☑ |
 | Ctrl-C exits clean (stubbed) | tmp ini | exit 0 | `test_cli_keyboard_interrupt_exits_clean` | ☑ |
+| Missing dependency (pyautogui) | `sys.modules` stub | exit 2; names module | `test_cli_missing_dependency_exits_2` | ☑ |
 
 ---
 
@@ -324,11 +401,11 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`;
 
 # `athc generate-schedule`
 
-In [test_generate_schedule.py](test_generate_schedule.py). Slow (full solve) → `pytest -m slow`; not run by default. Runs the default `two-phase-rank` scheduler end-to-end via the CLI on the release `league.ini` + `nonconf_history.json`.
+In [test_generate_schedule.py](test_generate_schedule.py). Slow (full solves) → `pytest -m slow`, or one scheduler via `pytest -m slow_b` / `slow_c` / `slow_d`; not run by default. Copies `data/league.ini` into the config dir as `<season>.league.ini`, then runs Schedulers B, C, and D end-to-end via the CLI (exercises season-based file resolution; C and D read the file's `[DivisionStandings]`).
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| CLI writes schedule + report | release data + flags | exit 0; non-empty `season.txt` + `season-report.txt` | `test_generate_schedule_writes_schedule_and_report` | ☑ |
+| CLI writes schedule + report | `<season>.*` files in config dir; `--season` only | exit 0; non-empty `season.txt` + `season-report.html` | `test_generate_schedule_writes_schedule_and_report` | ☑ |
 
 ---
 

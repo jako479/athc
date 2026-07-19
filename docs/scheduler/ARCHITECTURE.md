@@ -1,6 +1,6 @@
 # scheduler — Architecture
 
-CLI tool that generates a PNFL season schedule using OR-Tools constraint programming, writes the result in the requested format (HTML or TXT), and emits a companion human-readable report.
+CLI tool that generates a PNFL season schedule using OR-Tools constraint programming, writes the result in the requested format (HTML or TXT), and emits a companion sortable HTML report.
 
 ## Module layout
 
@@ -14,45 +14,48 @@ src/athc/scheduler/                 # subsystem source
 │   ├── schedule.py                 # Schedule, Game, Week
 │   └── history.py                  # NonConfHistory — past inter-conference matchups
 ├── schedulers/
-│   ├── scheduler.py                # two-phase-rank scheduler (matchups → weeks)
-│   ├── schedule_builder.py         # CP-SAT model + constraints
-│   ├── matchup_builder.py          # phase-one matchup solver (two-phase-rank)
-│   ├── fixed_matchup_scheduler.py  # fixed-matchup scheduler (matchups → weeks)
-│   ├── fixed_matchup_builder.py    # phase-one matchup solver (fixed-matchup)
-│   ├── types.py                    # SchedulerFunc, SchedulerResult, registry
+│   ├── scheduler.py                # Scheduler B (full CP-SAT) entry (matchups → weeks)
+│   ├── schedule_builder.py         # CP-SAT model + constraints (phase 2, shared)
+│   ├── matchup_builder.py          # phase-1 matchup solver (Scheduler B)
+│   ├── fixed_matchup_scheduler.py  # Scheduler A (fixed-rank) entry (matchups → weeks)
+│   ├── fixed_matchup_builder.py    # phase-1 matchup solver (Scheduler A)
+│   ├── fixed_cpsat_scheduler.py    # Scheduler C (fixed-place + CP-SAT) entry
+│   ├── fixed_cpsat_builder.py      # phase-1 matchup solver (Scheduler C)
+│   ├── fixed_cpsat_free_scheduler.py  # Scheduler D (free-only variant) entry
+│   ├── fixed_cpsat_free_builder.py    # phase-1 matchup solver (Scheduler D)
+│   ├── types.py                    # SchedulerFunc, SchedulerResult, A/B/C registry
 │   └── errors.py
 └── writers/
     ├── writer.py                   # ScheduleWriter protocol + factory
     ├── html_writer.py              # HTML output
     ├── txt_writer.py               # plain-text output
-    └── report.py                   # TxtReportWriter + build_schedule_report
+    └── report.py                   # HtmlReportWriter + build_schedule_report
 
 src/athc/cli/generate_schedule.py   # Click command (lazy solver import)
 ```
 
 ## What this package does
 
-- Provides a CLI: `athc generate-schedule --output FILE --season YEAR [--format X] [--league FILE] [--history FILE] [--report FILE] [--seed INT] [--time-limit SECONDS] [--scheduler NAME]`
+- Provides a CLI: `athc generate-schedule --season YEAR [--seed INT] [--time-limit INT] [--scheduler A|B|C]`
 - Loads league structure (conferences, divisions, teams) and rule weights from an INI config
 - Loads the non-conference history file (past inter-conference pairings to penalize / avoid)
-- Solves the schedule with the default `two-phase-rank` scheduler (`fixed-matchup` remains available)
-- Writes the schedule in the format inferred from the output extension (`.html` → HTML; `.txt` → text)
-- Writes a companion `<output-stem>-report.txt` summarizing the run (matchup plan, constraint slack, seed, elapsed time, command line)
+- Solves the schedule with the default Scheduler B (full CP-SAT); Schedulers A (fixed-rank), C (fixed-place + CP-SAT), and D (free-only variant) remain available
+- Writes both a `.txt` and `.html` schedule to the current directory, named `schedule_<season>_<A|B|C|D>_<timestamp>` (`A` = fixed-rank, `B` = full CP-SAT, `C` = fixed-place + CP-SAT, `D` = fixed-place + CP-SAT free-only)
+- Writes a companion `<base>_report.html`: a sortable per-team strength-of-schedule table (ranks 1–9/1–18, SOS averages) plus run info (scheduler, seed, elapsed time, command line)
 
 ## What this package assumes
 
-- The history file is consistent with the league structure (every team referenced is a known team)
 - The selected scheduler can solve within `time-limit`; if not, the partial / infeasible result surfaces via `SchedulerResult`
 
 ## What this package enforces
 
 CLI-level (Click → exit 2):
-- `--output` and `--season` provided
-- output format resolves to `htm`/`html`/`txt`
+- `--season` provided; `--time-limit` an integer; `--scheduler` a known name
 
 Config (raise `ConfigError`) — found via `config_dir()` / `ATHC_CONFIG_DIR`, no `--config` flag:
-- `league.ini` (`[Divisions]` + `[Standings]` overall 1–18 and/or `[ConferenceRanking]` AFC/NFC 1–9) is **required** data
-- `rules/PNFL.scheduler.toml` scheduler tunables (difficulty `spread`/`shape`, solver `time_limit`) are **optional** (each key defaults when absent); invalid TOML or a non-numeric value is an error
+- `<season>.league.ini` (`[Divisions]` + `[Standings]` overall 1–18) is **required** data, selected by the required `--season`. All schedulers use the overall order; Schedulers A and C derive their 1–9 conference ranks from it.
+- `rules/PNFL.scheduler.toml` scheduler tunables (difficulty `spread`/`amplitude`, solver `time_limit`) are **optional** (each key defaults when absent); invalid TOML or a non-numeric value is an error. The difficulty curve drives Schedulers B and C.
+- `<season>.nonconf_history.json` (also selected by `--season`) is **required only for Scheduler A** (B and C ignore it); when used it must cover all 81 AFC×NFC pairs. Bad JSON, bad data, a team mismatch, or an incomplete set is an error
 - Invalid INI, or league data that fails domain validation, surfaces as a `ConfigError`
 
 Domain (raise `ValueError`):
@@ -68,21 +71,33 @@ Solver (`SchedulerResult.feasible == False`):
 - Produce stat workbooks (lives in `pdbtoexcel`) or play catalogs (lives in `playcatalog`)
 - Run the generated schedule against any game engine
 
+## Exit codes
+
+| Exit | Meaning |
+|---|---|
+| `0` | **OK** — schedule (and report) written. |
+| `1` | **Error** — config, I/O, or missing solver (ortools). |
+| `2` | **Usage** — bad `--season` / `--scheduler` / `--time-limit` (Click). |
+
 ## Scheduler dispatch
 
-Schedulers register themselves in `schedulers/types.py`. Registered:
+`schedulers/types.py` is the single registry and the one place that defines what A, B, and C are. All share phase 2 (week placement); they differ only in phase 1 (non-conference matchup selection):
 
-- `two-phase-rank` (default) — phase one chooses all non-conference matchups together by overall 1–18 rank, shaped toward a soft difficulty curve (minimax); phase two assigns each matchup to a week.
-- `fixed-matchup` — phase one builds the matchup inventory from divisional/conference rules, a fixed non-conference rank table, and history; phase two assigns each matchup to a week.
+- **B — full CP-SAT** (default) — phase 1 chooses all non-conference matchups together by overall 1–18 rank, shaped toward a soft difficulty curve (minimax).
+- **A — fixed-rank** — phase 1 builds the matchup inventory from divisional/conference rules, a fixed non-conference rank table, and head-to-head history.
+- **C — fixed-place + CP-SAT** — phase 1 fixes two non-conference games per team by division place (NFL-style same-place matchups, from the league file's `[DivisionStandings]`; 5ths play each other), then one CP-SAT solve picks the rest along the configurable `c_spread` line. No history needed.
+- **D — fixed-place + CP-SAT, free-only** — like C, but the line (`d_spread`) targets only the picked games; the fixed games don't count toward it.
 
-`generate_schedule` matches the `SchedulerFunc` signature and returns a `SchedulerResult` with the schedule and the matchup plan.
+Each scheduler's `generate_schedule` matches the `SchedulerFunc` signature and returns a `SchedulerResult` with the schedule and the matchup plan.
 
 ## Testing
 
 Under `tests/unit/scheduler/`:
 
-- shared — `test_cli` / `test_config` (CLI + config), `test_schedule_builder` (phase-2 placement), `test_history_costs`, `test_report`, `test_writers`.
-- `two_phase_rank/` (new scheduler) — `test_matchup_builder` (rank-only phase-1) plus `test_schedule_structure` / `test_schedule_rules` (end-to-end, solved with two-phase-rank).
-- `fixed_matchup/` (old scheduler) — `test_fixed_matchup_inventory` (phase-1) plus `test_schedule_structure` / `test_schedule_rules` (end-to-end, solved with fixed-matchup).
+- shared — `test_cli` / `test_config` (CLI + config/league/history loading; matrix in [test-matrix-config-loading.md](../../tests/unit/scheduler/test-matrix-config-loading.md)), `test_schedule_builder` (phase-2 placement), `test_history_costs`, `test_report` (HTML report; matrix in [test-matrix-report.md](../../tests/unit/scheduler/test-matrix-report.md)), `test_writers`.
+- `two_phase_rank/` (Scheduler B) — `test_matchup_builder` (rank-only phase-1) plus `test_schedule_structure` / `test_schedule_rules` (end-to-end, solved with Scheduler B).
+- `fixed_matchup/` (Scheduler A) — `test_fixed_matchup_inventory` (phase-1) plus `test_schedule_structure` / `test_schedule_rules` (end-to-end, solved with Scheduler A).
+- `fixed_cpsat/` (Scheduler C) — `test_fixed_cpsat_inventory` (phase-1) plus `test_schedule_structure` / `test_schedule_rules` (end-to-end, solved with Scheduler C).
+- `fixed_cpsat_free/` (Scheduler D) — same shape, solved with Scheduler D.
 
-Each scheduler folder solves end-to-end, so the placement rules are validated against both schedulers. Solver-backed tests (any using a solved-schedule fixture) are marked `slow` and skipped by default; run them with `pytest -m slow`. League-parametrized tests use three ranking variants (`5/6/7-free-slots`) spanning the playoff-distribution splits — the 4-team division supplying 1, 2, or 3 of its conference's 4 playoff teams (the new scheduler uses overall rank, the old derived conference rank, not playoffs).
+Each scheduler folder solves end-to-end, so the placement rules are validated against all three schedulers. Solver-backed tests (any using a solved-schedule fixture) are marked `slow` and skipped by default; run them with `pytest -m slow`. League-parametrized tests use three ranking variants (`5/6/7-free-slots`) spanning the playoff-distribution splits — the 4-team division supplying 1, 2, or 3 of its conference's 4 playoff teams (Schedulers B and C use overall rank, A the derived conference rank, not playoffs).

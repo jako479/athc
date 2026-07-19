@@ -1,10 +1,12 @@
 """Shared fixtures for the scheduler suite.
 
-The `two_phase_rank` and `fixed_matchup` folders each provide their own
-`scheduler_result` / `schedule` / `matchup_plan` fixtures (via `solve_and_report`
-below), so both schedulers are exercised end-to-end. Any test using one of those
-fixtures is auto-marked `slow` and skipped by default (`-m 'not slow'`); run them
-with `pytest -m slow` or `pytest -m ''`.
+The `fixed_matchup` (A), `two_phase_rank` (B), `fixed_cpsat` (C), and
+`fixed_cpsat_free` (D) folders each provide their own `scheduler_result` /
+`schedule` / `matchup_plan` fixtures (via `solve_and_report` below), so every
+scheduler is exercised end-to-end. Any test using one of those fixtures is
+auto-marked `slow` plus its scheduler's `slow_a`/`slow_b`/`slow_c`/`slow_d`,
+and skipped by default (`-m 'not slow'`); run all with `pytest -m slow`, or
+one scheduler with e.g. `pytest -m slow_c`.
 """
 
 from __future__ import annotations
@@ -20,10 +22,9 @@ from athc.scheduler.config import SchedulerConfig, SolverConfig
 from athc.scheduler.domain.history import NonConfHistory
 from athc.scheduler.domain.league import Division, League, build_league
 from athc.scheduler.schedulers.types import SchedulerResult, get_scheduler
-from athc.scheduler.writers.report import TxtReportWriter, build_schedule_report
+from athc.scheduler.writers.report import HtmlReportWriter, build_schedule_report
 
 HISTORY_PATH = Path(__file__).resolve().parent / "data" / "nonconf_history.json"
-TEST_SEASON = 2048
 SLOW_SOLVE_TIME_LIMIT = 1200.0  # cap each slow-test solve at 20 minutes
 
 _DIVISIONS: dict[str, Sequence[str]] = {
@@ -49,8 +50,17 @@ _DIVISIONS: dict[str, Sequence[str]] = {
 def _make_league(afc: Sequence[str], nfc: Sequence[str]) -> League:
     # Interleave the two 9-team conference orders into one overall 1-18 list so the
     # derived conference ranks still match afc/nfc (1st AFC, 1st NFC, 2nd AFC, ...).
+    # Division standings (Scheduler C) follow the same order within each division.
     overall = [team for pair in zip(afc, nfc, strict=True) for team in pair]
-    return build_league(_DIVISIONS, overall)
+    standings = {
+        name: tuple(
+            metro
+            for metro in (afc if name.startswith("AFC") else nfc)
+            if metro in set(members)
+        )
+        for name, members in _DIVISIONS.items()
+    }
+    return build_league(_DIVISIONS, overall, division_standings=standings)
 
 
 LEAGUE_5_SLOTS = _make_league(
@@ -146,12 +156,25 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
+# Folder -> per-scheduler slow marker, so one scheduler's slow tests can run
+# alone (e.g. `pytest -m slow_c`).
+_SCHEDULER_SLOW_MARKERS = {
+    "fixed_matchup": "slow_a",
+    "two_phase_rank": "slow_b",
+    "fixed_cpsat": "slow_c",
+    "fixed_cpsat_free": "slow_d",
+}
+
+
 def pytest_collection_modifyitems(config, items):
-    """Mark only solver-backed tests (those that build a schedule) as `slow`."""
-    slow = pytest.mark.slow
+    """Mark solver-backed tests (those that build a schedule) as `slow`, plus
+    the per-scheduler `slow_a`/`slow_b`/`slow_c`/`slow_d` marker."""
     for item in items:
         if _SOLVER_FIXTURES & set(getattr(item, "fixturenames", ())):
-            item.add_marker(slow)
+            item.add_marker(pytest.mark.slow)
+            for folder, name in _SCHEDULER_SLOW_MARKERS.items():
+                if folder in item.path.parts:
+                    item.add_marker(getattr(pytest.mark, name))
 
 
 _solve_cache: dict[tuple[int, str], SchedulerResult] = {}
@@ -171,7 +194,7 @@ def solve_and_report(league, scheduler_kind, tmp_path_factory) -> SchedulerResul
     """Solve `league` with `scheduler_kind` once (cached) and write its report.
 
     Each scheduler folder's conftest wraps this in its own `scheduler_result`
-    fixture, so both schedulers are exercised end-to-end.
+    fixture, so all three schedulers are exercised end-to-end.
     """
     key = (id(league), scheduler_kind)
     if key not in _solve_cache:
@@ -182,7 +205,6 @@ def solve_and_report(league, scheduler_kind, tmp_path_factory) -> SchedulerResul
             league=league,
             seed=seed,
             history=history,
-            season=TEST_SEASON,
             scheduler_config=SchedulerConfig(
                 solver=SolverConfig(time_limit=SLOW_SOLVE_TIME_LIMIT)
             ),
@@ -199,8 +221,8 @@ def solve_and_report(league, scheduler_kind, tmp_path_factory) -> SchedulerResul
             history_path=HISTORY_PATH,
             elapsed_time_seconds=0.0,
         )
-        report_path = tmp_path_factory.mktemp("schedule_report") / "report.txt"
-        TxtReportWriter(str(report_path)).write(report)
+        report_path = tmp_path_factory.mktemp("schedule_report") / "report.html"
+        HtmlReportWriter(str(report_path)).write(report)
         print(f"Schedule report: {report_path}")
     return _solve_cache[key]
 

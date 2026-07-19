@@ -1,42 +1,62 @@
-"""Integration test for `athc generate-schedule` (default scheduler, CLI -> file).
+"""Integration tests for `athc generate-schedule` (CLI -> files), per scheduler.
 
-Slow (full solve), so it is skipped by default; run with `pytest -m slow`.
+Slow (full solves), skipped by default. Run all with `pytest -m slow`, or one
+scheduler with `pytest -m slow_b` / `slow_c` / `slow_d`.
 """
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
 
 from athc.cli.generate_schedule import generate_schedule
+from tests.integration.conftest import DATA
 
-RELEASE = Path(__file__).resolve().parents[2] / "release"
-LEAGUE = RELEASE / "league.ini"
-HISTORY = RELEASE / "nonconf_history.json"
+LEAGUE = DATA / "league.ini"
+SEASON = 2026
 
 
 @pytest.mark.slow
-def test_generate_schedule_writes_schedule_and_report(runner, tmp_path: Path) -> None:
-    output = tmp_path / "season.txt"
+@pytest.mark.parametrize(
+    "scheduler",
+    [
+        pytest.param("B", marks=pytest.mark.slow_b),
+        pytest.param("C", marks=pytest.mark.slow_c),
+        pytest.param("D", marks=pytest.mark.slow_d),
+    ],
+)
+def test_generate_schedule_writes_schedules_and_report(
+    runner, tmp_path: Path, config_dir: Path, monkeypatch, scheduler: str
+) -> None:
+    # B, C, and D need only league.ini (C and D read its [DivisionStandings]);
+    # --season resolves it. Output lands in the current directory.
+    shutil.copy(LEAGUE, config_dir / f"{SEASON}.league.ini")
+    monkeypatch.chdir(tmp_path)
+
     result = runner.invoke(
         generate_schedule,
         [
-            "--output",
-            str(output),
             "--season",
-            "2026",
-            "--league",
-            str(LEAGUE),
-            "--history",
-            str(HISTORY),
+            str(SEASON),
             "--seed",
             "0",
             "--time-limit",
-            "1200",  # 20-minute cap
+            "1200",
+            "--scheduler",
+            scheduler,
         ],
     )
     assert result.exit_code == 0, result.output
-    assert output.read_text(encoding="utf-8").strip()  # schedule written, non-empty
-    report = output.with_name("season-report.txt")
-    assert report.read_text(encoding="utf-8").strip()  # companion report written
+
+    reports = list(tmp_path.glob(f"schedule_{SEASON}_{scheduler}_*_report.html"))
+    txts = list(tmp_path.glob(f"schedule_{SEASON}_{scheduler}_*.txt"))
+    htmls = [
+        p
+        for p in tmp_path.glob(f"schedule_{SEASON}_{scheduler}_*.html")
+        if not p.name.endswith("_report.html")
+    ]
+    assert len(txts) == 1 and txts[0].read_text(encoding="utf-8").strip()
+    assert len(htmls) == 1 and htmls[0].read_text(encoding="utf-8").strip()
+    assert len(reports) == 1 and reports[0].read_text(encoding="utf-8").strip()

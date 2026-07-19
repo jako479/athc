@@ -1,4 +1,4 @@
-"""Two-phase PNFL scheduler with rank-only non-conference selection.
+"""Scheduler B (full CP-SAT): PNFL scheduler, rank-only non-conference selection.
 
 Phase 1 builds the full opponent inventory before any week placement:
 divisional home-and-homes, same-conference cross-division games, then all 40
@@ -110,7 +110,6 @@ from athc.scheduler.schedulers.types import SchedulerResult
 def generate_schedule(
     league: League,
     history: NonConfHistory,
-    season: int,
     seed: int = 0,
     scheduler_config: SchedulerConfig | None = None,
 ) -> SchedulerResult:
@@ -120,9 +119,9 @@ def generate_schedule(
         teams=league.teams,
         rankings=league.rankings,
         history=history,
-        season=season,
         spread=config.difficulty.spread,
-        shape=config.difficulty.shape,
+        amplitude=config.difficulty.amplitude,
+        period=config.difficulty.period,
         phase1_time_limit=config.solver.phase1_time_limit,
     ).build_matchup_plan()
 

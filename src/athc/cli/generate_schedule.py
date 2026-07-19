@@ -16,10 +16,12 @@ from athc.scheduler.config import (
     find_history_path,
     find_league_path,
 )
-from athc.scheduler.main import default_report_path
 from athc.scheduler.main import generate_schedule as run_generate
-from athc.scheduler.schedulers.types import DEFAULT_SCHEDULER, available_schedulers
-from athc.scheduler.writers.writer import available_writer_formats
+from athc.scheduler.schedulers.types import (
+    DEFAULT_SCHEDULER,
+    available_schedulers,
+    scheduler_uses_history,
+)
 
 PROG = "athc generate-schedule"
 logger = logging.getLogger(__name__)
@@ -27,120 +29,75 @@ logger = logging.getLogger(__name__)
 
 @click.command(name="generate-schedule", hidden=True)
 @click.option(
-    "--output",
-    required=True,
-    type=click.Path(path_type=Path),
-    help="Output path for the generated schedule.",
-)
-@click.option(
     "--season",
     required=True,
     type=int,
-    help="Season year being scheduled (e.g. 2026); sets non-conference drought costs.",
-)
-@click.option(
-    "--format",
-    "output_format",
-    type=click.Choice(available_writer_formats()),
-    default=None,
-    help="Output format. Defaults to inferring from the --output extension.",
-)
-@click.option(
-    "--league",
-    "league_path",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Use this league.ini (divisions, conference ranking) instead of the default.",
-)
-@click.option(
-    "--history",
-    "history_path",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Non-conference history JSON file.",
-)
-@click.option(
-    "--report",
-    "report_path",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Text report path. Defaults to <output-stem>-report.txt.",
-)
-@click.option(
-    "--time-limit",
-    type=float,
-    default=None,
-    help="Override the solver time limit (seconds).",
+    help="Season being scheduled (e.g. 2048).",
 )
 @click.option(
     "--seed", type=int, default=None, help="Random seed for deterministic generation."
+)
+@click.option(
+    "--time-limit",
+    type=int,
+    default=None,
+    help="Override the solver time limit (seconds).",
 )
 @click.option(
     "--scheduler",
     type=click.Choice(available_schedulers()),
     default=DEFAULT_SCHEDULER,
     show_default=True,
-    help="Matchup generator to use.",
+    help="Scheduler: A (fixed-rank), B (full CP-SAT), C (fixed-place + CP-SAT), "
+    "or D (like C; picked games only).",
 )
 @click.pass_context
 def generate_schedule(
     ctx: click.Context,
-    output: Path,
     season: int,
-    output_format: str | None,
-    league_path: Path | None,
-    history_path: Path | None,
-    report_path: Path | None,
-    time_limit: float | None,
     seed: int | None,
+    time_limit: int | None,
     scheduler: str,
 ) -> None:
-    """Generate the seasonal league schedule and a human-readable text report.
+    """Generate the seasonal league schedule and an HTML report.
 
-    Reads the league (divisions, conference ranking) and non-conference history,
-    solves the schedule with the chosen --scheduler subject to the configured time
-    limit, and writes it in the format inferred from --output (or --format).
-    Exit 0 = written, 2 = error.
+    Reads season files from the athc config dir (run `athc config path` to find
+    it, or `athc config reveal` to open it):
+
+    \b
+      <season>.league.ini            divisions + previous season's standings (always;
+                                     [DivisionStandings] required by C and D)
+      <season>.nonconf_history.json  past non-conference matchups (Scheduler A only)
+
+    Writes a .txt and .html schedule plus an .html report to the current
+    directory, named `schedule_<season>_<A|B|C|D>_<timestamp>`.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-
-    fmt = _infer_format(ctx, output, output_format)
-    history = history_path or find_history_path()
-    report = report_path or default_report_path(output)
     chosen_seed = seed if seed is not None else random.randint(0, 1_000_000)
 
     try:
+        league_path = find_league_path(season)
+        # Only Scheduler A reads history; the others ignore it.
+        history_path = (
+            find_history_path(season) if scheduler_uses_history(scheduler) else None
+        )
         config = find_config_path()
-        league = league_path or find_league_path()
         run_generate(
-            output=output,
-            output_format=fmt,
             season=season,
             scheduler=scheduler,
             config_path=config,
-            league_path=league,
-            history_path=history,
-            report_path=report,
+            league_path=league_path,
+            history_path=history_path,
+            output_dir=Path.cwd(),
             seed=chosen_seed,
             time_limit=time_limit,
             command_line=subprocess.list2cmdline([PROG, *sys.argv[1:]]),
         )
     except (ConfigError, OSError) as error:
         logger.error("%s: %s", PROG, error)
-        ctx.exit(2)
-    except ImportError:
+        ctx.exit(1)
+    except ImportError as error:
         logger.error(
-            "%s: requires ortools. Install it with: pip install athc[schedule]", PROG
+            "%s: missing dependency %s -- reinstall athc", PROG, error.name or "ortools"
         )
-        ctx.exit(2)
-
-
-def _infer_format(ctx: click.Context, output: Path, output_format: str | None) -> str:
-    fmt = (output_format or output.suffix.lstrip(".")).lower()
-    if not fmt:
-        raise click.UsageError(
-            "Could not infer output format from the file extension; use --format."
-        )
-    if fmt not in available_writer_formats():
-        raise click.UsageError(f"Unsupported output format: {fmt}")
-    return fmt
+        ctx.exit(1)

@@ -1,8 +1,9 @@
-"""Phase-1 inventory tests for the rank-only MatchupBuilder (the two-phase-rank scheduler)."""
+"""Phase-1 inventory tests for the rank-only MatchupBuilder (Scheduler B)."""
 
 from __future__ import annotations
 
 from collections import Counter
+from itertools import pairwise
 
 import pytest
 
@@ -11,7 +12,7 @@ from athc.scheduler.domain.league import Division, League, Team
 from athc.scheduler.schedulers.matchup_builder import MatchupBuilder, difficulty_target
 from athc.scheduler.schedulers.types import MatchupPlan, make_matchup
 
-from ..conftest import HISTORY_PATH, TEST_SEASON
+from ..conftest import HISTORY_PATH
 
 
 @pytest.fixture(scope="session")
@@ -20,7 +21,6 @@ def rank_only_matchup_plan(league: League) -> MatchupPlan:
         teams=league.teams,
         rankings=league.rankings,
         history=NonConfHistory.load(HISTORY_PATH),
-        season=TEST_SEASON,
     ).build_matchup_plan()
 
 
@@ -110,7 +110,6 @@ def test_rank_only_inventory_is_deterministic(league) -> None:
                 teams=league.teams,
                 rankings=league.rankings,
                 history=NonConfHistory.load(HISTORY_PATH),
-                season=TEST_SEASON,
             )
             .build_matchup_plan()
             .matchups
@@ -130,13 +129,22 @@ def _avg_opponent_rank(team: Team, matchups, rankings) -> float:
 
 
 def test_difficulty_target_curve() -> None:
-    # spread 3.19 -> band ~6.3-12.7; shape 2; symmetric and monotonic about 9.5.
-    assert difficulty_target(1) == pytest.approx(6.31)
-    assert difficulty_target(18) == pytest.approx(12.69)
+    # Sine on a slope (spread 3.19, amplitude 0.30): monotonic and symmetric about
+    # 9.5; the wave pulls the ends just inside the 6.31/12.69 trend.
+    assert difficulty_target(1) == pytest.approx(6.42, abs=0.01)
+    assert difficulty_target(18) == pytest.approx(12.58, abs=0.01)
     targets = [difficulty_target(r) for r in range(1, 19)]
     assert targets == sorted(targets)
     for r in range(1, 19):
         assert round(difficulty_target(r) + difficulty_target(19 - r), 9) == 19.0
+    # Soft-staircase: the top pair sits closer together than a mid-table riser.
+    assert difficulty_target(2) - difficulty_target(1) < difficulty_target(
+        6
+    ) - difficulty_target(5)
+    # amplitude 0 -> plain straight line: equal steps between adjacent ranks.
+    flat = [difficulty_target(r, amplitude=0) for r in range(1, 19)]
+    steps = [round(b - a, 9) for a, b in pairwise(flat)]
+    assert len(set(steps)) == 1
 
 
 def test_rank_only_difficulty_is_near_curve_target(

@@ -1,4 +1,4 @@
-"""Phase-1 matchup builder for the fixed-matchup scheduler.
+"""Phase-1 matchup builder for Scheduler A (fixed-rank).
 
 This module builds the full opponent inventory for the schedule builder to use
 to build out the schedule: divisional home-and-away games, conference games,
@@ -107,12 +107,10 @@ class FixedMatchupBuilder:
         teams: Sequence[Team],
         rankings: ConferenceRankings,
         history: NonConfHistory,
-        season: int,
     ) -> None:
         self.teams = teams
         self.rankings = rankings
         self.history = history
-        self.season = season
 
         self.ranked_teams_by_conf: dict[Conference, tuple[Team, ...]] = {
             Conference.AFC: rankings.afc,
@@ -229,7 +227,7 @@ class FixedMatchupBuilder:
     ) -> int:
         inverse_rank_cost = self._pseudo_inverse_rank_cost(team_a, team_b)
         return (
-            H2H_COST_SCALE * self.history.opponent_cost(team_a, team_b, self.season)
+            H2H_COST_SCALE * self.history.opponent_cost(team_a, team_b)
             + INVERSE_RANK_COST_SCALE * inverse_rank_cost
         )
 

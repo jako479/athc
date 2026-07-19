@@ -1,6 +1,6 @@
 # scheduler — Test Matrix: Phase 1 Fixed-Rank (Matchups)
 
-Cases for `fixed_matchup_builder.py`, derived from the code then reconciled with the suite. Convention in [../../../docs/design/testing-unit.md](../../../../docs/design/testing-unit.md). Design: [phase-1-matchups-fixed-rank.md](../../../../docs/scheduler/phase-1-matchups-fixed-rank.md).
+Cases for `fixed_matchup_builder.py` (Scheduler A), derived from the code then reconciled with the suite. Convention in [../../../docs/design/testing-unit.md](../../../../docs/design/testing-unit.md). Design: [phase-1-matchups-fixed-rank.md](../../../../docs/scheduler/phase-1-matchups-fixed-rank.md).
 
 One row per behavior. Status: ☑ covered · ☐ no test yet. Solver-backed cases are `slow` (`pytest -m slow`).
 
@@ -15,7 +15,7 @@ One row per behavior. Status: ☑ covered · ☐ no test yet. Solver-backed case
 | Non-conference counts | 4-team div 5; 5-team div 4 | `test_phase_one_inventory_assigns_expected_nonconference_degree` | ☑ |
 | Total inventory | 144 pairings, per-team 16 | `test_phase_one_inventory_has_expected_total_counts` | ☑ |
 | Canonical pair ordering | (lower-metro, higher-metro) | `test_phase_one_inventory_uses_canonical_pair_ordering` | ☑ |
-| History cost | last-season 0, older lower, never-played below oldest | `test_opponent_cost_uses_contiguous_season_values_and_never_played_below_oldest`, `test_nonconf_history_file_has_expected_h2h_costs_for_all_pairs` | ☑ |
+| History cost | most recent recorded season 0, older lower | `test_opponent_cost_is_seasons_since_most_recent_recorded`, `test_nonconf_history_file_has_expected_h2h_costs_for_all_pairs` | ☑ |
 | Final H2H pairing shaping | rank target (1↔6 … 5↔5) + 3× unfavorable picks opponent | — | ☐ |
 
 ### Error

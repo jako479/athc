@@ -1,15 +1,9 @@
-"""Phase-1 matchup builder for the rank-only two-phase scheduler.
+"""Phase-1 matchup builder for Scheduler B (full CP-SAT).
 
 This module builds the fixed matchup list before the shared schedule builder
 assigns weeks and home/away slots. It selects divisional home-and-homes,
 same-conference cross-division games, then all 40 non-conference games at once
 with the rank-only CP-SAT model.
-
-Phase-1 matchup builder for the scheduler.
-
-This module builds the full opponent inventory for the schedule builder to use
-to build the schedule: divisional home and away games, conference games, and
-non-conference games.
 
 Non-Conference Games:
 Since every team plays every other team in their division twice plus all the
@@ -36,7 +30,8 @@ from collections.abc import Mapping, Sequence
 from ortools.sat.python import cp_model
 
 from athc.scheduler.config import (
-    DEFAULT_DIFFICULTY_SHAPE,
+    DEFAULT_DIFFICULTY_AMPLITUDE,
+    DEFAULT_DIFFICULTY_PERIOD,
     DEFAULT_DIFFICULTY_SPREAD,
     DEFAULT_PHASE1_TIME_LIMIT,
 )
@@ -59,10 +54,11 @@ TOP_HALF_MAX_RANK = 5
 BOTTOM_HALF_MIN_RANK = 5
 
 # Difficulty = a team's average opponent rank on the overall 1-18 scale, pulled
-# toward a rank-based curve. RANK_CENTER +/- spread sets the curve ends (default
-# band ~6.3-12.7); shape bends it (1 = linear, higher = flatter middle).
-# spread/shape come from config (DEFAULT_DIFFICULTY_SPREAD / _SHAPE), overridable
-# in PNFL.scheduler.toml.
+# toward a rank-based curve: a linear tough-to-easy trend (spread sets its ends,
+# 9.5 -/+ spread) plus a shallow sine that bends it into a soft staircase --
+# near-flat shelves at the top pair, the middle, and the bottom pair, so
+# closely-ranked teams (whose one-season order is mostly noise) draw near-equal
+# slates. spread/amplitude come from config; overridable in PNFL.scheduler.toml.
 RANK_CENTER = (1 + TOTAL_TEAMS) / 2
 RANK_HALF_RANGE = (TOTAL_TEAMS - 1) / 2
 
@@ -76,11 +72,19 @@ DIFFICULTY_SCALE = 20
 def difficulty_target(
     rank: int,
     spread: float = DEFAULT_DIFFICULTY_SPREAD,
-    shape: float = DEFAULT_DIFFICULTY_SHAPE,
+    amplitude: float = DEFAULT_DIFFICULTY_AMPLITUDE,
+    period: float = DEFAULT_DIFFICULTY_PERIOD,
 ) -> float:
-    """Target average opponent rank (1-18) for a team of the given overall rank."""
+    """Target average opponent rank (1-18) for a team of the given overall rank.
+
+    Linear tough-to-easy trend plus a shallow sine (the soft staircase); amplitude
+    0 gives the plain straight line. Keep amplitude under the trend's per-rank
+    slope (spread / RANK_HALF_RANGE), or the curve stops rising and a worse-ranked
+    team could draw a tougher slate.
+    """
     norm = (rank - RANK_CENTER) / RANK_HALF_RANGE
-    return RANK_CENTER + spread * math.copysign(abs(norm) ** shape, norm)
+    wave = amplitude * math.sin(2 * math.pi * (rank - RANK_CENTER) / period)
+    return RANK_CENTER + spread * norm - wave
 
 
 class _RankBasedNonConferenceModel:
@@ -93,14 +97,16 @@ class _RankBasedNonConferenceModel:
         overall_rank: dict[Team, int],
         conf_rank: dict[Team, int],
         spread: float = DEFAULT_DIFFICULTY_SPREAD,
-        shape: float = DEFAULT_DIFFICULTY_SHAPE,
+        amplitude: float = DEFAULT_DIFFICULTY_AMPLITUDE,
+        period: float = DEFAULT_DIFFICULTY_PERIOD,
     ) -> None:
         self.model = cp_model.CpModel()
         self.ranked_teams_by_conf = ranked_teams_by_conf
         self.overall_rank = overall_rank
         self.conf_rank = conf_rank
         self.spread = spread
-        self.shape = shape
+        self.amplitude = amplitude
+        self.period = period
         self.afc_teams = list(ranked_teams_by_conf[Conference.AFC])
         self.nfc_teams = list(ranked_teams_by_conf[Conference.NFC])
         self.teams = tuple(self.afc_teams + self.nfc_teams)
@@ -179,7 +185,8 @@ class _RankBasedNonConferenceModel:
             scaled_sum = self.opponent_rank_sum[team] * (DIFFICULTY_SCALE // games)
             rank = self.overall_rank[team]
             target = round(
-                difficulty_target(rank, self.spread, self.shape) * DIFFICULTY_SCALE
+                difficulty_target(rank, self.spread, self.amplitude, self.period)
+                * DIFFICULTY_SCALE
             )
             dev = self.model.new_int_var(0, max_dev, f"nc_dev_{team.metro}")
             self.model.add(dev >= scaled_sum - target)
@@ -225,17 +232,17 @@ class MatchupBuilder:
         teams: Sequence[Team],
         rankings: ConferenceRankings,
         history: NonConfHistory,
-        season: int,
         spread: float = DEFAULT_DIFFICULTY_SPREAD,
-        shape: float = DEFAULT_DIFFICULTY_SHAPE,
+        amplitude: float = DEFAULT_DIFFICULTY_AMPLITUDE,
+        period: float = DEFAULT_DIFFICULTY_PERIOD,
         phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT,
     ) -> None:
         self.teams = teams
         self.rankings = rankings
         self.history = history
-        self.season = season
         self.spread = spread
-        self.shape = shape
+        self.amplitude = amplitude
+        self.period = period
         self.phase1_time_limit = phase1_time_limit
 
         self.ranked_teams_by_conf: dict[Conference, tuple[Team, ...]] = {
@@ -293,7 +300,8 @@ class MatchupBuilder:
             overall_rank=self.overall_rank,
             conf_rank=self.conf_rank,
             spread=self.spread,
-            shape=self.shape,
+            amplitude=self.amplitude,
+            period=self.period,
         )
         rank_model.build()
         return rank_model.solve(time_limit=self.phase1_time_limit)

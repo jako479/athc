@@ -15,7 +15,6 @@ from .conftest import (
     HISTORY_PATH,
     LEAGUE_5_SLOTS,
     SLOW_SOLVE_TIME_LIMIT,
-    TEST_SEASON,
 )
 
 
@@ -42,7 +41,6 @@ def test_schedule_is_deterministic_for_a_seed() -> None:
             teams=league.teams,
             rankings=league.rankings,
             history=NonConfHistory.load(HISTORY_PATH),
-            season=TEST_SEASON,
         )
         .build_matchup_plan()
         .matchups
