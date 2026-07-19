@@ -7,6 +7,7 @@ Settings live in the `[autocontinue]` section of `athc.ini` (found via
 
 from __future__ import annotations
 
+import configparser
 from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib import resources
@@ -17,6 +18,9 @@ from athc.config import load_config as load_athc_config
 
 SECTION = "autocontinue"
 
+# Accept the usual INI truthy/falsy spellings (true/false, yes/no, on/off, 1/0).
+_BOOLEAN_STATES = configparser.RawConfigParser.BOOLEAN_STATES
+
 
 class ConfigError(Exception):
     """The `[autocontinue]` settings are missing or invalid."""
@@ -26,13 +30,15 @@ class ConfigError(Exception):
 class Config:
     mouse_move_duration: float
     delay_before_continue: float
+    hot_corner: bool = True
 
 
 def load_config() -> Config:
     """Read and validate `[autocontinue]` from `config_dir()/athc.ini`.
 
-    Both settings are required; a missing section/key or a non-numeric value raises
-    ConfigError. Isolate the lookup in tests by setting `ATHC_CONFIG_DIR`.
+    The two timing settings are required; a missing section/key or a non-numeric
+    value raises ConfigError. `hot_corner` is optional and defaults to enabled.
+    Isolate the lookup in tests by setting `ATHC_CONFIG_DIR`.
     """
     section = load_athc_config().get(SECTION)
     if section is None:
@@ -43,6 +49,7 @@ def load_config() -> Config:
     return Config(
         mouse_move_duration=_required_float(section, "mouse_move_duration"),
         delay_before_continue=_required_float(section, "delay_before_continue"),
+        hot_corner=_optional_bool(section, "hot_corner", default=True),
     )
 
 
@@ -63,6 +70,17 @@ def get_runtime_path(filename: str) -> Path:
     """On-disk path to a packaged image (e.g. continue_button.png)."""
     resource = resources.files("athc.autocontinue") / "images" / filename
     return Path(str(resource))
+
+
+def _optional_bool(section: Mapping[str, str], key: str, *, default: bool) -> bool:
+    if key not in section:
+        return default
+    value = section[key].strip().lower()
+    if value not in _BOOLEAN_STATES:
+        raise ConfigError(
+            f"Invalid '{key}' in [{SECTION}]: {section[key]!r} (expected true/false)."
+        )
+    return _BOOLEAN_STATES[value]
 
 
 def _required_float(section: Mapping[str, str], key: str) -> float:
