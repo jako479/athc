@@ -11,16 +11,13 @@ from pathlib import Path
 
 from athc.scheduler.config import (
     ConfigError,
-    load_history,
     load_league,
     load_scheduler_config,
 )
-from athc.scheduler.domain.history import NonConfHistory
 from athc.scheduler.schedulers.types import (
     DEFAULT_SCHEDULER,
     SchedulerResult,
     get_scheduler,
-    scheduler_uses_division_standings,
 )
 from athc.scheduler.writers.html_writer import HtmlScheduleWriter
 from athc.scheduler.writers.report import HtmlReportWriter, build_schedule_report
@@ -37,7 +34,6 @@ def generate_schedule(
     scheduler: str = DEFAULT_SCHEDULER,
     config_path: StrPath,
     league_path: StrPath,
-    history_path: StrPath | None,
     output_dir: StrPath,
     seed: int,
     time_limit: int | None,
@@ -46,7 +42,7 @@ def generate_schedule(
     """Solve the season schedule and write outputs to `output_dir`.
 
     Writes a `.txt` and `.html` schedule plus an `.html` report, all named
-    `schedule_<season>_<A|B|C|D>_<YYYYMMDD_HHMM>` (the report adds a `_report`
+    `schedule_<season>_<C|D>_<YYYYMMDD_HHMM>` (the report adds a `_report`
     suffix). Returns the solver result.
     """
     scheduler_config = load_scheduler_config()  # config_path = report provenance
@@ -56,28 +52,27 @@ def generate_schedule(
             solver=replace(scheduler_config.solver, time_limit=time_limit),
         )
     league = load_league(league_path)
-    if (
-        scheduler_uses_division_standings(scheduler)
-        and league.division_standings is None
-    ):
+    if league.division_standings is None:
         raise ConfigError(
-            f"Scheduler {scheduler} needs a [DivisionStandings] section in "
-            f"'{league_path}'."
+            f"A [DivisionStandings] section is required in '{league_path}'."
         )
-    # history_path is None when the scheduler doesn't use history (Scheduler B).
-    history = load_history(history_path, league) if history_path else NonConfHistory()
 
+    logger.info(
+        "Generating the %d schedule with Scheduler %s (time limit %.0fs)",
+        season,
+        scheduler,
+        scheduler_config.solver.time_limit,
+    )
     started = time.perf_counter()
     result = get_scheduler(scheduler)(
         league=league,
-        history=history,
         seed=seed,
         scheduler_config=scheduler_config,
     )
     elapsed = time.perf_counter() - started
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M")
-    # `scheduler` is the A/B/C/D key, which is also the filename token.
+    # `scheduler` is the C/D key, which is also the filename token.
     base = Path(output_dir) / f"schedule_{season}_{scheduler}_{stamp}"
     report_path = base.with_name(f"{base.name}_report.html")
 
@@ -89,15 +84,11 @@ def generate_schedule(
         schedule=result.schedule,
         matchup_plan=result.matchup_plan,
         league=league,
-        history=history,
         seed=seed,
         scheduler_kind=scheduler,
         config_path=config_path,
-        history_path=history_path or "-",
         elapsed_time_seconds=elapsed,
         command_line=command_line,
-        difficulty_amplitude=scheduler_config.difficulty.amplitude,
-        difficulty_period=scheduler_config.difficulty.period,
         difficulty_c_spread=scheduler_config.difficulty.c_spread,
         difficulty_d_spread=scheduler_config.difficulty.d_spread,
     )

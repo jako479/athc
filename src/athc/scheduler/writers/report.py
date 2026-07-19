@@ -9,18 +9,14 @@ from os import PathLike
 from pathlib import Path
 
 from athc.scheduler.config import (
-    DEFAULT_DIFFICULTY_AMPLITUDE,
     DEFAULT_DIFFICULTY_C_SPREAD,
     DEFAULT_DIFFICULTY_D_SPREAD,
-    DEFAULT_DIFFICULTY_PERIOD,
 )
-from athc.scheduler.domain.history import NonConfHistory
 from athc.scheduler.domain.league import League, Team, ordered_teams
 from athc.scheduler.domain.schedule import Schedule
 from athc.scheduler.schedulers.types import (
     MatchupPlan,
     scheduler_display_name,
-    scheduler_uses_difficulty_curve,
     scheduler_uses_difficulty_line,
     scheduler_uses_free_difficulty_line,
 )
@@ -39,9 +35,6 @@ class TeamScheduleReport:
     avg_nonconference_sos: float  # average non-conf opponent overall rank (1-18)
     avg_nonconference_sos_conf: float  # average non-conf opponent conference rank (1-9)
     nonconference_game_ranks: str  # conference ranks (1-9) of non-conf opponents
-    extra_opponent: str
-    history_opponent: str
-    history_last_played: str
     nonconference_opponents: tuple[str, ...]
 
 
@@ -50,12 +43,9 @@ class ScheduleReport:
     seed: int
     scheduler_kind: str
     config_path: str
-    history_path: str
     elapsed_time_seconds: float
     teams: tuple[TeamScheduleReport, ...]
     command_line: str | None = None
-    difficulty_amplitude: float = DEFAULT_DIFFICULTY_AMPLITUDE
-    difficulty_period: float = DEFAULT_DIFFICULTY_PERIOD
     difficulty_c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD
     difficulty_d_spread: float = DEFAULT_DIFFICULTY_D_SPREAD
 
@@ -86,15 +76,11 @@ def build_schedule_report(
     schedule: Schedule,
     matchup_plan: MatchupPlan,
     league: League,
-    history: NonConfHistory | None,
     seed: int,
     scheduler_kind: str,
     config_path: StrPath,
-    history_path: StrPath,
     elapsed_time_seconds: float,
     command_line: str | None = None,
-    difficulty_amplitude: float = DEFAULT_DIFFICULTY_AMPLITUDE,
-    difficulty_period: float = DEFAULT_DIFFICULTY_PERIOD,
     difficulty_c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD,
     difficulty_d_spread: float = DEFAULT_DIFFICULTY_D_SPREAD,
 ) -> ScheduleReport:
@@ -114,35 +100,12 @@ def build_schedule_report(
     )
     nonconference_rank = _ordering(league.teams, lambda team: nc_conf_avg[team])
 
-    extra_opponent_by_team: dict[Team, Team] = {}
-    for team_a, team_b in matchup_plan.extra_nonconference_pairs:
-        extra_opponent_by_team[team_a] = team_b
-        extra_opponent_by_team[team_b] = team_a
-
-    history_opponent_by_team: dict[Team, Team] = {}
-    for team_a, team_b in matchup_plan.history_nonconference_pairs:
-        history_opponent_by_team[team_a] = team_b
-        history_opponent_by_team[team_b] = team_a
-
     rows: list[TeamScheduleReport] = []
     for team in ordered_teams(league.teams):
         opponents = nonconf[team]
         nonconference_game_ranks = ",".join(
             str(rank) for rank in sorted(conf_rank[opp] for opp in opponents)
         )
-        extra_opponent = extra_opponent_by_team.get(team)
-        history_opponent = history_opponent_by_team.get(team)
-        if history_opponent is None:
-            history_opponent_metro = "-"
-            history_last_played = "-"
-        else:
-            history_opponent_metro = history_opponent.metro
-            history_last_played = (
-                "unknown"
-                if history is None
-                else str(history.last_played(team, history_opponent))
-            )
-
         rows.append(
             TeamScheduleReport(
                 team=team.metro,
@@ -156,9 +119,6 @@ def build_schedule_report(
                 avg_nonconference_sos=_mean([overall_rank[opp] for opp in opponents]),
                 avg_nonconference_sos_conf=nc_conf_avg[team],
                 nonconference_game_ranks=nonconference_game_ranks,
-                extra_opponent=extra_opponent.metro if extra_opponent else "-",
-                history_opponent=history_opponent_metro,
-                history_last_played=history_last_played,
                 nonconference_opponents=tuple(opp.metro for opp in opponents),
             )
         )
@@ -168,11 +128,8 @@ def build_schedule_report(
         scheduler_kind=scheduler_kind,
         command_line=command_line,
         config_path=str(config_path),
-        history_path=str(history_path),
         elapsed_time_seconds=elapsed_time_seconds,
         teams=tuple(rows),
-        difficulty_amplitude=difficulty_amplitude,
-        difficulty_period=difficulty_period,
         difficulty_c_spread=difficulty_c_spread,
         difficulty_d_spread=difficulty_d_spread,
     )
@@ -191,9 +148,6 @@ _COLUMNS: tuple[_Column, ...] = (
     ("Avg NC SOS (1-18)", True, "num"),
     ("Avg NC SOS (1-9)", True, "num"),
     ("NC Game Ranks (1-9)", False, None),
-    ("Extra Opp", False, None),
-    ("H2H Opp", False, None),
-    ("Last Played", True, "num"),
     ("Non-Conference Opponents", False, None),
 )
 
@@ -247,12 +201,7 @@ class HtmlReportWriter:
 
     def render(self, report: ScheduleReport) -> str:
         info_rows = [("Scheduler", scheduler_display_name(report.scheduler_kind))]
-        # a/t drive B's curve; c_spread drives C's line; A uses a fixed table.
-        if scheduler_uses_difficulty_curve(report.scheduler_kind):
-            info_rows.append(
-                ("Difficulty amplitude (a)", f"{report.difficulty_amplitude:g}")
-            )
-            info_rows.append(("Difficulty period (t)", f"{report.difficulty_period:g}"))
+        # c_spread drives C's line; d_spread drives D's.
         if scheduler_uses_difficulty_line(report.scheduler_kind):
             info_rows.append(("Difficulty c_spread", f"{report.difficulty_c_spread:g}"))
         if scheduler_uses_free_difficulty_line(report.scheduler_kind):
@@ -261,7 +210,6 @@ class HtmlReportWriter:
             ("Seed", str(report.seed)),
             ("Command line", report.command_line or "-"),
             ("Config path", report.config_path or "-"),
-            ("History path", report.history_path or "-"),
             ("Elapsed (s)", f"{report.elapsed_time_seconds:.3f}"),
         ]
         info = tuple(info_rows)
@@ -302,9 +250,6 @@ class HtmlReportWriter:
             f"{team.avg_nonconference_sos:.2f}",
             f"{team.avg_nonconference_sos_conf:.2f}",
             team.nonconference_game_ranks,
-            team.extra_opponent,
-            team.history_opponent,
-            team.history_last_played,
             ", ".join(team.nonconference_opponents),
         )
         cells = "".join(

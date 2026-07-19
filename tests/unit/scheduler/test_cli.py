@@ -1,8 +1,8 @@
 """Tests for `athc generate-schedule` argument handling and config errors.
 
 Config is resolved from `config_dir()` (autouse fixture). The CLI requires
-`<season>.league.ini` and `<season>.nonconf_history.json` there. The real solve
-runs only in the slow fixtures; here `run_generate` is stubbed where needed.
+`<season>.league.ini` there. The real solve runs only in the slow fixtures;
+here `run_generate` is stubbed where needed.
 """
 
 from __future__ import annotations
@@ -20,9 +20,8 @@ from .test_config import LEAGUE_WITH_DIVISION_STANDINGS, VALID_LEAGUE
 
 
 def _write_season_files(config_dir: Path, season: int) -> None:
-    """Dummy season files so resolution succeeds (content unused when stubbed)."""
+    """Dummy season file so resolution succeeds (content unused when stubbed)."""
     (config_dir / f"{season}.league.ini").write_text("x", encoding="utf-8")
-    (config_dir / f"{season}.nonconf_history.json").write_text("{}", encoding="utf-8")
 
 
 def test_requires_season(runner) -> None:
@@ -50,46 +49,6 @@ def test_errors_when_league_file_missing(runner, caplog) -> None:
         result = runner.invoke(generate_schedule, ["--season", "2026"])
     assert result.exit_code == 1
     assert any("league" in r.getMessage() for r in caplog.records)
-
-
-def test_errors_when_history_missing_for_scheduler_a(
-    runner, caplog, config_dir: Path
-) -> None:
-    # Scheduler A needs history; missing -> clear error, exit 1.
-    (config_dir / "2026.league.ini").write_text("x", encoding="utf-8")
-    with caplog.at_level("ERROR"):
-        result = runner.invoke(
-            generate_schedule, ["--season", "2026", "--scheduler", "A"]
-        )
-    assert result.exit_code == 1
-    assert any("history" in r.getMessage() for r in caplog.records)
-
-
-def test_scheduler_b_does_not_require_history(
-    runner, monkeypatch, config_dir: Path
-) -> None:
-    # Scheduler B (default) ignores history; only league.ini is needed.
-    (config_dir / "2026.league.ini").write_text("x", encoding="utf-8")
-    captured: dict[str, object] = {}
-    monkeypatch.setattr(cli_module, "run_generate", lambda **kw: captured.update(kw))
-    result = runner.invoke(generate_schedule, ["--season", "2026"])
-    assert result.exit_code == 0
-    assert captured["history_path"] is None
-
-
-@pytest.mark.parametrize("scheduler", ["C", "D"])
-def test_schedulers_c_and_d_do_not_require_history(
-    runner, monkeypatch, config_dir: Path, scheduler: str
-) -> None:
-    # C and D select by rank only; like B they ignore history.
-    (config_dir / "2026.league.ini").write_text("x", encoding="utf-8")
-    captured: dict[str, object] = {}
-    monkeypatch.setattr(cli_module, "run_generate", lambda **kw: captured.update(kw))
-    result = runner.invoke(
-        generate_schedule, ["--season", "2026", "--scheduler", scheduler]
-    )
-    assert result.exit_code == 0
-    assert captured["history_path"] is None
 
 
 def test_errors_on_oserror(runner, monkeypatch, caplog, config_dir: Path) -> None:
@@ -124,17 +83,12 @@ def test_errors_when_dependency_missing(
 
 @pytest.mark.parametrize(
     ("args", "expected"),
-    [
-        ([], "B"),
-        (["--scheduler", "A"], "A"),
-        (["--scheduler", "C"], "C"),
-        (["--scheduler", "D"], "D"),
-    ],
+    [([], "C"), (["--scheduler", "C"], "C"), (["--scheduler", "D"], "D")],
 )
 def test_scheduler_passes_through(
     runner, monkeypatch, config_dir: Path, args: list[str], expected: str
 ) -> None:
-    # run_generate is stubbed so no solve runs; both season files must exist.
+    # run_generate is stubbed so no solve runs; the league file must exist.
     _write_season_files(config_dir, 2048)
     captured: dict[str, object] = {}
     monkeypatch.setattr(cli_module, "run_generate", lambda **kw: captured.update(kw))
@@ -163,7 +117,6 @@ def _run_main(league_path: Path, scheduler: str, tmp_path: Path) -> None:
         scheduler=scheduler,
         config_path=tmp_path / "rules.toml",
         league_path=league_path,
-        history_path=None,
         output_dir=tmp_path,
         seed=0,
         time_limit=None,
@@ -173,7 +126,7 @@ def _run_main(league_path: Path, scheduler: str, tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("scheduler", ["C", "D"])
 def test_main_errors_without_division_standings(tmp_path: Path, scheduler: str) -> None:
-    # C and D need [DivisionStandings]; the check runs before any solve.
+    # [DivisionStandings] is required; the check runs before any solve.
     league_path = tmp_path / "league.ini"
     league_path.write_text(VALID_LEAGUE, encoding="utf-8")
     with pytest.raises(ConfigError, match="DivisionStandings"):
@@ -189,16 +142,6 @@ def test_main_accepts_division_standings(
     _stub_solver(monkeypatch)
     with pytest.raises(_ReachedSolver):
         _run_main(league_path, scheduler, tmp_path)
-
-
-def test_main_scheduler_b_ignores_missing_division_standings(
-    tmp_path: Path, monkeypatch
-) -> None:
-    league_path = tmp_path / "league.ini"
-    league_path.write_text(VALID_LEAGUE, encoding="utf-8")
-    _stub_solver(monkeypatch)
-    with pytest.raises(_ReachedSolver):
-        _run_main(league_path, "B", tmp_path)
 
 
 @pytest.mark.parametrize("scheduler", ["C", "D"])
@@ -218,13 +161,12 @@ def test_cli_errors_without_division_standings(
 def test_season_resolves_files_and_outputs_to_cwd(
     runner, monkeypatch, config_dir: Path, tmp_path: Path
 ) -> None:
-    # Scheduler A resolves both season files; output_dir is the current directory.
+    # --season resolves the league file; output_dir is the current directory.
     _write_season_files(config_dir, 2048)
     captured: dict[str, object] = {}
     monkeypatch.setattr(cli_module, "run_generate", lambda **kw: captured.update(kw))
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(generate_schedule, ["--season", "2048", "--scheduler", "A"])
+    result = runner.invoke(generate_schedule, ["--season", "2048"])
     assert result.exit_code == 0
     assert captured["league_path"] == config_dir / "2048.league.ini"
-    assert captured["history_path"] == config_dir / "2048.nonconf_history.json"
     assert captured["output_dir"] == Path.cwd()  # output goes to the current dir

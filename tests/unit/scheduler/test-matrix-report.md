@@ -4,9 +4,9 @@ Cases for `writers/report.py` (`build_schedule_report` + `HtmlReportWriter`). In
 
 | Case | Expected | Test | Status |
 |---|---|---|---|
-| Golden rows (Scheduler A solve) | pinned conf/sched/NC ranks, opponents, H2H | `test_schedule_report_rows_for_one_four_team_and_one_five_team_division` | ☑ |
+| Rows match recomputed SOS (Scheduler C solve) | ranks + SOS fields recomputed independently | `test_schedule_report_rows_match_recomputed_sos` | ☑ |
 | SOS averages | match recomputed avg of opponents' ranks (overall 1–18 + NC 1–9) | (same test) | ☑ |
-| Scheduler display name | "Scheduler A (fixed-rank)" / "Scheduler B (full CP-SAT)" / "Scheduler C (fixed-place + CP-SAT)" | `test_html_report_shows_scheduler_display_name` `[P]` | ☑ |
+| Scheduler display name | "Scheduler C (fixed-place + CP-SAT)" / "Scheduler D (fixed-place + CP-SAT, free-only)" | `test_html_report_shows_scheduler_display_name` `[P]` | ☑ |
 | Difficulty knobs per scheduler | a/t rows for B, c_spread for C, neither for A | `test_html_report_shows_difficulty_knobs_per_scheduler` | ☑ |
 | New SOS columns render | headers + formatted values present | `test_html_report_has_new_columns_and_values` | ☑ |
 | Sortable headers | `data-sort` (order/num), row `data-index`, embedded script | `test_html_report_marks_sortable_headers` | ☑ |

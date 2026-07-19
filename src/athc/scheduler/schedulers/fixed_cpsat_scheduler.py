@@ -6,28 +6,31 @@ picks the rest, tilting each team's average opponent conference rank by the
 configurable `c_spread`.
 
 Phase 2 uses CP-SAT to place that full inventory into the calendar, sharing
-the same week/home-away sequencing constraints as Schedulers A and B.
+the same week/home-away sequencing constraints as Scheduler D.
 """
 
 from __future__ import annotations
 
+import logging
+
 from athc.scheduler.config import SchedulerConfig
-from athc.scheduler.domain.history import NonConfHistory
 from athc.scheduler.domain.league import League
 from athc.scheduler.schedulers.errors import SchedulerError
 from athc.scheduler.schedulers.fixed_cpsat_builder import FixedCpsatMatchupBuilder
 from athc.scheduler.schedulers.schedule_builder import ScheduleBuilder
 from athc.scheduler.schedulers.types import SchedulerResult
 
+logger = logging.getLogger(__name__)
+
 
 def generate_schedule(
     league: League,
-    history: NonConfHistory,  # unused: C selects by rank only, like Scheduler B
     seed: int = 0,
     scheduler_config: SchedulerConfig | None = None,
 ) -> SchedulerResult:
     """Build matchups, then build the final schedule."""
     config = scheduler_config or SchedulerConfig()
+    logger.info("Phase 1: selecting matchups")
     matchup_plan = FixedCpsatMatchupBuilder(
         teams=league.teams,
         rankings=league.rankings,
@@ -36,6 +39,7 @@ def generate_schedule(
         phase1_time_limit=config.solver.phase1_time_limit,
     ).build_matchup_plan()
 
+    logger.info("Phase 2: placing games into weeks")
     schedule_builder = ScheduleBuilder(
         teams=league.teams, error_cls=SchedulerError, amounts=config.phase2
     )

@@ -13,14 +13,12 @@ import click
 from athc.scheduler.config import (
     ConfigError,
     find_config_path,
-    find_history_path,
     find_league_path,
 )
 from athc.scheduler.main import generate_schedule as run_generate
 from athc.scheduler.schedulers.types import (
     DEFAULT_SCHEDULER,
     available_schedulers,
-    scheduler_uses_history,
 )
 
 PROG = "athc generate-schedule"
@@ -48,8 +46,7 @@ logger = logging.getLogger(__name__)
     type=click.Choice(available_schedulers()),
     default=DEFAULT_SCHEDULER,
     show_default=True,
-    help="Scheduler: A (fixed-rank), B (full CP-SAT), C (fixed-place + CP-SAT), "
-    "or D (like C; picked games only).",
+    help="Scheduler: C (fixed-place + CP-SAT) or D (like C; picked games only).",
 )
 @click.pass_context
 def generate_schedule(
@@ -65,29 +62,23 @@ def generate_schedule(
     it, or `athc config reveal` to open it):
 
     \b
-      <season>.league.ini            divisions + previous season's standings (always;
-                                     [DivisionStandings] required by C and D)
-      <season>.nonconf_history.json  past non-conference matchups (Scheduler A only)
+      <season>.league.ini   divisions + previous season's standings, including
+                            the [DivisionStandings] section
 
     Writes a .txt and .html schedule plus an .html report to the current
-    directory, named `schedule_<season>_<A|B|C|D>_<timestamp>`.
+    directory, named `schedule_<season>_<C|D>_<timestamp>`.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     chosen_seed = seed if seed is not None else random.randint(0, 1_000_000)
 
     try:
         league_path = find_league_path(season)
-        # Only Scheduler A reads history; the others ignore it.
-        history_path = (
-            find_history_path(season) if scheduler_uses_history(scheduler) else None
-        )
         config = find_config_path()
         run_generate(
             season=season,
             scheduler=scheduler,
             config_path=config,
             league_path=league_path,
-            history_path=history_path,
             output_dir=Path.cwd(),
             seed=chosen_seed,
             time_limit=time_limit,

@@ -21,7 +21,7 @@ All files deploy into `%LOCALAPPDATA%\athc\`.
 | File | First install | Reinstall |
 |---|---|---|
 | `athc.ini` | seeded | **preserved** (user edits survive) |
-| `<season>.league.ini`, `<season>.nonconf_history.json` | seeded | **preserved** (commish edits survive) |
+| `<season>.league.ini` | seeded | **preserved** (commish edits survive) |
 | `rules\*.toml` | created | overwritten |
 | `docs\*.txt` | created | overwritten |
 
@@ -48,13 +48,13 @@ When a tool sees a deprecated key: log a one-line startup warning, keep reading 
 
 ## Build pipeline
 
-`release/` contains: `release-build.ps1`, `install.bat`, `athc.ini`, the season config files (`<season>.league.ini` / `<season>.nonconf_history.json`), and the `docs\` + `rules\` folders.
+`release/` contains: `release-build.ps1`, `install.bat`, `athc.ini`, the season config files (`<season>.league.ini`), and the `docs\` + `rules\` folders.
 
 `release-build.ps1`:
 
 1. Reads version from `pyproject.toml`.
 2. Runs `uv build --wheel` to produce the project wheel.
-3. Stages the wheel, `install.bat`, `athc.ini`, the season config files (`<season>.league.ini` / `<season>.nonconf_history.json`), and the `docs\` + `rules\` folders into `dist/<bundle-name>/`.
+3. Stages the wheel, `install.bat`, `athc.ini`, the season config files (`<season>.league.ini`), and the `docs\` + `rules\` folders into `dist/<bundle-name>/`.
 4. Zips to `dist/<bundle-name>.zip`.
 
 Final user-facing artifact lands in `dist/` (standard Python build output).

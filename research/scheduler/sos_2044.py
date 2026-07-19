@@ -53,7 +53,8 @@ for t, o in opp.items():
     assert len(o) == 16, f"{t}: {len(o)}"
 
 sos = {t: sum(WINEQ[x] for x in o) for t, o in opp.items()}
-hi = lambda teams: sorted(teams, key=lambda t: -sos[t])
+def hi(teams):
+    return sorted(teams, key=lambda t: -sos[t])
 
 print("SOS tie groups (opp win-sum):")
 for label, teams in [

@@ -9,21 +9,16 @@ from pathlib import Path
 from typing import Any
 
 from athc.config import config_dir
-from athc.scheduler.domain.history import NonConfHistory
 from athc.scheduler.domain.league import League, build_league
 
 StrPath = str | PathLike[str]
 
 LEAGUE_FILE = "league.ini"  # actual file is "<season>.league.ini"
-HISTORY_FILE = "nonconf_history.json"  # actual file is "<season>.nonconf_history.json"
 SCHEDULER_RULES_FILE = "PNFL.scheduler.toml"  # in the config dir's rules/ folder
 
 # Scheduler tunables; overridable in PNFL.scheduler.toml (missing -> these).
 DEFAULT_TIME_LIMIT = 1800.0  # phase-2 (week-placement) solve seconds
 DEFAULT_PHASE1_TIME_LIMIT = 60.0  # phase-1 (matchup) solve seconds
-DEFAULT_DIFFICULTY_SPREAD = 3.19  # linear trend ends 9.5 -/+ spread on the 1-18 scale
-DEFAULT_DIFFICULTY_AMPLITUDE = 0.30  # sine height on that trend (0 = straight line)
-DEFAULT_DIFFICULTY_PERIOD = 8.0  # sine period in ranks (shelf spacing)
 DEFAULT_DIFFICULTY_C_SPREAD = 1.5  # Scheduler C: tilt on the 1-9 conference scale
 DEFAULT_DIFFICULTY_D_SPREAD = 1.5  # Scheduler D: same tilt, picked games only
 
@@ -34,13 +29,9 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True)
 class DifficultyConfig:
-    """Non-conference difficulty knobs. `spread`/`amplitude`/`period` shape
-    Scheduler B's curve; `c_spread` tilts Scheduler C's line; `d_spread`
-    tilts Scheduler D's (picked games only)."""
+    """Non-conference difficulty tilts: `c_spread` covers Scheduler C's whole
+    slate; `d_spread` covers Scheduler D's picked games only."""
 
-    spread: float = DEFAULT_DIFFICULTY_SPREAD
-    amplitude: float = DEFAULT_DIFFICULTY_AMPLITUDE
-    period: float = DEFAULT_DIFFICULTY_PERIOD
     c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD
     d_spread: float = DEFAULT_DIFFICULTY_D_SPREAD
 
@@ -119,11 +110,6 @@ def load_scheduler_config() -> SchedulerConfig:
     phase2 = data.get("phase2", {})
     return SchedulerConfig(
         difficulty=DifficultyConfig(
-            spread=_number(difficulty, "spread", DEFAULT_DIFFICULTY_SPREAD, path),
-            amplitude=_number(
-                difficulty, "amplitude", DEFAULT_DIFFICULTY_AMPLITUDE, path
-            ),
-            period=_number(difficulty, "period", DEFAULT_DIFFICULTY_PERIOD, path),
             c_spread=_number(difficulty, "c_spread", DEFAULT_DIFFICULTY_C_SPREAD, path),
             d_spread=_number(difficulty, "d_spread", DEFAULT_DIFFICULTY_D_SPREAD, path),
         ),
@@ -139,10 +125,8 @@ def load_scheduler_config() -> SchedulerConfig:
 
 def load_league(path: StrPath) -> League:
     """Read a league from `[Divisions]`, `[Standings]` (overall 1-18 `Order`),
-    and the optional `[DivisionStandings]` (per-division finish; Scheduler C).
-
-    All schedulers use the overall order; the per-conference 1-9 ranks are
-    derived from it.
+    and the optional `[DivisionStandings]` (per-division finish; both
+    schedulers need it). Per-conference 1-9 ranks derive from the order.
     """
     resolved = Path(path)
     if not resolved.is_file():
@@ -174,21 +158,6 @@ def load_league(path: StrPath) -> League:
         ) from error
 
 
-def load_history(path: StrPath, league: League) -> NonConfHistory:
-    """Load non-conference history and check it against the league teams.
-
-    Empty history if the file is absent. Invalid JSON, bad data, or teams that
-    don't match the league raise ConfigError.
-    """
-    resolved = Path(path)
-    try:
-        history = NonConfHistory.load(resolved)
-        history.validate_teams(league)
-    except ValueError as error:
-        raise ConfigError(f"History file '{resolved}' is invalid: {error}") from error
-    return history
-
-
 def find_config_path() -> Path:
     """Scheduler config path, for report provenance (may not exist)."""
     return scheduler_rules_path()
@@ -197,11 +166,6 @@ def find_config_path() -> Path:
 def find_league_path(season: int) -> Path:
     """The `<season>.league.ini` file in the config dir; ConfigError if missing."""
     return _require_season_file(season, LEAGUE_FILE, "league")
-
-
-def find_history_path(season: int) -> Path:
-    """The season's `<season>.nonconf_history.json`; ConfigError if missing."""
-    return _require_season_file(season, HISTORY_FILE, "non-conference history")
 
 
 def _require_season_file(season: int, suffix: str, label: str) -> Path:

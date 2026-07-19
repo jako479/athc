@@ -104,6 +104,9 @@ for rec, (teams, real_order) in groups.items():
         )
     by_rank = sorted(teams, key=lambda t: sos_rank[t])  # lower rank = tougher
     by_rec = sorted(teams, key=lambda t: -sos_rec[t])  # higher opp wins = tougher
-    tag = lambda order: "MATCH" if order == real_order else "no"
+
+    def tag(order, real_order=real_order):
+        return "MATCH" if order == real_order else "no"
+
     print(f"  by opp-2046-rank (tough->easy): {by_rank}  [{tag(by_rank)}]")
     print(f"  by opp-2047-wins (tough->easy): {by_rec}  [{tag(by_rec)}]")

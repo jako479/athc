@@ -20,8 +20,7 @@ from html import escape
 from pathlib import Path
 
 from athc.scheduler.config import load_league
-from athc.scheduler.domain.league import Team
-from athc.scheduler.domain.league import lookup_team
+from athc.scheduler.domain.league import Team, lookup_team
 from athc.scheduler.domain.schedule import Game, Schedule, nonconference_games_for
 from athc.scheduler.schedulers.types import MatchupPlan
 from athc.scheduler.writers import report as report_mod
@@ -145,11 +144,9 @@ def build(season: int) -> None:
         schedule=schedule,
         matchup_plan=MatchupPlan(matchups=()),
         league=league,
-        history=None,
         seed=0,
         scheduler_kind="real",
         config_path="-",
-        history_path="-",
         elapsed_time_seconds=0.0,
         command_line=None,
     )
@@ -157,12 +154,6 @@ def build(season: int) -> None:
         ("Schedule", f"Real {season} PNFL schedule (as played)"),
         ("Source", f"https://pnfl.biz/Seasons/{season}/{season}%20PNFL_schedules.htm"),
         ("Standings", f"{PRIOR[season]} final results ({season}.league.ini)"),
-        (
-            "Note",
-            "Extra Opp / H2H Opp / Last Played are Scheduler-A matchup-"
-            "construction details and do not apply to a human-built schedule "
-            '(shown as "-").',
-        ),
     )
     out = (
         REPO_ROOT

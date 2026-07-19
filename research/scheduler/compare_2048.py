@@ -13,6 +13,6 @@ cand = [
 print(
     f"{'rank':>4} | {'real 2048.league.ini':<22} | {'point-diff candidate':<22} | match"
 )
-for i, (r, c) in enumerate(zip(real, cand), 1):
+for i, (r, c) in enumerate(zip(real, cand, strict=True), 1):
     print(f"{i:>4} | {r:<22} | {c:<22} | {'OK' if r == c else 'X'}")
-print("exact matches:", sum(r == c for r, c in zip(real, cand)), "/ 18")
+print("exact matches:", sum(r == c for r, c in zip(real, cand, strict=True)), "/ 18")

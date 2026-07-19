@@ -5,10 +5,6 @@ scheduler, so this reuses the scheduler's report code to score it on the same
 strength-of-schedule metrics. The sortable table is byte-identical to what
 `athc generate-schedule` emits; only the header differs (honest provenance).
 
-The three Scheduler-A matchup-construction columns -- Extra Opp / H2H Opp /
-Last Played -- describe how Scheduler A picks non-conference games and have no
-meaning for a human-built schedule, so they render as "-".
-
 Run:  .venv\\Scripts\\python.exe research\\scheduler\\build_real_2048_report.py
 """
 
@@ -315,11 +311,9 @@ def main() -> None:
         schedule=schedule,
         matchup_plan=MatchupPlan(matchups=()),  # no scheduler-internal pairs
         league=league,
-        history=None,
         seed=0,
         scheduler_kind="real",
         config_path="-",
-        history_path="-",
         elapsed_time_seconds=0.0,
         command_line=None,
     )
@@ -327,12 +321,6 @@ def main() -> None:
         ("Schedule", "Real 2048 PNFL schedule (as played)"),
         ("Source", SOURCE_URL),
         ("Standings", "2047 final results (2048.league.ini)"),
-        (
-            "Note",
-            "Extra Opp / H2H Opp / Last Played are Scheduler-A matchup-"
-            "construction details and do not apply to a human-built schedule "
-            '(shown as "-").',
-        ),
     )
     OUT_PATH.write_text(render(report, info_lines), encoding="utf-8")
     print(f"Wrote {OUT_PATH} ({len(schedule.games)} games, validated)")

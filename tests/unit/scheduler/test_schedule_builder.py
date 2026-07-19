@@ -4,15 +4,13 @@ from __future__ import annotations
 
 import pytest
 
-from athc.scheduler.domain.history import NonConfHistory
 from athc.scheduler.domain.league import Division, Team
 from athc.scheduler.schedulers.errors import SchedulerError
-from athc.scheduler.schedulers.fixed_matchup_builder import FixedMatchupBuilder
+from athc.scheduler.schedulers.fixed_cpsat_builder import FixedCpsatMatchupBuilder
 from athc.scheduler.schedulers.schedule_builder import ScheduleBuilder
 from athc.scheduler.schedulers.types import make_matchup
 
 from .conftest import (
-    HISTORY_PATH,
     LEAGUE_5_SLOTS,
     SLOW_SOLVE_TIME_LIMIT,
 )
@@ -37,10 +35,10 @@ def test_empty_inventory_is_infeasible() -> None:
 def test_schedule_is_deterministic_for_a_seed() -> None:
     league = LEAGUE_5_SLOTS
     inventory = (
-        FixedMatchupBuilder(
+        FixedCpsatMatchupBuilder(
             teams=league.teams,
             rankings=league.rankings,
-            history=NonConfHistory.load(HISTORY_PATH),
+            division_standings=league.division_standings,
         )
         .build_matchup_plan()
         .matchups

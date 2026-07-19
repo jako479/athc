@@ -40,9 +40,9 @@ copy /Y "docs\*.txt"   "%DEST%\docs\"  >NUL
 copy /Y "rules\*.toml" "%DEST%\rules\" >NUL
 if not exist "%DEST%\athc.ini" copy /Y "athc.ini" "%DEST%\athc.ini" >NUL
 
-REM Season config (<season>.league.ini / <season>.nonconf_history.json) is
+REM Season config (<season>.league.ini) is
 REM commissioner-owned -> guard per file so edits survive a reinstall.
-for %%f in (*.league.ini *.nonconf_history.json) do if not exist "%DEST%\%%f" copy /Y "%%f" "%DEST%\%%f" >NUL
+for %%f in (*.league.ini) do if not exist "%DEST%\%%f" copy /Y "%%f" "%DEST%\%%f" >NUL
 
 echo.
 echo ============================================

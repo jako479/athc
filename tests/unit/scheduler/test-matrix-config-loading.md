@@ -1,6 +1,6 @@
 # scheduler — Test Matrix: Config Loading
 
-Cases for `config.py` (`load_scheduler_config`, `load_league`, `load_history`) and the `generate-schedule` CLI error paths. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
+Cases for `config.py` (`load_scheduler_config`, `load_league`) and the `generate-schedule` CLI error paths. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
 
 In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered · ☐ no test yet.
 
@@ -11,19 +11,19 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 | No file | all defaults | `test_load_scheduler_config_defaults_when_no_file` | ☑ |
 | Missing keys | per-key defaults | `test_load_scheduler_config_defaults_when_keys_missing` | ☑ |
 | Non-numeric value | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_value` | ☑ |
+| Non-numeric `c_spread` | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_c_spread` | ☑ |
+| Non-numeric `d_spread` | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_d_spread` | ☑ |
 | Invalid TOML | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_toml` | ☑ |
 | `[phase2]` amounts | parsed; others default | `test_load_scheduler_config_reads_phase2_amounts` | ☑ |
 | Unknown `[phase2]` key | `ConfigError` | `test_load_scheduler_config_rejects_unknown_phase2_key` | ☑ |
 | Non-integer `[phase2]` | `ConfigError` | `test_load_scheduler_config_errors_on_non_integer_phase2` | ☑ |
 
-### Path resolution — `--season` selects config files
+### Path resolution — `--season` selects the league file
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | `<season>.league.ini` missing | `ConfigError` | `test_find_league_path_errors_when_none_exist` | ☑ |
 | Resolves `<season>.league.ini` | config-dir path | `test_find_league_path_resolves_season_prefixed_file` | ☑ |
-| `<season>.nonconf_history.json` missing | `ConfigError` | `test_find_history_path_errors_when_missing` | ☑ |
-| Resolves `<season>.nonconf_history.json` | config-dir path | `test_find_history_path_resolves_season_prefixed_file` | ☑ |
-| CLI: `--season` picks both files; output to cwd | resolved paths + cwd | `test_season_resolves_files_and_outputs_to_cwd` | ☑ |
+| CLI: `--season` resolves file; output to cwd | resolved path + cwd | `test_season_resolves_files_and_outputs_to_cwd` | ☑ |
 
 ### League — `<season>.league.ini` (required)
 | Case | Expected | Test | Status |
@@ -43,18 +43,17 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 | File missing | `ConfigError` | `test_load_league_errors_when_file_missing` | ☑ |
 | Shipped `release/2048.league.ini` | loads, 18 teams | `test_release_example_league_loads` | ☑ |
 
-### History — `<season>.nonconf_history.json` (required, all 81 pairs)
+### `[DivisionStandings]` (required by both schedulers)
 | Case | Expected | Test | Status |
 |---|---|---|---|
-| Valid, complete | loads; pair readable | `test_load_history_reads_valid_aligned_file` | ☑ |
-| Absent / empty | `ConfigError` (incomplete) | `test_load_history_errors_when_absent_or_empty` | ☑ |
-| Incomplete (missing pairs) | `ConfigError` "missing" | `test_load_history_errors_when_incomplete` | ☑ |
-| Invalid JSON | `ConfigError` | `test_load_history_errors_on_invalid_json` | ☑ |
-| Bad structure (no `matchups` object) | `ConfigError` | `test_load_history_errors_on_bad_structure` | ☑ |
-| Non-integer season | `ConfigError` | `test_load_history_errors_on_non_integer_season` | ☑ |
-| Unknown team | `ConfigError` "unknown or misplaced" | `test_load_history_errors_on_unknown_team` | ☑ |
-| Wrong conference side | `ConfigError` "unknown or misplaced" | `test_load_history_errors_on_wrong_conference_side` | ☑ |
-| Shipped `release/2048.nonconf_history.json` | aligns with `release/2048.league.ini` | `test_release_example_history_aligns_with_release_league` | ☑ |
+| Valid section | per-division ordered teams | `test_load_league_reads_division_standings` | ☑ |
+| Section absent | `division_standings` None | `test_load_league_division_standings_none_when_section_absent` | ☑ |
+| Division key missing | `ConfigError` | `test_load_league_errors_when_division_standings_incomplete` | ☑ |
+| Unknown team | `ConfigError` | `test_load_league_errors_on_unknown_division_standings_team` | ☑ |
+| Team in wrong division | `ConfigError` | `test_load_league_errors_when_division_standings_team_misplaced` | ☑ |
+| Duplicate team | `ConfigError` | `test_load_league_errors_on_division_standings_duplicate` | ☑ |
+| Team missing | `ConfigError` | `test_load_league_errors_when_division_standings_team_missing` | ☑ |
+| Shipped release file has section | non-None, 4 divisions | `test_release_league_has_division_standings` | ☑ |
 
 ### CLI — `generate-schedule` error paths
 | Case | Expected | Test | Status |
@@ -63,10 +62,9 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 | Non-integer `--time-limit` | exit 2 | `test_rejects_non_integer_time_limit` | ☑ |
 | Unknown `--scheduler` | exit 2 | `test_rejects_unknown_scheduler` | ☑ |
 | League file missing | exit 1 + "league" | `test_errors_when_league_file_missing` | ☑ |
-| History missing (Scheduler A) | exit 1 + "history" | `test_errors_when_history_missing_for_scheduler_a` | ☑ |
-| Scheduler B ignores history | exit 0; `history_path` None | `test_scheduler_b_does_not_require_history` | ☑ |
-| Scheduler C ignores history | exit 0; `history_path` None | `test_scheduler_c_does_not_require_history` | ☑ |
+| No `[DivisionStandings]` (main) | `ConfigError` names section | `test_main_errors_without_division_standings` `[P]` | ☑ |
+| `[DivisionStandings]` present (main) | pre-checks pass, solver reached | `test_main_accepts_division_standings` `[P]` | ☑ |
+| No `[DivisionStandings]` (CLI) | exit 1 + names section | `test_cli_errors_without_division_standings` `[P]` | ☑ |
 | `OSError` (read/write) | exit 1, no traceback | `test_errors_on_oserror` | ☑ |
 | Solver dep missing | exit 1 + names module | `test_errors_when_dependency_missing` | ☑ |
 | `--scheduler` pass-through | chosen scheduler used | `test_scheduler_passes_through` `[P]` | ☑ |
-| `--season` resolves files; output to cwd | resolved paths + cwd | `test_season_resolves_files_and_outputs_to_cwd` | ☑ |

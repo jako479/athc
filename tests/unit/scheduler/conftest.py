@@ -1,12 +1,11 @@
 """Shared fixtures for the scheduler suite.
 
-The `fixed_matchup` (A), `two_phase_rank` (B), `fixed_cpsat` (C), and
-`fixed_cpsat_free` (D) folders each provide their own `scheduler_result` /
-`schedule` / `matchup_plan` fixtures (via `solve_and_report` below), so every
-scheduler is exercised end-to-end. Any test using one of those fixtures is
-auto-marked `slow` plus its scheduler's `slow_a`/`slow_b`/`slow_c`/`slow_d`,
-and skipped by default (`-m 'not slow'`); run all with `pytest -m slow`, or
-one scheduler with e.g. `pytest -m slow_c`.
+The `fixed_cpsat` (C) and `fixed_cpsat_free` (D) folders each provide their
+own `scheduler_result` / `schedule` / `matchup_plan` fixtures (via
+`solve_and_report` below), so both schedulers are exercised end-to-end. Any
+test using one of those fixtures is auto-marked `slow` plus its scheduler's
+`slow_c`/`slow_d`, and skipped by default (`-m 'not slow'`); run all with
+`pytest -m slow`, or one scheduler with e.g. `pytest -m slow_c`.
 """
 
 from __future__ import annotations
@@ -19,12 +18,10 @@ import pytest
 from click.testing import CliRunner
 
 from athc.scheduler.config import SchedulerConfig, SolverConfig
-from athc.scheduler.domain.history import NonConfHistory
 from athc.scheduler.domain.league import Division, League, build_league
 from athc.scheduler.schedulers.types import SchedulerResult, get_scheduler
 from athc.scheduler.writers.report import HtmlReportWriter, build_schedule_report
 
-HISTORY_PATH = Path(__file__).resolve().parent / "data" / "nonconf_history.json"
 SLOW_SOLVE_TIME_LIMIT = 1200.0  # cap each slow-test solve at 20 minutes
 
 _DIVISIONS: dict[str, Sequence[str]] = {
@@ -50,7 +47,7 @@ _DIVISIONS: dict[str, Sequence[str]] = {
 def _make_league(afc: Sequence[str], nfc: Sequence[str]) -> League:
     # Interleave the two 9-team conference orders into one overall 1-18 list so the
     # derived conference ranks still match afc/nfc (1st AFC, 1st NFC, 2nd AFC, ...).
-    # Division standings (Scheduler C) follow the same order within each division.
+    # Division standings follow the same order within each division.
     overall = [team for pair in zip(afc, nfc, strict=True) for team in pair]
     standings = {
         name: tuple(
@@ -159,8 +156,6 @@ def runner() -> CliRunner:
 # Folder -> per-scheduler slow marker, so one scheduler's slow tests can run
 # alone (e.g. `pytest -m slow_c`).
 _SCHEDULER_SLOW_MARKERS = {
-    "fixed_matchup": "slow_a",
-    "two_phase_rank": "slow_b",
     "fixed_cpsat": "slow_c",
     "fixed_cpsat_free": "slow_d",
 }
@@ -168,7 +163,7 @@ _SCHEDULER_SLOW_MARKERS = {
 
 def pytest_collection_modifyitems(config, items):
     """Mark solver-backed tests (those that build a schedule) as `slow`, plus
-    the per-scheduler `slow_a`/`slow_b`/`slow_c`/`slow_d` marker."""
+    the per-scheduler `slow_c`/`slow_d` marker."""
     for item in items:
         if _SOLVER_FIXTURES & set(getattr(item, "fixturenames", ())):
             item.add_marker(pytest.mark.slow)
@@ -194,17 +189,15 @@ def solve_and_report(league, scheduler_kind, tmp_path_factory) -> SchedulerResul
     """Solve `league` with `scheduler_kind` once (cached) and write its report.
 
     Each scheduler folder's conftest wraps this in its own `scheduler_result`
-    fixture, so all three schedulers are exercised end-to-end.
+    fixture, so both schedulers are exercised end-to-end.
     """
     key = (id(league), scheduler_kind)
     if key not in _solve_cache:
         seed = random.randint(0, 1_000_000)
         print(f"\nScheduler seed ({scheduler_kind}): {seed}")
-        history = NonConfHistory.load(HISTORY_PATH)
         result = get_scheduler(scheduler_kind)(
             league=league,
             seed=seed,
-            history=history,
             scheduler_config=SchedulerConfig(
                 solver=SolverConfig(time_limit=SLOW_SOLVE_TIME_LIMIT)
             ),
@@ -214,19 +207,12 @@ def solve_and_report(league, scheduler_kind, tmp_path_factory) -> SchedulerResul
             schedule=result.schedule,
             matchup_plan=result.matchup_plan,
             league=league,
-            history=history,
             seed=seed,
             scheduler_kind=scheduler_kind,
             config_path=Path("test-config.ini"),
-            history_path=HISTORY_PATH,
             elapsed_time_seconds=0.0,
         )
         report_path = tmp_path_factory.mktemp("schedule_report") / "report.html"
         HtmlReportWriter(str(report_path)).write(report)
         print(f"Schedule report: {report_path}")
     return _solve_cache[key]
-
-
-@pytest.fixture(scope="session")
-def history():
-    return NonConfHistory.load(HISTORY_PATH)

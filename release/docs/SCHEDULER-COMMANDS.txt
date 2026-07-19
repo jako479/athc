@@ -11,34 +11,30 @@ The scheduler uses the OR-Tools solver, which the installer already includes.
 generate-schedule  --  build the season schedule
    ----------------------------------------------
 
-   Reads the season's league and non-conference history, solves the schedule,
-   and writes a .txt and .html schedule plus a sortable HTML report (per-team
-   strength of schedule; click a column header to sort) to the current folder.
-   Files are named schedule_<season>_<A|B|C|D>_<timestamp> (A = fixed-rank,
-   B = full CP-SAT, C = fixed-place + CP-SAT, D = C picked-games-only); the
-   report adds a _report.html
-   suffix.
+   Reads the season's league file, solves the schedule, and writes a .txt
+   and .html schedule plus a sortable HTML report (per-team strength of
+   schedule; click a column header to sort) to the current folder. Files are
+   named schedule_<season>_<C|D>_<timestamp> (C = fixed-place + CP-SAT,
+   D = C picked-games-only); the report adds a _report.html suffix.
 
    Show help:
       athc generate-schedule --help
 
    Example terminal calls:
       athc generate-schedule --season 2048
-      athc generate-schedule --season 2048 --seed 7 --scheduler A
-      athc generate-schedule --season 2048 --scheduler C
+      athc generate-schedule --season 2048 --seed 7 --scheduler D
 
    Options:
       --season YEAR       (required) season to schedule, e.g. 2048; reads
-                          <season>.league.ini (and, for Scheduler A,
-                          <season>.nonconf_history.json) from the config dir
+                          <season>.league.ini from the config dir
                           (run 'athc config path')
       --seed INT          random seed for reproducible output
       --time-limit SECS   override the solver time limit (seconds)
-      --scheduler A|B|C|D A (fixed-rank), B (full CP-SAT), C (fixed-place
-                          + CP-SAT: division standings fix 2 non-conference
-                          games per team, NFL-style same-place matchups, then
-                          CP-SAT fills the rest by rank), or D (like C, but
-                          rank targets cover only the filled games); default B
+      --scheduler C|D     C (fixed-place + CP-SAT: division standings fix
+                          2 non-conference games per team, NFL-style
+                          same-place matchups, then CP-SAT fills the rest by
+                          rank) or D (like C, but rank targets cover only the
+                          filled games); default C
 
    Exit 0 = written, 1 = error, 2 = bad arguments.
 
@@ -56,13 +52,8 @@ CONFIG FILES (in %LOCALAPPDATA%\athc\)
                            schedulers rank teams from this; per-conference
                            ranks are derived from it.
       [DivisionStandings]  last season's regular-season finish per division,
-                           best first. Required by Schedulers C and D.
+                           best first. Required.
 
-   <season>.nonconf_history.json (e.g. 2048.nonconf_history.json) -- the last
-   year each AFC team played each NFC team, used to space out repeat
-   non-conference matchups. Needed only by Scheduler A; Schedulers B and C
-   ignore it.
-
-   rules\PNFL.scheduler.toml -- optional tuning (difficulty curve, solver time
-   limits, phase-2 rule amounts). Every key defaults if absent; edit only to
-   change a default. See the comments in that file.
+   rules\PNFL.scheduler.toml -- optional tuning (difficulty tilts, solver
+   time limits, phase-2 rule amounts). Every key defaults if absent; edit
+   only to change a default. See the comments in that file.

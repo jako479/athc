@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import textwrap
 from pathlib import Path
 
@@ -10,16 +9,14 @@ from athc.scheduler import config
 from athc.scheduler.config import (
     ConfigError,
     find_config_path,
-    find_history_path,
     find_league_path,
-    load_history,
     load_league,
     load_scheduler_config,
 )
 from athc.scheduler.domain.league import Division, League
 
 RELEASE = Path(__file__).resolve().parents[3] / "release"
-SEASON = 2048  # shipped config files are 2048.league.ini / 2048.nonconf_history.json
+SEASON = 2048  # shipped config file is 2048.league.ini
 
 # ---------------------------------------------------------------------------
 # Scheduler tunables live in rules/PNFL.scheduler.toml; league data (divisions +
@@ -122,15 +119,6 @@ def _valid_league(tmp_path: Path) -> Path:
     return _write(tmp_path / "league.ini", VALID_LEAGUE)
 
 
-def _complete_matchups(league: League, year: int = 2047) -> dict[str, int]:
-    """All 81 AFC x NFC pairs -> `year`, the complete history the loader requires."""
-    return {
-        f"{afc.metro}|{nfc.metro}": year
-        for afc in league.rankings.afc
-        for nfc in league.rankings.nfc
-    }
-
-
 # ---------------------------------------------------------------------------
 # load_scheduler_config — rules/PNFL.scheduler.toml (optional; missing -> defaults)
 # ---------------------------------------------------------------------------
@@ -141,9 +129,6 @@ def test_load_scheduler_config_reads_values(config_dir: Path) -> None:
         config_dir,
         """
         [difficulty]
-        spread = 2.0
-        amplitude = 0.4
-        period = 6
         c_spread = 2.5
         d_spread = 0.5
         [solver]
@@ -152,9 +137,6 @@ def test_load_scheduler_config_reads_values(config_dir: Path) -> None:
         """,
     )
     cfg = load_scheduler_config()
-    assert cfg.difficulty.spread == 2.0
-    assert cfg.difficulty.amplitude == 0.4
-    assert cfg.difficulty.period == 6.0
     assert cfg.difficulty.c_spread == 2.5
     assert cfg.difficulty.d_spread == 0.5
     assert cfg.solver.time_limit == 120.0
@@ -163,9 +145,6 @@ def test_load_scheduler_config_reads_values(config_dir: Path) -> None:
 
 def test_load_scheduler_config_defaults_when_no_file() -> None:
     cfg = load_scheduler_config()  # autouse empty config_dir
-    assert cfg.difficulty.spread == config.DEFAULT_DIFFICULTY_SPREAD
-    assert cfg.difficulty.amplitude == config.DEFAULT_DIFFICULTY_AMPLITUDE
-    assert cfg.difficulty.period == config.DEFAULT_DIFFICULTY_PERIOD
     assert cfg.difficulty.c_spread == config.DEFAULT_DIFFICULTY_C_SPREAD
     assert cfg.difficulty.d_spread == config.DEFAULT_DIFFICULTY_D_SPREAD
     assert cfg.solver.time_limit == config.DEFAULT_TIME_LIMIT
@@ -174,11 +153,10 @@ def test_load_scheduler_config_defaults_when_no_file() -> None:
 
 
 def test_load_scheduler_config_defaults_when_keys_missing(config_dir: Path) -> None:
-    _write_scheduler_toml(config_dir, "[difficulty]\nspread = 2.0\n")
+    _write_scheduler_toml(config_dir, "[difficulty]\nc_spread = 2.0\n")
     cfg = load_scheduler_config()
-    assert cfg.difficulty.spread == 2.0
-    assert cfg.difficulty.amplitude == config.DEFAULT_DIFFICULTY_AMPLITUDE
-    assert cfg.difficulty.period == config.DEFAULT_DIFFICULTY_PERIOD
+    assert cfg.difficulty.c_spread == 2.0
+    assert cfg.difficulty.d_spread == config.DEFAULT_DIFFICULTY_D_SPREAD
     assert cfg.solver.time_limit == config.DEFAULT_TIME_LIMIT
 
 
@@ -469,93 +447,3 @@ def test_release_league_has_division_standings() -> None:
     league = load_league(RELEASE / f"{SEASON}.league.ini")
     assert league.division_standings is not None
     assert len(league.division_standings) == 4
-
-
-# ---------------------------------------------------------------------------
-# find_history_path — config-dir nonconf_history.json
-# ---------------------------------------------------------------------------
-
-
-def test_find_history_path_resolves_season_prefixed_file(config_dir: Path) -> None:
-    present = _write(config_dir / f"{SEASON}.nonconf_history.json", "{}")
-    assert find_history_path(SEASON) == present
-
-
-def test_find_history_path_errors_when_missing(config_dir: Path) -> None:
-    with pytest.raises(ConfigError):
-        find_history_path(SEASON)
-
-
-# ---------------------------------------------------------------------------
-# load_history — nonconf_history.json (optional; structure + team alignment)
-# ---------------------------------------------------------------------------
-
-
-def test_load_history_reads_valid_aligned_file(tmp_path: Path) -> None:
-    league = load_league(_valid_league(tmp_path))
-    good = _write(
-        tmp_path / "h.json", json.dumps({"matchups": _complete_matchups(league, 2046)})
-    )
-    history = load_history(good, league)
-    buffalo = next(t for t in league.teams if t.metro == "Buffalo")
-    atlanta = next(t for t in league.teams if t.metro == "Atlanta")
-    assert history.last_played(buffalo, atlanta) == 2046
-
-
-def test_load_history_errors_when_absent_or_empty(tmp_path: Path) -> None:
-    # History must cover all 81 pairs, so an absent (-> empty) file is incomplete.
-    league = load_league(_valid_league(tmp_path))
-    with pytest.raises(ConfigError):
-        load_history(tmp_path / "absent.json", league)
-
-
-def test_load_history_errors_when_incomplete(tmp_path: Path) -> None:
-    league = load_league(_valid_league(tmp_path))
-    matchups = _complete_matchups(league)
-    matchups.pop(next(iter(matchups)))  # drop one pair
-    bad = _write(tmp_path / "h.json", json.dumps({"matchups": matchups}))
-    with pytest.raises(ConfigError, match="missing"):
-        load_history(bad, league)
-
-
-def test_load_history_errors_on_invalid_json(tmp_path: Path) -> None:
-    league = load_league(_valid_league(tmp_path))
-    bad = _write(tmp_path / "h.json", "{not json")
-    with pytest.raises(ConfigError):
-        load_history(bad, league)
-
-
-def test_load_history_errors_on_bad_structure(tmp_path: Path) -> None:
-    league = load_league(_valid_league(tmp_path))
-    bad = _write(tmp_path / "h.json", '{"matchups": [1, 2, 3]}')
-    with pytest.raises(ConfigError):
-        load_history(bad, league)
-
-
-def test_load_history_errors_on_non_integer_season(tmp_path: Path) -> None:
-    league = load_league(_valid_league(tmp_path))
-    bad = _write(tmp_path / "h.json", '{"matchups": {"Buffalo|Atlanta": "soon"}}')
-    with pytest.raises(ConfigError):
-        load_history(bad, league)
-
-
-def test_load_history_errors_on_unknown_team(tmp_path: Path) -> None:
-    league = load_league(_valid_league(tmp_path))
-    bad = _write(tmp_path / "h.json", '{"matchups": {"Nowhere|Atlanta": 2046}}')
-    with pytest.raises(ConfigError, match="unknown or misplaced"):
-        load_history(bad, league)
-
-
-def test_load_history_errors_on_wrong_conference_side(tmp_path: Path) -> None:
-    # Atlanta is NFC; on the AFC (first) side it's misplaced.
-    league = load_league(_valid_league(tmp_path))
-    bad = _write(tmp_path / "h.json", '{"matchups": {"Atlanta|Buffalo": 2046}}')
-    with pytest.raises(ConfigError, match="unknown or misplaced"):
-        load_history(bad, league)
-
-
-def test_release_example_history_aligns_with_release_league() -> None:
-    """The shipped release/nonconf_history.json matches release/league.ini."""
-    league = load_league(RELEASE / f"{SEASON}.league.ini")
-    history = load_history(RELEASE / f"{SEASON}.nonconf_history.json", league)
-    assert history.validate_teams(league) is None

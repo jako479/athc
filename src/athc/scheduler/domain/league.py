@@ -55,8 +55,7 @@ DIVISION_INDEX = {division: index for index, division in enumerate(DIVISION_ORDE
 @dataclass(frozen=True)
 class ConferenceRankings:
     """The overall 1-18 standings (`overall`) plus the per-conference 1-9 ranks
-    (`afc`, `nfc`) derived from it. Scheduler B uses overall rank; Scheduler A
-    uses the derived conference ranks."""
+    (`afc`, `nfc`) derived from it."""
 
     afc: tuple[Team, ...]
     nfc: tuple[Team, ...]
@@ -148,8 +147,7 @@ class League:
     """Teams plus the AFC/NFC standings used for strength-of-schedule math.
 
     `division_standings` is the previous season's regular-season divisional
-    finish (best first), from `[DivisionStandings]`. Optional; only Scheduler C
-    needs it.
+    finish (best first), from `[DivisionStandings]`.
     """
 
     teams: tuple[Team, ...]
@@ -165,8 +163,7 @@ def build_league(
 ) -> League:
     """Build a `League` from a division map plus the overall 1-18 standings.
 
-    The per-conference 1-9 ranks (used by Scheduler A) are derived
-    from the overall order.
+    The per-conference 1-9 ranks are derived from the overall order.
     """
     teams = build_teams(divisions)
     overall = tuple(lookup_team(teams, metro) for metro in overall_ranking)

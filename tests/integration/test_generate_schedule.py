@@ -1,7 +1,7 @@
 """Integration tests for `athc generate-schedule` (CLI -> files), per scheduler.
 
 Slow (full solves), skipped by default. Run all with `pytest -m slow`, or one
-scheduler with `pytest -m slow_b` / `slow_c` / `slow_d`.
+scheduler with `pytest -m slow_c` / `slow_d`.
 """
 
 from __future__ import annotations
@@ -22,7 +22,6 @@ SEASON = 2026
 @pytest.mark.parametrize(
     "scheduler",
     [
-        pytest.param("B", marks=pytest.mark.slow_b),
         pytest.param("C", marks=pytest.mark.slow_c),
         pytest.param("D", marks=pytest.mark.slow_d),
     ],
@@ -30,8 +29,8 @@ SEASON = 2026
 def test_generate_schedule_writes_schedules_and_report(
     runner, tmp_path: Path, config_dir: Path, monkeypatch, scheduler: str
 ) -> None:
-    # B, C, and D need only league.ini (C and D read its [DivisionStandings]);
-    # --season resolves it. Output lands in the current directory.
+    # Only league.ini is needed (with [DivisionStandings]); --season resolves
+    # it. Output lands in the current directory.
     shutil.copy(LEAGUE, config_dir / f"{SEASON}.league.ini")
     monkeypatch.chdir(tmp_path)
 

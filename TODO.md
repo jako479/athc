@@ -15,7 +15,6 @@
 - [DONE] scheduler rules: range for shape (`p`); [0.75 to 1 (flat) seems ideal]
 - [DONE] athc general: Handle exit codes consistently [Design and tools fixed]
 - [DONE] scheduler: what is current backup strategy? Documented in design and release docs? Tests? [N/A]
-- [DONE] scheduler: Find out how schedule-A resolves final matchups [H2H + fixed-rank]
 - [DONE] gameplan: what is current backup strategy? Documented in design and release docs? Tests? [Yes]
 - [DONE] profile: what is current backup strategy? Documented in design and release docs? Tests? [Yes]
 - [DONE] playpool: user category now golden; folder categories for play attributes
