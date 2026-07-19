@@ -44,9 +44,6 @@ yarn.lock
 .claude/settings.local.json
 .claude/settings.json
 
-# Dev config (per-machine, gitignored; set $ATHC_CONFIG_DIR to point here)
-dev/
-
 # OS
 .DS_Store
 Thumbs.db

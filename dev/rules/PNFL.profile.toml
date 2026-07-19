@@ -1,0 +1,212 @@
+# PNFL coaching-profile rules — the official set, ready to use as-is.
+# Wire it up: point [profile] rule_files (in athc.ini) at this file.
+# Source: https://pnfl.biz/messageboard/viewtopic.php?f=18&t=28
+#
+# Every key is optional (omitted = not enforced). A situation section
+# ([offense.<name>] / [defense.<name>]) applies when ALL its filters match; an
+# omitted filter matches every value. Filter/label glossaries are inline below.
+
+schema_version = 1
+
+audibles_allowed = false # if false, profiles must save with audibles off
+min_categories = 2       # baseline distinct categories per situation (>= 0)
+
+# Categories a profile must never use (weight 0 in every situation). Full game
+# names: Goal Line Run/Pass, Razzle Dazzle Run/Pass, Run Left/Middle/Right,
+# Pass Long/Medium/Short Left/Middle/Right, Field Goal/PAT, Fake FG Run/Pass,
+# Punt, Fake Punt Run/Pass, Run Clock, Run Random, Pass Long/Medium/Short Random.
+disallowed_offensive_categories = [
+    "Razzle Dazzle Run",
+    "Run Random",
+    "Pass Long Left",
+    "Pass Long Middle",
+    "Pass Long Random",
+    "Pass Medium Random",
+    "Pass Short Random",
+]
+disallowed_defensive_categories = []
+
+# Substitution thresholds by position group, each out_percent / in_percent
+# (both 0-100, out <= in). Settable groups, by profile side:
+#   offense: OL QB RB WR K    defense: DL LB DB
+# Omit a group to leave it unchecked. PNFL mandates only the QB pair.
+[substitutions]
+QB = { out_percent = 75, in_percent = 80 }
+
+# Note: min_categories is automatically waived for a situation that uses only
+# kick/punt (plus run-clock on offense) — a pure field-goal or punt situation is
+# never flagged for too few categories. This is built in, not configured here.
+
+# ── Situation sections ─────────────────────────────────────────────────────────
+# Filters (all optional, AND-matched): time / down / yards / fields.
+# Each section needs >= 1 constraint: allowed | disallowed (exclusive) |
+# mandatory | min_categories.
+#   time   ">5:00" ">2:00-5:00" ">1:00-2:00" ">0:15-1:00" "0:00-0:15"
+#   down   "first" "second" "third" "fourth"
+#   yards  "0-1" "2-5" "6-10" ">10"
+#   fields inside_def_5  def_5_to_def_35  def_35_to_off_35  off_35_to_off_5  inside_off_5
+
+# Minimum of 3 above 5:00, except backed up to a team's own goal line.
+[offense.min_categories_three]
+time = ">5:00"
+fields = [
+    "inside_def_5",
+    "def_5_to_def_35",
+    "def_35_to_off_35",
+    "off_35_to_off_5",
+]
+min_categories = 3
+
+# Minimum of 3 above 5:00, except backed up to a team's own goal line.
+[defense.min_categories_three]
+time = ">5:00"
+fields = [
+    "def_5_to_def_35",
+    "def_35_to_off_35",
+    "off_35_to_off_5",
+    "inside_off_5",
+]
+min_categories = 3
+
+# ── OFFENSE matrix ────────────────────────────────────────────────────────────
+# Labels: GLR RL RM RR  GLP PRD PLR PML PMM PMR  PSL PSM PSR
+
+[offense.first_and_0_1]
+time = ">5:00"
+down = "first"
+yards = "0-1"
+fields = [
+    "inside_def_5",
+    "def_5_to_def_35",
+    "def_35_to_off_35",
+    "off_35_to_off_5",
+    "inside_off_5",
+]
+allowed = ["RL", "RM", "PSL", "PML", "GLR", "GLP"]
+
+[offense.first_and_2_5_goal_lines]
+time = ">5:00"
+down = "first"
+yards = "2-5"
+fields = ["inside_def_5", "inside_off_5"]
+allowed = ["RL", "RM", "PSL", "PML", "GLR", "GLP"]
+
+[offense.first_and_2_5]
+time = ">5:00"
+down = "first"
+yards = "2-5"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+allowed = ["RL", "RM", "PSL", "PML"]
+
+[offense.first_and_6_10]
+time = ">5:00"
+down = "first"
+yards = "6-10"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+allowed = ["RM", "PSL", "PML"]
+
+[offense.first_and_6_10_off_5]
+time = ">5:00"
+down = "first"
+yards = "6-10"
+fields = ["inside_off_5"]
+allowed = ["RL", "RM", "PSL", "PML", "GLR", "GLP"]
+
+[offense.second_and_0_1]
+time = ">5:00"
+down = "second"
+yards = "0-1"
+fields = [
+    "inside_def_5",
+    "def_5_to_def_35",
+    "def_35_to_off_35",
+    "off_35_to_off_5",
+    "inside_off_5",
+]
+allowed = ["RL", "RM", "PSM", "PMM", "GLR", "GLP"]
+
+[offense.second_and_2_5_goal_lines]
+time = ">5:00"
+down = "second"
+yards = "2-5"
+fields = ["inside_def_5", "inside_off_5"]
+allowed = ["RL", "RM", "PSM", "PMM", "GLR", "GLP"]
+
+[offense.second_and_2_5]
+time = ">5:00"
+down = "second"
+yards = "2-5"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+allowed = ["RL", "RM", "PSM", "PMM"]
+
+[offense.second_and_6_10]
+time = ">5:00"
+down = "second"
+yards = "6-10"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+allowed = ["RM", "RR", "PSM", "PMM"]
+
+[offense.second_and_6_10_off_5]
+time = ">5:00"
+down = "second"
+yards = "6-10"
+fields = ["inside_off_5"]
+allowed = ["RL", "RM", "RR", "PSM", "PMM", "GLR", "GLP"]
+
+[offense.third_and_0_1]
+time = ">5:00"
+down = "third"
+yards = "0-1"
+fields = [
+    "inside_def_5",
+    "def_5_to_def_35",
+    "def_35_to_off_35",
+    "off_35_to_off_5",
+    "inside_off_5",
+]
+disallowed = ["PRD"]
+
+[offense.third_and_2_5]
+time = ">5:00"
+down = "third"
+yards = "2-5"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+mandatory = ["PSR"]
+
+[offense.third_and_6_10]
+time = ">5:00"
+down = "third"
+yards = "6-10"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+mandatory = ["PMR"]
+
+[offense.third_and_over_10_midfield]
+time = ">5:00"
+down = "third"
+yards = ">10"
+fields = ["def_35_to_off_35", "off_35_to_off_5"]
+mandatory = ["PLR"]
+
+# ── DEFENSE matrix ────────────────────────────────────────────────────────────
+# Labels: GLrun RunDazzle RunLeft RunMiddle RunRight  GLpass PassDazzle PassLong PassMedium PassShort
+
+[defense.third_and_2_5]
+time = ">5:00"
+down = "third"
+yards = "2-5"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+mandatory = ["PassShort"]
+
+[defense.third_and_6_10]
+time = ">5:00"
+down = "third"
+yards = "6-10"
+fields = ["def_5_to_def_35", "def_35_to_off_35", "off_35_to_off_5"]
+mandatory = ["PassMedium"]
+
+[defense.third_and_over_10]
+time = ">5:00"
+down = "third"
+yards = ">10"
+fields = ["def_35_to_off_35", "off_35_to_off_5"]
+mandatory = ["PassLong"]
