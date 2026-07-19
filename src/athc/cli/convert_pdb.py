@@ -41,46 +41,46 @@ def _ext(*extensions: str):
     "--pln-off",
     type=click.Path(path_type=Path),
     callback=_ext(".pln"),
-    help="offensive game plan (.pln).",
+    help="Offensive game plan (.pln).",
 )
 @click.option(
     "-o2",
     "--pln-off-2",
     type=click.Path(path_type=Path),
     callback=_ext(".pln"),
-    help="second offensive game plan (.pln).",
+    help="Second offensive game plan (.pln).",
 )
 @click.option(
     "-d",
     "--pln-def",
     type=click.Path(path_type=Path),
     callback=_ext(".pln"),
-    help="defensive game plan (.pln).",
+    help="Defensive game plan (.pln).",
 )
 @click.option(
     "-d2",
     "--pln-def-2",
     type=click.Path(path_type=Path),
     callback=_ext(".pln"),
-    help="second defensive game plan (.pln).",
+    help="Second defensive game plan (.pln).",
 )
 @click.option(
     "--play-path",
     type=click.Path(path_type=Path),
-    help="play-files directory (overrides config play_path).",
+    help="Play-files directory (overrides config play_path).",
 )
 @click.option(
     "--playpool-rules",
     type=click.Path(path_type=Path),
     callback=_ext(".toml"),
-    help="playpool rules TOML for play tags (overrides config).",
+    help="Playpool rules TOML for play tags (overrides config).",
 )
 @click.option(
     "--skip-calcs",
     is_flag=True,
-    help="omit the extra calculation (percentage) columns.",
+    help="Omit the extra calculation (percentage) columns.",
 )
-@click.option("--skip-totals", is_flag=True, help="omit the Total Stats team.")
+@click.option("--skip-totals", is_flag=True, help="Omit the Total Stats team.")
 @click.pass_context
 def convert_pdb(
     ctx: click.Context,
@@ -95,11 +95,11 @@ def convert_pdb(
     skip_calcs: bool,
     skip_totals: bool,
 ) -> None:
-    """Create an Excel workbook from a WinLogStats PDB and optional FbPro 98 game plans.
+    """Create an Excel workbook from a WinLogStats PDB and optional game plans.
 
     PDBFILE is a `.pdb`; OUTPUTFILE is `.xlsx` or `.xlsm` (`.xlsm` embeds sorting
     macros). Cross-reference up to two offensive (`-o`/`-o2`) and two defensive
-    (`-d`/`-d2`) game plans. Exit 0 ok, 1 on an input/I/O error, 2 on usage.
+    (`-d`/`-d2`) Front Page Sports Football Pro '98 game plans.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 

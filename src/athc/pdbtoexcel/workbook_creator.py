@@ -16,8 +16,8 @@ from athc.pdbtoexcel.config import CategoryOrder, Config
 from athc.pdbtoexcel.excel_workbook import ExcelPdbWorkbook
 from athc.pdbtoexcel.pdb import PDB, PLAY_DATA
 from athc.playpool import (
+    Play,
     PlayPool,
-    PlayRecord,
     load_rules,
     read_play_pool,
 )
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 StrPath = str | PathLike[str]
 
-ResolvedPlay = tuple[PLAY_DATA, str, str, PlayRecord]
+ResolvedPlay = tuple[PLAY_DATA, str, str, Play]
 
 
 class PdbWorkbookCreator:
@@ -139,10 +139,8 @@ class PdbWorkbookCreator:
 
         logger.info("Conversion complete")
 
-    def _category_rank(
-        self, play_record: PlayRecord, play_type: PLAY_DATA.PLAY_TYPE
-    ) -> int:
-        return self.category_order[play_type].index(play_record.category or "")
+    def _category_rank(self, play_record: Play, play_type: PLAY_DATA.PLAY_TYPE) -> int:
+        return self.category_order[play_type].index(play_record.category.long)
 
     def _iter_tracked_plays(self) -> Iterator[PLAY_DATA]:
         for play_type in (
@@ -168,12 +166,12 @@ class PdbWorkbookCreator:
             if self._should_export(play_in_pdb, play_record):
                 yield play_in_pdb, play_name, team_name, play_record
 
-    def _should_export(self, play_in_pdb: PLAY_DATA, play_record: PlayRecord) -> bool:
+    def _should_export(self, play_in_pdb: PLAY_DATA, play_record: Play) -> bool:
         """Skip special-teams plays and any whose game category isn't in the order
         for its PDB play type (e.g. a misclassified play that would break the sort)."""
         if play_record.play_file.is_special_teams:
             return False
-        return play_record.category in self.category_order[play_in_pdb.play_type]
+        return play_record.category.long in self.category_order[play_in_pdb.play_type]
 
     def _get_play_slots(
         self, play_in_pdb: PLAY_DATA, play_name: str
@@ -206,7 +204,7 @@ class PdbWorkbookCreator:
     def _add_total_plays(
         self, workbook: ExcelPdbWorkbook, combined_plays: dict[bytes, PLAY_DATA]
     ) -> None:
-        plays_to_write: list[tuple[PLAY_DATA, PlayRecord]] = []
+        plays_to_write: list[tuple[PLAY_DATA, Play]] = []
         for play_in_pdb in combined_plays.values():
             play_record = self.play_pool.find_by_name(
                 play_in_pdb.play_name.decode("ASCII")
@@ -234,7 +232,7 @@ class PdbWorkbookCreator:
         team_categories: dict[tuple[str, str], PLAY_DATA] = {}
         categories: dict[str, PLAY_DATA] = {}
         for play_in_pdb, _, team_name, play_record in resolved_plays:
-            category = play_record.category or ""
+            category = play_record.category.long
             self._add_to_category(team_categories, play_in_pdb, (team_name, category))
             if calculate_totals:
                 self._add_to_category(categories, play_in_pdb, category)

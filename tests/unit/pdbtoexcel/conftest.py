@@ -8,12 +8,12 @@ from athc.fbpro98_play import PlayFile
 from athc.pdbtoexcel.pdb import PLAY_DATA, TENDENCY_DATA
 from athc.playpool import (
     DefensiveFront,
-    DefensivePlayRecord,
-    OffensivePlayRecord,
+    DefensivePlay,
+    OffensivePlay,
     PassLogic,
+    Play,
     PlayPool,
-    PlayRecord,
-    SpecialTeamsPlayRecord,
+    SpecialTeamsPlay,
 )
 
 DATA = Path(__file__).resolve().parent / "data"
@@ -55,41 +55,37 @@ def make_record(
     play_category: int = 0x01,
     user_category: int = 0x03,
     special_category: int = 0,
-    pool_category: str = "",
     screen: bool = False,
     qb_draw: bool = False,
     rollout: bool = False,
     pass_logic: PassLogic | None = None,
     defensive_front: DefensiveFront | None = None,
-) -> PlayRecord:
+) -> Play:
     play_file = PlayFile(
         Path(f"{name}.ply"), 0, play_category, special_category, user_category, (), ()
     )
     if special_category:
-        return SpecialTeamsPlayRecord(name, play_file)
+        return SpecialTeamsPlay(name, play_file)
     if play_category % 2 == 1:  # odd → offense
-        return OffensivePlayRecord(
+        return OffensivePlay(
             name,
             play_file,
-            pool_category=pool_category,
             screen=screen,
             qb_draw=qb_draw,
             rollout=rollout,
             pass_logic=pass_logic,
         )
-    return DefensivePlayRecord(
-        name, play_file, pool_category=pool_category, defensive_front=defensive_front
-    )
+    return DefensivePlay(name, play_file, defensive_front=defensive_front)
 
 
 def make_pool(records) -> PlayPool:
     pool = PlayPool("root")
     for record in records:
         pool._register(record)
-        if isinstance(record, OffensivePlayRecord):
+        if isinstance(record, OffensivePlay):
             pool.offensive_plays.append(record)
-        elif isinstance(record, DefensivePlayRecord):
+        elif isinstance(record, DefensivePlay):
             pool.defensive_plays.append(record)
-        elif isinstance(record, SpecialTeamsPlayRecord):
+        elif isinstance(record, SpecialTeamsPlay):
             pool.special_teams_plays.append(record)
     return pool

@@ -233,13 +233,10 @@ class PDB:
                 record = play_pool.find_by_name(play_key[1])
                 if record is None or not record.play_file.is_offensive:
                     continue
+                category = record.category
                 mismatched = (
-                    original_type == PLAY_DATA.PLAY_TYPE.RUN
-                    and record.play_type == "pass"
-                ) or (
-                    original_type == PLAY_DATA.PLAY_TYPE.PASS
-                    and record.play_type == "run"
-                )
+                    original_type == PLAY_DATA.PLAY_TYPE.RUN and category.is_pass
+                ) or (original_type == PLAY_DATA.PLAY_TYPE.PASS and category.is_run)
                 if mismatched:
                     self._move_play(play_key, original_type, swap[original_type])
 

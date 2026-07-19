@@ -26,7 +26,7 @@ src/athc/cli/convert_pdb.py   # Click leaf command
 - Parses a WinLogStats `.pdb` into per-team per-play stats + down/distance tendencies.
 - Builds a `playpool.PlayPool` from `--play-path` (with an optional playpool rules
   TOML of filename filters). Joins each PDB play to its pool record by name.
-- Groups / sorts plays by their **game category** (`PlayRecord.category`, e.g.
+- Groups / sorts plays by their **game category** (`Play.category`, e.g.
   "Pass Short Left"); the row order + Options sheet come from a default order built
   from the game's own category vocabulary (`config.default_category_order`).
 - Optionally cross-references up to two offensive + two defensive `.pln` game plans
@@ -52,7 +52,14 @@ override. play_path must resolve to a real directory at runtime.
 
 `athc convert-pdb PDB.pdb OUT.{xlsx,xlsm} [-o/-o2 OFF.pln] [-d/-d2 DEF.pln] [--play-path DIR] [--playpool-rules R.toml] [--config INI] [--skip-calcs] [--skip-totals]`.
 Extensions are validated (`.pdb` / `.xlsx`,`.xlsm` / `.pln` / `.toml` / `.ini`).
-Exit 0 ok / 1 input or I/O error / 2 usage.
+
+## Exit codes
+
+| Exit | Meaning |
+|---|---|
+| `0` | **OK** — workbook written. |
+| `1` | **Error** — input or I/O error (missing/invalid PDB, bad play path). |
+| `2` | **Usage** — bad arguments or extensions. |
 
 ## Out of scope
 

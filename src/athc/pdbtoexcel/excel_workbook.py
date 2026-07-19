@@ -16,7 +16,7 @@ from xlsxwriter.worksheet import Worksheet
 
 from athc.pdbtoexcel.config import CategoryOrder, Config, get_runtime_path
 from athc.pdbtoexcel.pdb import PLAY_DATA
-from athc.playpool import DefensivePlayRecord, OffensivePlayRecord, PlayRecord
+from athc.playpool import DefensivePlay, OffensivePlay, Play
 
 
 @dataclass
@@ -38,10 +38,6 @@ class _Formats:
     options_header2: Any
     options_option: Any
     options_note: Any
-
-
-def _category(play_record: PlayRecord) -> str:
-    return play_record.category or ""
 
 
 class ExcelPdbWorkbook:
@@ -473,10 +469,10 @@ class ExcelPdbWorkbook:
 
     # -- Row writers ----------------------------------------------------------
 
-    def _add_run_play(self, play_data, play_slots, play_record: PlayRecord):
+    def _add_run_play(self, play_data, play_slots, play_record: Play):
         play_type = (
             "QB draw"
-            if isinstance(play_record, OffensivePlayRecord) and play_record.qb_draw
+            if isinstance(play_record, OffensivePlay) and play_record.qb_draw
             else ""
         )
 
@@ -489,7 +485,7 @@ class ExcelPdbWorkbook:
         slot_1, slot_2 = play_slots
         row_data = [
             play_data.team_name.decode("ASCII"),
-            _category(play_record),
+            play_record.category.long,
             slot_1,
             slot_2,
             play_data.play_name.decode("ASCII"),
@@ -513,10 +509,10 @@ class ExcelPdbWorkbook:
         self.run.worksheet.write_row(self.run.rows, 0, row_data)
         self.run.rows += 1
 
-    def _add_pass_play(self, play_data, play_slots, play_record: PlayRecord):
+    def _add_pass_play(self, play_data, play_slots, play_record: Play):
         play_type = (
             "Screen"
-            if isinstance(play_record, OffensivePlayRecord) and play_record.screen
+            if isinstance(play_record, OffensivePlay) and play_record.screen
             else ""
         )
 
@@ -538,7 +534,7 @@ class ExcelPdbWorkbook:
         slot_1, slot_2 = play_slots
         row_data = [
             play_data.team_name.decode("ASCII"),
-            _category(play_record),
+            play_record.category.long,
             slot_1,
             slot_2,
             play_data.play_name.decode("ASCII"),
@@ -570,10 +566,10 @@ class ExcelPdbWorkbook:
         self.pass_.worksheet.write_row(self.pass_.rows, 0, row_data)
         self.pass_.rows += 1
 
-    def _add_defense_play(self, play_data, play_slots, play_record: PlayRecord):
+    def _add_defense_play(self, play_data, play_slots, play_record: Play):
         front = (
             play_record.defensive_front
-            if isinstance(play_record, DefensivePlayRecord)
+            if isinstance(play_record, DefensivePlay)
             else None
         )
         play_type = front.value if front else ""
@@ -602,7 +598,7 @@ class ExcelPdbWorkbook:
         slot_1, slot_2 = play_slots
         row_data = [
             play_data.team_name.decode("ASCII"),
-            _category(play_record),
+            play_record.category.long,
             slot_1,
             slot_2,
             play_data.play_name.decode("ASCII"),

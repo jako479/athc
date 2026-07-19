@@ -12,10 +12,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from athc.config import CONFIG_FILE, config_dir
-from athc.fbpro98_play import DEFENSIVE_CATEGORIES, OFFENSIVE_CATEGORIES
+from athc.config import CONFIG_FILE, config_dir, resolve_path
+from athc.fbpro98_play import DefensiveCategory, OffensiveCategory
 from athc.pdbtoexcel.pdb import PLAY_DATA
-from athc.playpool import play_type
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 SECTION = "convert-pdb"
@@ -47,13 +46,9 @@ def get_runtime_path(filename: str) -> Path:
 def default_category_order() -> CategoryOrder:
     """Game category names per side, in the game's own (code) order — the default
     sort order and Options-sheet listing. Offense splits into run vs pass."""
-    run = [name for name in OFFENSIVE_CATEGORIES.values() if play_type(name) == "run"]
-    passing = [
-        name for name in OFFENSIVE_CATEGORIES.values() if play_type(name) == "pass"
-    ]
-    defense = [
-        name for name in DEFENSIVE_CATEGORIES.values() if play_type(name) is not None
-    ]
+    run = [c.long for c in OffensiveCategory if c.is_run]
+    passing = [c.long for c in OffensiveCategory if c.is_pass]
+    defense = [c.long for c in DefensiveCategory if c.is_run or c.is_pass]
     return {
         PLAY_DATA.PLAY_TYPE.RUN: run,
         PLAY_DATA.PLAY_TYPE.PASS: passing,
@@ -75,8 +70,8 @@ def load_config(
     return Config(
         play_path=play_path or cp.get(SECTION, "play_path", fallback=""),
         playpool_rules=playpool_rules
-        if playpool_rules is not None
-        else (Path(raw_rules) if raw_rules else None),
+        if playpool_rules is not None  # CLI override: keep CWD-relative
+        else (resolve_path(raw_rules) if raw_rules else None),
         calculate_total_stats=cp.getboolean(
             SECTION, "calculate_total_stats", fallback=True
         ),
