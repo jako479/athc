@@ -2,7 +2,7 @@
 
 ## What this is
 
-`athc` is the umbrella CLI of tools for Front Page Sports Football Pro '98 (FbPro98) coaches and league managers. It's a normal Python package, managed with `uv`, built with `setuptools`, and shipped as a wheel. The umbrella discovers all subcommands at runtime via setuptools entry points, so any package installed in the same environment can extend it.
+`athc` is the umbrella CLI of tools for Front Page Sports Football Pro '98 coaches and league managers. It's a normal Python package, managed with `uv`, built with `setuptools`, and shipped as a wheel. The umbrella discovers all subcommands at runtime via setuptools entry points, so any package installed in the same environment can extend it.
 
 ## Project layout
 
@@ -11,8 +11,7 @@ athc/
   pyproject.toml
   docs/                                  # internal docs (markdown, for repo readers)
   release/                               # source for end-user release bundle
-    README.txt                           # user-facing readme
-    COMMANDS.txt                         # per-command reference
+    docs/                                # user-facing docs (README, COMMANDS, ...)
     athc.ini                             # example config
     install.bat                          # end-user install script
     release-build.ps1                    # builds wheel + assembles zip into ../dist/

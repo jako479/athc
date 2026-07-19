@@ -21,7 +21,7 @@ from athc.cli.config import config as config_group
 from athc.cli.config.edit import edit
 from athc.cli.config.path import path
 from athc.cli.config.reveal import reveal
-from athc.config import LeagueError, load_league
+from athc.config import LeagueError, load_league, resolve_path
 
 WriteConfig = Callable[..., Path]
 
@@ -109,6 +109,19 @@ def test_misspelled_prefix_section_is_inert(
     with pytest.raises(LeagueError) as exc2:
         load_league("AFCL")
     assert "[league.AFCL]" in str(exc2.value)
+
+
+# ── resolve_path: config-relative (ruff/mypy idiom), absolute untouched ──
+
+
+def test_resolve_path_relative_is_under_config_dir(config_dir: Path) -> None:
+    assert resolve_path("rules\\PNFL.gameplan.toml") == (
+        config_dir / "rules" / "PNFL.gameplan.toml"
+    )
+
+
+def test_resolve_path_absolute_is_unchanged() -> None:
+    assert resolve_path("D:\\rules\\x.toml") == Path("D:\\rules\\x.toml")
 
 
 # ── [DEFAULT] cascade + %(key)s interpolation ──

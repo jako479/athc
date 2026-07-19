@@ -2,23 +2,23 @@
 
 ## TODO
 
-- [ConferenceRanking] in tests and code, but not in config files? Claude you asshole
-- profile check: add warning for game plan play categories not present in profile
-- profile check: add proper punt\kick exemption (3-required, or all punt\kick\run clock)
 - gameplan check: add profile option? to make sure profile is valid?
-- profile rules: capitalize positions (QB, RB, etc.)
-- rules files: need dev and release versions
-- rules files: simpler comments; more readable
-- playpool: simplification of directory processing (see Notepad++ `new 39`)
-- scheduler rules: range for shape (`p`); 2 seems too flat
-- scheduler: Find out how schedule-A resolves final matchups
-- scheduler: `fixed-matchup`: one joint solve over the remaining 13 non-conference games,
-  instead of the extra AFC-East-vs-NFC-East rank step + final H2H step.
-- scheduler: add schedule-C: Fixed-matchups for 2 or 3 matches (configurable?) + CP-SAT
   for remaining matchups??
-- autocontinue: add halftime; update for robustness
 - gameplan: replace play (single and bulk) - list of plays as input??
-- gameplan: remove play (single and bulk) - list of plays as input??
+- profile: revisit edit\copy options
+- autocontinue: add halftime
+- scheduler: convert league config into a single file
+- [IN PROGRESS] scheduler: add schedule-C: Fixed-matchups for 2 or 3 matches (configurable?) + CP-SAT
+- [DONE] schedule research: SOS analysis of real PNFL schedules
+- [DONE] playpool: rename PlayRecord to Play; Same with OffensivePlayRecord, etc.
+- [DONE] gameplan: rename Play to PlayRef; Same with CustomPlay and StockPlay
+- [DONE] scheduler rules: range for shape (`p`); [0.75 to 1 (flat) seems ideal]
+- [DONE] athc general: Handle exit codes consistently [Design and tools fixed]
+- [DONE] scheduler: what is current backup strategy? Documented in design and release docs? Tests? [N/A]
+- [DONE] scheduler: Find out how schedule-A resolves final matchups [H2H + fixed-rank]
+- [DONE] gameplan: what is current backup strategy? Documented in design and release docs? Tests? [Yes]
+- [DONE] profile: what is current backup strategy? Documented in design and release docs? Tests? [Yes]
+- [DONE] playpool: user category now golden; folder categories for play attributes
 
 ## PLANNED
 

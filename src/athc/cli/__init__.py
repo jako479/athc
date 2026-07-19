@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+import os
+import sys
 from collections.abc import Callable
 from importlib.metadata import entry_points
 from typing import Any
@@ -39,7 +42,10 @@ class AthcGroup(click.Group):
 )
 @click.version_option(package_name="athc")
 def cli() -> None:
-    """Assistant to the Head Coach -- tools for FbPro98 coaches and league managers."""
+    """Assistant to the Head Coach.
+
+    Tools for Front Page Sports Football Pro '98 coaches and league managers.
+    """
 
 
 def league_option(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -48,9 +54,22 @@ def league_option(f: Callable[..., Any]) -> Callable[..., Any]:
         "--league",
         envvar="ATHC_LEAGUE",
         default=None,
-        help="League name (matches a section like [league.PNFL] in athc.ini).",
+        help="League name (must be defined in athc.ini).",
     )(f)
 
 
 def main() -> None:
-    cli()
+    """CLI entry point. Click handles usage errors and each command handles its
+    own failures; this backstop turns any *unexpected* exception into a one-line
+    message instead of a traceback. Set `ATHC_DEBUG=1` to re-raise for debugging.
+    """
+    try:
+        cli()
+    except Exception as error:
+        if os.environ.get("ATHC_DEBUG"):
+            raise
+        logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
+        logging.getLogger("athc").error(
+            "unexpected error: %s (set ATHC_DEBUG=1 for the full traceback)", error
+        )
+        sys.exit(2)

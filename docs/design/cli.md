@@ -165,7 +165,7 @@ def league_option(f):
         "--league",
         envvar="ATHC_LEAGUE",
         default=None,
-        help="League name (matches a section like [league.PNFL] in athc.ini).",
+        help="League name (must be defined in athc.ini).",
     )(f)
 ```
 
@@ -186,6 +186,44 @@ status), stderr (`logging`) for errors and warnings only. Full convention — lo
 levels, library behavior, exit-code timing: [logging.md](logging.md).
 
 **Libraries** (`<pkg>/<tool>/`, `playpool`, …) call `getLogger(__name__)` but **never** `basicConfig` (the app owns handler setup). They use `logger.warning` for recoverable "skipped X" notices (duplicate play, missing file) and `logger.info` for progress — they don't print results.
+
+## Exit codes
+
+The meaning of `1` vs `2` depends on whether a command can report **findings** — a
+problem in the input, distinct from the command failing to run. Per-tool specifics
+are in each tool's `ARCHITECTURE.md`.
+
+**Commands with a findings tier** — `gameplan check`, `profile check`,
+`profile diff`, `find-play`, and the multi-file editors `set-specials`,
+`replace-play`, and `profile copy`. They follow the grep/diff convention:
+
+| Exit | Meaning |
+|---|---|
+| `0` | Clean — no problems (identical; all files updated). |
+| `1` | Findings — ran, but found problems: violations, differences, a missed play, or some files failed. |
+| `2` | Error — couldn't run: usage, config, I/O, or no rules. |
+
+**Commands without** — `list-normals`, `list-specials`, `convert-pdb`,
+`set-normals`, `generate-schedule`, `autocontinue`, `config`. They follow the common
+end-user-CLI convention (calibre, khal, beets):
+
+| Exit | Meaning |
+|---|---|
+| `0` | OK. |
+| `1` | Error — anything went wrong (I/O, config, missing dependency). |
+| `2` | Usage — bad arguments (Click's default). |
+
+A findings-bearing command needs `1` for findings, so its errors go to `2`; a plain
+command has no findings, so `1` is its error and `2` stays usage-only. A new command
+picks its class by one question — can it report a finding (a problem in otherwise-valid
+input)? If yes, errors are `2`; if no, errors are `1`. **Warnings**
+never change the exit code — they go to stderr (`logging`); results/status go to
+stdout (`click.echo`). The code is computed once after the work loop, so a multi-file
+run reports every file first (see [logging.md](logging.md#exit-codes)).
+
+## Heavy dependencies
+
+All deps are **required** (no opt-in extras) — the installer must deliver every tool working; extras suit pip/dev users, not a bundled installer. A tool with a heavy dep (`generate-schedule`/ortools, `autocontinue`/pyautogui) imports it **lazily** inside the command, so discovery and `--help` survive a broken install; on `ImportError` it logs `missing <module> -- reinstall athc`, exits 1 (both are utility-class; no traceback), and has a test for the missing import. (Unexpected errors → umbrella `main()`; see [logging.md](logging.md#unexpected-errors).)
 
 ## What goes where
 

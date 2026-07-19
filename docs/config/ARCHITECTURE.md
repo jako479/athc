@@ -20,6 +20,13 @@ src/athc/config.py  # config_dir() + config_file() helpers (shared base module)
 - `edit` → create `athc.ini` if missing, then `click.edit(filename=…)` when `$VISUAL`/`$EDITOR` is set, else `click.launch(path)` (the file's associated app — Notepad by default on Windows).
 - `reveal` → `click.launch(<athc.ini>, locate=True)` (selects the file), or `click.launch(config_dir())` if it's absent — opens Explorer on Windows.
 
+## Exit codes
+
+| Exit | Meaning |
+|---|---|
+| `0` | **OK** — path printed, file opened, or folder revealed. |
+| `2` | **Usage** — unknown subcommand or bad arguments. |
+
 ## Boundaries
 
 - Reads no settings (no `[config]` section); only locates/opens the file and its folder.

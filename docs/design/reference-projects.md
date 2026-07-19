@@ -1,34 +1,55 @@
 # Reference projects
 
-Projects we cited as design references for athc. Best 2–3 matches per category.
+Projects athc models itself on. These are **normal modern end-user Python CLIs and
+desktop apps** — tools people install to get a job done — not Python build/meta
+tooling (linters, formatters, packagers, frameworks) and not enterprise platforms.
+Best 2–3 matches per category.
 
-## Python CLI: umbrella + plugins via entry points
+## Peer end-user CLIs (overall model)
 
-- [Flask](https://github.com/pallets/flask) — `FlaskGroup._load_plugin_commands` is the direct template for `AthcGroup`. Plugin entry-point group `flask.commands`.
-- [dbt-core](https://github.com/dbt-labs/dbt-core) — Click + adapter plugins; `cli/` layout informed ours. Closest precedent for our core/extension split (dbt-core + dbt-adapters).
-- [Poetry](https://github.com/python-poetry/poetry) — Click umbrella with same-org separate-repo plugins (poetry-plugin-export, poetry-plugin-bundle).
+The shape athc aims for: a normal installable CLI for non-dev users.
 
-## Small team / solo dev Python CLIs
+- [pgcli](https://github.com/dbcli/pgcli) / [mycli](https://github.com/dbcli/mycli) — interactive Postgres/MySQL CLIs (dbcli). Closest peers for **config handling**: a self-documenting config seeded into the user dir, defaults layered underneath, never overwritten on upgrade.
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — end-user downloader; optional `#`-commented config, everything also reachable via `--help`.
+- [llm](https://github.com/simonw/llm) / [sqlite-utils](https://github.com/simonw/sqlite-utils) — Simon Willison's Click CLIs; closest analogs for athc's shape (solo-maintained, plugin ecosystem, Click over data files).
 
-- [uv](https://github.com/astral-sh/uv) and [ruff](https://github.com/astral-sh/ruff) — Astral; `scripts/release.sh`/`.py` convention. uv is also our package manager + winget source.
-- [Black](https://github.com/psf/black) — `scripts/release.py` informed our release-script location and pattern.
-- [llm](https://github.com/simonw/llm) — Simon Willison solo project, Click + plugin ecosystem; closest analog for athc's shape. Source of the `ATHC_CONFIG_DIR` env-var dev-override pattern (`LLM_USER_PATH`).
+## Self-documenting user config
 
-## Windows desktop apps with user config files
+- [pgcli](https://github.com/dbcli/pgcli) / [mycli](https://github.com/dbcli/mycli) — **direct model.** Ship one fully-commented config; copy it into the user dir on first run; layer it under the user's file at runtime so new keys work from the default; never overwrite the user's file. "See the file itself for a description of all available options" — no separate reference/example file.
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — optional config, inline `#` comments, options documented in `--help`/README.
+- [httpie](https://github.com/httpie/cli) — small `config.json`, defaults in code, documented online.
 
-- [Notepad++](https://github.com/notepad-plus-plus/notepad-plus-plus) — `config.xml` (user-owned) + `config.model.xml` (always-overwritten reference). **Direct influence on our `athc.ini.example` pattern.**
-- [VS Code](https://github.com/microsoft/vscode) — `settings.json` + layered defaults, `deprecationMessage` for deprecated keys. **Direct influence on our deprecation pattern.**
-- [Sublime Text](https://www.sublimetext.com/) — `Default.sublime-settings` + per-user override file. **Direct influence on our layered-defaults approach.**
+**Adaptation for athc**: in-code defaults are authoritative (every section/key optional; missing → default), so a config file is never required. The shipped `athc.ini` is a single self-documenting PNFL starter — no `.example` twin.
+
+## Config dir override (env var)
+
+For running from source with a config separate from the installed one.
+
+- [httpie](https://github.com/httpie/cli) — `HTTPIE_CONFIG_DIR` checked first in path resolution.
+- [llm](https://github.com/simonw/llm) — `LLM_USER_PATH` overrides the default app dir.
+- [tmuxp](https://github.com/tmux-python/tmuxp) — `TMUXP_CONFIGDIR` env var.
+
+Pattern adopted for athc: `ATHC_CONFIG_DIR` env var, no `--config` flag. Mechanics in [cli.md](cli.md).
+
+## Output file location (CWD, never a fixed app dir)
+
+Default location for a produced file when no path is given.
+
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — CWD default; `-o` template, `-P` sets the base.
+- [cookiecutter](https://github.com/cookiecutter/cookiecutter) — generates into CWD; `-o` defaults to `.`.
+- [ffmpeg](https://ffmpeg.org/ffmpeg.html) — output is a required positional (relative → CWD).
+
+**Adaptation for athc**: produced output (schedule, report, convert-pdb `.xlsx`, diff export) stays CWD-relative or explicit, like CLI paths in [config.py](../../src/athc/config.py). `platformdirs` is config-only; fixed dirs are for state, not output ([clig.dev](https://clig.dev/)).
 
 ## Multi-profile config (named variants selected at runtime)
 
-For athc's multi-league pattern (selected via `--league NAME`).
+For athc's multi-league pattern (selected via `--league NAME`). Grounded in ubiquitous
+end-user tools, not enterprise CLIs.
 
-- [AWS CLI](https://github.com/aws/aws-cli) — `~/.aws/config` with `[default]` + `[profile NAME]`; `--profile` flag + `AWS_PROFILE` env. **Closest direct analog: INI-format, named sections, flag + env + default fallback.**
-- [Snowflake CLI](https://github.com/snowflakedb/snowflake-cli) — `~/.snowflake/connections.toml` with `[NAME]` flat sections; `--connection` + `SNOWFLAKE_DEFAULT_CONNECTION_NAME` env.
-- [dbt-core](https://github.com/dbt-labs/dbt-core) — `~/.dbt/profiles.yml` with named targets; `--target` + `DBT_TARGET` env.
+- **git** `config` — `[remote "origin"]`, `[branch "main"]`: a section type plus a quoted/dotted name. Closest precedent for namespacing a name under a kind.
+- **OpenSSH** `~/.ssh/config` — `Host NAME` blocks selected by name; per-host keys with global fallbacks. Precedent for "pick a named block, fall back to defaults."
 
-**Adaptation for athc**: dotted `[league.NAME]` sections (after setuptools' `setup.cfg`, e.g. `[options.extras_require]`) instead of AWS's space form `[profile NAME]`, and `--league` per-command instead of umbrella-level. Dot is the one delimiter that's also valid TOML, so it survives a future move off INI. `configparser`'s `[DEFAULT]` + `%(key)s` interpolation handle inheritance natively. Selection priority: `--league` → `ATHC_LEAGUE` → `[athc] default_league` → error.
+**Adaptation for athc**: dotted `[league.NAME]` sections (the dot is valid TOML, so it survives a future move off INI), `--league` per-command (not umbrella-level). `configparser`'s `[DEFAULT]` + `%(key)s` interpolation handle inheritance natively. Selection priority: `--league` → `ATHC_LEAGUE` → `[athc] default_league` → error.
 
 Example:
 
@@ -50,57 +71,54 @@ PlayPath = E:\Leagues\PCFL\plays_v2
 
 Full design: [config.md](config.md). CLI mechanics: [cli.md](cli.md).
 
-## Dev config override (env var)
+## Plugins via entry points
 
-For running from source with a config different from production.
+athc discovers subcommands at runtime via setuptools entry points (`athc.commands`).
 
-- [llm](https://github.com/simonw/llm) — `LLM_USER_PATH` env var overrides the default `click.app_dir`. Closest analog (solo dev, Click, plugins).
-- [httpie](https://github.com/httpie/cli) — `HTTPIE_CONFIG_DIR` env var checked first in path resolution.
-- [tmuxp](https://github.com/tmux-python/tmuxp) — `TMUXP_CONFIGDIR` env var; also project-local `.tmuxp.yaml`.
+- [Flask](https://github.com/pallets/flask) — **the direct model.** `FlaskGroup._load_plugin_commands` is the template for `AthcGroup`'s lazy entry-point loader; plugin group `flask.commands` → `athc.commands`. Flask is a framework, but this specific `click.Group` subclass *is* what athc copied.
 
-Pattern adopted for athc: `ATHC_CONFIG_DIR` env var, no `--config` flag. Mechanics in [cli.md](cli.md).
+Peer end-user CLIs that take plugins the same way:
 
-## Release pipeline / artifact location
+- [llm](https://github.com/simonw/llm) — plugin ecosystem via `pluggy`/entry points; install a package, new commands appear. Closest peer analog.
+- [sqlite-utils](https://github.com/simonw/sqlite-utils) — same `pluggy` plugin model over a Click CLI.
+- [httpie](https://github.com/httpie/cli) — auth/transport plugins registered via entry points.
 
-- [PyInstaller](https://github.com/pyinstaller/pyinstaller) — `release/` folder for pipeline assets; `dist/` for final artifacts. **Direct influence on our script + output locations.**
-- [Briefcase](https://github.com/beeware/briefcase) — `dist/` for installer artifacts (MSI, .pkg, .deb, .zip).
-- [Hatch](https://github.com/pypa/hatch) — `release/macos/` and `release/windows/` for platform installer pipelines; `dist/` for build targets.
+## Windows packaging for end users
 
-## Windows installer toolkits (future)
+End-user Python apps (not packagers) that ship a self-contained Windows install.
 
-- [Inno Setup](https://jrsoftware.org/isinfo.php) — open-source de-facto Windows installer toolkit. Used by Audacity, qBittorrent, many Python apps. Likely future direction.
+- [Calibre](https://github.com/kovidgoyal/calibre) — large end-user Python desktop app; bundles its own runtime so users install nothing extra.
+- [MusicBrainz Picard](https://github.com/metabrainz/picard) — end-user Python/Qt app; offline Windows installer with bundled deps.
+
+**Adaptation for athc**: offline-bundled wheels (`--no-index --find-links --offline`) for reproducibility and failure tolerance (PyPI outages, corporate firewalls, AV TLS interception). Build script in `release/`, final artifact in `dist/` (standard Python build output). Future direction: an [Inno Setup](https://jrsoftware.org/isinfo.php) `.exe` (used by Audacity, qBittorrent).
 
 ## Testing exemplars
 
-Test suites athc's testing models. Details: [testing-unit.md](testing-unit.md), [testing-integration.md](testing-integration.md).
+Peer Click CLIs whose product is a generated/queried file.
 
-- [Black](https://github.com/psf/black) — **input→expected-output cases**: each `tests/data/cases/*.py` holds input + expected in one file split by a `# output` marker, auto-parametrized over the dir.
-- [sqlfluff](https://github.com/sqlfluff/sqlfluff) — **sidecar expected-output fixtures** (`name.sql` + generated `name.yml`) with a regen script and an in-repo testing guide (`test/AGENTS.md`); closest to our binary→structured-output case.
-- [pip-tools](https://github.com/jazzband/pip-tools) — clean **`CliRunner` + `isolated_filesystem`** model for a CLI whose product is a generated file: write input, invoke, assert exit code + contents.
-- [sqlite-utils](https://github.com/simonw/sqlite-utils) — closest structural match (Click CLI over data files): separate `test_cli*.py`, `CliRunner`, **reopen-the-produced-artifact** asserts.
+- [sqlite-utils](https://github.com/simonw/sqlite-utils) — closest structural match: Click CLI over data files, `CliRunner`, **reopen-the-produced-artifact** asserts, `test_cli*.py` split out.
+- [httpie](https://github.com/httpie/cli) — `CliRunner`-style invocation tests with `isolated_filesystem`: write input, invoke, assert exit code + output.
+
+athc's own discipline (golden input→expected-output fixtures with a regen script) is documented in [testing-unit.md](testing-unit.md) and [testing-integration.md](testing-integration.md).
 
 ## Direct design influences
 
-The specific decisions and which projects informed each.
-
 | Decision | Project(s) |
 |---|---|
-| CLI framework: Click over Typer | Flask, Poetry, dbt |
-| Entry-points group naming (`athc.commands`) | Flask (`flask.commands`) |
+| CLI framework: Click | llm, sqlite-utils, httpie |
 | Lazy plugin loader (`AthcGroup`) | Flask (`FlaskGroup._load_plugin_commands`) |
-| Project layout (`<pkg>/cli/` for CLI, `<pkg>/<tool>/` for logic) | pnfl predecessor; dbt |
+| Entry-points group naming (`athc.commands`) | Flask (`flask.commands`) |
+| Runtime plugin discovery via entry points | Flask; llm, sqlite-utils (`pluggy` ecosystems) |
+| Project layout (`<pkg>/cli/` for CLI, `<pkg>/<tool>/` for logic) | pnfl predecessor |
 | Tool vs library distinction (`py.typed`) | pnfl predecessor |
 | INI format over TOML | Non-dev user familiarity (no specific precedent) |
-| `athc.ini` + `athc.ini.example` pattern | Notepad++, Sublime Text |
-| In-code defaults; missing section → no error | pytest, mkdocs, Sphinx, Flask, Hatch |
-| Deprecation: log warning for 2–3 releases | VS Code (`deprecationMessage`) |
-| Multi-league sections + `[DEFAULT]` cascade | AWS CLI `[profile NAME]`; setuptools dotted `setup.cfg` sections |
-| Dev config override (`ATHC_CONFIG_DIR` env var) | llm (`LLM_USER_PATH`), httpie, tmuxp |
-| Build script location (inside `release/`) | PyInstaller, Hatch |
-| Release artifact location (`dist/`) | PyInstaller, Briefcase, Hatch, pnfl predecessor |
-| Offline-bundled install (`--no-index --find-links --offline`) | pnfl predecessor; Calibre, MusicBrainz Picard, Briefcase |
-| `uv tool update-shell` + "new terminal" hint | pnfl predecessor's install-uv.bat |
-| Doc format: `.txt` over `.md` for end users | Classic Unix `README.txt` / man pages |
+| Single self-documenting `athc.ini`, no `.example` | pgcli, mycli |
+| In-code defaults; missing section/key → no error | pgcli, mycli, yt-dlp |
+| Config dir override (`ATHC_CONFIG_DIR` env var) | httpie (`HTTPIE_CONFIG_DIR`), llm (`LLM_USER_PATH`), tmuxp |
+| Output → CWD/explicit, never a fixed app dir | yt-dlp, cookiecutter, ffmpeg; clig.dev |
+| Multi-league named sections + `[DEFAULT]` cascade | git `[remote "name"]`, ssh `Host` blocks |
+| Offline-bundled install (`--no-index --find-links --offline`) | Calibre, MusicBrainz Picard; pnfl predecessor |
+| Release artifact location (`dist/`) | Standard Python build output |
 | Windows installer toolkit (future): Inno Setup | Audacity, qBittorrent |
-| Winget install command for uv | astral-sh.uv |
-| Testing layout + golden-file discipline | Black, sqlfluff, pip-tools, sqlite-utils |
+| Doc format: `.txt` over `.md` for end users | Classic Unix `README.txt` / man pages |
+| Testing layout (CliRunner, reopen artifact, golden files) | sqlite-utils, httpie |

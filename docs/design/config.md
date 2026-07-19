@@ -77,6 +77,12 @@ LogLevel = DEBUG
 
 `RosterPath` cascades from `[DEFAULT]` into every league section. `configparser`'s `%(key)s` interpolation resolves `%(LeagueRoot)s` against the section being read, so each league gets its own roster path automatically. `LogLevel` cascades into `[league.PNFL]` (uses default `INFO`) and is overridden in `[league.PCFL]` (`DEBUG`).
 
+## Rule-file paths
+
+Rule-file settings (`[gameplan] rule_files`, `[profile] rule_files`, `[convert-pdb] playpool_rules`, league `PlayPoolRules`) accept **config-relative** paths: a relative value resolves against the config dir — where `athc.ini` lives — via [`athc.config.resolve_path`](../../src/athc/config.py); an absolute value is used unchanged. So `rule_files = rules\PNFL.gameplan.toml` points at the bundled `rules\` set and works **unchanged in dev and after install** — the same `athc.ini` serves both, since the config dir differs but the layout is identical.
+
+This is the mainstream config idiom (ruff, mypy resolve config paths relative to the config file, not the CWD). The exception, also matching ruff: paths passed on the CLI (`--rules`, `--playpool-rules`, `--play-path`) stay CWD-relative — they don't go through `resolve_path`. The scheduler's `rules\PNFL.scheduler.toml` is always read from the config dir directly and isn't listed in `athc.ini`.
+
 ## Multi-league selection
 
 Tools that operate on league-specific data take a `--league NAME` option on whichever node (group or leaf) actually needs it. **Not** a global `athc --league` flag — keeping it scoped means non-league tools (generate-schedule, autocontinue) don't see an irrelevant option.
@@ -90,7 +96,7 @@ def league_option(f):
         "--league",
         envvar="ATHC_LEAGUE",
         default=None,
-        help="League name (matches a section like [league.PNFL] in athc.ini).",
+        help="League name (must be defined in athc.ini).",
     )(f)
 ```
 
@@ -152,9 +158,9 @@ The whole config is optional from the runtime's perspective:
 - Missing section → use defaults for that section.
 - Missing key inside an existing section → use the dataclass default.
 
-A tool only errors when a value it genuinely needs at runtime can't be resolved (e.g., `PlayPath` doesn't exist on disk for the selected league). This matches the standard Python plugin pattern — pytest, mkdocs, Sphinx, Flask all behave this way.
+A tool only errors when a value it genuinely needs at runtime can't be resolved (e.g., `PlayPath` doesn't exist on disk for the selected league). This matches how peer end-user CLIs behave — pgcli, mycli, and yt-dlp all run on defaults when the config is absent or partial.
 
-When a new tool ships with a `[new-tool]` section, the user sees nothing on upgrade. The tool runs on defaults. The new section appears in the always-overwritten `athc.ini.example` (see [installer.md](installer.md)) for users who want to customize.
+When a new tool ships with a `[new-tool]` section, the user sees nothing on upgrade. The tool runs on defaults. To customize, the user looks at the freshly-extracted `athc.ini` in the new zip — a single self-documenting file that lists every current setting (the pgcli/mycli model; see [installer.md](installer.md)) — and copies the new section into their own `athc.ini`.
 
 ## Deprecation
 
