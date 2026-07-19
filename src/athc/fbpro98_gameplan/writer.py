@@ -11,11 +11,11 @@ from os import PathLike
 from pathlib import Path
 
 from athc.fbpro98_gameplan.model import (
-    CustomPlay,
+    CustomPlayRef,
     GamePlan,
-    Play,
+    PlayRef,
     ProfileType,
-    StockPlay,
+    StockPlayRef,
 )
 from athc.fbpro98_gameplan.schema import (
     G95_AUDIBLE,
@@ -71,7 +71,7 @@ def build_gameplan_bytes(gameplan: GamePlan) -> bytes:
 
 
 def _build_g95(gameplan: GamePlan) -> bytes:
-    all_plays: list[Play | None] = [
+    all_plays: list[PlayRef | None] = [
         *gameplan.normal_plays,
         *gameplan.special_plays,
         *gameplan.clock_plays,
@@ -96,23 +96,23 @@ def _build_g95(gameplan: GamePlan) -> bytes:
     )
 
 
-def _build_play(play: Play) -> bytes:
+def _build_play(play: PlayRef) -> bytes:
     header = G95_PLAY_HEADER.pack(
-        0 if isinstance(play, CustomPlay) else 1,
+        0 if isinstance(play, CustomPlayRef) else 1,
         play.play_category,
         play.special_category,
         play.user_category,
     )
-    if isinstance(play, CustomPlay):
+    if isinstance(play, CustomPlayRef):
         return header + play.filename.encode("ascii") + b"\x00"
     name_bytes = play.play_name.encode("ascii").ljust(8, b"\x00")[:8]
     return header + G95_STOCK_PLAY_BODY.pack(name_bytes, play.map_offset, play.map_size)
 
 
 def _build_j95(gameplan: GamePlan) -> bytes:
-    num_custom = sum(1 for p in gameplan.normal_plays if isinstance(p, CustomPlay))
-    num_stock = sum(1 for p in gameplan.normal_plays if isinstance(p, StockPlay))
-    num_special = sum(1 for p in gameplan.special_plays if isinstance(p, CustomPlay))
+    num_custom = sum(1 for p in gameplan.normal_plays if isinstance(p, CustomPlayRef))
+    num_stock = sum(1 for p in gameplan.normal_plays if isinstance(p, StockPlayRef))
+    num_special = sum(1 for p in gameplan.special_plays if isinstance(p, CustomPlayRef))
     return J95_HEADER.pack(ID_J95, J95_PLAN_DATA.size) + J95_PLAN_DATA.pack(
         gameplan.profile_type, num_custom, num_stock, num_special
     )

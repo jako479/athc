@@ -5,7 +5,7 @@ Library for reading and writing Front Page Sports Football Pro '98 gameplan (`.p
 ## Features
 
 - `.pln` reader and writer
-- Typed `CustomPlay` / `StockPlay` models
+- Typed `CustomPlayRef` / `StockPlayRef` models
 - Normal (64), special-teams (20), clock (2) slots
 - In-memory codec (`parse_gameplan` / `build_gameplan_bytes`)
 - Structural validation (`InvalidGamePlanError`)
@@ -38,17 +38,17 @@ for slot, play in enumerate(plan.normal_plays):
         print(slot, play.name)
 ```
 
-Each filled slot is either a `CustomPlay` (a user-authored play, referenced by filename) or a `StockPlay` (a built-in play referenced into `STOCK98.MAP`). Both expose a `.name` property.
+Each filled slot is either a `CustomPlayRef` (a user-authored play, referenced by filename) or a `StockPlayRef` (a built-in play referenced into `STOCK98.MAP`). Both expose a `.name` property.
 
 ### Writing
 
 ```python
-from athc.fbpro98_gameplan import CustomPlay, read_gameplan, write_gameplan
+from athc.fbpro98_gameplan import CustomPlayRef, read_gameplan, write_gameplan
 
 plan = read_gameplan("DEN-OGP1.pln")
 
 new_normals = [
-    CustomPlay(
+    CustomPlayRef(
         filename=r"PNFL\Offense\PSR\AF3ArshZ.ply",
         play_category=0x9B,
         special_category=0x00,
@@ -64,7 +64,7 @@ write_gameplan(updated, "DEN-OGP1.pln")
 
 `with_normal_plays` returns a new `GamePlan` with only the normal-play slots replaced; special-teams and clock plays are preserved. J95 counts and parity padding are recomputed by `write_gameplan`.
 
-For special-teams updates, `with_custom_special_plays(plays)` places each `CustomPlay` into the slot dictated by its own `special_category` (1-10); uncovered slots are cleared, order doesn't matter, out-of-range or duplicate category raises `ValueError`. The 10 stock special-teams slots are immutable through the API.
+For special-teams updates, `with_custom_special_plays(plays)` places each `CustomPlayRef` into the slot dictated by its own `special_category` (1-10); uncovered slots are cleared, order doesn't matter, out-of-range or duplicate category raises `ValueError`. The 10 stock special-teams slots are immutable through the API.
 
 ### In-memory codec
 

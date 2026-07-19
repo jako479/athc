@@ -3,24 +3,24 @@ from __future__ import annotations
 import pytest
 
 from athc.fbpro98_gameplan import (
-    CustomPlay,
+    CustomPlayRef,
     GamePlan,
-    Play,
+    PlayRef,
     ProfileType,
-    StockPlay,
+    StockPlayRef,
 )
 
 
-def _empty_normals() -> tuple[Play | None, ...]:
+def _empty_normals() -> tuple[PlayRef | None, ...]:
     return (None,) * GamePlan.NUMBER_NORMAL_PLAYS
 
 
-def _empty_specials() -> tuple[Play | None, ...]:
+def _empty_specials() -> tuple[PlayRef | None, ...]:
     return (None,) * GamePlan.NUMBER_SPECIAL_SLOTS
 
 
-def _make_custom(*, special_category: int = 1, play_category: int = 0) -> CustomPlay:
-    return CustomPlay(
+def _make_custom(*, special_category: int = 1, play_category: int = 0) -> CustomPlayRef:
+    return CustomPlayRef(
         filename="X.PLY",
         play_category=play_category,
         special_category=special_category,
@@ -28,8 +28,8 @@ def _make_custom(*, special_category: int = 1, play_category: int = 0) -> Custom
     )
 
 
-def _make_stock(*, special_category: int = 1, play_category: int = 0) -> StockPlay:
-    return StockPlay(
+def _make_stock(*, special_category: int = 1, play_category: int = 0) -> StockPlayRef:
+    return StockPlayRef(
         play_name="X",
         map_offset=0,
         map_size=0,
@@ -79,9 +79,9 @@ def test_offense_with_partial_clock_plays_raises():
 
 
 def test_special_slot_custom_at_odd_index_raises():
-    specials: list[Play | None] = [None] * GamePlan.NUMBER_SPECIAL_SLOTS
+    specials: list[PlayRef | None] = [None] * GamePlan.NUMBER_SPECIAL_SLOTS
     specials[1] = _make_custom()
-    with pytest.raises(ValueError, match="must be StockPlay"):
+    with pytest.raises(ValueError, match="must be StockPlayRef"):
         GamePlan(
             profile_type=ProfileType.DEFENSE,
             normal_plays=_empty_normals(),
@@ -91,9 +91,9 @@ def test_special_slot_custom_at_odd_index_raises():
 
 
 def test_special_slot_stock_at_even_index_raises():
-    specials: list[Play | None] = [None] * GamePlan.NUMBER_SPECIAL_SLOTS
+    specials: list[PlayRef | None] = [None] * GamePlan.NUMBER_SPECIAL_SLOTS
     specials[0] = _make_stock()
-    with pytest.raises(ValueError, match="must be CustomPlay"):
+    with pytest.raises(ValueError, match="must be CustomPlayRef"):
         GamePlan(
             profile_type=ProfileType.DEFENSE,
             normal_plays=_empty_normals(),
@@ -109,7 +109,7 @@ def test_custom_special_plays_returns_10_entries():
 
 
 def test_custom_and_stock_views_pick_correct_slots():
-    specials: list[Play | None] = [None] * GamePlan.NUMBER_SPECIAL_SLOTS
+    specials: list[PlayRef | None] = [None] * GamePlan.NUMBER_SPECIAL_SLOTS
     custom = _make_custom(special_category=1)
     stock = _make_stock(special_category=3)
     specials[0] = custom  # category 1 non-stock
@@ -127,7 +127,7 @@ def test_custom_and_stock_views_pick_correct_slots():
 
 
 def test_with_custom_special_plays_preserves_stock():
-    specials: list[Play | None] = [None] * GamePlan.NUMBER_SPECIAL_SLOTS
+    specials: list[PlayRef | None] = [None] * GamePlan.NUMBER_SPECIAL_SLOTS
     stock_a = _make_stock(special_category=1)
     stock_b = _make_stock(special_category=2)
     specials[1] = stock_a  # category 1 stock
@@ -139,7 +139,9 @@ def test_with_custom_special_plays_preserves_stock():
         clock_plays=(None, None),
     )
 
-    new_customs: list[CustomPlay | None] = [None] * GamePlan.NUMBER_SPECIAL_CATEGORIES
+    new_customs: list[CustomPlayRef | None] = [
+        None
+    ] * GamePlan.NUMBER_SPECIAL_CATEGORIES
     new_customs[0] = _make_custom(special_category=1)
     new_customs[4] = _make_custom(special_category=5)
 
@@ -154,7 +156,9 @@ def test_with_custom_special_plays_preserves_stock():
 def test_with_custom_special_plays_accepts_partial_input():
     """Plays are placed by their own special_category; missing categories stay empty."""
     gameplan = _empty_defense()
-    updated = gameplan.with_custom_special_plays([_make_custom(special_category=2), _make_custom(special_category=5)])
+    updated = gameplan.with_custom_special_plays(
+        [_make_custom(special_category=2), _make_custom(special_category=5)]
+    )
     placed = updated.custom_special_plays
     assert placed[1] is not None and placed[1].special_category == 2
     assert placed[4] is not None and placed[4].special_category == 5
@@ -175,14 +179,14 @@ def test_with_custom_special_plays_order_independent():
 
 
 def test_with_custom_special_plays_rejects_stock_via_post_init():
-    """A StockPlay sneaked in still trips __post_init__'s type check."""
+    """A StockPlayRef sneaked in still trips __post_init__'s type check."""
     gameplan = _empty_defense()
-    with pytest.raises(ValueError, match="must be CustomPlay"):
+    with pytest.raises(ValueError, match="must be CustomPlayRef"):
         gameplan.with_custom_special_plays([_make_stock()])  # type: ignore[list-item]
 
 
 def test_special_slot_category_mismatch_in_init_raises():
-    specials: list[Play | None] = [None] * GamePlan.NUMBER_SPECIAL_SLOTS
+    specials: list[PlayRef | None] = [None] * GamePlan.NUMBER_SPECIAL_SLOTS
     specials[2] = _make_custom(special_category=5)  # slot 2 expects category 2, got 5
     with pytest.raises(ValueError, match="special_category=2"):
         GamePlan(
@@ -201,12 +205,16 @@ def test_with_custom_special_plays_out_of_range_category_raises():
 
 def test_with_custom_special_plays_duplicate_category_raises():
     gameplan = _empty_defense()
-    with pytest.raises(ValueError, match="Two custom special plays target special_category=3"):
-        gameplan.with_custom_special_plays([_make_custom(special_category=3), _make_custom(special_category=3)])
+    with pytest.raises(
+        ValueError, match="Two custom special plays target special_category=3"
+    ):
+        gameplan.with_custom_special_plays(
+            [_make_custom(special_category=3), _make_custom(special_category=3)]
+        )
 
 
 def test_offensive_play_in_defensive_gameplan_raises():
-    normals: list[Play | None] = [None] * GamePlan.NUMBER_NORMAL_PLAYS
+    normals: list[PlayRef | None] = [None] * GamePlan.NUMBER_NORMAL_PLAYS
     normals[0] = _make_custom(special_category=0, play_category=1)  # odd = offensive
     with pytest.raises(ValueError, match="profile_type is DEFENSE"):
         GamePlan(
@@ -218,7 +226,7 @@ def test_offensive_play_in_defensive_gameplan_raises():
 
 
 def test_defensive_play_in_offensive_gameplan_raises():
-    normals: list[Play | None] = [None] * GamePlan.NUMBER_NORMAL_PLAYS
+    normals: list[PlayRef | None] = [None] * GamePlan.NUMBER_NORMAL_PLAYS
     normals[0] = _make_custom(special_category=0, play_category=0)  # even = defensive
     spike = _make_custom(special_category=11, play_category=1)
     kneel = _make_custom(special_category=12, play_category=1)
@@ -232,7 +240,7 @@ def test_defensive_play_in_offensive_gameplan_raises():
 
 
 def test_special_teams_play_in_normal_slot_raises():
-    normals: list[Play | None] = [None] * GamePlan.NUMBER_NORMAL_PLAYS
+    normals: list[PlayRef | None] = [None] * GamePlan.NUMBER_NORMAL_PLAYS
     normals[0] = _make_custom(special_category=2, play_category=0)  # special-teams play
     with pytest.raises(ValueError, match="Normal slot 0 contains a special-teams play"):
         GamePlan(
@@ -246,7 +254,9 @@ def test_special_teams_play_in_normal_slot_raises():
 def test_clock_slot_wrong_special_category_raises():
     bad_spike = _make_custom(special_category=2, play_category=1)  # should be 11
     kneel = _make_custom(special_category=12, play_category=1)
-    with pytest.raises(ValueError, match="Clock slot 0 expects play with special_category=11"):
+    with pytest.raises(
+        ValueError, match="Clock slot 0 expects play with special_category=11"
+    ):
         GamePlan(
             profile_type=ProfileType.OFFENSE,
             normal_plays=_empty_normals(),
@@ -276,7 +286,7 @@ def test_clock_plays_wrong_length_raises():
 
 
 def test_defensive_special_play_in_offensive_gameplan_raises():
-    specials: list[Play | None] = [None] * GamePlan.NUMBER_SPECIAL_SLOTS
+    specials: list[PlayRef | None] = [None] * GamePlan.NUMBER_SPECIAL_SLOTS
     specials[0] = _make_custom(special_category=1, play_category=0)  # even = defensive
     spike = _make_custom(special_category=11, play_category=1)
     kneel = _make_custom(special_category=12, play_category=1)
@@ -317,7 +327,9 @@ def test_with_normal_plays_too_many_raises():
     ],
 )
 def test_custom_play_name_extracts_stem(filename: str, expected: str) -> None:
-    play = CustomPlay(filename=filename, play_category=0, special_category=0, user_category=0)
+    play = CustomPlayRef(
+        filename=filename, play_category=0, special_category=0, user_category=0
+    )
     assert play.name == expected
 
 

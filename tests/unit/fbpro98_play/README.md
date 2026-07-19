@@ -16,6 +16,7 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_ply()` = 
 | Default path sentinel | make_ply | `file_path == Path("<buffer>")` | `test_default_path_sentinel` | ☑ |
 | Explicit path | make_ply | `file_path == Path(path)` | `test_explicit_path` | ☑ |
 | `read_play` accepts str + PathLike | tmp_path | parses; `file_path` set | `test_read_play_accepts_str_and_pathlike` | ☑ |
+| Unrecognized category → logs error, continues | make_ply | `category is UNKNOWN_CATEGORY`; "Unrecognized play category" logged | `test_read_play_unknown_category_logs_and_continues` | ☑ |
 
 ### Error → `InvalidPlayFileError`
 | Case | Input | Expected message | Test | Status |
@@ -45,18 +46,30 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_ply()` = 
 |---|---|---|---|---|
 | `is_offensive`/`is_defensive` by parity | PlayFile | odd `play_category` → offensive; even → defensive | `test_odd…_offensive` / `test_even…_defensive` `[P]` | ☑ |
 | `is_special_teams` | PlayFile | `special_category != 0` → True; `0` → False | `test_is_special_teams` | ☑ |
-| Offensive normal category names | PlayFile | every `OFFENSIVE_CATEGORIES` code → name | `test_offensive_category_name` `[P]` | ☑ |
-| Defensive normal category names | PlayFile | every `DEFENSIVE_CATEGORIES` code → name | `test_defensive_category_name` `[P]` | ☑ |
-| Offensive special-teams names | PlayFile | every ST-offensive code → name | `test_offensive_special_teams_names` `[P]` | ☑ |
-| Defensive special-teams names | PlayFile | every ST-defensive code → name | `test_defensive_special_teams_names` `[P]` | ☑ |
+| Offensive normal category names | PlayFile | every `OffensiveCategory` member → long name | `test_offensive_category_name` `[P]` | ☑ |
+| Defensive normal category names | PlayFile | every `DefensiveCategory` member → long name | `test_defensive_category_name` `[P]` | ☑ |
+| Offensive special-teams names | PlayFile | every `SpecialOffensiveCategory` member → long name | `test_offensive_special_teams_names` `[P]` | ☑ |
+| Defensive special-teams names | PlayFile | every `SpecialDefensiveCategory` member → long name | `test_defensive_special_teams_names` `[P]` | ☑ |
 
 ### Edge / Error
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Unknown normal code | PlayFile | `category_name is None` (off & def) | `test_unknown_normal_code_is_none` | ☑ |
-| Unknown special code | PlayFile | `category_name is None` | `test_unknown_special_category_is_none` | ☑ |
+| Unknown normal code | PlayFile | `category is UNKNOWN_CATEGORY`; `category_name == "Unknown"` (off & def) | `test_unknown_normal_code_is_unknown` | ☑ |
+| Unknown special code | PlayFile | `category is UNKNOWN_CATEGORY` | `test_unknown_special_category_is_unknown` | ☑ |
 | High bits 7–6 ignored | PlayFile | `0xC9` resolves same as `0x09` (mask `& 0x3F`) | `test_high_bits_are_masked` | ☑ |
 | User Specific `0xFF`/`0xFE` | PlayFile | resolves to `"User Specific"` (fixed: full-byte lookup before mask) | `test_user_specific_resolves` | ☑ |
+
+## model.py — category enum & `resolve_category`
+
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| `PlayFile.category` → enum member | PlayFile | member; `category_name == category.long` | `test_category_returns_enum_member` | ☑ |
+| `short` / `long` names | enum | `PSR` / `Pass Short Right`; `RunLeft` / `Run Left` | `test_short_and_long_names` | ☑ |
+| `short` falls back to `long` (no league label) | enum | Pass Long L/M, Razzle Dazzle Run, User Specific, all special | `test_short_falls_back_to_long_without_league_name` | ☑ |
+| `is_run` / `is_pass` from the long name | enum | run/pass/neither | `test_is_run_is_pass` | ☑ |
+| `resolve_category` picks side + special table | bytes | offense/defense/special-off/special-def | `test_resolve_category_picks_side_and_special` | ☑ |
+| `resolve_category` mask + unknown | bytes | `0xC9`→Run Middle, `0xFF`→User Specific, `0x3F`→`UNKNOWN_CATEGORY` | `test_resolve_category_mask_and_unknown` | ☑ |
+| `category_by_short` (league label → category) | str | `PSR`→PSR, `RunLeft`→Run Left, fallback/unknown→None | `test_category_by_short` | ☑ |
 
 ## schema.py
 

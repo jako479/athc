@@ -6,12 +6,12 @@ from pathlib import Path
 import pytest
 
 from athc.fbpro98_gameplan import (
-    CustomPlay,
+    CustomPlayRef,
     GamePlan,
     InvalidGamePlanError,
-    Play,
+    PlayRef,
     ProfileType,
-    StockPlay,
+    StockPlayRef,
     parse_gameplan,
     read_gameplan,
 )
@@ -40,12 +40,12 @@ def _load_expected(name: str) -> list[str]:
     return (EXPECTED_DIR / name).read_text(encoding="utf-8").splitlines()
 
 
-def _slot_names(plays: tuple[Play | None, ...]) -> list[str]:
+def _slot_names(plays: tuple[PlayRef | None, ...]) -> list[str]:
     """Convert a play tuple to a list of names with empty strings for None slots."""
     return [p.name if p is not None else "" for p in plays]
 
 
-def _filled_names_sorted(plays: tuple[Play | None, ...]) -> list[str]:
+def _filled_names_sorted(plays: tuple[PlayRef | None, ...]) -> list[str]:
     """Names of non-None plays, case-insensitively sorted (matches reader's by-name output)."""
     return sorted((p.name for p in plays if p is not None), key=str.lower)
 
@@ -137,9 +137,9 @@ def test_offense_special_plays_alternate_custom_and_stock() -> None:
         if play is None:
             continue
         if i % 2 == 0:
-            assert isinstance(play, CustomPlay)
+            assert isinstance(play, CustomPlayRef)
         else:
-            assert isinstance(play, StockPlay)
+            assert isinstance(play, StockPlayRef)
 
 
 def test_offense_special_plays_carry_correct_category() -> None:
@@ -240,23 +240,23 @@ def test_gameplan_stock_special_plays_view_has_10_entries() -> None:
 def test_gameplan_custom_special_plays_view_only_returns_custom_or_none() -> None:
     plan = read_gameplan(_require_fixture(OFFENSE_PATH))
     for play in plan.custom_special_plays:
-        assert play is None or isinstance(play, CustomPlay)
+        assert play is None or isinstance(play, CustomPlayRef)
 
 
 def test_gameplan_stock_special_plays_view_only_returns_stock_or_none() -> None:
     plan = read_gameplan(_require_fixture(OFFENSE_PATH))
     for play in plan.stock_special_plays:
-        assert play is None or isinstance(play, StockPlay)
+        assert play is None or isinstance(play, StockPlayRef)
 
 
 def test_custom_play_name_strips_directory_and_extension() -> None:
     plan = read_gameplan(_require_fixture(OFFENSE_PATH))
     for play in plan.normal_plays:
-        if isinstance(play, CustomPlay):
+        if isinstance(play, CustomPlayRef):
             assert "\\" not in play.name
             assert "." not in play.name
             return
-    pytest.skip("Fixture has no CustomPlay in normal_plays")
+    pytest.skip("Fixture has no CustomPlayRef in normal_plays")
 
 
 def test_invalid_gameplan_error_is_value_error_subclass() -> None:

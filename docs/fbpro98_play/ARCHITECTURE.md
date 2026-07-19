@@ -7,7 +7,7 @@ Library that parses FbPro '98 `.ply` play files into a typed, file-native model.
 ```
 src/athc/fbpro98_play/
 ├── __init__.py    # public API re-exports
-├── model.py       # PlayFile, PlayerHeader, category constants
+├── model.py       # PlayFile, PlayerHeader, category enums + resolve_category
 ├── reader.py      # parse_play, read_play, InvalidPlayFileError
 └── schema.py      # struct layouts and P95 block identifier
 ```
@@ -22,6 +22,15 @@ src/athc/fbpro98_play/
   - `special_category` (raw integer)
   - `user_category` (raw integer)
   - Properties: `is_offensive`, `is_defensive`, `is_special_teams`
+- Names play categories: four per-side enums (`OffensiveCategory`, `DefensiveCategory`,
+  `SpecialOffensiveCategory`, `SpecialDefensiveCategory`), each member carrying its
+  `code`, `short` (league label) and `long` (game name), plus `is_run`/`is_pass`.
+  `short` falls back to `long` where a league has no abbreviation.
+  `resolve_category(play_category, special_category, user_category)` and
+  `PlayFile.category` name a category from the raw bytes; `category_name` is `category.long`.
+  An unrecognized code resolves to `UNKNOWN_CATEGORY` (never `None`); `read_play`
+  logs an error and continues. `category_by_short(label)` resolves a league short
+  label back to its category (`None` if the label isn't one).
 - Validates structural correctness of `.ply` bytes
 
 ## What this package assumes
@@ -38,8 +47,8 @@ Raise `InvalidPlayFileError` for:
 
 ## What this package does NOT do
 
-- PNFL-specific classification or folder layout (lives in `playpool`)
-- Build collections / lookup tables (lives in `playpool`)
+- Pool building, folder layout, and folder/file mismatch warnings (live in `playpool`)
+- Mechanical run/pass — `is_run`/`is_pass` reflect the category *label*, not the play design
 
 ## Testing
 

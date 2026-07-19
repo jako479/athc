@@ -11,11 +11,11 @@ from os import PathLike
 from pathlib import Path
 
 from athc.fbpro98_gameplan.model import (
-    CustomPlay,
+    CustomPlayRef,
     GamePlan,
-    Play,
+    PlayRef,
     ProfileType,
-    StockPlay,
+    StockPlayRef,
 )
 from athc.fbpro98_gameplan.schema import (
     DEFAULT_AUDIBLE,
@@ -108,7 +108,7 @@ def parse_gameplan(buffer: bytes, path: StrPath = "<buffer>") -> GamePlan:
     )
 
 
-def _parse_g95(buffer: bytes, path: Path) -> tuple[int, bytes, list[Play | None]]:
+def _parse_g95(buffer: bytes, path: Path) -> tuple[int, bytes, list[PlayRef | None]]:
     offsets_table_start = G95_HEADER.size + G95_AUDIBLE.size
     records_start = offsets_table_start + G95_OFFSETS_TABLE.size
     if len(buffer) < records_start:
@@ -146,7 +146,7 @@ def _parse_g95(buffer: bytes, path: Path) -> tuple[int, bytes, list[Play | None]
             )
         record_offsets.append((slot, record_offset))
 
-    plays_by_slot: list[Play | None] = [None] * GamePlan.NUMBER_PLAY_SLOTS
+    plays_by_slot: list[PlayRef | None] = [None] * GamePlan.NUMBER_PLAY_SLOTS
     for index, (slot, record_offset) in enumerate(record_offsets):
         record_end = (
             record_offsets[index + 1][1] if index + 1 < len(record_offsets) else g95_end
@@ -156,7 +156,7 @@ def _parse_g95(buffer: bytes, path: Path) -> tuple[int, bytes, list[Play | None]
     return g95_size, audible, plays_by_slot
 
 
-def _parse_play(buffer: bytes, start: int, end: int, slot: int, path: Path) -> Play:
+def _parse_play(buffer: bytes, start: int, end: int, slot: int, path: Path) -> PlayRef:
     if start + G95_PLAY_HEADER.size > end:
         raise InvalidGamePlanError(f"Truncated play header at {start:#x} in {path}")
 
@@ -172,7 +172,7 @@ def _parse_play(buffer: bytes, start: int, end: int, slot: int, path: Path) -> P
                 f"Missing null terminator for play record at {body_start:#x} in {path}"
             )
         filename = buffer[body_start:string_end].decode("ASCII", errors="replace")
-        return CustomPlay(
+        return CustomPlayRef(
             filename=filename,
             play_category=play_category,
             special_category=special_category,
@@ -188,7 +188,7 @@ def _parse_play(buffer: bytes, start: int, end: int, slot: int, path: Path) -> P
             buffer, body_start
         )
         play_name = name_bytes.decode("ASCII", errors="replace").rstrip("\x00 ")
-        return StockPlay(
+        return StockPlayRef(
             play_name=play_name,
             map_offset=map_offset,
             map_size=map_size,
@@ -257,7 +257,7 @@ def _parse_s98(buffer: bytes, s98_start: int, path: Path) -> str:
 
 
 def _validate_j95_counts(
-    plays_by_slot: list[Play | None],
+    plays_by_slot: list[PlayRef | None],
     declared: tuple[int, int, int],
     path: Path,
 ) -> None:
@@ -265,13 +265,15 @@ def _validate_j95_counts(
     n_normal = GamePlan.NUMBER_NORMAL_PLAYS
     n_special = GamePlan.NUMBER_SPECIAL_SLOTS
     actual_custom = sum(
-        1 for p in plays_by_slot[:n_normal] if isinstance(p, CustomPlay)
+        1 for p in plays_by_slot[:n_normal] if isinstance(p, CustomPlayRef)
     )
-    actual_stock = sum(1 for p in plays_by_slot[:n_normal] if isinstance(p, StockPlay))
+    actual_stock = sum(
+        1 for p in plays_by_slot[:n_normal] if isinstance(p, StockPlayRef)
+    )
     actual_special = sum(
         1
         for p in plays_by_slot[n_normal : n_normal + n_special]
-        if isinstance(p, CustomPlay)
+        if isinstance(p, CustomPlayRef)
     )
     if (declared_custom, declared_stock, declared_special) != (
         actual_custom,

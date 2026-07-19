@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 from athc.fbpro98_gameplan import (
-    CustomPlay,
-    StockPlay,
+    CustomPlayRef,
+    StockPlayRef,
     build_gameplan_bytes,
     read_gameplan,
     write_gameplan,
@@ -31,8 +31,8 @@ def _copy_fixture(src: Path, tmp_path: Path) -> Path:
     return dest
 
 
-def _make_play(name: str) -> CustomPlay:
-    return CustomPlay(
+def _make_play(name: str) -> CustomPlayRef:
+    return CustomPlayRef(
         filename=f"PNFL\\Offense\\PSR\\{name}.ply",
         play_category=9,
         special_category=0,
@@ -70,9 +70,9 @@ def test_round_trip_preserves_normal_plays(tmp_path: Path) -> None:
     pln_path = _copy_fixture(OFFENSE_PATH, tmp_path)
     original = read_gameplan(pln_path)
 
-    entries: list[CustomPlay | None] = []
+    entries: list[CustomPlayRef | None] = []
     for play in original.normal_plays:
-        if isinstance(play, CustomPlay):
+        if isinstance(play, CustomPlayRef):
             entries.append(play)
         else:
             entries.append(None)
@@ -82,10 +82,10 @@ def test_round_trip_preserves_normal_plays(tmp_path: Path) -> None:
 
     for slot, orig_play in enumerate(original.normal_plays):
         new_play = reloaded.normal_plays[slot]
-        if not isinstance(orig_play, CustomPlay):
+        if not isinstance(orig_play, CustomPlayRef):
             assert new_play is None
         else:
-            assert isinstance(new_play, CustomPlay)
+            assert isinstance(new_play, CustomPlayRef)
             assert new_play.name == orig_play.name
             assert new_play.filename == orig_play.filename
             assert new_play.play_category == orig_play.play_category
@@ -108,8 +108,8 @@ def test_special_plays_preserved(tmp_path: Path) -> None:
             assert new_play is not None
             assert new_play.name == orig_play.name
             assert type(new_play) is type(orig_play)
-            if isinstance(orig_play, StockPlay):
-                assert isinstance(new_play, StockPlay)
+            if isinstance(orig_play, StockPlayRef):
+                assert isinstance(new_play, StockPlayRef)
                 assert new_play.map_offset == orig_play.map_offset
                 assert new_play.map_size == orig_play.map_size
 
@@ -194,9 +194,9 @@ def test_defense_round_trip(tmp_path: Path) -> None:
     pln_path = _copy_fixture(DEFENSE_PATH, tmp_path)
     original = read_gameplan(pln_path)
 
-    entries: list[CustomPlay | None] = []
+    entries: list[CustomPlayRef | None] = []
     for play in original.normal_plays:
-        if isinstance(play, CustomPlay):
+        if isinstance(play, CustomPlayRef):
             entries.append(play)
         else:
             entries.append(None)
@@ -204,8 +204,8 @@ def test_defense_round_trip(tmp_path: Path) -> None:
     write_gameplan(original.with_normal_plays(entries), pln_path)
     reloaded = read_gameplan(pln_path)
 
-    orig_filled = [p for p in original.normal_plays if isinstance(p, CustomPlay)]
-    new_filled = [p for p in reloaded.normal_plays if isinstance(p, CustomPlay)]
+    orig_filled = [p for p in original.normal_plays if isinstance(p, CustomPlayRef)]
+    new_filled = [p for p in reloaded.normal_plays if isinstance(p, CustomPlayRef)]
     assert len(new_filled) == len(orig_filled)
     orig_names = {p.name for p in orig_filled}
     new_names = {p.name for p in new_filled}

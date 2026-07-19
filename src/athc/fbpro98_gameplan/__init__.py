@@ -1,11 +1,11 @@
 """Parse and edit a Front Page Sports Football Pro '98 game plan (.pln)."""
 
 from athc.fbpro98_gameplan.model import (
-    CustomPlay,
+    CustomPlayRef,
     GamePlan,
-    Play,
+    PlayRef,
     ProfileType,
-    StockPlay,
+    StockPlayRef,
 )
 from athc.fbpro98_gameplan.reader import (
     InvalidGamePlanError,
@@ -18,12 +18,12 @@ from athc.fbpro98_gameplan.writer import (
 )
 
 __all__ = [
-    "CustomPlay",
+    "CustomPlayRef",
     "GamePlan",
     "InvalidGamePlanError",
-    "Play",
+    "PlayRef",
     "ProfileType",
-    "StockPlay",
+    "StockPlayRef",
     "build_gameplan_bytes",
     "parse_gameplan",
     "read_gameplan",

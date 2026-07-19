@@ -15,7 +15,7 @@ Inputs: real `offense.pln` / `defense.pln` in `data/` (+ `data/expected/*.txt` s
 | Clock plays: offense both present (cat 11/12); defense none | ☑ |
 | Normal plays: `special_category == 0`, correct side-of-ball parity | ☑ |
 | Special plays: alternate custom/stock, correct `special_category` | ☑ |
-| API surface: counts (64/20/2), views (10/10) + types, `parse == read`, `CustomPlay.name` strips dir/ext | ☑ |
+| API surface: counts (64/20/2), views (10/10) + types, `parse == read`, `CustomPlayRef.name` strips dir/ext | ☑ |
 
 ### Error → `InvalidGamePlanError` (mutated bytes)
 | Case | Status |
@@ -34,7 +34,7 @@ Inputs: real `offense.pln` / `defense.pln` in `data/` (+ `data/expected/*.txt` s
 | Custom/stock special views (10 each, correct slots) | ☑ |
 | `with_normal_plays` (new instance, padding, too-many) | ☑ |
 | `with_custom_special_plays` (place by category, preserve stock, order-independent, partial, reject stock, out-of-range, duplicate) | ☑ |
-| `CustomPlay.name` stem extraction `[P]` | ☑ |
+| `CustomPlayRef.name` stem extraction `[P]` | ☑ |
 
 ## writer.py — `test_writer.py` (round-trip via real fixtures)
 | Area | Status |

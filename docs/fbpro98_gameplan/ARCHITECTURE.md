@@ -7,7 +7,7 @@ Library that owns the FbPro '98 `.pln` gameplan binary file format end-to-end.
 ```
 src/athc/fbpro98_gameplan/
 ├── __init__.py    # public API re-exports
-├── model.py       # GamePlan, Play (CustomPlay | StockPlay), ProfileType, invariants
+├── model.py       # GamePlan, PlayRef (CustomPlayRef | StockPlayRef), ProfileType, invariants
 ├── reader.py      # parse_gameplan, read_gameplan, InvalidGamePlanError
 ├── writer.py      # build_gameplan_bytes, write_gameplan
 └── schema.py      # struct format strings for G95/J95/S98 blocks
@@ -44,7 +44,7 @@ Structural (raise `InvalidGamePlanError`):
 Model (raise `ValueError` via `__post_init__`):
 - Exact slot counts: 64 normal, 20 special, 2 clock
 - Offense requires both clock plays; defense forbids them
-- Even special-slot indices hold `CustomPlay | None`; odd hold `StockPlay | None`
+- Even special-slot indices hold `CustomPlayRef | None`; odd hold `StockPlayRef | None`
 - Special-slot `special_category` matches slot index
 - Normal-slot plays have `special_category == 0`
 - Clock slots have `special_category == 11` (spike) and `12` (kneel)

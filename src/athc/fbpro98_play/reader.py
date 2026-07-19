@@ -6,10 +6,11 @@ Decodes the P95 block: header, 11 player offsets, play metadata
 
 from __future__ import annotations
 
+import logging
 from os import PathLike
 from pathlib import Path
 
-from athc.fbpro98_play.model import PlayerHeader, PlayFile
+from athc.fbpro98_play.model import UNKNOWN_CATEGORY, PlayerHeader, PlayFile
 from athc.fbpro98_play.schema import (
     ID_P95,
     PLY_HEADER,
@@ -22,6 +23,8 @@ from athc.fbpro98_play.schema import (
 )
 
 StrPath = str | PathLike[str]
+
+logger = logging.getLogger(__name__)
 
 
 class InvalidPlayFileError(ValueError):
@@ -44,7 +47,17 @@ def read_play(path: StrPath) -> PlayFile:
             FileNotFoundError, PermissionError, IsADirectoryError).
     """
     file_path = Path(path)
-    return parse_play(file_path.read_bytes(), file_path)
+    play = parse_play(file_path.read_bytes(), file_path)
+    if play.category is UNKNOWN_CATEGORY:
+        logger.error(
+            "Unrecognized play category in %s "
+            "(play_category=0x%02X, special_category=0x%02X, user_category=0x%02X)",
+            file_path,
+            play.play_category,
+            play.special_category,
+            play.user_category,
+        )
+    return play
 
 
 def parse_play(buffer: bytes, path: StrPath = "<buffer>") -> PlayFile:

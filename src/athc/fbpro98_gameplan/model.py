@@ -1,7 +1,7 @@
 """In-memory data model for FbPro98 .pln gameplan files.
 
 Defines the immutable types that the reader produces and the writer consumes:
-ProfileType, CustomPlay, StockPlay, and the top-level GamePlan dataclass.
+ProfileType, CustomPlayRef, StockPlayRef, and the top-level GamePlan dataclass.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class ProfileType(IntEnum):
 
 
 @dataclass(frozen=True, slots=True)
-class CustomPlay:
+class CustomPlayRef:
     """A user-authored play stored as a filename reference (`stock_flag = 0`).
 
     See specs/pln.md section 2.3 for the on-disk layout.
@@ -48,7 +48,7 @@ class CustomPlay:
 
 
 @dataclass(frozen=True, slots=True)
-class StockPlay:
+class StockPlayRef:
     """A built-in play referenced from `STOCK98.MAP` (`stock_flag = 1`).
 
     See specs/pln.md section 2.3 for the on-disk layout.
@@ -80,7 +80,7 @@ class StockPlay:
         return self.play_name
 
 
-Play = CustomPlay | StockPlay
+PlayRef = CustomPlayRef | StockPlayRef
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,15 +112,15 @@ class GamePlan:
     """Whether this gameplan is for offense or defense. Determines clock-slot
     population and file-size parity."""
 
-    normal_plays: tuple[Play | None, ...]
+    normal_plays: tuple[PlayRef | None, ...]
     """The 64 normal play slots. None indicates an unused slot."""
 
-    special_plays: tuple[Play | None, ...]
+    special_plays: tuple[PlayRef | None, ...]
     """The 20 special-teams slots, paired by category: (custom_1, stock_1,
-    custom_2, stock_2, ..., custom_10, stock_10). Even indices hold CustomPlay
-    or None; odd indices hold StockPlay or None."""
+    custom_2, stock_2, ..., custom_10, stock_10). Even indices hold CustomPlayRef
+    or None; odd indices hold StockPlayRef or None."""
 
-    clock_plays: tuple[Play | None, Play | None]
+    clock_plays: tuple[PlayRef | None, PlayRef | None]
     """The 2 clock-management slots. Both must be populated for offense
     gameplans; both must be None for defense gameplans."""
 
@@ -156,14 +156,14 @@ class GamePlan:
         for i, play in enumerate(self.special_plays):
             if play is None:
                 continue
-            if i % 2 == 0 and not isinstance(play, CustomPlay):
+            if i % 2 == 0 and not isinstance(play, CustomPlayRef):
                 raise ValueError(
-                    f"Special slot {i} (non-stock) must be CustomPlay or None, "
+                    f"Special slot {i} (non-stock) must be CustomPlayRef or None, "
                     f"got {type(play).__name__}"
                 )
-            if i % 2 == 1 and not isinstance(play, StockPlay):
+            if i % 2 == 1 and not isinstance(play, StockPlayRef):
                 raise ValueError(
-                    f"Special slot {i} (stock) must be StockPlay or None, "
+                    f"Special slot {i} (stock) must be StockPlayRef or None, "
                     f"got {type(play).__name__}"
                 )
             expected_category = i // 2 + 1
@@ -226,24 +226,24 @@ class GamePlan:
         return self.profile_type == ProfileType.DEFENSE
 
     @property
-    def custom_special_plays(self) -> tuple[CustomPlay | None, ...]:
+    def custom_special_plays(self) -> tuple[CustomPlayRef | None, ...]:
         """The 10 custom (user-authored) special-teams slots, in special_category
         order (1-10). Derived view over the even indices of `special_plays`."""
         return tuple(
-            cast("CustomPlay | None", self.special_plays[i])
+            cast("CustomPlayRef | None", self.special_plays[i])
             for i in range(0, self.NUMBER_SPECIAL_SLOTS, 2)
         )
 
     @property
-    def stock_special_plays(self) -> tuple[StockPlay | None, ...]:
+    def stock_special_plays(self) -> tuple[StockPlayRef | None, ...]:
         """The 10 stock special-teams slots, in special_category order (1-10).
         Derived view over the odd indices of `special_plays`; read-only."""
         return tuple(
-            cast("StockPlay | None", self.special_plays[i])
+            cast("StockPlayRef | None", self.special_plays[i])
             for i in range(1, self.NUMBER_SPECIAL_SLOTS, 2)
         )
 
-    def with_normal_plays(self, plays: Sequence[Play | None]) -> GamePlan:
+    def with_normal_plays(self, plays: Sequence[PlayRef | None]) -> GamePlan:
         """Return a new GamePlan with `plays` placed in the 64 normal slots.
 
         The original GamePlan is not mutated. Shorter sequences are right-padded
@@ -268,7 +268,9 @@ class GamePlan:
         padded = tuple(list(plays) + [None] * (self.NUMBER_NORMAL_PLAYS - len(plays)))
         return replace(self, normal_plays=padded)
 
-    def with_custom_special_plays(self, plays: Iterable[CustomPlay | None]) -> GamePlan:
+    def with_custom_special_plays(
+        self, plays: Iterable[CustomPlayRef | None]
+    ) -> GamePlan:
         """Return a new GamePlan with `plays` written into the 10 custom
         special-teams slots.
 
@@ -278,7 +280,7 @@ class GamePlan:
         (odd indices of the underlying `special_plays` tuple) are preserved.
 
         Args:
-            plays: Iterable of CustomPlay (or None) values; each play's
+            plays: Iterable of CustomPlayRef (or None) values; each play's
                 `special_category` selects its destination slot.
 
         Returns:
@@ -288,7 +290,7 @@ class GamePlan:
             ValueError: If any play's `special_category` is outside 1-10, or if
                 two plays target the same category.
         """
-        slots: list[CustomPlay | None] = [None] * self.NUMBER_SPECIAL_CATEGORIES
+        slots: list[CustomPlayRef | None] = [None] * self.NUMBER_SPECIAL_CATEGORIES
         for play in plays:
             if play is None:
                 continue
@@ -304,7 +306,7 @@ class GamePlan:
                     f"special_category={play.special_category}"
                 )
             slots[idx] = play
-        new_special: list[Play | None] = list(self.special_plays)
+        new_special: list[PlayRef | None] = list(self.special_plays)
         for category_index, play in enumerate(slots):
             new_special[category_index * 2] = play
         return replace(self, special_plays=tuple(new_special))
