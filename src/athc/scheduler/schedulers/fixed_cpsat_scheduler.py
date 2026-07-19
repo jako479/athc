@@ -41,8 +41,7 @@ def generate_schedule(
 
     logger.info(
         "Phase 2: placing games into weeks. This usually takes several "
-        "minutes and can run up to %.0f minutes.",
-        config.solver.time_limit / 60,
+        "minutes and can take 30 minutes or more.",
     )
     schedule_builder = ScheduleBuilder(
         teams=league.teams, error_cls=SchedulerError, amounts=config.phase2
