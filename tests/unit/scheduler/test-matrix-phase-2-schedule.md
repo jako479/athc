@@ -16,11 +16,11 @@ These rules are also re-validated end-to-end against each scheduler by `test_sch
 | No team plays itself | — | `test_no_team_plays_itself` | ☑ |
 | Divisional home split | each team hosts the rival once | `test_each_divisional_pair_is_split_one_home_one_away` | ☑ |
 | Same-conf cross-division once | appears once | `test_same_conference_cross_division_pairs_appear_once` | ☑ |
-| Conference home balance | 5-team host 2; 4-team 2,2,3,3 | `test_five_team_divisions_split_conference_home_games_evenly`, `test_four_team_divisions_split_conference_home_games_2_2_3_3` | ☑ |
-| Non-conference home balance | 5-team host 2; 4-team 2,2,3,3 | `test_five_team_divisions_have_two_nonconference_home_games`, `test_four_team_divisions_split_nonconference_home_games_2_2_3_3` | ☑ |
+| Conference home balance (fixed, not configurable) | 5-team host 2; 4-team 2,2,3,3 | `test_five_team_divisions_split_conference_home_games_evenly`, `test_four_team_divisions_split_conference_home_games_2_2_3_3` | ☑ |
+| Non-conference home balance (fixed, not configurable) | 5-team host 2; 4-team 2,2,3,3 | `test_five_team_divisions_have_two_nonconference_home_games`, `test_four_team_divisions_split_nonconference_home_games_2_2_3_3` | ☑ |
 | Non-conference counts | match division size | `test_nonconference_game_counts_match_division_size` | ☑ |
 | Half of divisional in second half | 5-team ≥4; 4-team ≥3 | `test_at_least_half_of_divisional_games_are_in_second_half` | ☑ |
-| Week 16 divisional | exactly 8 | `test_week_16_has_exactly_eight_divisional_games` | ☑ |
+| Final week divisional | exactly 8 (toggle on) | `test_week_16_has_exactly_eight_divisional_games` | ☑ |
 | Deterministic by seed | reproducible schedule | `test_schedule_is_deterministic_for_a_seed` | ☑ |
 
 ### Edge

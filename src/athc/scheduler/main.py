@@ -58,10 +58,9 @@ def generate_schedule(
         )
 
     logger.info(
-        "Generating the %d schedule with Scheduler %s (time limit %.0fs)",
+        "Generating the %d schedule with Scheduler %s -- this can take a while",
         season,
         scheduler,
-        scheduler_config.solver.time_limit,
     )
     started = time.perf_counter()
     result = get_scheduler(scheduler)(

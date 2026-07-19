@@ -8,12 +8,15 @@ schema_version = 1
 # Scheduler C. Two non-conference games are fixed by division standings
 # (AE1 vs NE1 and NW1, etc.; 5ths play each other). The solver picks the
 # rest, tilting each team's average opponent conference rank (1-9) by
-# c_spread:
-#   0.0 = flat: all teams' opponents average rank 5
-#   1.5 = default: #1's opponents average rank 3.5
-#   2.5 = max: #1's opponents average rank 3
-# Above 2.5 changes nothing.
-c_spread = 1.5
+# c_spread. These are targets the solver shoots for, not guarantees -- actual
+# averages land close, rarely exact:
+#   0.0 = flat: every team's opponents average near rank 5
+#   1.5: #1's opponents average near 3.5 (e.g. ranks 1,2,3,5,6)
+#   1.8 = default: #1's opponents average near 3.2 (e.g. ranks 1,2,3,4,6)
+#   2.5 = max: #1's opponents average near 3.0 (e.g. ranks 1,2,3,4,5)
+# Linear: every 0.1 of c_spread moves #1's average by 0.1. Above 2.5
+# changes nothing.
+c_spread = 1.8
 
 # Scheduler D: same as C, except the tilt counts only the games the solver
 # picks -- the two fixed games don't offset them.
@@ -24,7 +27,7 @@ time_limit = 1800.0      # max seconds for the week-placement (phase-2) solve
 phase1_time_limit = 60.0 # max seconds for the matchup (phase-1) solve
 
 [phase2]
-# Week-placement rule amounts (defaults shown). Amounts only -- the rules
+# Week-placement rule amounts and toggles (defaults shown). The rules
 # themselves and league/conference sizes are fixed.
 
 # Home/away sequencing
@@ -48,16 +51,6 @@ four_team_max_divisional_in_7 = 3
 five_team_second_half_divisional_min = 4
 four_team_second_half_divisional_min = 3
 
-# Conference cross-division home games hosted
-five_team_conference_home = 2
-four_team_conference_home_min = 2
-four_team_conference_home_max = 3
-
-# Non-conference home games hosted
-five_team_nonconference_home = 2
-four_team_nonconference_home_min = 2
-four_team_nonconference_home_max = 3
-
-# Week 16 / late season
-week_16_divisional_games = 8
-min_late_divisional_games = 1
+# Season ending
+require_final_week_divisional = true        # final week is all rivalry games (8 of 9)
+require_divisional_in_final_two_weeks = true # every team plays at least one in the last 2 weeks

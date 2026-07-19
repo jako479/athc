@@ -227,7 +227,9 @@ def test_difficulty_target_line() -> None:
     assert difficulty_target(1, d_spread=2.5) == 2.5
     for rank in range(1, 10):
         assert difficulty_target(rank, d_spread=0.0) == 5.0
-        assert difficulty_target(rank) + difficulty_target(10 - rank) == 10.0
+        assert difficulty_target(rank) + difficulty_target(10 - rank) == pytest.approx(
+            10.0
+        )
     targets = [difficulty_target(r) for r in range(1, 10)]
     assert targets == sorted(targets)
 

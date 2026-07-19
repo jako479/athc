@@ -19,7 +19,7 @@ SCHEDULER_RULES_FILE = "PNFL.scheduler.toml"  # in the config dir's rules/ folde
 # Scheduler tunables; overridable in PNFL.scheduler.toml (missing -> these).
 DEFAULT_TIME_LIMIT = 1800.0  # phase-2 (week-placement) solve seconds
 DEFAULT_PHASE1_TIME_LIMIT = 60.0  # phase-1 (matchup) solve seconds
-DEFAULT_DIFFICULTY_C_SPREAD = 1.5  # Scheduler C: tilt on the 1-9 conference scale
+DEFAULT_DIFFICULTY_C_SPREAD = 1.8  # Scheduler C: tilt on the 1-9 conference scale
 DEFAULT_DIFFICULTY_D_SPREAD = 1.5  # Scheduler D: same tilt, picked games only
 
 
@@ -44,10 +44,8 @@ class SolverConfig:
 
 @dataclass(frozen=True)
 class Phase2Config:
-    """Phase-2 (week-placement) rule amounts; defaults are the current values.
-
-    Only amounts are configurable -- not the rules themselves, nor league or
-    conference sizes.
+    """Phase-2 (week-placement) rule amounts and toggles; defaults are the
+    current values. The rules themselves and league/conference sizes are fixed.
     """
 
     # Home/away sequencing
@@ -67,17 +65,9 @@ class Phase2Config:
     # Divisional games in the second half of the season
     five_team_second_half_divisional_min: int = 4
     four_team_second_half_divisional_min: int = 3
-    # Conference cross-division home games hosted
-    five_team_conference_home: int = 2
-    four_team_conference_home_min: int = 2
-    four_team_conference_home_max: int = 3
-    # Non-conference home games hosted
-    five_team_nonconference_home: int = 2
-    four_team_nonconference_home_min: int = 2
-    four_team_nonconference_home_max: int = 3
-    # Week 16 / late season
-    week_16_divisional_games: int = 8
-    min_late_divisional_games: int = 1
+    # Season ending
+    require_final_week_divisional: bool = True
+    require_divisional_in_final_two_weeks: bool = True
 
 
 @dataclass(frozen=True)
@@ -187,6 +177,15 @@ def _number(section: Mapping[str, Any], key: str, default: float, path: Path) ->
     return float(value)
 
 
+def _bool(section: Mapping[str, Any], key: str, default: bool, path: Path) -> bool:
+    if key not in section:
+        return default
+    value = section[key]
+    if not isinstance(value, bool):
+        raise ConfigError(f"Config file '{path}': '{key}' must be true or false.")
+    return value
+
+
 def _int(section: Mapping[str, Any], key: str, default: int, path: Path) -> int:
     if key not in section:
         return default
@@ -203,12 +202,12 @@ def _phase2(table: Mapping[str, Any], path: Path) -> Phase2Config:
         raise ConfigError(
             f"Config file '{path}': unknown [phase2] key(s): {', '.join(unknown)}."
         )
-    return Phase2Config(
-        **{
-            f.name: _int(table, f.name, getattr(defaults, f.name), path)
-            for f in fields(defaults)
-        }
-    )
+    values = {}
+    for f in fields(defaults):
+        default = getattr(defaults, f.name)
+        parse = _bool if isinstance(default, bool) else _int
+        values[f.name] = parse(table, f.name, default, path)
+    return Phase2Config(**values)
 
 
 def _read_config(path: Path) -> configparser.ConfigParser:

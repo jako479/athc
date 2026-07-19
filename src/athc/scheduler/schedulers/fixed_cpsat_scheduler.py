@@ -39,7 +39,11 @@ def generate_schedule(
         phase1_time_limit=config.solver.phase1_time_limit,
     ).build_matchup_plan()
 
-    logger.info("Phase 2: placing games into weeks")
+    logger.info(
+        "Phase 2: placing games into weeks. This usually takes several "
+        "minutes and can run up to %.0f minutes.",
+        config.solver.time_limit / 60,
+    )
     schedule_builder = ScheduleBuilder(
         teams=league.teams, error_cls=SchedulerError, amounts=config.phase2
     )

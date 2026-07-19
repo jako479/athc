@@ -17,7 +17,7 @@
 
    `target(rank) = 5 + c_spread × (rank − 5) / 4`
 
-   `c_spread` (rules toml, default 1.5): 0 = flat, 2.5 = max useful tilt (#1's slate saturates at opponents ranked 1-5). The target is soft (minimax on the worst miss, then total); worst observed miss across the test leagues is 0.75 ranks. Each team also draws ≥1 top-half and ≥1 bottom-half opponent. Single search worker, so it's deterministic.
+   `c_spread` (rules toml, default 1.8): 0 = flat, 2.5 = max useful tilt (#1's slate saturates at opponents ranked 1-5). The target is soft (minimax on the worst miss, then total); worst observed miss across the test leagues is 0.75 ranks. Each team also draws ≥1 top-half and ≥1 bottom-half opponent. Single search worker, so it's deterministic.
 
 ## Validation
 

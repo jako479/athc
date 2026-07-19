@@ -91,6 +91,7 @@ from athc.scheduler.domain.league import Team
 from athc.scheduler.domain.schedule import (
     HOME_GAMES_PER_TEAM,
     NUM_WEEKS,
+    WEEK_16_DIVISIONAL_GAMES,
     Game,
     Schedule,
 )
@@ -345,9 +346,8 @@ class ScheduleBuilder:
             self.model.add(sum(self.x[team_j, team_i, w] for w in self.weeks) == 1)
 
     def _constraint_conference_home_balance(self) -> None:
-        # Require 5-team division teams to host exactly 2 conference cross-division
-        # games
-        # and 4-team teams to host 2 or 3.
+        # Balanced hosting (forced by 8 home games): 5-team division teams host
+        # exactly 2 of their 4 cross-division games; 4-team teams 2 or 3 of 5.
         for team_i in self.teams:
             conference_opponents = [
                 team_j
@@ -363,20 +363,14 @@ class ScheduleBuilder:
             )
 
             if team_i in self.five_team_set:
-                self.model.add(
-                    conf_home_games == self.amounts.five_team_conference_home
-                )
+                self.model.add(conf_home_games == 2)
             else:
-                self.model.add(
-                    conf_home_games >= self.amounts.four_team_conference_home_min
-                )
-                self.model.add(
-                    conf_home_games <= self.amounts.four_team_conference_home_max
-                )
+                self.model.add(conf_home_games >= 2)
+                self.model.add(conf_home_games <= 3)
 
     def _constraint_nonconference_home_balance(self) -> None:
-        # Require teams in 5-team divisions to host 2 non-conference games and teams in
-        # 4-team divisions to host 2 or 3.
+        # Balanced hosting: 5-team division teams host exactly 2 of their 4
+        # non-conference games; 4-team teams 2 or 3 of 5.
         for team_i in self.teams:
             non_conference_opponents = [
                 team_j
@@ -390,16 +384,10 @@ class ScheduleBuilder:
             )
 
             if team_i in self.five_team_set:
-                self.model.add(
-                    non_conf_home_games == self.amounts.five_team_nonconference_home
-                )
+                self.model.add(non_conf_home_games == 2)
             else:
-                self.model.add(
-                    non_conf_home_games >= self.amounts.four_team_nonconference_home_min
-                )
-                self.model.add(
-                    non_conf_home_games <= self.amounts.four_team_nonconference_home_max
-                )
+                self.model.add(non_conf_home_games >= 2)
+                self.model.add(non_conf_home_games <= 3)
 
     def _constraint_max_consecutive_division(self) -> None:
         # Allow at most 3 straight divisional games but forbid any 4-game divisional
@@ -577,22 +565,26 @@ class ScheduleBuilder:
             )
 
     def _constraint_week_16_matchups(self) -> None:
-        # Require exactly 8 of the 9 games in the final week to be divisional.
+        # All-divisional finale: 8 of the final week's 9 games (the max; each
+        # 5-team division strands one team).
+        if not self.amounts.require_final_week_divisional:
+            return
         last_week = NUM_WEEKS - 1
         self.model.add(
             sum(
                 self.x[team_i, team_j, last_week] + self.x[team_j, team_i, last_week]
                 for team_i, team_j in self.divisional_pairs
             )
-            == self.amounts.week_16_divisional_games
+            == WEEK_16_DIVISIONAL_GAMES
         )
 
     def _constraint_late_divisional_presence(self) -> None:
-        # Ensure every team has at least 1 divisional game across the last 2 weeks.
+        # Every team plays at least 1 divisional game across the last 2 weeks.
+        if not self.amounts.require_divisional_in_final_two_weeks:
+            return
         for team_i in self.teams:
             self.model.add(
-                self.d[team_i, NUM_WEEKS - 2] + self.d[team_i, NUM_WEEKS - 1]
-                >= self.amounts.min_late_divisional_games
+                self.d[team_i, NUM_WEEKS - 2] + self.d[team_i, NUM_WEEKS - 1] >= 1
             )
 
     def _populate_model(self, matchups: Matchups) -> None:

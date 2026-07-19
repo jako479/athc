@@ -178,7 +178,7 @@ def test_inventory_is_deterministic(league) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("c_spread", [0.0, 1.5, 2.5])
+@pytest.mark.parametrize("c_spread", [0.0, 1.8, 2.5])
 def test_difficulty_is_near_line_target(league, c_spread) -> None:
     # Soft target; worst observed across leagues and spreads is 0.75, allow 1.0.
     plan = FixedCpsatMatchupBuilder(
@@ -204,14 +204,16 @@ def test_orders_difficulty_by_conference_rank(fixed_cpsat_matchup_plan, league) 
 
 
 def test_difficulty_target_line() -> None:
-    # Linear on conference rank 1-9: default tilt 1.5, symmetric about 5.
-    assert difficulty_target(1) == 3.5
+    # Linear on conference rank 1-9: default tilt 1.8, symmetric about 5.
+    assert difficulty_target(1) == pytest.approx(3.2)
     assert difficulty_target(5) == 5.0
-    assert difficulty_target(9) == 6.5
+    assert difficulty_target(9) == pytest.approx(6.8)
     assert difficulty_target(1, c_spread=2.5) == 2.5
     for rank in range(1, 10):
         assert difficulty_target(rank, c_spread=0.0) == 5.0
-        assert difficulty_target(rank) + difficulty_target(10 - rank) == 10.0
+        assert difficulty_target(rank) + difficulty_target(10 - rank) == pytest.approx(
+            10.0
+        )
     targets = [difficulty_target(r) for r in range(1, 10)]
     assert targets == sorted(targets)
 

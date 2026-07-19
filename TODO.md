@@ -7,8 +7,8 @@
 - gameplan: replace play (single and bulk) - list of plays as input??
 - profile: revisit edit\copy options
 - autocontinue: add halftime
-- scheduler: convert league config into a single file
-- [IN PROGRESS] scheduler: add schedule-C: Fixed-matchups for 2 or 3 matches (configurable?) + CP-SAT
+- [DONE] scheduler: convert league config into a single file [league.ini only; history file removed]
+- [DONE] scheduler: Schedulers C and D (fixed-place + CP-SAT); A and B removed
 - [DONE] schedule research: SOS analysis of real PNFL schedules
 - [DONE] playpool: rename PlayRecord to Play; Same with OffensivePlayRecord, etc.
 - [DONE] gameplan: rename Play to PlayRef; Same with CustomPlay and StockPlay

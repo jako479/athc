@@ -189,14 +189,15 @@ def test_load_scheduler_config_reads_phase2_amounts(config_dir: Path) -> None:
         config_dir,
         """
         [phase2]
-        week_16_divisional_games = 6
+        require_final_week_divisional = false
         max_consecutive_divisional = 2
         """,
     )
     cfg = load_scheduler_config()
-    assert cfg.phase2.week_16_divisional_games == 6
+    assert cfg.phase2.require_final_week_divisional is False
     assert cfg.phase2.max_consecutive_divisional == 2
     # untouched keys keep their defaults
+    assert cfg.phase2.require_divisional_in_final_two_weeks is True
     assert cfg.phase2.five_team_max_divisional_in_10 == 7
 
 

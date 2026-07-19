@@ -35,7 +35,7 @@ Divisional sequencing
 - Density — 5-team: ≤7 in any 10 weeks, ≤6 in any 9; 4-team: ≤5 in any 8, ≤3 in any 7.
 - At least half of each team's divisional games fall in weeks 9–16.
 - At most 2 divisional opponents are non-interleaved (no rival meeting between the two meetings).
-- Every team plays ≥1 divisional game in the last 2 weeks.
-- Week 16 has exactly 8 divisional games.
+- Every team plays ≥1 divisional game in the last 2 weeks. Toggle: `require_divisional_in_final_two_weeks`.
+- The final week is all-divisional: 8 of its 9 games (the max; each 5-team division strands one team). Toggle: `require_final_week_divisional`.
 
 The NFL-data rationale and PNFL policy behind these limits live in the `schedule_builder.py` module docstring.
