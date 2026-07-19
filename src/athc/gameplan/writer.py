@@ -9,8 +9,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from athc.fbpro98_gameplan import CustomPlay, GamePlan
-from athc.playpool import PlayPool, PlayRecord
+from athc.fbpro98_gameplan import CustomPlayRef, GamePlan
+from athc.playpool import Play, PlayPool
 
 MAX_NORMAL_PLAYS = GamePlan.NUMBER_NORMAL_PLAYS
 
@@ -29,11 +29,11 @@ def _normal_slot_grid(slot_index: int) -> str:
     return f"{slot_index // 4 + 1}-{slot_index % 4 + 1}"
 
 
-def _build_custom_play(record: PlayRecord, root_dir: Path) -> CustomPlay:
+def build_custom_play(record: Play, root_dir: Path) -> CustomPlayRef:
     """Build the `.pln` slot entry from a pool record (path relative to pool root)."""
     relative = str(record.file_path.relative_to(root_dir)).replace("/", "\\")
     pf = record.play_file
-    return CustomPlay(
+    return CustomPlayRef(
         filename=f"PNFL\\{relative}",
         play_category=pf.play_category,
         special_category=pf.special_category,
@@ -44,7 +44,7 @@ def _build_custom_play(record: PlayRecord, root_dir: Path) -> CustomPlay:
 def apply_normal_plays(gp: GamePlan, lines: Sequence[str], pool: PlayPool) -> GamePlan:
     """Place plays into the 64 normal slots in input order (>64 truncates; blank = empty
     slot). Per-line failures raise InvalidPlayInputError. Returns a new GamePlan."""
-    entries: list[CustomPlay | None] = []
+    entries: list[CustomPlayRef | None] = []
     violations: list[str] = []
     for slot, line in enumerate(list(lines)[:MAX_NORMAL_PLAYS]):
         entries.append(_resolve_normal_line(slot, line, gp, pool, violations))
@@ -56,7 +56,7 @@ def apply_normal_plays(gp: GamePlan, lines: Sequence[str], pool: PlayPool) -> Ga
 def apply_special_plays(gp: GamePlan, lines: Sequence[str], pool: PlayPool) -> GamePlan:
     """Merge custom special plays (unlisted categories preserved). Each play self-slots
     by its special category. Per-line failures raise InvalidPlayInputError."""
-    merged: list[CustomPlay | None] = list(gp.custom_special_plays)
+    merged: list[CustomPlayRef | None] = list(gp.custom_special_plays)
     seen_names: dict[str, int] = {}
     seen_categories: set[int] = set()
     violations: list[str] = []
@@ -78,7 +78,7 @@ def apply_special_plays(gp: GamePlan, lines: Sequence[str], pool: PlayPool) -> G
 
 def _resolve_normal_line(
     slot: int, line: str, gp: GamePlan, pool: PlayPool, violations: list[str]
-) -> CustomPlay | None:
+) -> CustomPlayRef | None:
     name = line.strip()
     if not name:
         return None
@@ -109,7 +109,7 @@ def _resolve_normal_line(
             "but gameplan is defensive"
         )
         return None
-    return _build_custom_play(record, pool.root_dir)
+    return build_custom_play(record, pool.root_dir)
 
 
 def _resolve_special_line(
@@ -120,7 +120,7 @@ def _resolve_special_line(
     seen_names: dict[str, int],
     seen_categories: set[int],
     violations: list[str],
-) -> CustomPlay | None:
+) -> CustomPlayRef | None:
     upper = name.upper()
     line_no = index + 1
     if upper in seen_names:
@@ -160,4 +160,4 @@ def _resolve_special_line(
             "already filled by another play"
         )
         return None
-    return _build_custom_play(record, pool.root_dir)
+    return build_custom_play(record, pool.root_dir)

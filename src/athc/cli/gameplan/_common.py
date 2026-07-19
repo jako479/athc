@@ -1,4 +1,5 @@
-"""Shared helpers for `athc gameplan` subcommands: files, rules, pool, listing."""
+"""Shared helpers for `athc gameplan` subcommands: files, search, rules, pool,
+listing."""
 
 from __future__ import annotations
 
@@ -11,7 +12,7 @@ from pathlib import Path
 
 import click
 
-from athc.fbpro98_gameplan import GamePlan
+from athc.fbpro98_gameplan import GamePlan, PlayRef
 from athc.gameplan import Rules, RulesFileError, load_rules
 from athc.playpool import PlayPool, read_play_pool
 from athc.playpool import RulesFileError as PoolRulesFileError
@@ -101,6 +102,26 @@ def _add(path: Path, files: list[Path], seen: set[Path]) -> None:
     files.append(path)
 
 
+def find_in_gameplan(
+    gp: GamePlan, play_name: str
+) -> tuple[list[tuple[int, PlayRef]], list[tuple[int, PlayRef]]]:
+    """Case-insensitive name match across a gameplan's normal + custom-special slots
+    -> `(normal_hits, special_hits)`. Stock specials and clock plays are skipped.
+    Normal hits carry the 0-based slot index; special hits a 1-based category."""
+    target = play_name.casefold()
+    normal_hits: list[tuple[int, PlayRef]] = [
+        (i, p)
+        for i, p in enumerate(gp.normal_plays)
+        if p is not None and p.name.casefold() == target
+    ]
+    special_hits: list[tuple[int, PlayRef]] = [
+        (i + 1, p)
+        for i, p in enumerate(gp.custom_special_plays)
+        if p is not None and p.name.casefold() == target
+    ]
+    return normal_hits, special_hits
+
+
 def resolve_rules(
     rule_files: Iterable[Path], *, prog: str, logger: logging.Logger
 ) -> Rules | None:
@@ -132,9 +153,9 @@ def build_pool(
     prog: str,
     logger: logging.Logger,
 ) -> PlayPool | None:
-    """Build a PlayPool from `play_path`, classified by folder/filename. Optional
-    `playpool_rules` is the playpool filename-filter TOML; returns None on a
-    missing directory or unreadable rules file."""
+    """Build a PlayPool from `play_path` (each play classified from its file).
+    Optional `playpool_rules` is the playpool filename-filter TOML; returns None
+    on a missing directory or unreadable rules file."""
     if not play_path.is_dir():
         logger.error("%s: play path '%s' is not a directory", prog, play_path)
         return None

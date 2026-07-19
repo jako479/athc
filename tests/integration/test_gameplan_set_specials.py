@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 from athc.cli.gameplan.set_specials import set_specials
-from athc.fbpro98_gameplan import Play, read_gameplan
+from athc.fbpro98_gameplan import PlayRef, read_gameplan
 from tests.integration.conftest import GP_DEFENSE, GP_OFFENSE, PLAYS, POOL_RULES
 
 POOL_FLAGS = ["--play-path", str(PLAYS), "--playpool-rules", str(POOL_RULES)]
@@ -15,7 +15,7 @@ SPECIAL = "LIONKICK"  # offense Kickoff, special_category 2 -> custom slot index
 NORMAL = "OR45RL01"  # a normal offense play (not special teams)
 
 
-def _name(play: Play | None) -> str:
+def _name(play: PlayRef | None) -> str:
     assert play is not None
     return play.name
 

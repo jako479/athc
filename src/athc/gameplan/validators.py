@@ -17,11 +17,11 @@ from athc.gameplan.model import RuleName, Violation
 from athc.gameplan.rules import DefenseCategoryRule, OffenseCategoryRule, Rules
 from athc.playpool import (
     DefensiveFront,
-    DefensivePlayRecord,
-    OffensivePlayRecord,
+    DefensivePlay,
+    OffensivePlay,
     PassLogic,
+    Play,
     PlayPool,
-    PlayRecord,
 )
 
 
@@ -60,10 +60,10 @@ def validate_gameplan(
 
 def _resolve_normal_plays(
     gameplan: GamePlan, play_pool: PlayPool
-) -> tuple[list[PlayRecord], list[Violation]]:
+) -> tuple[list[Play], list[Violation]]:
     """Resolve each filled normal slot against the pool, reporting duplicate and
     unresolved plays. Unresolved plays are dropped from category counts."""
-    resolved: list[PlayRecord] = []
+    resolved: list[Play] = []
     violations: list[Violation] = []
     seen: dict[str, int] = {}
 
@@ -100,7 +100,7 @@ def _resolve_normal_plays(
 
 
 def _validate_offense(
-    records: list[PlayRecord], category_rules: Mapping[str, OffenseCategoryRule]
+    records: list[Play], category_rules: Mapping[str, OffenseCategoryRule]
 ) -> list[Violation]:
     by_category = _group_by_category(records)
     violations: list[Violation] = []
@@ -140,7 +140,7 @@ def _validate_offense(
 
         if rule.max_qb_draws is not None:
             qb_draws = sum(
-                1 for p in plays if isinstance(p, OffensivePlayRecord) and p.qb_draw
+                1 for p in plays if isinstance(p, OffensivePlay) and p.qb_draw
             )
             if qb_draws > rule.max_qb_draws:
                 violations.append(
@@ -154,7 +154,7 @@ def _validate_offense(
 
         if rule.max_rollouts is not None:
             rollouts = sum(
-                1 for p in plays if isinstance(p, OffensivePlayRecord) and p.rollout
+                1 for p in plays if isinstance(p, OffensivePlay) and p.rollout
             )
             if rollouts > rule.max_rollouts:
                 violations.append(
@@ -170,8 +170,7 @@ def _validate_offense(
             timed = sum(
                 1
                 for p in plays
-                if isinstance(p, OffensivePlayRecord)
-                and p.pass_logic == PassLogic.TIMED
+                if isinstance(p, OffensivePlay) and p.pass_logic == PassLogic.TIMED
             )
             if Fraction(timed, len(plays)) > rule.max_timed_percent:
                 violations.append(
@@ -188,7 +187,7 @@ def _validate_offense(
 
 
 def _validate_defense(
-    records: list[PlayRecord], category_rules: Mapping[str, DefenseCategoryRule]
+    records: list[Play], category_rules: Mapping[str, DefenseCategoryRule]
 ) -> list[Violation]:
     by_category = _group_by_category(records)
     violations: list[Violation] = []
@@ -230,7 +229,7 @@ def _validate_defense(
             two_dl = sum(
                 1
                 for p in plays
-                if isinstance(p, DefensivePlayRecord)
+                if isinstance(p, DefensivePlay)
                 and p.defensive_front == DefensiveFront.TWO_DL
             )
             if Fraction(two_dl, len(plays)) > rule.max_two_dl_percent:
@@ -248,7 +247,7 @@ def _validate_defense(
 
 
 def _validate_disallowed(
-    records: list[PlayRecord], disallowed: frozenset[str], side: str
+    records: list[Play], disallowed: frozenset[str], side: str
 ) -> list[Violation]:
     """A gameplan may not contain plays in a disallowed category."""
     by_category = _group_by_category(records)
@@ -304,11 +303,11 @@ def _validate_custom_special_plays(gameplan: GamePlan) -> list[Violation]:
 
 
 def _group_by_category(
-    records: Iterable[PlayRecord],
-) -> dict[str | None, list[PlayRecord]]:
-    grouped: dict[str | None, list[PlayRecord]] = {}
+    records: Iterable[Play],
+) -> dict[str, list[Play]]:
+    grouped: dict[str, list[Play]] = {}
     for record in records:
-        grouped.setdefault(record.category, []).append(record)
+        grouped.setdefault(record.category.long, []).append(record)
     return grouped
 
 

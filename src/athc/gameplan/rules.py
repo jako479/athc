@@ -16,11 +16,11 @@ from pathlib import Path
 from typing import Any, Final
 
 from athc.fbpro98_play import (
-    DEFENSIVE_CATEGORIES,
-    OFFENSIVE_CATEGORIES,
-    SPECIAL_TEAMS_OFFENSIVE_CATEGORIES,
+    DefensiveCategory,
+    OffensiveCategory,
+    SpecialOffensiveCategory,
+    category_by_short,
 )
-from athc.playpool import play_type
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,41 +69,24 @@ class Rules:
     custom_special_play_required: bool = False
 
 
-_OFFENSE_CATEGORIES: Final[frozenset[str]] = frozenset(OFFENSIVE_CATEGORIES.values())
-_DEFENSE_CATEGORIES: Final[frozenset[str]] = frozenset(DEFENSIVE_CATEGORIES.values())
+_OFFENSE_CATEGORIES: Final[frozenset[str]] = frozenset(
+    c.long for c in OffensiveCategory
+)
+_DEFENSE_CATEGORIES: Final[frozenset[str]] = frozenset(
+    c.long for c in DefensiveCategory
+)
 
-# Short label -> full game-category name. Offense uses codes; defense uses words.
-_OFFENSE_LABEL_TO_NAME: Final[Mapping[str, str]] = {
-    "GLR": "Goal Line Run",
-    "RL":  "Run Left",
-    "RM":  "Run Middle",
-    "RR":  "Run Right",
-    "GLP": "Goal Line Pass",
-    "PRD": "Razzle Dazzle Pass",
-    "PLR": "Pass Long Right",
-    "PML": "Pass Medium Left",
-    "PMM": "Pass Medium Middle",
-    "PMR": "Pass Medium Right",
-    "PSL": "Pass Short Left",
-    "PSM": "Pass Short Middle",
-    "PSR": "Pass Short Right",
-}  # fmt: skip
-_DEFENSE_LABEL_TO_NAME: Final[Mapping[str, str]] = {
-    "GLrun":      "Goal Line Run",
-    "RunDazzle":  "Run Dazzle",
-    "RunLeft":    "Run Left",
-    "RunMiddle":  "Run Middle",
-    "RunRight":   "Run Right",
-    "GLpass":     "Goal Line Pass",
-    "PassDazzle": "Pass Dazzle",
-    "PassLong":   "Pass Long",
-    "PassMedium": "Pass Medium",
-    "PassShort":  "Pass Short",
-}  # fmt: skip
+# Valid [offense.X] / [defense.X] section labels (the league short labels).
+_OFFENSE_LABELS: Final[list[str]] = sorted(
+    c.short for c in OffensiveCategory if c.short != c.long
+)
+_DEFENSE_LABELS: Final[list[str]] = sorted(
+    c.short for c in DefensiveCategory if c.short != c.long
+)
 
 # Special-category name -> code byte.
 _SPECIAL_CATEGORY_BY_NAME: Final[Mapping[str, int]] = {
-    name: code for code, name in SPECIAL_TEAMS_OFFENSIVE_CATEGORIES.items()
+    c.long: c.code for c in SpecialOffensiveCategory
 }
 
 _RUN_SUBKEYS: Final[frozenset[str]] = frozenset(
@@ -278,32 +261,32 @@ def _merge_file(
 def _build_offense_section(
     label: str, section: Mapping[str, Any], source: Path
 ) -> tuple[str, OffenseCategoryRule]:
-    name = _OFFENSE_LABEL_TO_NAME.get(label)
-    if name is None:
+    member = category_by_short(label)
+    if not isinstance(member, OffensiveCategory):
         raise RulesFileError(
             f"{source}: [offense.{label}]: not an offense category label. "
-            f"Valid: {sorted(_OFFENSE_LABEL_TO_NAME)}"
+            f"Valid: {_OFFENSE_LABELS}"
         )
-    return name, _build_offense_rule(label, name, section, source)
+    return member.long, _build_offense_rule(label, member, section, source)
 
 
 def _build_defense_section(
     label: str, section: Mapping[str, Any], source: Path
 ) -> tuple[str, DefenseCategoryRule]:
-    name = _DEFENSE_LABEL_TO_NAME.get(label)
-    if name is None:
+    member = category_by_short(label)
+    if not isinstance(member, DefensiveCategory):
         raise RulesFileError(
             f"{source}: [defense.{label}]: not a defense category label. "
-            f"Valid: {sorted(_DEFENSE_LABEL_TO_NAME)}"
+            f"Valid: {_DEFENSE_LABELS}"
         )
-    return name, _build_defense_rule(label, section, source)
+    return member.long, _build_defense_rule(label, section, source)
 
 
 def _build_offense_rule(
-    label: str, name: str, section: Mapping[str, Any], source: Path
+    label: str, member: OffensiveCategory, section: Mapping[str, Any], source: Path
 ) -> OffenseCategoryRule:
     where = f"[offense.{label}]"
-    is_run = play_type(name) == "run"
+    is_run = member.is_run
     _reject_unknown_keys(
         section, _RUN_SUBKEYS if is_run else _PASS_SUBKEYS, source, where
     )

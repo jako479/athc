@@ -151,8 +151,7 @@ def set_specials(
     TARGET is a .pln file or a directory (top level, or the tree with -r). Files of the
     wrong side are skipped silently (offense .pln are even-sized, defense odd). Merge
     semantics: unlisted special categories are preserved. A timestamped .bak is written
-    next to each updated file (unless --no-backup). Exit 0 = all updated, 1 = some
-    failed, 2 = setup error.
+    next to each updated file (unless --no-backup).
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     if use_stdin and input_path is not None:

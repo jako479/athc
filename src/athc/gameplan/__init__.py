@@ -1,4 +1,5 @@
-"""Library for validating FbPro '98 gameplans (.pln) against league rules."""
+"""Library for validating Front Page Sports Football Pro '98 gameplans (.pln)
+against league rules."""
 
 from athc.gameplan.model import RuleName, Violation
 from athc.gameplan.rules import (

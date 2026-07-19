@@ -12,14 +12,14 @@ from fractions import Fraction
 from pathlib import Path
 
 from athc.fbpro98_gameplan import GamePlan, ProfileType
-from athc.fbpro98_gameplan.model import CustomPlay, StockPlay
+from athc.fbpro98_gameplan.model import CustomPlayRef, StockPlayRef
 from athc.fbpro98_play import PlayFile
 from athc.gameplan import RuleName, validate_gameplan
 from athc.gameplan.rules import DefenseCategoryRule, OffenseCategoryRule, Rules
 from athc.playpool import (
     DefensiveFront,
-    DefensivePlayRecord,
-    OffensivePlayRecord,
+    DefensivePlay,
+    OffensivePlay,
     PassLogic,
     PlayPool,
 )
@@ -35,8 +35,8 @@ OFF_PASS_SHORT_RIGHT = 0x03
 OFF_PASS_MEDIUM_RIGHT = 0x13
 
 
-def make_play(name: str) -> CustomPlay:
-    return CustomPlay(
+def make_play(name: str) -> CustomPlayRef:
+    return CustomPlayRef(
         filename=f"{name}.PLY",
         play_category=0x00,
         special_category=0,
@@ -46,12 +46,12 @@ def make_play(name: str) -> CustomPlay:
 
 def make_record(
     name: str, *, user_category: int, front: DefensiveFront | None = None
-) -> DefensivePlayRecord:
+) -> DefensivePlay:
     play_file = PlayFile(Path(f"{name}.ply"), 0, 0x00, 0, user_category, (), ())
-    return DefensivePlayRecord(name, play_file, pool_category="", defensive_front=front)
+    return DefensivePlay(name, play_file, defensive_front=front)
 
 
-def make_pool(records: Iterable[DefensivePlayRecord]) -> PlayPool:
+def make_pool(records: Iterable[DefensivePlay]) -> PlayPool:
     pool = PlayPool("root")
     for record in records:
         pool._register(record)
@@ -232,19 +232,18 @@ def make_off_record(
     qb_draw: bool = False,
     rollout: bool = False,
     pass_logic: PassLogic | None = None,
-) -> OffensivePlayRecord:
+) -> OffensivePlay:
     play_file = PlayFile(Path(f"{name}.ply"), 0, 0x01, 0, user_category, (), ())
-    return OffensivePlayRecord(
+    return OffensivePlay(
         name,
         play_file,
-        pool_category="",
         qb_draw=qb_draw,
         rollout=rollout,
         pass_logic=pass_logic,
     )
 
 
-def make_off_pool(records: Iterable[OffensivePlayRecord]) -> PlayPool:
+def make_off_pool(records: Iterable[OffensivePlay]) -> PlayPool:
     pool = PlayPool("root")
     for record in records:
         pool._register(record)
@@ -252,8 +251,8 @@ def make_off_pool(records: Iterable[OffensivePlayRecord]) -> PlayPool:
     return pool
 
 
-def make_off_play(name: str, *, user_category: int) -> CustomPlay:
-    return CustomPlay(
+def make_off_play(name: str, *, user_category: int) -> CustomPlayRef:
+    return CustomPlayRef(
         filename=f"{name}.PLY",
         play_category=0x01,
         special_category=0,
@@ -263,14 +262,14 @@ def make_off_play(name: str, *, user_category: int) -> CustomPlay:
 
 # Clock plays are required for offense gameplans (special categories 11 and 12).
 _CLOCK_PLAYS = (
-    CustomPlay(filename="CLOCK1.PLY", play_category=0x01, special_category=11,
+    CustomPlayRef(filename="CLOCK1.PLY", play_category=0x01, special_category=11,
                user_category=OFF_RUN_MIDDLE),
-    CustomPlay(filename="CLOCK2.PLY", play_category=0x01, special_category=12,
+    CustomPlayRef(filename="CLOCK2.PLY", play_category=0x01, special_category=12,
                user_category=OFF_RUN_MIDDLE),
 )  # fmt: skip
 
 
-def offense_gameplan(plays: list[CustomPlay]) -> GamePlan:
+def offense_gameplan(plays: list[CustomPlayRef]) -> GamePlan:
     normal = tuple(plays) + (None,) * (64 - len(plays))
     return GamePlan(
         profile_type=ProfileType.OFFENSE,
@@ -441,7 +440,7 @@ def test_special_category_required_fires() -> None:
 def test_custom_special_play_required_fires() -> None:
     """With custom_special_play_required, a stock-only special slot is flagged."""
     # custom_1 unset, stock_1 set (category 1).
-    stock = StockPlay("STOCK1", 0, 0, 0x00, 1, 0x00)
+    stock = StockPlayRef("STOCK1", 0, 0, 0x00, 1, 0x00)
     specials = (None, stock) + (None,) * 18
     gp = GamePlan(
         profile_type=ProfileType.DEFENSE,

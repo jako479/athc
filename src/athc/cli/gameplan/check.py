@@ -62,7 +62,7 @@ def check(
     """Validate one or more .pln gameplans against the configured rules.
 
     Each PATH is a .pln file, a directory (top level, or the whole tree with -r),
-    or a glob. Exit 0 = all clean, 1 = violations, 2 = I/O / config error or no rules.
+    or a glob.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 

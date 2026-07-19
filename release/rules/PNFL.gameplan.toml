@@ -1,24 +1,9 @@
-# PNFL gameplan rules — the official PNFL rule set, ready to use as-is. Point
-# [gameplan] rule_files (in athc.ini) at this file.
+# PNFL gameplan rules — the official set, ready to use as-is.
+# Wire it up: point [gameplan] rule_files (in athc.ini) at this file.
+# Sources: PNFL offense (messageboard t=14) and defense (t=15).
 #
-# Sources: PNFL offense (messageboard t=14) and defense (t=15) rules.
-#
-# Each section is keyed by a category's fixed SHORT label (tool-defined, same for
-# every league). All per-section keys are optional; set at least one.
-#   required  = true|false   default false. true -> category must appear with at
-#                                        least min_count plays; false -> optional,
-#                                        but the caps still apply if used.
-#   min_count = <int>        default 0. minimum plays in the category.
-#   max_count = <int>        maximum plays in the category.
-#   max_qb_draws       = <int>   run offense only.
-#   max_rollouts       = <int>   pass offense only.
-#   max_timed_percent  = "n/m"   pass offense only; exact fraction 0-1.
-#   max_two_dl_percent = "n/m"   defense only; exact fraction 0-1.
-# Counts (min_count, max_count, max_qb_draws, max_rollouts) must be >= 0.
-#
-# Valid OFFENSE labels:  GLR RL RM RR  GLP PRD PLR  PML PMM PMR  PSL PSM PSR
-# Valid DEFENSE labels:  GLrun RunDazzle RunLeft RunMiddle RunRight
-#                        GLpass PassDazzle PassLong PassMedium PassShort
+# Each section is one category, keyed by its fixed SHORT label; all keys are
+# optional (set at least one). Per-section keys are listed above [offense].
 
 schema_version = 1
 
@@ -45,6 +30,15 @@ disallowed_offensive_categories = [
 disallowed_defensive_categories = ["User Specific"]
 
 # ── Offense ───────────────────────────────────────────────────────────────────
+# Per-section keys (counts >= 0):
+#   required  = true|false   default false; true -> needs >= min_count plays
+#   min_count = <int>        minimum plays in the category (default 0)
+#   max_count = <int>        maximum plays
+#   max_qb_draws       = <int>   run offense only
+#   max_rollouts       = <int>   pass offense only
+#   max_timed_percent  = "n/m"   pass offense only; exact fraction 0-1
+#   max_two_dl_percent = "n/m"   defense only; exact fraction 0-1
+# Labels: GLR RL RM RR  GLP PRD PLR PML PMM PMR  PSL PSM PSR
 
 [offense.RM]
 required = true
@@ -120,6 +114,7 @@ max_rollouts = 2
 max_timed_percent = "1/2"
 
 # ── Defense ───────────────────────────────────────────────────────────────────
+# Labels: GLrun RunDazzle RunLeft RunMiddle RunRight  GLpass PassDazzle PassLong PassMedium PassShort
 
 [defense.RunLeft]
 required = true

@@ -66,8 +66,7 @@ def set_normals(
 
     One play name per line; `::` comment lines and ` ::` trailers are ignored. A
     timestamped .bak is written next to the target first (unless --no-backup). The
-    play pool resolves names; run `check` to validate the result. Exit 0 = updated,
-    2 = error (nothing written).
+    play pool resolves names; run `check` to validate the result.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     if use_stdin and input_path is not None:
@@ -86,7 +85,7 @@ def set_normals(
             logger.error(
                 "%s: input has %d play(s), max is %d", PROG, len(lines), NORMAL_COUNT
             )
-            ctx.exit(2)
+            ctx.exit(1)
         config = load_config(
             league,
             play_path=play_path,
@@ -94,11 +93,11 @@ def set_normals(
         )
     except (ConfigFileError, ValueError, OSError) as error:
         logger.error("%s: %s", PROG, error)
-        ctx.exit(2)
+        ctx.exit(1)
 
     pool = build_pool(config.play_path, config.playpool_rules, prog=PROG, logger=logger)
     if pool is None:
-        ctx.exit(2)
+        ctx.exit(1)
 
     specials = [
         f"line {i}: '{name}' is a special teams play; use set-specials"
@@ -108,7 +107,7 @@ def set_normals(
     if specials:
         for err in specials:
             logger.error("%s: %s", PROG, err)
-        ctx.exit(2)
+        ctx.exit(1)
 
     try:
         gp = read_gameplan(str(gameplan_path))
@@ -121,10 +120,10 @@ def set_normals(
             PROG,
             len(error.violations),
         )
-        ctx.exit(2)
+        ctx.exit(1)
     except (OSError, InvalidGamePlanError, ValueError) as error:
         logger.error("%s: %s", PROG, error)
-        ctx.exit(2)
+        ctx.exit(1)
 
     backup = None if no_backup else make_backup(gameplan_path)
     write_gameplan(updated, gameplan_path)

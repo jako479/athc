@@ -2,7 +2,7 @@
 
 Library + CLI for FbPro98 gameplans (`.pln`). Validates a gameplan against league rules supplied as **external TOML files** — no rules are baked in; the tool is league-agnostic. Wraps [fbpro98_gameplan](../fbpro98_gameplan/) (`.pln` I/O) and [playpool](../playpool/) (per-play attributes).
 
-**Status:** all six pnfl subcommands are ported — `check`, `find-play`, `list-normals`, `list-specials`, `set-normals`, `set-specials`.
+**Status:** six pnfl subcommands ported — `check`, `find-play`, `list-normals`, `list-specials`, `set-normals`, `set-specials` — plus `replace-play` (new).
 
 ## Setup
 
@@ -40,9 +40,10 @@ athc gameplan find-play OR45RL01 BCFGPAT plans/ -r # many plays across a tree
 athc gameplan set-normals OFF.pln plays.txt        # replace 64 normal slots (+ .bak)
 athc gameplan set-normals OFF.pln --stdin --no-backup
 athc gameplan set-specials plans/ spec.txt -r      # merge specials across a tree
+athc gameplan replace-play OLDRUN NEWRUN plans/ -r # swap one play for another (+ .bak)
 ```
 
-`check` exits `0` clean / `1` violations / `2` usage, config error, or no rules. `list-*` and `find-play` just read a `.pln` (no pool/rules/config): `list-*` exit `0`, or `1` on a read error or refused overwrite; `find-play` exits `0` all found / `1` a play missed everywhere / `2` I/O error. `set-*` need the pool (like `check`, minus `--rules`) and edit in place after a `.bak`: `set-normals` exits `0` / `2`, `set-specials` exits `0` all updated / `1` some failed / `2` setup error. `athc gameplan <command> --help` for flags.
+`check` exits `0` clean / `1` violations / `2` usage, config error, or no rules. `list-*` and `find-play` just read a `.pln` (no pool/rules/config): `list-*` exit `0`, or `1` on a read error or refused overwrite; `find-play` exits `0` all found / `1` a play missed everywhere / `2` I/O error. `set-*` need the pool (like `check`, minus `--rules`) and edit in place after a `.bak`: `set-normals` exits `0` updated / `1` error / `2` usage, `set-specials` exits `0` all updated / `1` some failed / `2` setup error. `replace-play OLDNAME NEWNAME PATH` swaps one play for another wherever `find-play` would find it (`--play-path`/`--league`, no `--rules`/`--playpool-rules`); `NEWNAME` must be in the pool: exits `0` replaced / `1` nothing replaced or some files failed / `2` setup error or replacement not in pool. `athc gameplan <command> --help` for flags.
 
 ## Config
 

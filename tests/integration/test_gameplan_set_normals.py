@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 from athc.cli.gameplan.set_normals import set_normals
-from athc.fbpro98_gameplan import Play, read_gameplan
+from athc.fbpro98_gameplan import PlayRef, read_gameplan
 from tests.integration.conftest import GP_OFFENSE, PLAYS, POOL_RULES
 
 POOL_FLAGS = ["--play-path", str(PLAYS), "--playpool-rules", str(POOL_RULES)]
@@ -15,7 +15,7 @@ NORMAL = "OR45RL01"  # a real normal offense play in the pool
 SPECIAL = "SFFGXPAT"  # a real special-teams offense play in the pool
 
 
-def _name(play: Play | None) -> str:
+def _name(play: PlayRef | None) -> str:
     assert play is not None
     return play.name
 
@@ -119,7 +119,7 @@ def test_inline_comment_requires_space(runner, tmp_path: Path) -> None:
     """`name::comment` (no space) is not split, so the whole token fails to resolve."""
     p = _copy(tmp_path)
     inp = _input(tmp_path, f"{NORMAL}::comment\n")
-    assert runner.invoke(set_normals, [str(p), str(inp), *POOL_FLAGS]).exit_code == 2
+    assert runner.invoke(set_normals, [str(p), str(inp), *POOL_FLAGS]).exit_code == 1
 
 
 # ── quiet / stdin ─────────────────────────────────────────────────────────────
@@ -154,7 +154,7 @@ def test_rejects_special_teams_play(runner, tmp_path: Path, caplog) -> None:
         result = runner.invoke(
             set_normals, [str(p), str(_input(tmp_path, SPECIAL + "\n")), *POOL_FLAGS]
         )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "special teams play" in caplog.text and "set-specials" in caplog.text
     assert list(tmp_path.glob("*.bak")) == [] and p.read_bytes() == original
 
@@ -166,7 +166,7 @@ def test_missing_play_aborts(runner, tmp_path: Path, caplog) -> None:
         result = runner.invoke(
             set_normals, [str(p), str(_input(tmp_path, "NOTAREALPLAY\n")), *POOL_FLAGS]
         )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert list(tmp_path.glob("*.bak")) == [] and p.read_bytes() == original
 
 
@@ -177,7 +177,7 @@ def test_too_many_plays_rejected(runner, tmp_path: Path, caplog) -> None:
             set_normals,
             [str(p), str(_input(tmp_path, (NORMAL + "\n") * 65)), *POOL_FLAGS],
         )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "max is 64" in caplog.text
 
 
@@ -186,7 +186,7 @@ def test_missing_pln(runner, tmp_path: Path) -> None:
     result = runner.invoke(
         set_normals, [str(tmp_path / "nope.pln"), str(inp), *POOL_FLAGS]
     )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
 
 
 def test_invalid_play_path(runner, tmp_path: Path, caplog) -> None:
@@ -204,5 +204,5 @@ def test_invalid_play_path(runner, tmp_path: Path, caplog) -> None:
                 str(POOL_RULES),
             ],
         )
-    assert result.exit_code == 2
+    assert result.exit_code == 1
     assert "not a directory" in caplog.text
