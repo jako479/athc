@@ -37,6 +37,7 @@ def generate_schedule(
         division_standings=league.division_standings,
         c_spread=config.difficulty.c_spread,
         phase1_time_limit=config.solver.phase1_time_limit,
+        seed=seed,
     ).build_matchup_plan()
 
     logger.info(

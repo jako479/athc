@@ -52,5 +52,5 @@ five_team_second_half_divisional_min = 4
 four_team_second_half_divisional_min = 3
 
 # Season ending
-require_final_week_divisional = true        # final week is all rivalry games (8 of 9)
+require_final_week_divisional = true         # final week is all divisional games (8 of 9)
 require_divisional_in_final_two_weeks = true # every team plays at least one in the last 2 weeks

@@ -249,9 +249,13 @@ class _FixedCpsatFreeNonConferenceModel:
         self._add_free_rank_sum_constraints()
         self._set_line_objective()
 
-    def solve(self, time_limit: float | None = None) -> set[Matchup]:
+    def solve(self, seed: int = 0, time_limit: float | None = None) -> set[Matchup]:
         solver = cp_model.CpSolver()
-        solver.parameters.num_search_workers = 1  # single worker keeps it deterministic
+        # Single worker + fixed seed = reproducible; the seed picks among
+        # equally-optimal matchup sets.
+        solver.parameters.num_search_workers = 1
+        solver.parameters.random_seed = seed
+        solver.parameters.randomize_search = True
         if time_limit is not None:
             solver.parameters.max_time_in_seconds = time_limit
 
@@ -277,12 +281,14 @@ class FixedCpsatFreeMatchupBuilder:
         division_standings: Mapping[Division, Sequence[Team]] | None,
         d_spread: float = DEFAULT_DIFFICULTY_D_SPREAD,
         phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT,
+        seed: int = 0,
     ) -> None:
         self.teams = teams
         self.rankings = rankings
         self.division_standings = division_standings
         self.d_spread = d_spread
         self.phase1_time_limit = phase1_time_limit
+        self.seed = seed
 
         self.ranked_teams_by_conf: dict[Conference, tuple[Team, ...]] = {
             Conference.AFC: rankings.afc,
@@ -354,7 +360,7 @@ class FixedCpsatFreeMatchupBuilder:
             d_spread=self.d_spread,
         )
         model.build()
-        return model.solve(time_limit=self.phase1_time_limit)
+        return model.solve(seed=self.seed, time_limit=self.phase1_time_limit)
 
     def build_matchup_plan(self) -> MatchupPlan:
         if self.division_standings is None:

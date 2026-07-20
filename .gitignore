@@ -23,6 +23,7 @@ htmlcov/
 env/
 .rye/
 .python-version
+schedule_*_[cd]_*.*
 
 # VS Code
 .vscode/*

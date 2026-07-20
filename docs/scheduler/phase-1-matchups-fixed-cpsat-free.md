@@ -8,7 +8,7 @@ C steers each team's whole non-conference slate onto its line, so tough fixed ga
 
 `target(rank) = 5 + d_spread × (rank − 5) / 4`
 
-`d_spread` (rules toml, default 1.5): 0 = flat picks, higher = steeper. The target is soft (minimax on the worst miss, then total), and steep tilts saturate -- the picked-opponent pool is fixed by game counts, so the worst miss grows with the tilt (about 0.9 x d_spread across the test leagues). Each team also draws ≥1 top-half and ≥1 bottom-half opponent. Single search worker, so it's deterministic.
+`d_spread` (rules toml, default 1.5): 0 = flat picks, higher = steeper. The target is soft (minimax on the worst miss, then total), and steep tilts saturate -- the picked-opponent pool is fixed by game counts, so the worst miss grows with the tilt (about 0.9 x d_spread across the test leagues). Each team also draws ≥1 top-half and ≥1 bottom-half opponent. Reproducible per seed; when several matchup sets tie at the optimum, the seed picks one.
 
 ## Validation
 

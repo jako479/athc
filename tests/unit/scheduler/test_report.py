@@ -115,12 +115,15 @@ def test_html_report_shows_difficulty_knobs_per_scheduler() -> None:
 def test_html_report_has_new_columns_and_values() -> None:
     html = HtmlReportWriter("unused").render(_sample_report())
     for header in (
-        "Prev Rank (1-18)",
+        "Overall Rank (1-18)",
         "Avg SOS (1-18)",
         "Avg NC SOS (1-18)",
         "Avg NC SOS (1-9)",
     ):
         assert header in html
+    # Overall Rank leads, Conf Rank second, then Team.
+    assert html.index("Overall Rank (1-18)") < html.index("Conf Rank (1-9)")
+    assert html.index("Conf Rank (1-9)") < html.index(">Team<")
     assert "9.50" in html  # avg_sos
     assert "8.25" in html  # avg_nonconference_sos
     assert "4.50" in html  # avg_nonconference_sos_conf
