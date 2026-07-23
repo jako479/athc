@@ -8,7 +8,7 @@ How the athc release zip is built and how `install.bat` behaves on disk.
 2. Extract.
 3. Double-click `install.bat`.
 
-Prerequisites (covered in the bundled `docs\README.txt`): Windows 10+, Python 3.12+, uv.
+Prerequisites (covered in the bundled `docs\README.txt`): Windows 10+, uv, internet at install time. Python is not required — uv downloads a managed Python automatically if none is present.
 
 ## Release zip
 
@@ -67,4 +67,4 @@ Final user-facing artifact lands in `dist/` (standard Python build output).
 4. Copies docs and the `rules\` folder into `%LOCALAPPDATA%\athc\` (overwrite).
 5. Conditionally copies `athc.ini` and each season config file if missing.
 
-Dependencies resolve from PyPI at install time (the normal approach), so uv picks wheels matching the user's Python — no pre-bundled compiled wheels (ortools, opencv) to mismatch. Trade-off: install needs internet.
+Dependencies resolve from PyPI at install time (the normal approach), so uv picks wheels matching the Python it selects — no pre-bundled compiled wheels (ortools, opencv) to mismatch. Trade-off: install needs internet.

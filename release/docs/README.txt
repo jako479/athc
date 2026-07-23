@@ -20,12 +20,6 @@ REQUIREMENTS
 
 Windows 10 or newer.
 
-Python 3.12 or later.
-Download from: https://www.python.org/downloads/
-
-IMPORTANT: During Python installation, check the box that says
-"Add Python to PATH". Without this, the install script will not work.
-
 uv (Python package manager).
 Install by opening Command Prompt or PowerShell and running:
 
@@ -33,6 +27,9 @@ Install by opening Command Prompt or PowerShell and running:
 
 winget ships with Windows 10/11. If you see "winget is not
 recognized", install "App Installer" from the Microsoft Store first.
+
+You do not need to install Python. uv downloads it automatically
+if it is not already on your computer.
 
 
 INSTALLATION
@@ -112,10 +109,9 @@ When a new version adds a tool with new settings:
 TROUBLESHOOTING
 ---------------
 
-"python is not recognized" or "uv is not recognized":
-    These were installed without adding to PATH (or not installed at
-    all). Follow the REQUIREMENTS section above, making sure to check
-    the PATH option during Python install.
+"uv is not recognized":
+    uv is not installed, or was installed without being added to PATH.
+    Follow the REQUIREMENTS section above.
 
 "athc is not recognized":
     The installer hasn't been run yet, or it failed partway. Re-run

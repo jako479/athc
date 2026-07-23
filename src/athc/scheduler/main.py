@@ -58,7 +58,7 @@ def generate_schedule(
         )
 
     logger.info(
-        "Generating the %d schedule with Scheduler %s -- this can take a while",
+        "Generating the %d schedule with Scheduler %s",
         season,
         scheduler,
     )

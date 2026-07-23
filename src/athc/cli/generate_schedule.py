@@ -82,7 +82,8 @@ def generate_schedule(
             output_dir=Path.cwd(),
             seed=chosen_seed,
             time_limit=time_limit,
-            command_line=subprocess.list2cmdline([PROG, *sys.argv[1:]]),
+            # argv[1:] already starts with the subcommand name.
+            command_line=subprocess.list2cmdline(["athc", *sys.argv[1:]]),
         )
     except (ConfigError, OSError) as error:
         logger.error("%s: %s", PROG, error)
