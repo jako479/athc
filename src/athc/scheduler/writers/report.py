@@ -139,9 +139,9 @@ def build_schedule_report(
 # restores the original row order. Columns are grouped by scope.
 _Column = tuple[str, bool, str | None]
 _COLUMNS: tuple[_Column, ...] = (
+    ("Team", False, "order"),
     ("Overall Rank (1-18)", True, "num"),
     ("Conf Rank (1-9)", True, "num"),
-    ("Team", False, "order"),
     ("Sched Rank (1-18)", True, "num"),
     ("Avg SOS (1-18)", True, "num"),
     ("NC Rank (1-18)", True, "num"),
@@ -241,9 +241,9 @@ class HtmlReportWriter:
 
     def _row(self, index: int, team: TeamScheduleReport) -> str:
         values = (
+            team.team,
             str(team.overall_rank),
             str(team.conference_rank),
-            team.team,
             str(team.schedule_rank),
             f"{team.avg_sos:.2f}",
             str(team.nonconference_rank),
