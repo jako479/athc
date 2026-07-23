@@ -19,7 +19,7 @@ SCHEDULER_RULES_FILE = "PNFL.scheduler.toml"  # in the config dir's rules/ folde
 # Scheduler tunables; overridable in PNFL.scheduler.toml (missing -> these).
 DEFAULT_TIME_LIMIT = 1800.0  # phase-2 (week-placement) solve seconds
 DEFAULT_PHASE1_TIME_LIMIT = 60.0  # phase-1 (matchup) solve seconds
-DEFAULT_DIFFICULTY_C_SPREAD = 1.8  # Scheduler C: tilt on the 1-9 conference scale
+DEFAULT_DIFFICULTY_C_SPREAD = 2.5  # Scheduler C: tilt on the 1-9 conference scale
 DEFAULT_DIFFICULTY_D_SPREAD = 1.5  # Scheduler D: same tilt, picked games only
 
 
@@ -57,14 +57,25 @@ class Phase2Config:
     max_consecutive_divisional: int = 3
     max_three_game_divisional_streaks: int = 1
     max_non_interleaved_divisional_opponents: int = 2
+    max_teams_divisional_weeks_1_and_2: int = 4
     # Divisional density (max divisional games within a span of weeks)
     five_team_max_divisional_in_10: int = 7
     five_team_max_divisional_in_9: int = 6
     four_team_max_divisional_in_8: int = 5
-    four_team_max_divisional_in_7: int = 3
-    # Divisional games in the second half of the season
-    five_team_second_half_divisional_min: int = 4
-    four_team_second_half_divisional_min: int = 3
+    four_team_max_divisional_in_7: int = 4
+    # Divisional front-load caps (max divisional games in the first N weeks)
+    five_team_max_divisional_first_6: int = 4
+    five_team_max_divisional_first_8: int = 5
+    five_team_max_divisional_first_10: int = 6
+    four_team_max_divisional_first_6: int = 3
+    four_team_max_divisional_first_8: int = 4
+    # League-wide caps (prevent per-team rules piling up across teams)
+    max_teams_with_home_streak: int = 9
+    max_teams_with_away_streak: int = 3
+    max_teams_with_divisional_streak: int = 6
+    max_teams_at_front_load_max: int = 3
+    max_teams_with_two_bunched_rivals: int = 2
+    max_close_rematches: int = 3
     # Season ending
     require_final_week_divisional: bool = True
     require_divisional_in_final_two_weeks: bool = True

@@ -204,11 +204,11 @@ def test_orders_difficulty_by_conference_rank(fixed_cpsat_matchup_plan, league) 
 
 
 def test_difficulty_target_line() -> None:
-    # Linear on conference rank 1-9: default tilt 1.8, symmetric about 5.
-    assert difficulty_target(1) == pytest.approx(3.2)
+    # Linear on conference rank 1-9: default tilt 2.5, symmetric about 5.
+    assert difficulty_target(1) == 2.5
     assert difficulty_target(5) == 5.0
-    assert difficulty_target(9) == pytest.approx(6.8)
-    assert difficulty_target(1, c_spread=2.5) == 2.5
+    assert difficulty_target(9) == 7.5
+    assert difficulty_target(1, c_spread=1.8) == pytest.approx(3.2)
     for rank in range(1, 10):
         assert difficulty_target(rank, c_spread=0.0) == 5.0
         assert difficulty_target(rank) + difficulty_target(10 - rank) == pytest.approx(

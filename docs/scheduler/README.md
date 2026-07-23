@@ -28,15 +28,17 @@ How the schedule is built, in three docs:
 
 - [Phase 1 — fixed-place + CP-SAT matchups](phase-1-matchups-fixed-cpsat.md) — Scheduler C (default)
 - [Phase 1 — fixed-place + CP-SAT free-only matchups](phase-1-matchups-fixed-cpsat-free.md) — Scheduler D
-- [Phase 2 — schedule placement](phase-2-schedule.md) — shared by all three
-- [Prior art — the current NFL formula](nfl-formula.md) — background, not what athc uses
+- [Phase 2 — schedule placement](phase-2-schedule.md) — shared by C and D
+- [Prior art — the current NFL formula](../design/research/nfl-formula.md) — background, not what athc uses
+- [Research — NFL schedule patterns](../design/research/nfl-schedules.md) — provenance of the phase-2 rules
+- [Research — CP-SAT rule design patterns](../design/research/cpsat-rule-patterns.md) — hard/soft rules, preventing solver anomalies
 
 ## Config
 
 No `--config` flag — config is found via `ATHC_CONFIG_DIR` / the default config dir (see [../design/config.md](../design/config.md)):
 
 - `rules/PNFL.scheduler.toml` — scheduler tunables (difficulty `spread`/`amplitude`, solver `time_limit`, `[phase2]` rule amounts); **optional**, each key defaults when absent (invalid TOML/value is an error). Installed but not advertised.
-- `<season>.league.ini` (`[Divisions]` + `[Standings]` overall 1–18 `Order` list) — **required** league data, selected by `--season`. All schedulers use the overall order; Schedulers A and C derive their 1–9 conference ranks from it. A missing/invalid `[Standings]` is an error.
+- `<season>.league.ini` (`[Divisions]` + `[Standings]` overall 1–18 `Order` list) — **required** league data, selected by `--season`. Both schedulers derive their 1–9 conference ranks from the overall order. A missing/invalid `[Standings]` is an error.
 
 ## Tests
 

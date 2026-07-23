@@ -12,11 +12,11 @@ schema_version = 1
 # averages land close, rarely exact:
 #   0.0 = flat: every team's opponents average near rank 5
 #   1.5: #1's opponents average near 3.5 (e.g. ranks 1,2,3,5,6)
-#   1.8 = default: #1's opponents average near 3.2 (e.g. ranks 1,2,3,4,6)
-#   2.5 = max: #1's opponents average near 3.0 (e.g. ranks 1,2,3,4,5)
+#   1.8: #1's opponents average near 3.2 (e.g. ranks 1,2,3,4,6)
+#   2.5 = default and max: #1's opponents average near 3.0 (e.g. ranks 1,2,3,4,5)
 # Linear: every 0.1 of c_spread moves #1's average by 0.1. Above 2.5
 # changes nothing.
-c_spread = 1.8
+c_spread = 2.5
 
 # Scheduler D: same as C, except the tilt counts only the games the solver
 # picks -- the two fixed games don't offset them.
@@ -29,6 +29,14 @@ phase1_time_limit = 180.0 # max seconds for the matchup (phase-1) solve
 [phase2]
 # Week-placement rule amounts and toggles (defaults shown). The rules
 # themselves and league/conference sizes are fixed.
+#
+# Fixed policy rules (always enforced, no setting):
+# - No pair of teams meets in back-to-back weeks.
+# - No 3-game home/away streak to start or end the season.
+# - No 3 straight divisional games to start or end the season.
+# - Conference hosting: 5-team-division teams host 2 of 4; 4-team host 2-3 of 5.
+# - Non-conference hosting: same split.
+# - Divisional pairs split 1 home / 1 away.
 
 # Home/away sequencing
 max_consecutive_home_or_away = 3
@@ -40,16 +48,28 @@ max_three_game_home_away_streaks = 1
 max_consecutive_divisional = 3
 max_three_game_divisional_streaks = 1
 max_non_interleaved_divisional_opponents = 2
+max_teams_divisional_weeks_1_and_2 = 4
 
 # Divisional density (max divisional games within a span of weeks)
 five_team_max_divisional_in_10 = 7
 five_team_max_divisional_in_9 = 6
 four_team_max_divisional_in_8 = 5
-four_team_max_divisional_in_7 = 3
+four_team_max_divisional_in_7 = 4
 
-# Divisional games in the second half of the season
-five_team_second_half_divisional_min = 4
-four_team_second_half_divisional_min = 3
+# Divisional front-load caps (max divisional games in the first N weeks)
+five_team_max_divisional_first_6 = 4
+five_team_max_divisional_first_8 = 5
+five_team_max_divisional_first_10 = 6
+four_team_max_divisional_first_6 = 3
+four_team_max_divisional_first_8 = 4
+
+# League-wide caps (prevent per-team rules piling up across teams)
+max_teams_with_home_streak = 9
+max_teams_with_away_streak = 3
+max_teams_with_divisional_streak = 6
+max_teams_at_front_load_max = 3
+max_teams_with_two_bunched_rivals = 2
+max_close_rematches = 3
 
 # Season ending
 require_final_week_divisional = true         # final week is all divisional games (8 of 9)

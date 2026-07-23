@@ -140,9 +140,7 @@ def test_each_team_has_divisional_game_in_last_two_weeks(schedule, teams):
         ), f"{team.metro}: no divisional game in weeks {NUM_WEEKS - 1}-{NUM_WEEKS}"
 
 
-def test_at_most_one_pair_of_teams_opens_with_back_to_back_divisional_games(
-    schedule, teams
-):
+def test_at_most_four_teams_open_with_back_to_back_divisional_games(schedule, teams):
     teams_with_opening_back_to_back_divisional = 0
     for team in teams:
         opening_divisional = sum(
@@ -154,8 +152,8 @@ def test_at_most_one_pair_of_teams_opens_with_back_to_back_divisional_games(
         if opening_divisional == 2:
             teams_with_opening_back_to_back_divisional += 1
 
-    assert teams_with_opening_back_to_back_divisional in (0, 2), (
-        "expected either 0 teams or exactly 2 teams to open with back-to-back divisional games, "
+    assert teams_with_opening_back_to_back_divisional <= 4, (
+        "expected at most 4 teams to open with back-to-back divisional games, "
         f"got {teams_with_opening_back_to_back_divisional}"
     )
 
@@ -221,27 +219,58 @@ def test_divisional_density_windows(schedule, teams):
                 )
             for start in range(NUM_WEEKS - 6):
                 div_count = sum(divisional_pattern[start : start + 7])
-                assert div_count <= 3, (
+                assert div_count <= 4, (
                     f"{team.metro} weeks {start + 1}-{start + 7}: {div_count} divisional games in 7-game span"
                 )
 
 
-def test_at_least_half_of_divisional_games_are_in_second_half(schedule, teams):
-    second_half_weeks = set(range((NUM_WEEKS // 2) + 1, NUM_WEEKS + 1))
+def _front_load_caps(team):
+    if team.division in (Division.AFC_WEST, Division.NFC_WEST):
+        return [(6, 4), (8, 5), (10, 6)]
+    return [(6, 3), (8, 4)]
+
+
+def test_divisional_front_load_caps(schedule, teams):
     for team in teams:
-        divisional_games_in_second_half = sum(
-            1
-            for game in schedule.games_for(team)
-            if game.week in second_half_weeks
-            and (game.away if game.home == team else game.home).division
-            == team.division
+        pattern = _divisional_pattern(schedule, team)
+        for window, cap in _front_load_caps(team):
+            count = sum(pattern[:window])
+            assert count <= cap, (
+                f"{team.metro}: {count} divisional games in first {window} weeks"
+            )
+
+
+def test_league_caps_on_three_game_streaks(schedule, teams):
+    home = away = divisional = 0
+    for team in teams:
+        home_pattern = _home_pattern(schedule, team)
+        home += _count_streaks_of(home_pattern, 3) >= 1
+        away += _count_streaks_of([not h for h in home_pattern], 3) >= 1
+        divisional += _count_streaks_of(_divisional_pattern(schedule, team), 3) >= 1
+    assert home <= 9, f"{home} teams with a 3-game home streak"
+    assert away <= 3, f"{away} teams with a 3-game away streak"
+    assert divisional <= 6, f"{divisional} teams with a 3-game divisional streak"
+
+
+def test_league_cap_on_front_load_max(schedule, teams):
+    at_max = 0
+    for team in teams:
+        pattern = _divisional_pattern(schedule, team)
+        window, cap = _front_load_caps(team)[-1]
+        at_max += sum(pattern[:window]) == cap
+    assert at_max <= 3, f"{at_max} teams at their front-load max"
+
+
+def test_league_cap_on_close_rematches(schedule):
+    meeting_weeks: dict = {}
+    for game in schedule.games:
+        meeting_weeks.setdefault(make_matchup(game.home, game.away), []).append(
+            game.week
         )
-        expected_minimum = (
-            4 if team.division in (Division.AFC_WEST, Division.NFC_WEST) else 3
-        )
-        assert divisional_games_in_second_half >= expected_minimum, (
-            f"{team.metro}: expected at least {expected_minimum} divisional games in second half"
-        )
+    close = sum(
+        1 for w in meeting_weeks.values() if len(w) == 2 and abs(w[0] - w[1]) <= 2
+    )
+    assert close <= 3, f"{close} rematches within a 3-week span"
 
 
 def test_at_most_two_divisional_opponents_are_non_interleaved(schedule, teams):
@@ -270,6 +299,28 @@ def test_at_most_two_divisional_opponents_are_non_interleaved(schedule, teams):
         assert non_interleaved_opponents <= 2, (
             f"{team.metro}: {non_interleaved_opponents} divisional opponents are non-interleaved"
         )
+
+
+def test_league_cap_on_teams_with_two_bunched_rivals(schedule, teams):
+    teams_at_two = 0
+    for team in teams:
+        meeting_weeks: dict = {}
+        for game in schedule.games_for(team):
+            opponent = game.away if game.home == team else game.home
+            if opponent.division == team.division:
+                meeting_weeks.setdefault(opponent, []).append(game.week)
+        non_interleaved = 0
+        for opponent, weeks in meeting_weeks.items():
+            first, second = sorted(weeks)
+            if not any(
+                first < other_week < second
+                for other_opp, other_weeks in meeting_weeks.items()
+                if other_opp != opponent
+                for other_week in other_weeks
+            ):
+                non_interleaved += 1
+        teams_at_two += non_interleaved >= 2
+    assert teams_at_two <= 2, f"{teams_at_two} teams with 2 non-interleaved rivals"
 
 
 def test_max_one_total_home_or_away_three_game_streak(schedule, teams):

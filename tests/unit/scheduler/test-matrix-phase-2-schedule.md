@@ -19,7 +19,7 @@ These rules are also re-validated end-to-end against each scheduler by `test_sch
 | Conference home balance (fixed, not configurable) | 5-team host 2; 4-team 2,2,3,3 | `test_five_team_divisions_split_conference_home_games_evenly`, `test_four_team_divisions_split_conference_home_games_2_2_3_3` | ☑ |
 | Non-conference home balance (fixed, not configurable) | 5-team host 2; 4-team 2,2,3,3 | `test_five_team_divisions_have_two_nonconference_home_games`, `test_four_team_divisions_split_nonconference_home_games_2_2_3_3` | ☑ |
 | Non-conference counts | match division size | `test_nonconference_game_counts_match_division_size` | ☑ |
-| Half of divisional in second half | 5-team ≥4; 4-team ≥3 | `test_at_least_half_of_divisional_games_are_in_second_half` | ☑ |
+| Divisional front-load caps | 5-team ≤4/6wk, ≤5/8wk, ≤6/10wk; 4-team ≤3/6wk, ≤4/8wk | `test_divisional_front_load_caps` | ☑ |
 | Final week divisional | exactly 8 (toggle on) | `test_week_16_has_exactly_eight_divisional_games` | ☑ |
 | Deterministic by seed | reproducible schedule | `test_schedule_is_deterministic_for_a_seed` | ☑ |
 
@@ -31,13 +31,17 @@ These rules are also re-validated end-to-end against each scheduler by `test_sch
 | First/last 3 weeks | 1–2 home | `test_no_three_game_home_or_away_streak_to_start_or_end` | ☑ |
 | ≤1 total 3-game home/away streak | per team | `test_max_one_total_home_or_away_three_game_streak` | ☑ |
 | ≤3 straight divisional (never 4) | per team | `test_no_four_consecutive_divisional_games` | ☑ |
-| Open weeks 1–2 divisional | 0 or 2 teams | `test_at_most_one_pair_of_teams_opens_with_back_to_back_divisional_games` | ☑ |
+| Open weeks 1–2 divisional | ≤4 teams | `test_at_most_four_teams_open_with_back_to_back_divisional_games` | ☑ |
 | No 3 straight divisional at start/end | per team | `test_no_three_consecutive_divisional_games_to_start_or_end` | ☑ |
 | ≤1 total 3-game divisional streak | per team | `test_max_one_total_three_game_divisional_streak` | ☑ |
-| Divisional density | 5-team ≤7/10 & ≤6/9; 4-team ≤5/8 & ≤3/7 | `test_divisional_density_windows` | ☑ |
+| Divisional density | 5-team ≤7/10 & ≤6/9; 4-team ≤5/8 & ≤4/7 | `test_divisional_density_windows` | ☑ |
 | ≤2 non-interleaved divisional opponents | per team | `test_at_most_two_divisional_opponents_are_non_interleaved` | ☑ |
 | ≥1 divisional in last 2 weeks | per team | `test_each_team_has_divisional_game_in_last_two_weeks` | ☑ |
 | No back-to-back pair meetings | — | `test_no_pair_of_teams_plays_in_back_to_back_weeks` | ☑ |
+| League caps: 3-game streaks | ≤9 home, ≤3 away, ≤6 divisional teams | `test_league_caps_on_three_game_streaks` | ☑ |
+| League cap: front-load max | ≤3 teams at their max | `test_league_cap_on_front_load_max` | ☑ |
+| League cap: bunched rivals | ≤2 teams with 2 non-interleaved | `test_league_cap_on_teams_with_two_bunched_rivals` | ☑ |
+| League cap: close rematches | ≤3 within a 3-week span | `test_league_cap_on_close_rematches` | ☑ |
 
 ### Error
 | Case | Expected | Test | Status |

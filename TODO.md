@@ -7,6 +7,7 @@
 - gameplan: replace play (single and bulk) - list of plays as input??
 - profile: revisit edit\copy options
 - autocontinue: add halftime
+- [DONE] scheduler: count-caps to prevent rule pileups; implemented per [docs/design/research/cpsat-rule-patterns.md](docs/design/research/cpsat-rule-patterns.md)
 - [DONE] scheduler: convert league config into a single file [league.ini only; history file removed]
 - [DONE] scheduler: Schedulers C and D (fixed-place + CP-SAT); A and B removed
 - [DONE] schedule research: SOS analysis of real PNFL schedules
@@ -20,6 +21,9 @@
 - [DONE] playpool: user category now golden; folder categories for play attributes
 
 ## PLANNED
+
+- scheduler: quirk budget — allow a few rare NFL-style one-offs per season; see [docs/design/quirk-budget.md](docs/design/quirk-budget.md)
+- scheduler: soft objective so seasons vary like real NFL years; see "Same-looking schedules" in [docs/design/research/cpsat-rule-patterns.md](docs/design/research/cpsat-rule-patterns.md)
 
 ## DECIDED FOR
 
