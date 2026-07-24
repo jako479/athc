@@ -17,7 +17,9 @@ LEAGUE_FILE = "league.ini"  # actual file is "<season>.league.ini"
 SCHEDULER_RULES_FILE = "PNFL.scheduler.toml"  # in the config dir's rules/ folder
 
 # Scheduler tunables; overridable in PNFL.scheduler.toml (missing -> these).
-DEFAULT_TIME_LIMIT = 1800.0  # phase-2 (week-placement) solve seconds
+# Phase-2 runs multithreaded (interleave_search) and stops on deterministic
+# time, not wall-clock seconds; phase-1 stays single-threaded, wall-clock.
+DEFAULT_TIME_LIMIT = 300.0  # phase-2 (week-placement) solve, deterministic time
 DEFAULT_PHASE1_TIME_LIMIT = 60.0  # phase-1 (matchup) solve seconds
 DEFAULT_DIFFICULTY_SPREAD = 2.5  # difficulty tilt on the 1-9 conference scale
 

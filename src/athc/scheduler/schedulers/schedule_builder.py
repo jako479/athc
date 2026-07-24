@@ -66,6 +66,7 @@ docs/design/research/nfl-schedules.md.
 
 from __future__ import annotations
 
+import os
 from collections import Counter
 from collections.abc import Sequence
 
@@ -773,8 +774,15 @@ class ScheduleBuilder:
         solver = cp_model.CpSolver()
         solver.parameters.random_seed = seed
         solver.parameters.randomize_search = True
-        solver.parameters.num_search_workers = 1
-        solver.parameters.max_time_in_seconds = time_limit
+        # interleave_search is the one parallel CP-SAT mode that stays
+        # reproducible for a fixed seed regardless of worker count, so it's
+        # the only mode allowed here. `time_limit` is deterministic time (not
+        # wall-clock seconds) once interleaved.
+        num_workers = os.cpu_count() or 1
+        solver.parameters.num_search_workers = num_workers
+        solver.parameters.interleave_search = True
+        solver.parameters.interleave_batch_size = num_workers
+        solver.parameters.max_deterministic_time = time_limit
 
         status = solver.solve(self.model)
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):

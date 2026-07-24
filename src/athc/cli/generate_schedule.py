@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
     "--time-limit",
     type=int,
     default=None,
-    help="Override the solver time limit (seconds).",
+    help="Override the solver time limit (CP-SAT deterministic time, not wall-clock seconds).",
 )
 @click.pass_context
 def generate_schedule(

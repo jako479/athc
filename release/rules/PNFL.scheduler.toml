@@ -19,7 +19,7 @@ schema_version = 1
 spread = 2.5
 
 [solver]
-time_limit = 3600.0       # max seconds for the week-placement (phase-2) solve
+time_limit = 600.0        # max deterministic time for the week-placement (phase-2) solve (multithreaded; not wall-clock seconds)
 phase1_time_limit = 180.0 # max seconds for the matchup (phase-1) solve
 
 [phase2]

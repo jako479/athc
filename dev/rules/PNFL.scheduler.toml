@@ -19,7 +19,7 @@ schema_version = 1
 spread = 2.5
 
 [solver]
-time_limit = 1800.0      # max seconds for the week-placement (phase-2) solve
+time_limit = 300.0       # max deterministic time for the week-placement (phase-2) solve (multithreaded; not wall-clock seconds)
 phase1_time_limit = 60.0 # max seconds for the matchup (phase-1) solve
 
 [phase2]
@@ -84,7 +84,6 @@ soft_divisional_streak_weight = 109
 soft_four_team_frontload_lo = 3
 soft_four_team_frontload_hi = 5
 soft_four_team_frontload_weight = 111
-# 5-team frontload from 1999-2001 only (3 noisy seasons) -> low weight, provisional
 soft_five_team_frontload_lo = 2
 soft_five_team_frontload_hi = 5
 soft_five_team_frontload_weight = 68
