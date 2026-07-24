@@ -198,7 +198,42 @@ def test_load_scheduler_config_reads_phase2_amounts(config_dir: Path) -> None:
     assert cfg.phase2.max_consecutive_divisional == 2
     # untouched keys keep their defaults
     assert cfg.phase2.require_divisional_in_final_two_weeks is True
-    assert cfg.phase2.five_team_max_divisional_in_10 == 7
+    assert cfg.phase2.five_team_max_divisional_in_9 == 6
+
+
+def test_load_scheduler_config_reads_soft_objective(config_dir: Path) -> None:
+    _write_scheduler_toml(
+        config_dir,
+        """
+        [phase2]
+        soft_home_streak_lo = 4
+        soft_close_rematches_weight = 300
+        """,
+    )
+    cfg = load_scheduler_config()
+    assert cfg.phase2.soft_home_streak_lo == 4
+    assert cfg.phase2.soft_close_rematches_weight == 300
+    # untouched soft keys keep their defaults
+    assert cfg.phase2.soft_home_streak_hi == 7
+    assert cfg.phase2.soft_open_weeks_1_2_weight == 100
+
+
+def test_soft_objective_defaults() -> None:
+    p = config.Phase2Config()
+    assert (
+        p.soft_home_streak_lo,
+        p.soft_home_streak_hi,
+        p.soft_home_streak_weight,
+    ) == (
+        5,
+        7,
+        155,
+    )
+    assert (
+        p.soft_close_rematches_lo,
+        p.soft_close_rematches_hi,
+        p.soft_close_rematches_weight,
+    ) == (0, 2, 215)
 
 
 def test_load_scheduler_config_rejects_unknown_phase2_key(config_dir: Path) -> None:

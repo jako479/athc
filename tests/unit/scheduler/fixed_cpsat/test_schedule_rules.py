@@ -201,22 +201,12 @@ def test_divisional_density_windows(schedule, teams):
     for team in teams:
         divisional_pattern = _divisional_pattern(schedule, team)
         if team.division in (Division.AFC_WEST, Division.NFC_WEST):
-            for start in range(NUM_WEEKS - 9):
-                div_count = sum(divisional_pattern[start : start + 10])
-                assert div_count <= 7, (
-                    f"{team.metro} weeks {start + 1}-{start + 10}: {div_count} divisional games in 10-game span"
-                )
             for start in range(NUM_WEEKS - 8):
                 div_count = sum(divisional_pattern[start : start + 9])
                 assert div_count <= 6, (
                     f"{team.metro} weeks {start + 1}-{start + 9}: {div_count} divisional games in 9-game span"
                 )
         else:
-            for start in range(NUM_WEEKS - 7):
-                div_count = sum(divisional_pattern[start : start + 8])
-                assert div_count <= 5, (
-                    f"{team.metro} weeks {start + 1}-{start + 8}: {div_count} divisional games in 8-game span"
-                )
             for start in range(NUM_WEEKS - 6):
                 div_count = sum(divisional_pattern[start : start + 7])
                 assert div_count <= 4, (
@@ -227,7 +217,7 @@ def test_divisional_density_windows(schedule, teams):
 def _front_load_caps(team):
     if team.division in (Division.AFC_WEST, Division.NFC_WEST):
         return [(6, 4), (8, 5), (10, 6)]
-    return [(6, 3), (8, 4)]
+    return [(4, 2), (8, 3), (10, 4)]
 
 
 def test_divisional_front_load_caps(schedule, teams):
@@ -252,13 +242,34 @@ def test_league_caps_on_three_game_streaks(schedule, teams):
     assert divisional <= 6, f"{divisional} teams with a 3-game divisional streak"
 
 
-def test_league_cap_on_front_load_max(schedule, teams):
-    at_max = 0
-    for team in teams:
-        pattern = _divisional_pattern(schedule, team)
-        window, cap = _front_load_caps(team)[-1]
-        at_max += sum(pattern[:window]) == cap
-    assert at_max <= 3, f"{at_max} teams at their front-load max"
+def _opens_with_divisional_pair(schedule, team) -> bool:
+    opening = sum(
+        1
+        for g in schedule.games_for(team)
+        if g.week in (1, 2)
+        and (g.away if g.home == team else g.home).division == team.division
+    )
+    return opening == 2
+
+
+def test_at_most_one_four_team_opens_with_divisional_pair(schedule, teams):
+    four_team = (Division.AFC_EAST, Division.NFC_EAST)
+    count = sum(
+        1
+        for team in teams
+        if team.division in four_team and _opens_with_divisional_pair(schedule, team)
+    )
+    assert count <= 1, f"{count} four-team teams open weeks 1-2 both divisional"
+
+
+def test_at_most_two_five_team_open_with_divisional_pair(schedule, teams):
+    five_team = (Division.AFC_WEST, Division.NFC_WEST)
+    count = sum(
+        1
+        for team in teams
+        if team.division in five_team and _opens_with_divisional_pair(schedule, team)
+    )
+    assert count <= 2, f"{count} five-team teams open weeks 1-2 both divisional"
 
 
 def test_league_cap_on_close_rematches(schedule):

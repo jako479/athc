@@ -50,26 +50,57 @@ max_three_game_divisional_streaks = 1
 max_non_interleaved_divisional_opponents = 2
 max_teams_divisional_weeks_1_and_2 = 4
 
-# Divisional density (max divisional games within a span of weeks)
-five_team_max_divisional_in_10 = 7
+# Divisional density (max divisional games within a span of weeks). A 9-window
+# cap forces <=7 in any 10; a 7-window cap forces <=5 in any 8.
 five_team_max_divisional_in_9 = 6
-four_team_max_divisional_in_8 = 5
 four_team_max_divisional_in_7 = 4
 
 # Divisional front-load caps (max divisional games in the first N weeks)
 five_team_max_divisional_first_6 = 4
 five_team_max_divisional_first_8 = 5
 five_team_max_divisional_first_10 = 6
-four_team_max_divisional_first_6 = 3
-four_team_max_divisional_first_8 = 4
+four_team_max_divisional_first_4 = 2
+four_team_max_divisional_first_8 = 3
+four_team_max_divisional_first_10 = 4
+# At most this many teams open weeks 1-2 both divisional (a divisional pair), by size
+four_team_max_teams_open_divisional_pair = 1
+five_team_max_teams_open_divisional_pair = 2
 
 # League-wide caps (prevent per-team rules piling up across teams)
 max_teams_with_home_streak = 9
 max_teams_with_away_streak = 3
 max_teams_with_divisional_streak = 6
-max_teams_at_front_load_max = 3
 max_teams_with_two_bunched_rivals = 2
 max_close_rematches = 3
+
+# Soft objective: prefer NFL-typical schedules. Each metric is penalized for
+# landing outside its band [lo, hi]; weight is the per-step cost (rarity =
+# 1/scaled-SD of the NFL per-season spread). The caps above stay as backstops.
+soft_home_streak_lo = 5
+soft_home_streak_hi = 7
+soft_home_streak_weight = 155
+soft_away_streak_lo = 0
+soft_away_streak_hi = 4
+soft_away_streak_weight = 115
+soft_divisional_streak_lo = 2
+soft_divisional_streak_hi = 6
+soft_divisional_streak_weight = 109
+soft_four_team_frontload_lo = 3
+soft_four_team_frontload_hi = 5
+soft_four_team_frontload_weight = 111
+# 5-team frontload from 1999-2001 only (3 noisy seasons) -> low weight, provisional
+soft_five_team_frontload_lo = 2
+soft_five_team_frontload_hi = 5
+soft_five_team_frontload_weight = 68
+soft_non_interleaved_lo = 0
+soft_non_interleaved_hi = 3
+soft_non_interleaved_weight = 116
+soft_close_rematches_lo = 0
+soft_close_rematches_hi = 2
+soft_close_rematches_weight = 215
+soft_open_weeks_1_2_lo = 0
+soft_open_weeks_1_2_hi = 4
+soft_open_weeks_1_2_weight = 100
 
 # Season ending
 require_final_week_divisional = true         # final week is all divisional games (8 of 9)

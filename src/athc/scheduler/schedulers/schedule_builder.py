@@ -13,13 +13,15 @@ Home/away sequencing requirements:
 Divisional scheduling requirements:
 - Each team plays every divisional opponent twice, once at home and once away.
 - No 4 straight divisional games.
-- At most 4 teams open weeks 1-2 with divisional games in both.
+- At most 4 teams open weeks 1-2 with divisional games in both (at most 1 of
+  those a 4-team-division team, at most 2 a 5-team-division team).
 - No 3 straight divisional games to start or end the season.
 - At most 1 total 3-game divisional streak per team.
-- 5-team divisions: max 7 divisional games in any 10-game span, no 7 in any 9.
-- 4-team divisions: max 5 divisional games in any 8-game span, max 4 in any 7.
-- Front-load caps: 4-team divisions max 3 divisional games in weeks 1-6 and 4 in
-  weeks 1-8; 5-team divisions max 4 in weeks 1-6, 5 in weeks 1-8, 6 in weeks 1-10.
+- 5-team divisions: max 6 divisional games in any 9-game span (forces <=7 in any 10).
+- 4-team divisions: max 4 divisional games in any 7-game span.
+- Front-load caps: 4-team divisions max 2 divisional games in weeks 1-4, 3 in
+  weeks 1-8, 4 in weeks 1-10; 5-team divisions max 4 in weeks 1-6, 5 in weeks
+  1-8, 6 in weeks 1-10.
 - At most 2 divisional opponents may be non-interleaved between a team's 2
   meetings with that rival.
 - Every team must play at least 1 divisional game in the final 2 weeks.
@@ -28,9 +30,18 @@ Divisional scheduling requirements:
 League-wide caps (a per-team rule shouldn't pile up across all teams at once):
 - At most 9 teams with a 3-game home streak; 3 with a 3-game away streak.
 - At most 6 teams with a 3-game divisional streak.
-- At most 3 teams at their largest front-load cap.
 - At most 2 teams with 2 non-interleaved rivals.
 - At most 3 rematches within a 3-week span.
+
+Soft objective (prefer NFL-typical schedules; caps above stay as backstops):
+- Penalize 8 season metrics for landing outside an NFL-typical band [lo, hi],
+  weighted by rarity. Zero penalty inside the band; linear per step outside.
+  Metrics: teams with a 3-game home / away / divisional streak, 4-team-division
+  teams at the front-load cap (3 divisional in the first 8 weeks), 5-team-division
+  teams at the front-load ceiling (6 divisional in the first 10 weeks), teams with
+  2 non-interleaved rivals, close rematches, and teams opening weeks 1-2 divisional.
+  Front-load camping is soft for both division sizes (no hard teams-at-max cap).
+  Bands/weights are [phase2] settings; see docs/design/research/cpsat-rule-patterns.md.
 
 Conference scheduling requirements:
 - Each team plays every same-conference opponent outside its division exactly once.
@@ -381,8 +392,11 @@ class ScheduleBuilder:
                 )
 
     def _constraint_max_teams_divisional_weeks_1_and_2(self) -> None:
-        # Cap the teams that open with divisional games in both weeks 1 and 2.
+        # Cap the teams that open with divisional games in both weeks 1 and 2, both
+        # league-wide and (more tightly) per division size.
         opening_back_to_back: list[cp_model.IntVar] = []
+        four_team_openers: list[cp_model.IntVar] = []
+        five_team_openers: list[cp_model.IntVar] = []
         for team_i in self.teams:
             opens_with_two_div = self.model.new_bool_var(f"open2div_{team_i.metro}")
             self.model.add(opens_with_two_div <= self.d[team_i, 0])
@@ -391,10 +405,23 @@ class ScheduleBuilder:
                 opens_with_two_div >= self.d[team_i, 0] + self.d[team_i, 1] - 1
             )
             opening_back_to_back.append(opens_with_two_div)
+            if team_i in self.four_team_set:
+                four_team_openers.append(opens_with_two_div)
+            else:
+                five_team_openers.append(opens_with_two_div)
 
         self.model.add(
             sum(opening_back_to_back) <= self.amounts.max_teams_divisional_weeks_1_and_2
         )
+        self.model.add(
+            sum(four_team_openers)
+            <= self.amounts.four_team_max_teams_open_divisional_pair
+        )
+        self.model.add(
+            sum(five_team_openers)
+            <= self.amounts.five_team_max_teams_open_divisional_pair
+        )
+        self._opening_two_div_flags = opening_back_to_back
 
     def _constraint_no_three_game_divisional_streak_at_season_start_or_end(
         self,
@@ -439,6 +466,7 @@ class ScheduleBuilder:
     def _constraint_max_teams_with_streaks(self) -> None:
         # League-wide caps on how many teams have a 3-game home, away, or
         # divisional streak (per-team caps allow every team to have one at once).
+        self._streak_team_flags: dict[str, list[cp_model.IntVar]] = {}
         caps = (
             (self._streak3h, "has3h", self.amounts.max_teams_with_home_streak),
             (self._streak3a, "has3a", self.amounts.max_teams_with_away_streak),
@@ -451,27 +479,19 @@ class ScheduleBuilder:
                 self.model.add_max_equality(flag, streaks[team_i])
                 flags.append(flag)
             self.model.add(sum(flags) <= cap)
+            # Keep the per-team "has a streak" flags for the soft objective.
+            self._streak_team_flags[label] = flags
 
     def _constraint_division_density(self) -> None:
-        # Cap divisional clustering at 7 in 10 and forbid 7 in 9 for 5-team divisions;
-        # cap at 5 in 8 and forbid 4 in 7 for 4-team divisions.
+        # Cap divisional clustering at 6 in 9 for 5-team divisions (a 9-window cap
+        # forces <=7 in any 10); cap at 4 in 7 for 4-team divisions (forces <=5 in 8).
         for team_i in self.five_team_set:
-            for w in range(NUM_WEEKS - 9):
-                self.model.add(
-                    sum(self.d[team_i, w + k] for k in range(10))
-                    <= self.amounts.five_team_max_divisional_in_10
-                )
             for w in range(NUM_WEEKS - 8):
                 self.model.add(
                     sum(self.d[team_i, w + k] for k in range(9))
                     <= self.amounts.five_team_max_divisional_in_9
                 )
         for team_i in self.four_team_set:
-            for w in range(NUM_WEEKS - 7):
-                self.model.add(
-                    sum(self.d[team_i, w + k] for k in range(8))
-                    <= self.amounts.four_team_max_divisional_in_8
-                )
             for w in range(NUM_WEEKS - 6):
                 self.model.add(
                     sum(self.d[team_i, w + k] for k in range(7))
@@ -487,8 +507,9 @@ class ScheduleBuilder:
                 (10, self.amounts.five_team_max_divisional_first_10),
             ]
         return [
-            (6, self.amounts.four_team_max_divisional_first_6),
+            (4, self.amounts.four_team_max_divisional_first_4),
             (8, self.amounts.four_team_max_divisional_first_8),
+            (10, self.amounts.four_team_max_divisional_first_10),
         ]
 
     def _constraint_divisional_front_load(self) -> None:
@@ -496,18 +517,6 @@ class ScheduleBuilder:
         for team_i in self.teams:
             for window, cap in self._front_load_windows(team_i):
                 self.model.add(sum(self.d[team_i, w] for w in range(window)) <= cap)
-
-    def _constraint_max_teams_at_front_load_max(self) -> None:
-        # League-wide cap on teams sitting at their largest front-load cap.
-        flags: list[cp_model.IntVar] = []
-        for team_i in self.teams:
-            window, cap = self._front_load_windows(team_i)[-1]
-            early = sum(self.d[team_i, w] for w in range(window))
-            flag = self.model.new_bool_var(f"frontmax_{team_i.metro}")
-            self.model.add(early >= cap).only_enforce_if(flag)
-            self.model.add(early <= cap - 1).only_enforce_if(flag.Not())
-            flags.append(flag)
-        self.model.add(sum(flags) <= self.amounts.max_teams_at_front_load_max)
 
     def _constraint_max_close_rematches(self) -> None:
         # League-wide cap on rematches within a 3-week span (meetings 2 weeks
@@ -525,6 +534,7 @@ class ScheduleBuilder:
             self.model.add(gap >= 3).only_enforce_if(flag.Not())
             close_flags.append(flag)
         self.model.add(sum(close_flags) <= self.amounts.max_close_rematches)
+        self._close_rematch_flags = close_flags
 
     def _constraint_max_two_non_interleaved_divisional_opponents(self) -> None:
         # Count a divisional opponent as interleaved if another rival's first or second
@@ -606,6 +616,7 @@ class ScheduleBuilder:
         self.model.add(
             sum(bunch_flags) <= self.amounts.max_teams_with_two_bunched_rivals
         )
+        self._two_bunched_flags = bunch_flags
 
     def _constraint_week_16_matchups(self) -> None:
         # All-divisional finale: 8 of the final week's 9 games (the max; each
@@ -630,6 +641,107 @@ class ScheduleBuilder:
                 self.d[team_i, NUM_WEEKS - 2] + self.d[team_i, NUM_WEEKS - 1] >= 1
             )
 
+    def _add_soft_objective(self) -> None:
+        # Prefer NFL-typical schedules: penalize each metric for landing outside
+        # its band [lo, hi], weighted by rarity. Zero penalty inside the band; a
+        # linear penalty per step outside. The hard caps stay as backstops.
+        a = self.amounts
+        n = len(self.teams)
+        penalties: list[cp_model.LinearExpr] = []
+
+        def band(count, lo: int, hi: int, weight: int, name: str, ub: int) -> None:
+            over = self.model.new_int_var(0, ub, f"soft_over_{name}")
+            under = self.model.new_int_var(0, ub, f"soft_under_{name}")
+            self.model.add(over >= count - hi)
+            self.model.add(under >= lo - count)
+            penalties.append(weight * over)
+            penalties.append(weight * under)
+
+        # Teams sitting at the front-load cap. Anti-camping: keep this count near
+        # NFL-typical instead of all teams maxed. 4-team = 3 divisional in first 8;
+        # 5-team = 6 divisional in first 10 (the front-load ceiling).
+        four_team_frontload_flags: list[cp_model.IntVar] = []
+        for team_i in self.four_team_set:
+            early8 = sum(self.d[team_i, w] for w in range(8))
+            flag = self.model.new_bool_var(f"front8at3_{team_i.metro}")
+            self.model.add(early8 >= 3).only_enforce_if(flag)
+            self.model.add(early8 <= 2).only_enforce_if(flag.Not())
+            four_team_frontload_flags.append(flag)
+        five_team_frontload_flags: list[cp_model.IntVar] = []
+        for team_i in self.five_team_set:
+            early10 = sum(self.d[team_i, w] for w in range(10))
+            flag = self.model.new_bool_var(f"front10at6_{team_i.metro}")
+            self.model.add(early10 >= 6).only_enforce_if(flag)
+            self.model.add(early10 <= 5).only_enforce_if(flag.Not())
+            five_team_frontload_flags.append(flag)
+
+        band(
+            sum(self._streak_team_flags["has3h"]),
+            a.soft_home_streak_lo,
+            a.soft_home_streak_hi,
+            a.soft_home_streak_weight,
+            "home_streak",
+            n,
+        )
+        band(
+            sum(self._streak_team_flags["has3a"]),
+            a.soft_away_streak_lo,
+            a.soft_away_streak_hi,
+            a.soft_away_streak_weight,
+            "away_streak",
+            n,
+        )
+        band(
+            sum(self._streak_team_flags["has3d"]),
+            a.soft_divisional_streak_lo,
+            a.soft_divisional_streak_hi,
+            a.soft_divisional_streak_weight,
+            "divisional_streak",
+            n,
+        )
+        band(
+            sum(four_team_frontload_flags),
+            a.soft_four_team_frontload_lo,
+            a.soft_four_team_frontload_hi,
+            a.soft_four_team_frontload_weight,
+            "four_team_frontload",
+            len(self.four_team_set),
+        )
+        band(
+            sum(five_team_frontload_flags),
+            a.soft_five_team_frontload_lo,
+            a.soft_five_team_frontload_hi,
+            a.soft_five_team_frontload_weight,
+            "five_team_frontload",
+            len(self.five_team_set),
+        )
+        band(
+            sum(self._two_bunched_flags),
+            a.soft_non_interleaved_lo,
+            a.soft_non_interleaved_hi,
+            a.soft_non_interleaved_weight,
+            "non_interleaved",
+            n,
+        )
+        band(
+            sum(self._close_rematch_flags),
+            a.soft_close_rematches_lo,
+            a.soft_close_rematches_hi,
+            a.soft_close_rematches_weight,
+            "close_rematches",
+            len(self.divisional_pairs),
+        )
+        band(
+            sum(self._opening_two_div_flags),
+            a.soft_open_weeks_1_2_lo,
+            a.soft_open_weeks_1_2_hi,
+            a.soft_open_weeks_1_2_weight,
+            "open_weeks_1_2",
+            n,
+        )
+
+        self.model.minimize(sum(penalties))
+
     def _populate_model(self, matchups: Matchups) -> None:
         self._constraint_one_game_per_week()
         self._constraint_home_balance()
@@ -650,10 +762,10 @@ class ScheduleBuilder:
         self._constraint_max_teams_with_streaks()
         self._constraint_division_density()
         self._constraint_divisional_front_load()
-        self._constraint_max_teams_at_front_load_max()
         self._constraint_max_two_non_interleaved_divisional_opponents()
         self._constraint_week_16_matchups()
         self._constraint_late_divisional_presence()
+        self._add_soft_objective()
 
     def _solve_model(
         self, seed: int = 0, time_limit: float = DEFAULT_TIME_LIMIT

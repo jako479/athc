@@ -31,6 +31,14 @@ def test_empty_inventory_is_infeasible() -> None:
         builder.build_schedule([], seed=0, time_limit=30)
 
 
+def test_soft_objective_is_added_to_the_model() -> None:
+    # Building the model (no solve) wires the soft objective: 8 metrics, each
+    # with an over- and under-slack term -> 16 objective terms.
+    builder = ScheduleBuilder(LEAGUE_5_SLOTS.teams, SchedulerError)
+    builder._populate_model(matchups=[])
+    assert len(builder.model.proto.objective.vars) == 16
+
+
 @pytest.mark.slow
 def test_schedule_is_deterministic_for_a_seed() -> None:
     league = LEAGUE_5_SLOTS

@@ -59,23 +59,52 @@ class Phase2Config:
     max_non_interleaved_divisional_opponents: int = 2
     max_teams_divisional_weeks_1_and_2: int = 4
     # Divisional density (max divisional games within a span of weeks)
-    five_team_max_divisional_in_10: int = 7
     five_team_max_divisional_in_9: int = 6
-    four_team_max_divisional_in_8: int = 5
     four_team_max_divisional_in_7: int = 4
     # Divisional front-load caps (max divisional games in the first N weeks)
     five_team_max_divisional_first_6: int = 4
     five_team_max_divisional_first_8: int = 5
     five_team_max_divisional_first_10: int = 6
-    four_team_max_divisional_first_6: int = 3
-    four_team_max_divisional_first_8: int = 4
+    four_team_max_divisional_first_4: int = 2
+    four_team_max_divisional_first_8: int = 3
+    four_team_max_divisional_first_10: int = 4
+    # Cap on teams opening weeks 1-2 both divisional (a divisional pair), by size.
+    four_team_max_teams_open_divisional_pair: int = 1
+    five_team_max_teams_open_divisional_pair: int = 2
     # League-wide caps (prevent per-team rules piling up across teams)
     max_teams_with_home_streak: int = 9
     max_teams_with_away_streak: int = 3
     max_teams_with_divisional_streak: int = 6
-    max_teams_at_front_load_max: int = 3
     max_teams_with_two_bunched_rivals: int = 2
     max_close_rematches: int = 3
+    # Soft objective: penalize each metric outside its NFL-typical band [lo, hi],
+    # weighted by rarity (1/scaled-SD). Bands are the NFL per-season spread scaled
+    # to PNFL (teams x18/32, rematches x26/48). The hard caps above stay as
+    # backstops. See docs/design/research/cpsat-rule-patterns.md.
+    soft_home_streak_lo: int = 5
+    soft_home_streak_hi: int = 7
+    soft_home_streak_weight: int = 155
+    soft_away_streak_lo: int = 0
+    soft_away_streak_hi: int = 4
+    soft_away_streak_weight: int = 115
+    soft_divisional_streak_lo: int = 2
+    soft_divisional_streak_hi: int = 6
+    soft_divisional_streak_weight: int = 109
+    soft_four_team_frontload_lo: int = 3
+    soft_four_team_frontload_hi: int = 5
+    soft_four_team_frontload_weight: int = 111
+    soft_five_team_frontload_lo: int = 2
+    soft_five_team_frontload_hi: int = 5
+    soft_five_team_frontload_weight: int = 68
+    soft_non_interleaved_lo: int = 0
+    soft_non_interleaved_hi: int = 3
+    soft_non_interleaved_weight: int = 116
+    soft_close_rematches_lo: int = 0
+    soft_close_rematches_hi: int = 2
+    soft_close_rematches_weight: int = 215
+    soft_open_weeks_1_2_lo: int = 0
+    soft_open_weeks_1_2_hi: int = 4
+    soft_open_weeks_1_2_weight: int = 100
     # Season ending
     require_final_week_divisional: bool = True
     require_divisional_in_final_two_weeks: bool = True
