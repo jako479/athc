@@ -15,7 +15,6 @@ from athc.scheduler.config import (
     load_scheduler_config,
 )
 from athc.scheduler.schedulers.types import (
-    DEFAULT_SCHEDULER,
     SchedulerResult,
     get_scheduler,
 )
@@ -31,7 +30,6 @@ StrPath = str | PathLike[str]
 def generate_schedule(
     *,
     season: int,
-    scheduler: str = DEFAULT_SCHEDULER,
     config_path: StrPath,
     league_path: StrPath,
     output_dir: StrPath,
@@ -42,8 +40,8 @@ def generate_schedule(
     """Solve the season schedule and write outputs to `output_dir`.
 
     Writes a `.txt` and `.html` schedule plus an `.html` report, all named
-    `schedule_<season>_C_<YYYYMMDD_HHMM>` (the report adds a `_report`
-    suffix). Returns the solver result.
+    `schedule_<season>_<YYYYMMDD_HHMM>` (the report adds a `_report` suffix).
+    Returns the solver result.
     """
     scheduler_config = load_scheduler_config()  # config_path = report provenance
     if time_limit is not None:  # CLI --time-limit overrides the configured value
@@ -57,13 +55,9 @@ def generate_schedule(
             f"A [DivisionStandings] section is required in '{league_path}'."
         )
 
-    logger.info(
-        "Generating the %d schedule with Scheduler %s",
-        season,
-        scheduler,
-    )
+    logger.info("Generating the %d schedule", season)
     started = time.perf_counter()
-    result = get_scheduler(scheduler)(
+    result = get_scheduler()(
         league=league,
         seed=seed,
         scheduler_config=scheduler_config,
@@ -71,8 +65,7 @@ def generate_schedule(
     elapsed = time.perf_counter() - started
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M")
-    # `scheduler` is the C/D key, which is also the filename token.
-    base = Path(output_dir) / f"schedule_{season}_{scheduler}_{stamp}"
+    base = Path(output_dir) / f"schedule_{season}_{stamp}"
     report_path = base.with_name(f"{base.name}_report.html")
 
     TxtScheduleWriter(base.with_suffix(".txt")).write(result.schedule)
@@ -84,11 +77,10 @@ def generate_schedule(
         matchup_plan=result.matchup_plan,
         league=league,
         seed=seed,
-        scheduler_kind=scheduler,
         config_path=config_path,
         elapsed_time_seconds=elapsed,
         command_line=command_line,
-        difficulty_c_spread=scheduler_config.difficulty.c_spread,
+        difficulty_spread=scheduler_config.difficulty.spread,
     )
     HtmlReportWriter(report_path).write(report)
     logger.info(

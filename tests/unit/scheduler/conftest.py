@@ -1,10 +1,9 @@
 """Shared fixtures for the scheduler suite.
 
-The `fixed_cpsat` (C) folder provides the `scheduler_result` / `schedule` /
+The `fixed_cpsat/` folder provides the `scheduler_result` / `schedule` /
 `matchup_plan` fixtures (via `solve_and_report` below), so the scheduler is
 exercised end-to-end. Any test using one of those fixtures is auto-marked
-`slow` plus `slow_c`, and skipped by default (`-m 'not slow'`); run with
-`pytest -m slow` or `pytest -m slow_c`.
+`slow` and skipped by default (`-m 'not slow'`); run with `pytest -m slow`.
 """
 
 from __future__ import annotations
@@ -152,25 +151,14 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
-# Folder -> per-scheduler slow marker, so one scheduler's slow tests can run
-# alone (e.g. `pytest -m slow_c`).
-_SCHEDULER_SLOW_MARKERS = {
-    "fixed_cpsat": "slow_c",
-}
-
-
 def pytest_collection_modifyitems(config, items):
-    """Mark solver-backed tests (those that build a schedule) as `slow`, plus
-    the per-scheduler `slow_c` marker."""
+    """Mark solver-backed tests (those that build a schedule) as `slow`."""
     for item in items:
         if _SOLVER_FIXTURES & set(getattr(item, "fixturenames", ())):
             item.add_marker(pytest.mark.slow)
-            for folder, name in _SCHEDULER_SLOW_MARKERS.items():
-                if folder in item.path.parts:
-                    item.add_marker(getattr(pytest.mark, name))
 
 
-_solve_cache: dict[tuple[int, str], SchedulerResult] = {}
+_solve_cache: dict[int, SchedulerResult] = {}
 
 
 @pytest.fixture(params=_ALL_LEAGUES, scope="session")
@@ -183,17 +171,17 @@ def teams(league: League):
     return league.teams
 
 
-def solve_and_report(league, scheduler_kind, tmp_path_factory) -> SchedulerResult:
-    """Solve `league` with `scheduler_kind` once (cached) and write its report.
+def solve_and_report(league, tmp_path_factory) -> SchedulerResult:
+    """Solve `league` once (cached) and write its report.
 
-    Each scheduler folder's conftest wraps this in its own `scheduler_result`
-    fixture, so both schedulers are exercised end-to-end.
+    The `fixed_cpsat/` conftest wraps this in its `scheduler_result` fixture, so
+    the scheduler is exercised end-to-end.
     """
-    key = (id(league), scheduler_kind)
+    key = id(league)
     if key not in _solve_cache:
         seed = random.randint(0, 1_000_000)
-        print(f"\nScheduler seed ({scheduler_kind}): {seed}")
-        result = get_scheduler(scheduler_kind)(
+        print(f"\nScheduler seed: {seed}")
+        result = get_scheduler()(
             league=league,
             seed=seed,
             scheduler_config=SchedulerConfig(
@@ -206,7 +194,6 @@ def solve_and_report(league, scheduler_kind, tmp_path_factory) -> SchedulerResul
             matchup_plan=result.matchup_plan,
             league=league,
             seed=seed,
-            scheduler_kind=scheduler_kind,
             config_path=Path("test-config.ini"),
             elapsed_time_seconds=0.0,
         )

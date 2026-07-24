@@ -5,18 +5,18 @@
 schema_version = 1
 
 [difficulty]
-# Scheduler C. Two non-conference games are fixed by division standings
-# (AE1 vs NE1 and NW1, etc.; 5ths play each other). The solver picks the
-# rest, tilting each team's average opponent conference rank (1-9) by
-# c_spread. These are targets the solver shoots for, not guarantees -- actual
-# averages land close, rarely exact:
+# Two non-conference games are fixed by division standings (AE1 vs NE1 and
+# NW1, etc.; 5ths play each other). The solver picks the rest, tilting each
+# team's average opponent conference rank (1-9) by spread. These are targets
+# the solver shoots for, not guarantees -- actual averages land close, rarely
+# exact:
 #   0.0 = flat: every team's opponents average near rank 5
 #   1.5: #1's opponents average near 3.5 (e.g. ranks 1,2,3,5,6)
 #   1.8: #1's opponents average near 3.2 (e.g. ranks 1,2,3,4,6)
 #   2.5 = default and max: #1's opponents average near 3.0 (e.g. ranks 1,2,3,4,5)
-# Linear: every 0.1 of c_spread moves #1's average by 0.1. Above 2.5
+# Linear: every 0.1 of spread moves #1's average by 0.1. Above 2.5
 # changes nothing.
-c_spread = 2.5
+spread = 2.5
 
 [solver]
 time_limit = 3600.0       # max seconds for the week-placement (phase-2) solve

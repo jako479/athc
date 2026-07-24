@@ -401,7 +401,7 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`;
 
 # `athc generate-schedule`
 
-In [test_generate_schedule.py](test_generate_schedule.py). Slow (full solves) → `pytest -m slow` or `pytest -m slow_c`; not run by default. Copies `data/league.ini` into the config dir as `<season>.league.ini`, then runs Scheduler C end-to-end via the CLI (exercises season-based file resolution; C reads the file's `[DivisionStandings]`).
+In [test_generate_schedule.py](test_generate_schedule.py). Slow (full solves) → `pytest -m slow`; not run by default. Copies `data/league.ini` into the config dir as `<season>.league.ini`, then runs the scheduler end-to-end via the CLI (exercises season-based file resolution; reads the file's `[DivisionStandings]`).
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|

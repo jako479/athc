@@ -129,30 +129,30 @@ def test_load_scheduler_config_reads_values(config_dir: Path) -> None:
         config_dir,
         """
         [difficulty]
-        c_spread = 2.5
+        spread = 2.5
         [solver]
         time_limit = 120
         phase1_time_limit = 30
         """,
     )
     cfg = load_scheduler_config()
-    assert cfg.difficulty.c_spread == 2.5
+    assert cfg.difficulty.spread == 2.5
     assert cfg.solver.time_limit == 120.0
     assert cfg.solver.phase1_time_limit == 30.0
 
 
 def test_load_scheduler_config_defaults_when_no_file() -> None:
     cfg = load_scheduler_config()  # autouse empty config_dir
-    assert cfg.difficulty.c_spread == config.DEFAULT_DIFFICULTY_C_SPREAD
+    assert cfg.difficulty.spread == config.DEFAULT_DIFFICULTY_SPREAD
     assert cfg.solver.time_limit == config.DEFAULT_TIME_LIMIT
     assert cfg.solver.phase1_time_limit == config.DEFAULT_PHASE1_TIME_LIMIT
     assert cfg.phase2 == config.Phase2Config()
 
 
 def test_load_scheduler_config_defaults_when_keys_missing(config_dir: Path) -> None:
-    _write_scheduler_toml(config_dir, "[difficulty]\nc_spread = 2.0\n")
+    _write_scheduler_toml(config_dir, "[difficulty]\nspread = 2.0\n")
     cfg = load_scheduler_config()
-    assert cfg.difficulty.c_spread == 2.0
+    assert cfg.difficulty.spread == 2.0
     assert cfg.solver.time_limit == config.DEFAULT_TIME_LIMIT
 
 
@@ -162,8 +162,8 @@ def test_load_scheduler_config_errors_on_invalid_value(config_dir: Path) -> None
         load_scheduler_config()
 
 
-def test_load_scheduler_config_errors_on_invalid_c_spread(config_dir: Path) -> None:
-    _write_scheduler_toml(config_dir, '[difficulty]\nc_spread = "steep"\n')
+def test_load_scheduler_config_errors_on_invalid_spread(config_dir: Path) -> None:
+    _write_scheduler_toml(config_dir, '[difficulty]\nspread = "steep"\n')
     with pytest.raises(ConfigError):
         load_scheduler_config()
 
@@ -376,7 +376,7 @@ def test_release_example_league_loads() -> None:
 
 
 # ---------------------------------------------------------------------------
-# load_league — optional [DivisionStandings] (required by Scheduler C)
+# load_league — optional [DivisionStandings] (required by the scheduler)
 # ---------------------------------------------------------------------------
 
 

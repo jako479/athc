@@ -19,7 +19,7 @@ SCHEDULER_RULES_FILE = "PNFL.scheduler.toml"  # in the config dir's rules/ folde
 # Scheduler tunables; overridable in PNFL.scheduler.toml (missing -> these).
 DEFAULT_TIME_LIMIT = 1800.0  # phase-2 (week-placement) solve seconds
 DEFAULT_PHASE1_TIME_LIMIT = 60.0  # phase-1 (matchup) solve seconds
-DEFAULT_DIFFICULTY_C_SPREAD = 2.5  # Scheduler C: tilt on the 1-9 conference scale
+DEFAULT_DIFFICULTY_SPREAD = 2.5  # difficulty tilt on the 1-9 conference scale
 
 
 class ConfigError(Exception):
@@ -28,10 +28,10 @@ class ConfigError(Exception):
 
 @dataclass(frozen=True)
 class DifficultyConfig:
-    """Non-conference difficulty tilt: `c_spread` covers Scheduler C's whole
+    """Non-conference difficulty tilt: `spread` covers the whole
     non-conference slate."""
 
-    c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD
+    spread: float = DEFAULT_DIFFICULTY_SPREAD
 
 
 @dataclass(frozen=True)
@@ -138,7 +138,7 @@ def load_scheduler_config() -> SchedulerConfig:
     phase2 = data.get("phase2", {})
     return SchedulerConfig(
         difficulty=DifficultyConfig(
-            c_spread=_number(difficulty, "c_spread", DEFAULT_DIFFICULTY_C_SPREAD, path),
+            spread=_number(difficulty, "spread", DEFAULT_DIFFICULTY_SPREAD, path),
         ),
         solver=SolverConfig(
             time_limit=_number(solver, "time_limit", DEFAULT_TIME_LIMIT, path),

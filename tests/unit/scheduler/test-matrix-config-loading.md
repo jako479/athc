@@ -11,7 +11,7 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 | No file | all defaults | `test_load_scheduler_config_defaults_when_no_file` | ☑ |
 | Missing keys | per-key defaults | `test_load_scheduler_config_defaults_when_keys_missing` | ☑ |
 | Non-numeric value | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_value` | ☑ |
-| Non-numeric `c_spread` | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_c_spread` | ☑ |
+| Non-numeric `spread` | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_spread` | ☑ |
 | Invalid TOML | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_toml` | ☑ |
 | `[phase2]` amounts | parsed; others default | `test_load_scheduler_config_reads_phase2_amounts` | ☑ |
 | Unknown `[phase2]` key | `ConfigError` | `test_load_scheduler_config_rejects_unknown_phase2_key` | ☑ |
@@ -65,4 +65,3 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 | No `[DivisionStandings]` (CLI) | exit 1 + names section | `test_cli_errors_without_division_standings` | ☑ |
 | `OSError` (read/write) | exit 1, no traceback | `test_errors_on_oserror` | ☑ |
 | Solver dep missing | exit 1 + names module | `test_errors_when_dependency_missing` | ☑ |
-| Scheduler pass-through | Scheduler C used | `test_scheduler_passes_through` | ☑ |

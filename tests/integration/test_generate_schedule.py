@@ -1,7 +1,6 @@
 """Integration tests for `athc generate-schedule` (CLI -> files).
 
-Slow (full solves), skipped by default. Run with `pytest -m slow` or
-`pytest -m slow_c`.
+Slow (full solves), skipped by default. Run with `pytest -m slow`.
 """
 
 from __future__ import annotations
@@ -19,7 +18,6 @@ SEASON = 2026
 
 
 @pytest.mark.slow
-@pytest.mark.slow_c
 def test_generate_schedule_writes_schedules_and_report(
     runner, tmp_path: Path, config_dir: Path, monkeypatch
 ) -> None:
@@ -41,11 +39,11 @@ def test_generate_schedule_writes_schedules_and_report(
     )
     assert result.exit_code == 0, result.output
 
-    reports = list(tmp_path.glob(f"schedule_{SEASON}_C_*_report.html"))
-    txts = list(tmp_path.glob(f"schedule_{SEASON}_C_*.txt"))
+    reports = list(tmp_path.glob(f"schedule_{SEASON}_*_report.html"))
+    txts = list(tmp_path.glob(f"schedule_{SEASON}_*.txt"))
     htmls = [
         p
-        for p in tmp_path.glob(f"schedule_{SEASON}_C_*.html")
+        for p in tmp_path.glob(f"schedule_{SEASON}_*.html")
         if not p.name.endswith("_report.html")
     ]
     assert len(txts) == 1 and txts[0].read_text(encoding="utf-8").strip()

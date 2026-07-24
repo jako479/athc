@@ -1,6 +1,6 @@
 # scheduler — Test Matrix: Phase 1 Fixed-Place + CP-SAT (Matchups)
 
-Cases for `fixed_cpsat_builder.py` (Scheduler C), derived from the code then reconciled with the suite. Convention in [../../../docs/design/testing-unit.md](../../../../docs/design/testing-unit.md). Design: [phase-1-matchups-fixed-cpsat.md](../../../../docs/scheduler/phase-1-matchups-fixed-cpsat.md).
+Cases for `fixed_cpsat_builder.py`, derived from the code then reconciled with the suite. Convention in [../../../docs/design/testing-unit.md](../../../../docs/design/testing-unit.md). Design: [phase-1-matchups-fixed-cpsat.md](../../../../docs/scheduler/phase-1-matchups-fixed-cpsat.md).
 
 One row per behavior. Status: ☑ covered · ☐ no test yet. The phase-1 solve is fast, so these run in the default suite.
 

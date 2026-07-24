@@ -8,14 +8,10 @@ from html import escape
 from os import PathLike
 from pathlib import Path
 
-from athc.scheduler.config import DEFAULT_DIFFICULTY_C_SPREAD
+from athc.scheduler.config import DEFAULT_DIFFICULTY_SPREAD
 from athc.scheduler.domain.league import League, Team, ordered_teams
 from athc.scheduler.domain.schedule import Schedule
-from athc.scheduler.schedulers.types import (
-    MatchupPlan,
-    scheduler_display_name,
-    scheduler_uses_difficulty_line,
-)
+from athc.scheduler.schedulers.types import SCHEDULER_DESCRIPTION, MatchupPlan
 
 StrPath = str | PathLike[str]
 
@@ -37,12 +33,11 @@ class TeamScheduleReport:
 @dataclass(frozen=True)
 class ScheduleReport:
     seed: int
-    scheduler_kind: str
     config_path: str
     elapsed_time_seconds: float
     teams: tuple[TeamScheduleReport, ...]
     command_line: str | None = None
-    difficulty_c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD
+    difficulty_spread: float = DEFAULT_DIFFICULTY_SPREAD
 
 
 def _opponents(schedule: Schedule, team: Team) -> list[Team]:
@@ -72,11 +67,10 @@ def build_schedule_report(
     matchup_plan: MatchupPlan,
     league: League,
     seed: int,
-    scheduler_kind: str,
     config_path: StrPath,
     elapsed_time_seconds: float,
     command_line: str | None = None,
-    difficulty_c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD,
+    difficulty_spread: float = DEFAULT_DIFFICULTY_SPREAD,
 ) -> ScheduleReport:
     """Compute per-team schedule-strength rows and return a structured report."""
     conf_rank = {team: league.rankings.rank_of(team) for team in league.teams}
@@ -119,12 +113,11 @@ def build_schedule_report(
 
     return ScheduleReport(
         seed=seed,
-        scheduler_kind=scheduler_kind,
         command_line=command_line,
         config_path=str(config_path),
         elapsed_time_seconds=elapsed_time_seconds,
         teams=tuple(rows),
-        difficulty_c_spread=difficulty_c_spread,
+        difficulty_spread=difficulty_spread,
     )
 
 
@@ -193,10 +186,10 @@ class HtmlReportWriter:
         Path(self.path).write_text(self.render(report), encoding="utf-8")
 
     def render(self, report: ScheduleReport) -> str:
-        info_rows = [("Scheduler", scheduler_display_name(report.scheduler_kind))]
-        # c_spread drives C's difficulty line.
-        if scheduler_uses_difficulty_line(report.scheduler_kind):
-            info_rows.append(("Difficulty c_spread", f"{report.difficulty_c_spread:g}"))
+        info_rows = [
+            ("Scheduler", SCHEDULER_DESCRIPTION),
+            ("Difficulty spread", f"{report.difficulty_spread:g}"),
+        ]
         info_rows += [
             ("Seed", str(report.seed)),
             ("Command line", report.command_line or "-"),

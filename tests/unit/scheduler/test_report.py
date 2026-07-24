@@ -17,10 +17,9 @@ from .conftest import SLOW_SOLVE_TIME_LIMIT
 
 
 @pytest.mark.slow
-@pytest.mark.slow_c
 def test_schedule_report_rows_match_recomputed_sos(league, tmp_path):
-    # Build a Scheduler C plan and schedule, then validate every row's rank and
-    # SOS fields against an independent computation.
+    # Build a plan and schedule, then validate every row's rank and SOS fields
+    # against an independent computation.
     matchup_plan = FixedCpsatMatchupBuilder(
         teams=league.teams,
         rankings=league.rankings,
@@ -34,7 +33,6 @@ def test_schedule_report_rows_match_recomputed_sos(league, tmp_path):
         matchup_plan=matchup_plan,
         league=league,
         seed=0,
-        scheduler_kind="C",
         config_path=Path("test-config.ini"),
         elapsed_time_seconds=0.0,
     )
@@ -70,7 +68,7 @@ def test_schedule_report_rows_match_recomputed_sos(league, tmp_path):
 # --- HTML rendering (fast; no solver) ---------------------------------------
 
 
-def _sample_report(scheduler_kind: str = "C") -> ScheduleReport:
+def _sample_report() -> ScheduleReport:
     row = TeamScheduleReport(
         team="Buffalo",
         conference_rank=1,
@@ -85,7 +83,6 @@ def _sample_report(scheduler_kind: str = "C") -> ScheduleReport:
     )
     return ScheduleReport(
         seed=7,
-        scheduler_kind=scheduler_kind,
         config_path="c.ini",
         elapsed_time_seconds=1.5,
         teams=(row,),
@@ -93,15 +90,13 @@ def _sample_report(scheduler_kind: str = "C") -> ScheduleReport:
     )
 
 
-def test_html_report_shows_scheduler_display_name() -> None:
-    label = "Scheduler C (fixed-place + CP-SAT)"
-    assert label in HtmlReportWriter("unused").render(_sample_report("C"))
+def test_html_report_shows_scheduler_description() -> None:
+    assert "fixed-place + CP-SAT" in HtmlReportWriter("unused").render(_sample_report())
 
 
 def test_html_report_shows_difficulty_knob() -> None:
-    # C shows c_spread.
-    c = HtmlReportWriter("unused").render(_sample_report("C"))
-    assert "c_spread" in c and "d_spread" not in c
+    rendered = HtmlReportWriter("unused").render(_sample_report())
+    assert "Difficulty spread" in rendered
 
 
 def test_html_report_has_new_columns_and_values() -> None:

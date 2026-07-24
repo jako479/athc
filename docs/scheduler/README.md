@@ -17,7 +17,7 @@ athc generate-schedule --season 2048
 athc generate-schedule --season 2048 --seed 7 --time-limit 600
 ```
 
-`--season` is required and picks the config-dir input file (find the dir with `athc config path`): `<season>.league.ini`, which must include `[DivisionStandings]`. A missing file exits 1 with a clear message. It always writes a `.txt` and `.html` schedule plus a sortable HTML report to the **current directory**, named `schedule_<season>_C_<timestamp>` (report adds `_report.html`); `C` = fixed-place + CP-SAT. Exit `0` = written, `1` = error, `2` = bad arguments.
+`--season` is required and picks the config-dir input file (find the dir with `athc config path`): `<season>.league.ini`, which must include `[DivisionStandings]`. A missing file exits 1 with a clear message. It always writes a `.txt` and `.html` schedule plus a sortable HTML report to the **current directory**, named `schedule_<season>_<timestamp>` (report adds `_report.html`). Exit `0` = written, `1` = error, `2` = bad arguments.
 
 Two-phase model: phase 1 builds the matchup inventory (divisional + conference games fixed by structure; division standings fix two non-conference games per team, NFL-style same-place matchups; CP-SAT picks the rest along a configurable conference-rank line covering the whole non-conference slate); phase 2 places those matchups into weeks via CP-SAT.
 
@@ -25,7 +25,7 @@ Two-phase model: phase 1 builds the matchup inventory (divisional + conference g
 
 How the schedule is built, in three docs:
 
-- [Phase 1 — fixed-place + CP-SAT matchups](phase-1-matchups-fixed-cpsat.md) — Scheduler C
+- [Phase 1 — fixed-place + CP-SAT matchups](phase-1-matchups-fixed-cpsat.md)
 - [Phase 2 — schedule placement](phase-2-schedule.md)
 - [Prior art — the current NFL formula](../design/research/nfl-formula.md) — background, not what athc uses
 - [Research — NFL schedule patterns](../design/research/nfl-schedules.md) — provenance of the phase-2 rules

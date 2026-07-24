@@ -1,9 +1,9 @@
-"""Scheduler C (fixed-place + CP-SAT): NFL-like same-place seeding.
+"""The scheduler (fixed-place + CP-SAT): NFL-like same-place seeding.
 
 Phase 1 fixes two non-conference games per team by division place (from
 `[DivisionStandings]`; 5th places play each other), then one CP-SAT solve
 picks the rest, tilting each team's average opponent conference rank by the
-configurable `c_spread`.
+configurable `spread`.
 
 Phase 2 uses CP-SAT to place that full inventory into the calendar under the
 week/home-away sequencing constraints in `schedule_builder.py`.
@@ -35,7 +35,7 @@ def generate_schedule(
         teams=league.teams,
         rankings=league.rankings,
         division_standings=league.division_standings,
-        c_spread=config.difficulty.c_spread,
+        spread=config.difficulty.spread,
         phase1_time_limit=config.solver.phase1_time_limit,
         seed=seed,
     ).build_matchup_plan()

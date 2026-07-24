@@ -1,7 +1,7 @@
-"""Phase-1 inventory tests for the FixedCpsatMatchupBuilder (Scheduler C).
+"""Phase-1 inventory tests for the FixedCpsatMatchupBuilder.
 
-Scheduler C fixes two non-conference games per team by division place (5ths
-one), then one CP-SAT solve picks the rest along the c_spread line. These
+The builder fixes two non-conference games per team by division place (5ths
+one), then one CP-SAT solve picks the rest along the spread line. These
 tests build the plan directly (no week placement), so they run in the fast
 suite.
 """
@@ -178,18 +178,18 @@ def test_inventory_is_deterministic(league) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("c_spread", [0.0, 1.8, 2.5])
-def test_difficulty_is_near_line_target(league, c_spread) -> None:
+@pytest.mark.parametrize("spread", [0.0, 1.8, 2.5])
+def test_difficulty_is_near_line_target(league, spread) -> None:
     # Soft target; worst observed across leagues and spreads is 0.75, allow 1.0.
     plan = FixedCpsatMatchupBuilder(
         teams=league.teams,
         rankings=league.rankings,
         division_standings=league.division_standings,
-        c_spread=c_spread,
+        spread=spread,
     ).build_matchup_plan()
     for team in league.teams:
         avg = _avg_opponent_conf_rank(team, plan.matchups, league.rankings)
-        target = difficulty_target(league.rankings.rank_of(team), c_spread)
+        target = difficulty_target(league.rankings.rank_of(team), spread)
         assert abs(avg - target) <= 1.0, (
             f"{team.metro}: avg opponent rank {avg:.2f} far from target {target:.2f}"
         )
@@ -208,9 +208,9 @@ def test_difficulty_target_line() -> None:
     assert difficulty_target(1) == 2.5
     assert difficulty_target(5) == 5.0
     assert difficulty_target(9) == 7.5
-    assert difficulty_target(1, c_spread=1.8) == pytest.approx(3.2)
+    assert difficulty_target(1, spread=1.8) == pytest.approx(3.2)
     for rank in range(1, 10):
-        assert difficulty_target(rank, c_spread=0.0) == 5.0
+        assert difficulty_target(rank, spread=0.0) == 5.0
         assert difficulty_target(rank) + difficulty_target(10 - rank) == pytest.approx(
             10.0
         )

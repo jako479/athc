@@ -1,10 +1,10 @@
-"""Phase-1 matchup builder for Scheduler C (fixed-place + CP-SAT).
+"""Phase-1 matchup builder for the scheduler (fixed-place + CP-SAT).
 
 Two non-conference games per team are fixed by division standings: each team
 plays the same-place finisher in both other-conference divisions (5th places
 play each other, one game). One CP-SAT solve picks the remaining games,
 tilting each team's average opponent conference rank (1-9, whole slate) by
-`c_spread`: best team hardest, worst easiest, linear between.
+`spread`: best team hardest, worst easiest, linear between.
 
 Self-contained on purpose: owns its table and difficulty line.
 
@@ -21,7 +21,7 @@ from collections.abc import Mapping, Sequence
 from ortools.sat.python import cp_model
 
 from athc.scheduler.config import (
-    DEFAULT_DIFFICULTY_C_SPREAD,
+    DEFAULT_DIFFICULTY_SPREAD,
     DEFAULT_PHASE1_TIME_LIMIT,
 )
 from athc.scheduler.domain.league import (
@@ -66,7 +66,7 @@ FIXED_NONCONF_PLACE_OPPONENTS: dict[_PlaceSlot, tuple[_PlaceSlot, ...]] = {
 TOP_HALF_MAX_RANK = 5
 BOTTOM_HALF_MIN_RANK = 5
 
-# Difficulty line: target average opponent conference rank (1-9). c_spread
+# Difficulty line: target average opponent conference rank (1-9). spread
 # tilts it (0 = flat at 5; 2.5 = max useful tilt).
 CONF_RANK_CENTER = 5
 CONF_RANK_HALF_RANGE = 4
@@ -108,10 +108,10 @@ def _validate_fixed_place_table() -> None:
 
 
 def difficulty_target(
-    conf_rank: int, c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD
+    conf_rank: int, spread: float = DEFAULT_DIFFICULTY_SPREAD
 ) -> float:
     """Target average opponent conference rank for a team of `conf_rank` (1-9)."""
-    return CONF_RANK_CENTER + c_spread * (conf_rank - CONF_RANK_CENTER) / (
+    return CONF_RANK_CENTER + spread * (conf_rank - CONF_RANK_CENTER) / (
         CONF_RANK_HALF_RANGE
     )
 
@@ -128,12 +128,12 @@ class _FixedCpsatNonConferenceModel:
         ranked_teams_by_conf: Mapping[Conference, Sequence[Team]],
         conf_rank: dict[Team, int],
         fixed_pairs: frozenset[Matchup],
-        c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD,
+        spread: float = DEFAULT_DIFFICULTY_SPREAD,
     ) -> None:
         self.model = cp_model.CpModel()
         self.conf_rank = conf_rank
         self.fixed_pairs = fixed_pairs
-        self.c_spread = c_spread
+        self.spread = spread
         self.afc_teams = list(ranked_teams_by_conf[Conference.AFC])
         self.nfc_teams = list(ranked_teams_by_conf[Conference.NFC])
         self.teams = tuple(self.afc_teams + self.nfc_teams)
@@ -220,8 +220,7 @@ class _FixedCpsatNonConferenceModel:
             games = nonconference_games_for(team.division)
             scaled_sum = self.opponent_rank_sum[team] * (DIFFICULTY_SCALE // games)
             target = round(
-                difficulty_target(self.conf_rank[team], self.c_spread)
-                * DIFFICULTY_SCALE
+                difficulty_target(self.conf_rank[team], self.spread) * DIFFICULTY_SCALE
             )
             dev = self.model.new_int_var(0, max_dev, f"nc_dev_{team.metro}")
             self.model.add(dev >= scaled_sum - target)
@@ -270,14 +269,14 @@ class FixedCpsatMatchupBuilder:
         teams: Sequence[Team],
         rankings: ConferenceRankings,
         division_standings: Mapping[Division, Sequence[Team]] | None,
-        c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD,
+        spread: float = DEFAULT_DIFFICULTY_SPREAD,
         phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT,
         seed: int = 0,
     ) -> None:
         self.teams = teams
         self.rankings = rankings
         self.division_standings = division_standings
-        self.c_spread = c_spread
+        self.spread = spread
         self.phase1_time_limit = phase1_time_limit
         self.seed = seed
 
@@ -348,7 +347,7 @@ class FixedCpsatMatchupBuilder:
             ranked_teams_by_conf=self.ranked_teams_by_conf,
             conf_rank=self.conf_rank,
             fixed_pairs=frozenset(fixed_pairs),
-            c_spread=self.c_spread,
+            spread=self.spread,
         )
         model.build()
         return model.solve(seed=self.seed, time_limit=self.phase1_time_limit)
@@ -356,7 +355,7 @@ class FixedCpsatMatchupBuilder:
     def build_matchup_plan(self) -> MatchupPlan:
         if self.division_standings is None:
             raise SchedulerError(
-                "Scheduler C needs the league file's [DivisionStandings] section"
+                "The scheduler needs the league file's [DivisionStandings] section"
             )
         _validate_fixed_place_table()
         self._add_divisional_matchups()

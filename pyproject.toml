@@ -56,7 +56,6 @@ testpaths = ["tests"]
 addopts = "-ra --strict-markers --strict-config --import-mode=importlib -m 'not slow'"
 markers = [
     "slow: long-running scheduler solver tests; opt-in via `pytest -m slow` or `pytest -m ''`",
-    "slow_c: Scheduler C slow tests; run alone via `pytest -m slow_c`",
 ]
 
 [tool.ruff]
