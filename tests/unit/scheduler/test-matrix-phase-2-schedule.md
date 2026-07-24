@@ -4,7 +4,7 @@ Cases for `schedule_builder.py`, derived from the code then reconciled with the 
 
 One row per behavior. Status: ☑ covered · ☐ no test yet. Solver-backed cases are `slow` (`pytest -m slow`).
 
-These rules are also re-validated end-to-end against each scheduler by `test_schedule_structure.py` / `test_schedule_rules.py` in the `fixed_cpsat/` (Scheduler C) and `fixed_cpsat_free/` (Scheduler D) folders.
+These rules are also re-validated end-to-end by `test_schedule_structure.py` / `test_schedule_rules.py` in the `fixed_cpsat/` (Scheduler C) folder.
 
 ### Normal
 | Case | Expected | Test | Status |

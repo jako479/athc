@@ -12,7 +12,6 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 | Missing keys | per-key defaults | `test_load_scheduler_config_defaults_when_keys_missing` | ☑ |
 | Non-numeric value | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_value` | ☑ |
 | Non-numeric `c_spread` | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_c_spread` | ☑ |
-| Non-numeric `d_spread` | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_d_spread` | ☑ |
 | Invalid TOML | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_toml` | ☑ |
 | `[phase2]` amounts | parsed; others default | `test_load_scheduler_config_reads_phase2_amounts` | ☑ |
 | Unknown `[phase2]` key | `ConfigError` | `test_load_scheduler_config_rejects_unknown_phase2_key` | ☑ |
@@ -60,11 +59,10 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 |---|---|---|---|
 | No `--season` | exit 2 | `test_requires_season` | ☑ |
 | Non-integer `--time-limit` | exit 2 | `test_rejects_non_integer_time_limit` | ☑ |
-| Unknown `--scheduler` | exit 2 | `test_rejects_unknown_scheduler` | ☑ |
 | League file missing | exit 1 + "league" | `test_errors_when_league_file_missing` | ☑ |
-| No `[DivisionStandings]` (main) | `ConfigError` names section | `test_main_errors_without_division_standings` `[P]` | ☑ |
-| `[DivisionStandings]` present (main) | pre-checks pass, solver reached | `test_main_accepts_division_standings` `[P]` | ☑ |
-| No `[DivisionStandings]` (CLI) | exit 1 + names section | `test_cli_errors_without_division_standings` `[P]` | ☑ |
+| No `[DivisionStandings]` (main) | `ConfigError` names section | `test_main_errors_without_division_standings` | ☑ |
+| `[DivisionStandings]` present (main) | pre-checks pass, solver reached | `test_main_accepts_division_standings` | ☑ |
+| No `[DivisionStandings]` (CLI) | exit 1 + names section | `test_cli_errors_without_division_standings` | ☑ |
 | `OSError` (read/write) | exit 1, no traceback | `test_errors_on_oserror` | ☑ |
 | Solver dep missing | exit 1 + names module | `test_errors_when_dependency_missing` | ☑ |
-| `--scheduler` pass-through | chosen scheduler used | `test_scheduler_passes_through` `[P]` | ☑ |
+| Scheduler pass-through | Scheduler C used | `test_scheduler_passes_through` | ☑ |

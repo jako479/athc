@@ -36,13 +36,6 @@ def test_rejects_non_integer_time_limit(runner) -> None:
     assert result.exit_code == 2
 
 
-def test_rejects_unknown_scheduler(runner) -> None:
-    result = runner.invoke(
-        generate_schedule, ["--season", "2048", "--scheduler", "nope"]
-    )
-    assert result.exit_code == 2
-
-
 def test_errors_when_league_file_missing(runner, caplog) -> None:
     # Empty config_dir -> no <season>.league.ini -> clear error, exit 1.
     with caplog.at_level("ERROR"):
@@ -81,20 +74,15 @@ def test_errors_when_dependency_missing(
     assert any("ortools" in r.getMessage() for r in caplog.records)
 
 
-@pytest.mark.parametrize(
-    ("args", "expected"),
-    [([], "C"), (["--scheduler", "C"], "C"), (["--scheduler", "D"], "D")],
-)
-def test_scheduler_passes_through(
-    runner, monkeypatch, config_dir: Path, args: list[str], expected: str
-) -> None:
+def test_scheduler_passes_through(runner, monkeypatch, config_dir: Path) -> None:
     # run_generate is stubbed so no solve runs; the league file must exist.
+    # The CLI always uses Scheduler C (the only scheduler).
     _write_season_files(config_dir, 2048)
     captured: dict[str, object] = {}
     monkeypatch.setattr(cli_module, "run_generate", lambda **kw: captured.update(kw))
-    result = runner.invoke(generate_schedule, ["--season", "2048", *args])
+    result = runner.invoke(generate_schedule, ["--season", "2048"])
     assert result.exit_code == 0
-    assert captured["scheduler"] == expected
+    assert captured["scheduler"] == "C"
 
 
 class _ReachedSolver(Exception):
@@ -124,36 +112,29 @@ def _run_main(league_path: Path, scheduler: str, tmp_path: Path) -> None:
     )
 
 
-@pytest.mark.parametrize("scheduler", ["C", "D"])
-def test_main_errors_without_division_standings(tmp_path: Path, scheduler: str) -> None:
+def test_main_errors_without_division_standings(tmp_path: Path) -> None:
     # [DivisionStandings] is required; the check runs before any solve.
     league_path = tmp_path / "league.ini"
     league_path.write_text(VALID_LEAGUE, encoding="utf-8")
     with pytest.raises(ConfigError, match="DivisionStandings"):
-        _run_main(league_path, scheduler, tmp_path)
+        _run_main(league_path, "C", tmp_path)
 
 
-@pytest.mark.parametrize("scheduler", ["C", "D"])
-def test_main_accepts_division_standings(
-    tmp_path: Path, monkeypatch, scheduler: str
-) -> None:
+def test_main_accepts_division_standings(tmp_path: Path, monkeypatch) -> None:
     league_path = tmp_path / "league.ini"
     league_path.write_text(LEAGUE_WITH_DIVISION_STANDINGS, encoding="utf-8")
     _stub_solver(monkeypatch)
     with pytest.raises(_ReachedSolver):
-        _run_main(league_path, scheduler, tmp_path)
+        _run_main(league_path, "C", tmp_path)
 
 
-@pytest.mark.parametrize("scheduler", ["C", "D"])
 def test_cli_errors_without_division_standings(
-    runner, caplog, config_dir: Path, scheduler: str
+    runner, caplog, config_dir: Path
 ) -> None:
     # End to end through the CLI: clean exit 1, message names the section.
     (config_dir / "2048.league.ini").write_text(VALID_LEAGUE, encoding="utf-8")
     with caplog.at_level("ERROR"):
-        result = runner.invoke(
-            generate_schedule, ["--season", "2048", "--scheduler", scheduler]
-        )
+        result = runner.invoke(generate_schedule, ["--season", "2048"])
     assert result.exit_code == 1
     assert any("DivisionStandings" in r.getMessage() for r in caplog.records)
 

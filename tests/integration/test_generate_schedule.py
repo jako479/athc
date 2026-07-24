@@ -1,7 +1,7 @@
-"""Integration tests for `athc generate-schedule` (CLI -> files), per scheduler.
+"""Integration tests for `athc generate-schedule` (CLI -> files).
 
-Slow (full solves), skipped by default. Run all with `pytest -m slow`, or one
-scheduler with `pytest -m slow_c` / `slow_d`.
+Slow (full solves), skipped by default. Run with `pytest -m slow` or
+`pytest -m slow_c`.
 """
 
 from __future__ import annotations
@@ -19,15 +19,9 @@ SEASON = 2026
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize(
-    "scheduler",
-    [
-        pytest.param("C", marks=pytest.mark.slow_c),
-        pytest.param("D", marks=pytest.mark.slow_d),
-    ],
-)
+@pytest.mark.slow_c
 def test_generate_schedule_writes_schedules_and_report(
-    runner, tmp_path: Path, config_dir: Path, monkeypatch, scheduler: str
+    runner, tmp_path: Path, config_dir: Path, monkeypatch
 ) -> None:
     # Only league.ini is needed (with [DivisionStandings]); --season resolves
     # it. Output lands in the current directory.
@@ -43,17 +37,15 @@ def test_generate_schedule_writes_schedules_and_report(
             "0",
             "--time-limit",
             "1200",
-            "--scheduler",
-            scheduler,
         ],
     )
     assert result.exit_code == 0, result.output
 
-    reports = list(tmp_path.glob(f"schedule_{SEASON}_{scheduler}_*_report.html"))
-    txts = list(tmp_path.glob(f"schedule_{SEASON}_{scheduler}_*.txt"))
+    reports = list(tmp_path.glob(f"schedule_{SEASON}_C_*_report.html"))
+    txts = list(tmp_path.glob(f"schedule_{SEASON}_C_*.txt"))
     htmls = [
         p
-        for p in tmp_path.glob(f"schedule_{SEASON}_{scheduler}_*.html")
+        for p in tmp_path.glob(f"schedule_{SEASON}_C_*.html")
         if not p.name.endswith("_report.html")
     ]
     assert len(txts) == 1 and txts[0].read_text(encoding="utf-8").strip()

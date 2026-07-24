@@ -6,8 +6,7 @@ play each other, one game). One CP-SAT solve picks the remaining games,
 tilting each team's average opponent conference rank (1-9, whole slate) by
 `c_spread`: best team hardest, worst easiest, linear between.
 
-Self-contained on purpose: owns its table and difficulty line so Schedulers A
-and B can change independently.
+Self-contained on purpose: owns its table and difficulty line.
 
 Inventory rules enforced here:
 - Each team plays 16 total games.

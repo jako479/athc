@@ -130,7 +130,6 @@ def test_load_scheduler_config_reads_values(config_dir: Path) -> None:
         """
         [difficulty]
         c_spread = 2.5
-        d_spread = 0.5
         [solver]
         time_limit = 120
         phase1_time_limit = 30
@@ -138,7 +137,6 @@ def test_load_scheduler_config_reads_values(config_dir: Path) -> None:
     )
     cfg = load_scheduler_config()
     assert cfg.difficulty.c_spread == 2.5
-    assert cfg.difficulty.d_spread == 0.5
     assert cfg.solver.time_limit == 120.0
     assert cfg.solver.phase1_time_limit == 30.0
 
@@ -146,7 +144,6 @@ def test_load_scheduler_config_reads_values(config_dir: Path) -> None:
 def test_load_scheduler_config_defaults_when_no_file() -> None:
     cfg = load_scheduler_config()  # autouse empty config_dir
     assert cfg.difficulty.c_spread == config.DEFAULT_DIFFICULTY_C_SPREAD
-    assert cfg.difficulty.d_spread == config.DEFAULT_DIFFICULTY_D_SPREAD
     assert cfg.solver.time_limit == config.DEFAULT_TIME_LIMIT
     assert cfg.solver.phase1_time_limit == config.DEFAULT_PHASE1_TIME_LIMIT
     assert cfg.phase2 == config.Phase2Config()
@@ -156,7 +153,6 @@ def test_load_scheduler_config_defaults_when_keys_missing(config_dir: Path) -> N
     _write_scheduler_toml(config_dir, "[difficulty]\nc_spread = 2.0\n")
     cfg = load_scheduler_config()
     assert cfg.difficulty.c_spread == 2.0
-    assert cfg.difficulty.d_spread == config.DEFAULT_DIFFICULTY_D_SPREAD
     assert cfg.solver.time_limit == config.DEFAULT_TIME_LIMIT
 
 
@@ -168,12 +164,6 @@ def test_load_scheduler_config_errors_on_invalid_value(config_dir: Path) -> None
 
 def test_load_scheduler_config_errors_on_invalid_c_spread(config_dir: Path) -> None:
     _write_scheduler_toml(config_dir, '[difficulty]\nc_spread = "steep"\n')
-    with pytest.raises(ConfigError):
-        load_scheduler_config()
-
-
-def test_load_scheduler_config_errors_on_invalid_d_spread(config_dir: Path) -> None:
-    _write_scheduler_toml(config_dir, '[difficulty]\nd_spread = "steep"\n')
     with pytest.raises(ConfigError):
         load_scheduler_config()
 

@@ -8,17 +8,13 @@ from html import escape
 from os import PathLike
 from pathlib import Path
 
-from athc.scheduler.config import (
-    DEFAULT_DIFFICULTY_C_SPREAD,
-    DEFAULT_DIFFICULTY_D_SPREAD,
-)
+from athc.scheduler.config import DEFAULT_DIFFICULTY_C_SPREAD
 from athc.scheduler.domain.league import League, Team, ordered_teams
 from athc.scheduler.domain.schedule import Schedule
 from athc.scheduler.schedulers.types import (
     MatchupPlan,
     scheduler_display_name,
     scheduler_uses_difficulty_line,
-    scheduler_uses_free_difficulty_line,
 )
 
 StrPath = str | PathLike[str]
@@ -47,7 +43,6 @@ class ScheduleReport:
     teams: tuple[TeamScheduleReport, ...]
     command_line: str | None = None
     difficulty_c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD
-    difficulty_d_spread: float = DEFAULT_DIFFICULTY_D_SPREAD
 
 
 def _opponents(schedule: Schedule, team: Team) -> list[Team]:
@@ -82,7 +77,6 @@ def build_schedule_report(
     elapsed_time_seconds: float,
     command_line: str | None = None,
     difficulty_c_spread: float = DEFAULT_DIFFICULTY_C_SPREAD,
-    difficulty_d_spread: float = DEFAULT_DIFFICULTY_D_SPREAD,
 ) -> ScheduleReport:
     """Compute per-team schedule-strength rows and return a structured report."""
     conf_rank = {team: league.rankings.rank_of(team) for team in league.teams}
@@ -131,7 +125,6 @@ def build_schedule_report(
         elapsed_time_seconds=elapsed_time_seconds,
         teams=tuple(rows),
         difficulty_c_spread=difficulty_c_spread,
-        difficulty_d_spread=difficulty_d_spread,
     )
 
 
@@ -201,11 +194,9 @@ class HtmlReportWriter:
 
     def render(self, report: ScheduleReport) -> str:
         info_rows = [("Scheduler", scheduler_display_name(report.scheduler_kind))]
-        # c_spread drives C's line; d_spread drives D's.
+        # c_spread drives C's difficulty line.
         if scheduler_uses_difficulty_line(report.scheduler_kind):
             info_rows.append(("Difficulty c_spread", f"{report.difficulty_c_spread:g}"))
-        if scheduler_uses_free_difficulty_line(report.scheduler_kind):
-            info_rows.append(("Difficulty d_spread", f"{report.difficulty_d_spread:g}"))
         info_rows += [
             ("Seed", str(report.seed)),
             ("Command line", report.command_line or "-"),

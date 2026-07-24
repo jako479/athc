@@ -14,21 +14,19 @@ uv pip install -e ".[dev]"
 
 ```bash
 athc generate-schedule --season 2048
-athc generate-schedule --season 2048 --seed 7 --time-limit 600 --scheduler D
-athc generate-schedule --season 2048 --scheduler C
+athc generate-schedule --season 2048 --seed 7 --time-limit 600
 ```
 
-`--season` is required and picks the config-dir input file (find the dir with `athc config path`): `<season>.league.ini`, which must include `[DivisionStandings]`. A missing file exits 1 with a clear message. It always writes a `.txt` and `.html` schedule plus a sortable HTML report to the **current directory**, named `schedule_<season>_<C|D>_<timestamp>` (report adds `_report.html`); `C` = fixed-place + CP-SAT, `D` = fixed-place + CP-SAT free-only. Exit `0` = written, `1` = error, `2` = bad arguments.
+`--season` is required and picks the config-dir input file (find the dir with `athc config path`): `<season>.league.ini`, which must include `[DivisionStandings]`. A missing file exits 1 with a clear message. It always writes a `.txt` and `.html` schedule plus a sortable HTML report to the **current directory**, named `schedule_<season>_C_<timestamp>` (report adds `_report.html`); `C` = fixed-place + CP-SAT. Exit `0` = written, `1` = error, `2` = bad arguments.
 
-Two-phase model: phase 1 builds the matchup inventory (divisional + conference games fixed by structure; division standings fix two non-conference games per team, NFL-style same-place matchups; CP-SAT picks the rest along a configurable conference-rank line); phase 2 places those matchups into weeks via CP-SAT. `--scheduler` picks the phase-1 generator: the default `C` (the line covers the whole non-conference slate) or `D` (the line covers only the picked games).
+Two-phase model: phase 1 builds the matchup inventory (divisional + conference games fixed by structure; division standings fix two non-conference games per team, NFL-style same-place matchups; CP-SAT picks the rest along a configurable conference-rank line covering the whole non-conference slate); phase 2 places those matchups into weeks via CP-SAT.
 
 ## Design
 
 How the schedule is built, in three docs:
 
-- [Phase 1 — fixed-place + CP-SAT matchups](phase-1-matchups-fixed-cpsat.md) — Scheduler C (default)
-- [Phase 1 — fixed-place + CP-SAT free-only matchups](phase-1-matchups-fixed-cpsat-free.md) — Scheduler D
-- [Phase 2 — schedule placement](phase-2-schedule.md) — shared by C and D
+- [Phase 1 — fixed-place + CP-SAT matchups](phase-1-matchups-fixed-cpsat.md) — Scheduler C
+- [Phase 2 — schedule placement](phase-2-schedule.md)
 - [Prior art — the current NFL formula](../design/research/nfl-formula.md) — background, not what athc uses
 - [Research — NFL schedule patterns](../design/research/nfl-schedules.md) — provenance of the phase-2 rules
 - [Research — CP-SAT rule design patterns](../design/research/cpsat-rule-patterns.md) — hard/soft rules, preventing solver anomalies

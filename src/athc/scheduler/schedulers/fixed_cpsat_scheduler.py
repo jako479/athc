@@ -5,8 +5,8 @@ Phase 1 fixes two non-conference games per team by division place (from
 picks the rest, tilting each team's average opponent conference rank by the
 configurable `c_spread`.
 
-Phase 2 uses CP-SAT to place that full inventory into the calendar, sharing
-the same week/home-away sequencing constraints as Scheduler D.
+Phase 2 uses CP-SAT to place that full inventory into the calendar under the
+week/home-away sequencing constraints in `schedule_builder.py`.
 """
 
 from __future__ import annotations

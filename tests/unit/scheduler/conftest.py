@@ -1,11 +1,10 @@
 """Shared fixtures for the scheduler suite.
 
-The `fixed_cpsat` (C) and `fixed_cpsat_free` (D) folders each provide their
-own `scheduler_result` / `schedule` / `matchup_plan` fixtures (via
-`solve_and_report` below), so both schedulers are exercised end-to-end. Any
-test using one of those fixtures is auto-marked `slow` plus its scheduler's
-`slow_c`/`slow_d`, and skipped by default (`-m 'not slow'`); run all with
-`pytest -m slow`, or one scheduler with e.g. `pytest -m slow_c`.
+The `fixed_cpsat` (C) folder provides the `scheduler_result` / `schedule` /
+`matchup_plan` fixtures (via `solve_and_report` below), so the scheduler is
+exercised end-to-end. Any test using one of those fixtures is auto-marked
+`slow` plus `slow_c`, and skipped by default (`-m 'not slow'`); run with
+`pytest -m slow` or `pytest -m slow_c`.
 """
 
 from __future__ import annotations
@@ -157,13 +156,12 @@ def runner() -> CliRunner:
 # alone (e.g. `pytest -m slow_c`).
 _SCHEDULER_SLOW_MARKERS = {
     "fixed_cpsat": "slow_c",
-    "fixed_cpsat_free": "slow_d",
 }
 
 
 def pytest_collection_modifyitems(config, items):
     """Mark solver-backed tests (those that build a schedule) as `slow`, plus
-    the per-scheduler `slow_c`/`slow_d` marker."""
+    the per-scheduler `slow_c` marker."""
     for item in items:
         if _SOLVER_FIXTURES & set(getattr(item, "fixturenames", ())):
             item.add_marker(pytest.mark.slow)

@@ -57,7 +57,6 @@ addopts = "-ra --strict-markers --strict-config --import-mode=importlib -m 'not 
 markers = [
     "slow: long-running scheduler solver tests; opt-in via `pytest -m slow` or `pytest -m ''`",
     "slow_c: Scheduler C slow tests; run alone via `pytest -m slow_c`",
-    "slow_d: Scheduler D slow tests; run alone via `pytest -m slow_d`",
 ]
 
 [tool.ruff]

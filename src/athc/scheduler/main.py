@@ -42,7 +42,7 @@ def generate_schedule(
     """Solve the season schedule and write outputs to `output_dir`.
 
     Writes a `.txt` and `.html` schedule plus an `.html` report, all named
-    `schedule_<season>_<C|D>_<YYYYMMDD_HHMM>` (the report adds a `_report`
+    `schedule_<season>_C_<YYYYMMDD_HHMM>` (the report adds a `_report`
     suffix). Returns the solver result.
     """
     scheduler_config = load_scheduler_config()  # config_path = report provenance
@@ -89,7 +89,6 @@ def generate_schedule(
         elapsed_time_seconds=elapsed,
         command_line=command_line,
         difficulty_c_spread=scheduler_config.difficulty.c_spread,
-        difficulty_d_spread=scheduler_config.difficulty.d_spread,
     )
     HtmlReportWriter(report_path).write(report)
     logger.info(

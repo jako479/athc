@@ -16,10 +16,7 @@ from athc.scheduler.config import (
     find_league_path,
 )
 from athc.scheduler.main import generate_schedule as run_generate
-from athc.scheduler.schedulers.types import (
-    DEFAULT_SCHEDULER,
-    available_schedulers,
-)
+from athc.scheduler.schedulers.types import DEFAULT_SCHEDULER
 
 PROG = "athc generate-schedule"
 logger = logging.getLogger(__name__)
@@ -41,20 +38,12 @@ logger = logging.getLogger(__name__)
     default=None,
     help="Override the solver time limit (seconds).",
 )
-@click.option(
-    "--scheduler",
-    type=click.Choice(available_schedulers()),
-    default=DEFAULT_SCHEDULER,
-    show_default=True,
-    help="Scheduler: C (fixed-place + CP-SAT) or D (like C; picked games only).",
-)
 @click.pass_context
 def generate_schedule(
     ctx: click.Context,
     season: int,
     seed: int | None,
     time_limit: int | None,
-    scheduler: str,
 ) -> None:
     """Generate the seasonal league schedule and an HTML report.
 
@@ -66,7 +55,7 @@ def generate_schedule(
                             the [DivisionStandings] section
 
     Writes a .txt and .html schedule plus an .html report to the current
-    directory, named `schedule_<season>_<C|D>_<timestamp>`.
+    directory, named `schedule_<season>_C_<timestamp>`.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     chosen_seed = seed if seed is not None else random.randint(0, 1_000_000)
@@ -76,7 +65,7 @@ def generate_schedule(
         config = find_config_path()
         run_generate(
             season=season,
-            scheduler=scheduler,
+            scheduler=DEFAULT_SCHEDULER,
             config_path=config,
             league_path=league_path,
             output_dir=Path.cwd(),

@@ -18,10 +18,6 @@ schema_version = 1
 # changes nothing.
 c_spread = 2.5
 
-# Scheduler D: same as C, except the tilt counts only the games the solver
-# picks -- the two fixed games don't offset them.
-d_spread = 1.8
-
 [solver]
 time_limit = 1800.0      # max seconds for the week-placement (phase-2) solve
 phase1_time_limit = 60.0 # max seconds for the matchup (phase-1) solve

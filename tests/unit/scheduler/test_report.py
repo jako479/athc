@@ -93,23 +93,15 @@ def _sample_report(scheduler_kind: str = "C") -> ScheduleReport:
     )
 
 
-@pytest.mark.parametrize(
-    ("kind", "label"),
-    [
-        ("C", "Scheduler C (fixed-place + CP-SAT)"),
-        ("D", "Scheduler D (fixed-place + CP-SAT, free-only)"),
-    ],
-)
-def test_html_report_shows_scheduler_display_name(kind: str, label: str) -> None:
-    assert label in HtmlReportWriter("unused").render(_sample_report(kind))
+def test_html_report_shows_scheduler_display_name() -> None:
+    label = "Scheduler C (fixed-place + CP-SAT)"
+    assert label in HtmlReportWriter("unused").render(_sample_report("C"))
 
 
-def test_html_report_shows_difficulty_knobs_per_scheduler() -> None:
-    # C shows c_spread; D shows d_spread.
+def test_html_report_shows_difficulty_knob() -> None:
+    # C shows c_spread.
     c = HtmlReportWriter("unused").render(_sample_report("C"))
     assert "c_spread" in c and "d_spread" not in c
-    d = HtmlReportWriter("unused").render(_sample_report("D"))
-    assert "d_spread" in d and "c_spread" not in d
 
 
 def test_html_report_has_new_columns_and_values() -> None:

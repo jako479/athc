@@ -30,36 +30,28 @@ class SchedulerResult:
 SchedulerFunc = Callable[..., SchedulerResult]
 
 # --- Scheduler registry -----------------------------------------------------
-# C and D are the ONLY names for the schedulers, used everywhere a user or
-# reader sees one: the `--scheduler` value, output filenames, the report
-# header, and the docs. Both fix two non-conference games per team by division
-# standings (5ths play each other), then one CP-SAT solve picks the rest
-# (phase 2 — week placement — is shared):
-#   C (fixed-place+CP-SAT) - the line (c_spread) targets the whole
-#                            non-conference slate. The default.
-#   D (fixed-place+CP-SAT, free-only) - the line (d_spread) targets only the
-#                            picked games.
-# Algorithms: docs/scheduler/phase-1-matchups-fixed-cpsat.md (C),
-# -fixed-cpsat-free.md (D).
+# C is the only scheduler. Its name shows everywhere a user or reader sees one:
+# the output filenames, the report header, and the docs. It fixes two
+# non-conference games per team by division standings (5ths play each other),
+# then one CP-SAT solve picks the rest along the difficulty line (c_spread);
+# phase 2 (week placement) follows. Algorithm:
+# docs/scheduler/phase-1-matchups-fixed-cpsat.md.
 SCHEDULER_C = "C"
-SCHEDULER_D = "D"
 DEFAULT_SCHEDULER = SCHEDULER_C
 
-_SCHEDULER_NAMES = (SCHEDULER_C, SCHEDULER_D)
+_SCHEDULER_NAMES = (SCHEDULER_C,)
 
 # Human-facing labels (e.g. for the report header).
 _SCHEDULER_DISPLAY_NAMES = {
     SCHEDULER_C: "Scheduler C (fixed-place + CP-SAT)",
-    SCHEDULER_D: "Scheduler D (fixed-place + CP-SAT, free-only)",
 }
 
-# C tilts the whole slate (c_spread); D tilts only its picked games (d_spread).
+# C tilts the whole non-conference slate (c_spread).
 _SCHEDULERS_USING_DIFFICULTY_LINE = frozenset({SCHEDULER_C})
-_SCHEDULERS_USING_FREE_DIFFICULTY_LINE = frozenset({SCHEDULER_D})
 
 
 def available_schedulers() -> tuple[str, ...]:
-    """Return the registered scheduler keys (`C`, `D`)."""
+    """Return the registered scheduler keys (`C`)."""
     return _SCHEDULER_NAMES
 
 
@@ -73,11 +65,6 @@ def scheduler_uses_difficulty_line(name: str) -> bool:
     return name in _SCHEDULERS_USING_DIFFICULTY_LINE
 
 
-def scheduler_uses_free_difficulty_line(name: str) -> bool:
-    """Whether `name` shapes difficulty with the picked-games line (D)."""
-    return name in _SCHEDULERS_USING_FREE_DIFFICULTY_LINE
-
-
 def get_scheduler(name: str) -> SchedulerFunc:
     """Return the scheduler function for `name`. Raises ValueError if unknown.
 
@@ -87,12 +74,6 @@ def get_scheduler(name: str) -> SchedulerFunc:
     """
     if name == SCHEDULER_C:
         from athc.scheduler.schedulers.fixed_cpsat_scheduler import generate_schedule
-
-        return generate_schedule
-    if name == SCHEDULER_D:
-        from athc.scheduler.schedulers.fixed_cpsat_free_scheduler import (
-            generate_schedule,
-        )
 
         return generate_schedule
     choices = ", ".join(_SCHEDULER_NAMES)
