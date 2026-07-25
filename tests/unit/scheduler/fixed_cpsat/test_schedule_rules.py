@@ -216,7 +216,7 @@ def test_divisional_density_windows(schedule, teams):
 
 def _front_load_caps(team):
     if team.division in (Division.AFC_WEST, Division.NFC_WEST):
-        return [(6, 4), (8, 5), (10, 6)]
+        return [(5, 3), (6, 4), (8, 5), (10, 6)]
     return [(4, 2), (8, 3), (10, 4)]
 
 

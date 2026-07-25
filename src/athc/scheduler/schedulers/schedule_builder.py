@@ -20,8 +20,8 @@ Divisional scheduling requirements:
 - 5-team divisions: max 6 divisional games in any 9-game span (forces <=7 in any 10).
 - 4-team divisions: max 4 divisional games in any 7-game span.
 - Front-load caps: 4-team divisions max 2 divisional games in weeks 1-4, 3 in
-  weeks 1-8, 4 in weeks 1-10; 5-team divisions max 4 in weeks 1-6, 5 in weeks
-  1-8, 6 in weeks 1-10.
+  weeks 1-8, 4 in weeks 1-10; 5-team divisions max 3 in weeks 1-5, 4 in weeks
+  1-6, 5 in weeks 1-8, 6 in weeks 1-10.
 - At most 2 divisional opponents may be non-interleaved between a team's 2
   meetings with that rival.
 - Every team must play at least 1 divisional game in the final 2 weeks.
@@ -516,6 +516,7 @@ class ScheduleBuilder:
         # (window, cap) pairs limiting early divisional games, by division size.
         if team_i in self.five_team_set:
             return [
+                (5, self.amounts.five_team_max_divisional_first_5),
                 (6, self.amounts.five_team_max_divisional_first_6),
                 (8, self.amounts.five_team_max_divisional_first_8),
                 (10, self.amounts.five_team_max_divisional_first_10),

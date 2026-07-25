@@ -19,7 +19,7 @@ These rules are also re-validated end-to-end by `test_schedule_structure.py` / `
 | Conference home balance (fixed, not configurable) | 5-team host 2; 4-team 2,2,3,3 | `test_five_team_divisions_split_conference_home_games_evenly`, `test_four_team_divisions_split_conference_home_games_2_2_3_3` | ☑ |
 | Non-conference home balance (fixed, not configurable) | 5-team host 2; 4-team 2,2,3,3 | `test_five_team_divisions_have_two_nonconference_home_games`, `test_four_team_divisions_split_nonconference_home_games_2_2_3_3` | ☑ |
 | Non-conference counts | match division size | `test_nonconference_game_counts_match_division_size` | ☑ |
-| Divisional front-load caps | 5-team ≤4/6wk, ≤5/8wk, ≤6/10wk; 4-team ≤2/4wk, ≤3/8wk, ≤4/10wk | `test_divisional_front_load_caps` | ☑ |
+| Divisional front-load caps | 5-team ≤3/5wk, ≤4/6wk, ≤5/8wk, ≤6/10wk; 4-team ≤2/4wk, ≤3/8wk, ≤4/10wk | `test_divisional_front_load_caps` | ☑ |
 | Final week divisional | exactly 8 (toggle on) | `test_week_16_has_exactly_eight_divisional_games` | ☑ |
 | Deterministic by seed | reproducible schedule | `test_schedule_is_deterministic_for_a_seed` | ☑ |
 

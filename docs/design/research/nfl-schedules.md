@@ -42,7 +42,7 @@ Units — per-season averages of what each row counts: "Teams …" rows count te
 | Divisional share by week | — | 21–41% weeks 1–16 with no trend, then 69% (wk 17) and 100% (wk 18) — a finale spike, not a ramp | spike mimicked by week-16 + final-2-weeks rules |
 | Teams under half divisional in final 8 games | — | 2.7 | allowed — the old second-half minimum was removed |
 | Half of divisional games done early (2016–2020, 16 games) | — | within 6 games: 20% of teams; within 8: 52% | allowed — front-load caps permit it |
-| Front-load walls (2016–2020, max div in first K games) | — | first 6: ≤3 (4 never); first 8: ≤4 (5 once); first 10: ≤5 (6 never); all 6 by game 12: never | caps: 4-team ≤3/6wk, ≤4/8wk; 5-team ≤4/6wk, ≤5/8wk, ≤6/10wk; league ≤3 teams at their max |
+| Front-load walls (2016–2020, max div in first K games) | — | first 6: ≤3 (4 never); first 8: ≤4 (5 once); first 10: ≤5 (6 never); all 6 by game 12: never | caps: 4-team ≤3/6wk, ≤4/8wk; 5-team ≤3/5wk, ≤4/6wk, ≤5/8wk, ≤6/10wk; league ≤3 teams at their max |
 | Non-interleaved rivals (avg per team-season) | 0.24, max 2 | 0.54; teams at exactly 2: 2.6/season; at 3: 0.3/season | cap 2 per team; league ≤2 teams at 2 |
 | Final-week divisional games | 5–10 of 15 | 16 of 16, all seasons | 8 of 9 (max possible) |
 | Max divisional in a 10-game window (team max) | up to 8 (rare) | ≤ 6 | 5-team cap: 7 in 10, 6 in 9 |

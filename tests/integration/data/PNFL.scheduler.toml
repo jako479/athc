@@ -33,6 +33,7 @@ five_team_max_divisional_in_9 = 6
 four_team_max_divisional_in_7 = 4
 
 # Divisional front-load caps
+five_team_max_divisional_first_5 = 3
 five_team_max_divisional_first_6 = 4
 five_team_max_divisional_first_8 = 5
 five_team_max_divisional_first_10 = 6

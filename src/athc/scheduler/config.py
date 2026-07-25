@@ -73,6 +73,7 @@ class Phase2Config:
     five_team_max_divisional_in_9: int = 6
     four_team_max_divisional_in_7: int = 4
     # Divisional front-load caps (max divisional games in the first N weeks)
+    five_team_max_divisional_first_5: int = 3
     five_team_max_divisional_first_6: int = 4
     five_team_max_divisional_first_8: int = 5
     five_team_max_divisional_first_10: int = 6

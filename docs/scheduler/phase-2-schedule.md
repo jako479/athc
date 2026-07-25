@@ -34,7 +34,7 @@ Divisional sequencing
 - No 3 straight divisional games to start or end the season.
 - At most 1 total 3-game divisional streak per team.
 - Density — 5-team: ≤6 in any 9 weeks (which also forces ≤7 in any 10); 4-team: ≤4 in any 7 (which also forces ≤5 in any 8).
-- Front-load caps — 5-team: ≤4 in weeks 1–6, ≤5 in 1–8, ≤6 in 1–10; 4-team: ≤2 in 1–4, ≤3 in 1–8, ≤4 in 1–10.
+- Front-load caps — 5-team: ≤3 in weeks 1–5, ≤4 in 1–6, ≤5 in 1–8, ≤6 in 1–10; 4-team: ≤2 in 1–4, ≤3 in 1–8, ≤4 in 1–10.
 - At most 2 divisional opponents are non-interleaved. Non-interleaved = no other divisional game falls between the two meetings with that rival (e.g. CHI, CHI, GB, GB — both rivals bunched). Keeps rival series spread across the season.
 - Every team plays ≥1 divisional game in the last 2 weeks. Toggle: `require_divisional_in_final_two_weeks`.
 - The final week is all-divisional: 8 of its 9 games (the max; each 5-team division strands one team). Toggle: `require_final_week_divisional`.

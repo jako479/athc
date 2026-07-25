@@ -389,6 +389,7 @@ def _validate_divisional_sequencing(
                     f"in 9-game span"
                 )
             windows = (
+                (5, amounts.five_team_max_divisional_first_5),
                 (6, amounts.five_team_max_divisional_first_6),
                 (8, amounts.five_team_max_divisional_first_8),
                 (10, amounts.five_team_max_divisional_first_10),
