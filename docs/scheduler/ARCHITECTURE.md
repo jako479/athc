@@ -48,7 +48,7 @@ CLI-level (Click → exit 2):
 
 Config (raise `ConfigError`) — found via `config_dir()` / `ATHC_CONFIG_DIR`, no `--config` flag:
 - `<season>.league.ini` (`[Divisions]` + `[Standings]` overall 1–18) is **required** data, selected by the required `--season`. The scheduler uses the overall order and derives its 1–9 conference ranks from it.
-- `rules/PNFL.scheduler.toml` scheduler tunables (difficulty `spread`, solver `time_limit`) are **optional** (each key defaults when absent); invalid TOML or a non-numeric value is an error. The difficulty curve drives the scheduler.
+- `rules/PNFL.scheduler.toml` scheduler tunables (difficulty `spread`, solver `time_limit` / `solver_workers`) are **optional** (each key defaults when absent); invalid TOML or a wrong-typed value is an error. The difficulty curve drives the scheduler.
 - Invalid INI, or league data that fails domain validation, surfaces as a `ConfigError`
 
 Domain (raise `ValueError`):
@@ -80,6 +80,17 @@ Solver (`SchedulerResult.feasible == False`):
 
 Its `generate_schedule` matches the `SchedulerFunc` signature and returns a `SchedulerResult` with the schedule and the matchup plan.
 
+## Solver & reproducibility
+
+Phase 2 runs CP-SAT in **interleave search** — parallel but reproducible. Two rules make a seed's schedule identical across runs and machines:
+
+- **Fixed worker count.** Interleave results change with the number of workers, so the width is the pinned `solver_workers` setting (default 8), not the machine's core count, and it is not CLI-overridable. Everyone must use the same value; changing it re-rolls every seed's schedule.
+- **Deterministic-time budget.** The solve stops on `time_limit` measured in CP-SAT *deterministic time* (not wall-clock seconds), so a slow or fast machine reaches the same stopping point.
+
+Also required: the model is built in canonical team order (never Python `set` iteration order, which is per-process randomized) — otherwise the same seed builds a different model each run. The golden regression test ([tests/integration/test_generate_schedule.py](../../tests/integration/test_generate_schedule.py)) pins one seed's exact output and re-validates every rule, guarding both.
+
+Phase 1 stays single-threaded (one worker), bounded by `phase1_time_limit` in wall-clock seconds.
+
 ## Testing
 
 Under `tests/unit/scheduler/`:
@@ -87,4 +98,4 @@ Under `tests/unit/scheduler/`:
 - shared — `test_cli` / `test_config` (CLI + config/league/history loading; matrix in [test-matrix-config-loading.md](../../tests/unit/scheduler/test-matrix-config-loading.md)), `test_schedule_builder` (phase-2 placement), `test_history_costs`, `test_report` (HTML report; matrix in [test-matrix-report.md](../../tests/unit/scheduler/test-matrix-report.md)), `test_writers`.
 - `fixed_cpsat/` — `test_fixed_cpsat_inventory` (phase-1) plus `test_schedule_structure` / `test_schedule_rules` (end-to-end).
 
-The `fixed_cpsat/` folder solves end-to-end, so the placement rules are validated. Solver-backed tests (any using a solved-schedule fixture) are marked `slow` and skipped by default; run them with `pytest -m slow`. League-parametrized tests use three ranking variants (`5/6/7-free-slots`) spanning the playoff-distribution splits — the 4-team division supplying 1, 2, or 3 of its conference's 4 playoff teams (the scheduler uses overall rank, not playoffs).
+The `fixed_cpsat/` folder solves end-to-end, so the placement rules are validated. Solver-backed tests (any using a solved-schedule fixture) are marked `slow` and skipped by default; run them with `pytest -m slow`. End-to-end, `tests/integration/test_generate_schedule.py` is a golden regression: it runs the CLI at a fixed seed, validates the produced schedule against every rule, and asserts the three output files byte-match the frozen goldens (regenerate with `python -m tests.integration.test_generate_schedule --bless`). League-parametrized tests use three ranking variants (`5/6/7-free-slots`) spanning the playoff-distribution splits — the 4-team division supplying 1, 2, or 3 of its conference's 4 playoff teams (the scheduler uses overall rank, not playoffs).

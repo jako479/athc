@@ -11,6 +11,7 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 | No file | all defaults | `test_load_scheduler_config_defaults_when_no_file` | ☑ |
 | Missing keys | per-key defaults | `test_load_scheduler_config_defaults_when_keys_missing` | ☑ |
 | Non-numeric value | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_value` | ☑ |
+| Non-integer `solver_workers` | `ConfigError` | `test_load_scheduler_config_errors_on_non_integer_workers` | ☑ |
 | Non-numeric `spread` | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_spread` | ☑ |
 | Invalid TOML | `ConfigError` | `test_load_scheduler_config_errors_on_invalid_toml` | ☑ |
 | `[phase2]` amounts | parsed; others default | `test_load_scheduler_config_reads_phase2_amounts` | ☑ |
@@ -59,6 +60,7 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 |---|---|---|---|
 | No `--season` | exit 2 | `test_requires_season` | ☑ |
 | Non-integer `--time-limit` | exit 2 | `test_rejects_non_integer_time_limit` | ☑ |
+| No `--workers` override (config-only) | exit 2 | `test_no_worker_count_override` | ☑ |
 | League file missing | exit 1 + "league" | `test_errors_when_league_file_missing` | ☑ |
 | No `[DivisionStandings]` (main) | `ConfigError` names section | `test_main_errors_without_division_standings` | ☑ |
 | `[DivisionStandings]` present (main) | pre-checks pass, solver reached | `test_main_accepts_division_standings` | ☑ |

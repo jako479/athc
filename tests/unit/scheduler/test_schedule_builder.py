@@ -1,4 +1,8 @@
-"""Phase-2 ScheduleBuilder: inventory-guard error paths and seed determinism."""
+"""Phase-2 ScheduleBuilder: inventory-guard error paths and soft-objective wiring.
+
+Seed determinism and schedule correctness are covered end-to-end by the golden
+regression test in tests/integration/test_generate_schedule.py.
+"""
 
 from __future__ import annotations
 
@@ -6,14 +10,10 @@ import pytest
 
 from athc.scheduler.domain.league import Division, Team
 from athc.scheduler.schedulers.errors import SchedulerError
-from athc.scheduler.schedulers.fixed_cpsat_builder import FixedCpsatMatchupBuilder
 from athc.scheduler.schedulers.schedule_builder import ScheduleBuilder
 from athc.scheduler.schedulers.types import make_matchup
 
-from .conftest import (
-    LEAGUE_5_SLOTS,
-    SLOW_SOLVE_TIME_LIMIT,
-)
+from .conftest import LEAGUE_5_SLOTS
 
 
 def test_unknown_pair_in_inventory_raises() -> None:
@@ -39,25 +39,14 @@ def test_soft_objective_is_added_to_the_model() -> None:
     assert len(builder.model.proto.objective.vars) == 16
 
 
-@pytest.mark.slow
-def test_schedule_is_deterministic_for_a_seed() -> None:
-    league = LEAGUE_5_SLOTS
-    inventory = (
-        FixedCpsatMatchupBuilder(
-            teams=league.teams,
-            rankings=league.rankings,
-            division_standings=league.division_standings,
-        )
-        .build_matchup_plan()
-        .matchups
-    )
-
-    def solve() -> set[tuple[int, str, str]]:
-        # Phase-2 placement here takes ~2-4 min and varies run to run, so use the
-        # standard slow-solve cap: both runs must complete to compare equal.
-        schedule = ScheduleBuilder(league.teams, SchedulerError).build_schedule(
-            inventory, seed=42, time_limit=SLOW_SOLVE_TIME_LIMIT
-        )
-        return {(g.week, g.home.metro, g.away.metro) for g in schedule.games}
-
-    assert solve() == solve()
+def test_solver_is_configured_for_reproducible_parallel_search() -> None:
+    # The worker count must reach the solver as a fixed interleave width (both
+    # num_search_workers and interleave_batch_size), stopping on deterministic
+    # time -- this is what keeps a seed reproducible across machines.
+    builder = ScheduleBuilder(LEAGUE_5_SLOTS.teams, SchedulerError)
+    params = builder._make_solver(seed=3, time_limit=42.0, workers=5).parameters
+    assert params.random_seed == 3
+    assert params.num_search_workers == 5
+    assert params.interleave_search is True
+    assert params.interleave_batch_size == 5
+    assert params.max_deterministic_time == 42.0

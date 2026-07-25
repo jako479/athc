@@ -401,11 +401,11 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`;
 
 # `athc generate-schedule`
 
-In [test_generate_schedule.py](test_generate_schedule.py). Slow (full solves) → `pytest -m slow`; not run by default. Copies `data/league.ini` into the config dir as `<season>.league.ini`, then runs the scheduler end-to-end via the CLI (exercises season-based file resolution; reads the file's `[DivisionStandings]`).
+In [test_generate_schedule.py](test_generate_schedule.py). Slow (full solve) → `pytest -m slow`; not run by default. Installs committed, test-owned inputs into the config dir — `data/league.ini` as `<season>.league.ini` and the frozen `data/PNFL.scheduler.toml` — then runs the scheduler end-to-end via the CLI at a fixed seed (no `--time-limit`; the rules file drives the solve), so the golden rides on explicit committed config, independent of in-code defaults and the shipped release rules. **Golden regression**: validates the produced schedule against every rule, cross-checks that the `.html` schedule encodes the same games as the `.txt`, and recomputes the report's ranks/SOS (`schedule_validation.py`); then asserts the three output files (schedule `.txt`/`.html`, report `.html`) byte-match the goldens in `expected/` (report's run-info fields normalized). Depends on the fixed `solver_workers` reproducibility contract. Regenerate goldens with `python -m tests.integration.test_generate_schedule --bless`.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| CLI writes schedule + report | `<season>.*` files in config dir; `--season` only | exit 0; non-empty `season.txt` + `season-report.html` | `test_generate_schedule_writes_schedule_and_report` | ☑ |
+| Schedule follows every rule + matches golden | `data/league.ini`; `--season --seed` | exit 0; all rules pass; 3 files byte-equal to `expected/` goldens | `test_generate_schedule_matches_golden` | ☑ |
 
 ---
 

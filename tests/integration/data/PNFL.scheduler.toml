@@ -1,0 +1,80 @@
+# Frozen scheduler config for the generate-schedule golden test. Test-owned and
+# independent of the shipped release rules: the golden is a function of exactly
+# these values plus data/league.ini and the fixed seed. Change a value here only
+# with a deliberate re-bless (python -m tests.integration.test_generate_schedule
+# --bless). Every output-affecting key is set explicitly so nothing rides on
+# in-code defaults.
+
+schema_version = 1
+
+[difficulty]
+spread = 2.5
+
+[solver]
+time_limit = 600.0        # phase-2 deterministic-time budget (well above a full solve's ~62-unit burn)
+phase1_time_limit = 180.0 # phase-1 (matchup) solve seconds
+solver_workers = 8        # fixed parallel width; the schedule changes if this changes
+
+[phase2]
+# Home/away sequencing
+max_consecutive_home_or_away = 3
+min_home_per_six_weeks = 2
+max_home_per_six_weeks = 4
+max_three_game_home_away_streaks = 1
+
+# Divisional sequencing
+max_consecutive_divisional = 3
+max_three_game_divisional_streaks = 1
+max_non_interleaved_divisional_opponents = 2
+max_teams_divisional_weeks_1_and_2 = 4
+
+# Divisional density
+five_team_max_divisional_in_9 = 6
+four_team_max_divisional_in_7 = 4
+
+# Divisional front-load caps
+five_team_max_divisional_first_6 = 4
+five_team_max_divisional_first_8 = 5
+five_team_max_divisional_first_10 = 6
+four_team_max_divisional_first_4 = 2
+four_team_max_divisional_first_8 = 3
+four_team_max_divisional_first_10 = 4
+four_team_max_teams_open_divisional_pair = 1
+five_team_max_teams_open_divisional_pair = 2
+
+# League-wide caps
+max_teams_with_home_streak = 9
+max_teams_with_away_streak = 3
+max_teams_with_divisional_streak = 6
+max_teams_with_two_bunched_rivals = 2
+max_close_rematches = 3
+
+# Soft objective bands / weights
+soft_home_streak_lo = 5
+soft_home_streak_hi = 7
+soft_home_streak_weight = 155
+soft_away_streak_lo = 0
+soft_away_streak_hi = 4
+soft_away_streak_weight = 115
+soft_divisional_streak_lo = 2
+soft_divisional_streak_hi = 6
+soft_divisional_streak_weight = 109
+soft_four_team_frontload_lo = 3
+soft_four_team_frontload_hi = 5
+soft_four_team_frontload_weight = 111
+soft_five_team_frontload_lo = 2
+soft_five_team_frontload_hi = 5
+soft_five_team_frontload_weight = 68
+soft_non_interleaved_lo = 0
+soft_non_interleaved_hi = 3
+soft_non_interleaved_weight = 116
+soft_close_rematches_lo = 0
+soft_close_rematches_hi = 2
+soft_close_rematches_weight = 215
+soft_open_weeks_1_2_lo = 0
+soft_open_weeks_1_2_hi = 4
+soft_open_weeks_1_2_weight = 100
+
+# Season ending
+require_final_week_divisional = true
+require_divisional_in_final_two_weeks = true

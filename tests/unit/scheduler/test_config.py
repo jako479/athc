@@ -133,12 +133,14 @@ def test_load_scheduler_config_reads_values(config_dir: Path) -> None:
         [solver]
         time_limit = 120
         phase1_time_limit = 30
+        solver_workers = 12
         """,
     )
     cfg = load_scheduler_config()
     assert cfg.difficulty.spread == 2.5
     assert cfg.solver.time_limit == 120.0
     assert cfg.solver.phase1_time_limit == 30.0
+    assert cfg.solver.solver_workers == 12
 
 
 def test_load_scheduler_config_defaults_when_no_file() -> None:
@@ -146,6 +148,7 @@ def test_load_scheduler_config_defaults_when_no_file() -> None:
     assert cfg.difficulty.spread == config.DEFAULT_DIFFICULTY_SPREAD
     assert cfg.solver.time_limit == config.DEFAULT_TIME_LIMIT
     assert cfg.solver.phase1_time_limit == config.DEFAULT_PHASE1_TIME_LIMIT
+    assert cfg.solver.solver_workers == config.DEFAULT_SOLVER_WORKERS
     assert cfg.phase2 == config.Phase2Config()
 
 
@@ -158,6 +161,13 @@ def test_load_scheduler_config_defaults_when_keys_missing(config_dir: Path) -> N
 
 def test_load_scheduler_config_errors_on_invalid_value(config_dir: Path) -> None:
     _write_scheduler_toml(config_dir, '[solver]\ntime_limit = "fast"\n')
+    with pytest.raises(ConfigError):
+        load_scheduler_config()
+
+
+def test_load_scheduler_config_errors_on_non_integer_workers(config_dir: Path) -> None:
+    # solver_workers is an integer count; a fractional value is invalid.
+    _write_scheduler_toml(config_dir, "[solver]\nsolver_workers = 1.5\n")
     with pytest.raises(ConfigError):
         load_scheduler_config()
 

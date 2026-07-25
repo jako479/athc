@@ -51,5 +51,6 @@ def generate_schedule(
         matchups=matchup_plan.matchups,
         seed=seed,
         time_limit=config.solver.time_limit,
+        workers=config.solver.solver_workers,
     )
     return SchedulerResult(schedule=schedule, matchup_plan=matchup_plan)

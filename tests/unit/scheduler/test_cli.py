@@ -36,6 +36,13 @@ def test_rejects_non_integer_time_limit(runner) -> None:
     assert result.exit_code == 2
 
 
+def test_no_worker_count_override(runner) -> None:
+    # solver_workers is config-only (a reproducibility contract), never a CLI
+    # flag; an unknown option is a usage error.
+    result = runner.invoke(generate_schedule, ["--season", "2048", "--workers", "4"])
+    assert result.exit_code == 2
+
+
 def test_errors_when_league_file_missing(runner, caplog) -> None:
     # Empty config_dir -> no <season>.league.ini -> clear error, exit 1.
     with caplog.at_level("ERROR"):

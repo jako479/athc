@@ -66,13 +66,16 @@ docs/design/research/nfl-schedules.md.
 
 from __future__ import annotations
 
-import os
 from collections import Counter
 from collections.abc import Sequence
 
 from ortools.sat.python import cp_model
 
-from athc.scheduler.config import DEFAULT_TIME_LIMIT, Phase2Config
+from athc.scheduler.config import (
+    DEFAULT_SOLVER_WORKERS,
+    DEFAULT_TIME_LIMIT,
+    Phase2Config,
+)
 from athc.scheduler.domain.league import Team
 from athc.scheduler.domain.schedule import (
     HOME_GAMES_PER_TEAM,
@@ -115,6 +118,16 @@ class ScheduleBuilder:
         self.five_team_set: set[Team] = {
             t for t in self.teams if t.division.expected_size == 5
         }
+        # Canonical-order tuples for constraint building. Iterating the sets
+        # above would follow Python's per-process hash-randomized order, making
+        # the built model (and thus the solved schedule) non-reproducible across
+        # runs. The sets stay for membership tests; iterate these for building.
+        self.four_team_teams: tuple[Team, ...] = tuple(
+            t for t in self.teams if t in self.four_team_set
+        )
+        self.five_team_teams: tuple[Team, ...] = tuple(
+            t for t in self.teams if t in self.five_team_set
+        )
 
         self.divisional_pairs: list[Matchup] = []
         self.conference_pairs: list[Matchup] = []
@@ -486,13 +499,13 @@ class ScheduleBuilder:
     def _constraint_division_density(self) -> None:
         # Cap divisional clustering at 6 in 9 for 5-team divisions (a 9-window cap
         # forces <=7 in any 10); cap at 4 in 7 for 4-team divisions (forces <=5 in 8).
-        for team_i in self.five_team_set:
+        for team_i in self.five_team_teams:
             for w in range(NUM_WEEKS - 8):
                 self.model.add(
                     sum(self.d[team_i, w + k] for k in range(9))
                     <= self.amounts.five_team_max_divisional_in_9
                 )
-        for team_i in self.four_team_set:
+        for team_i in self.four_team_teams:
             for w in range(NUM_WEEKS - 6):
                 self.model.add(
                     sum(self.d[team_i, w + k] for k in range(7))
@@ -662,14 +675,14 @@ class ScheduleBuilder:
         # NFL-typical instead of all teams maxed. 4-team = 3 divisional in first 8;
         # 5-team = 6 divisional in first 10 (the front-load ceiling).
         four_team_frontload_flags: list[cp_model.IntVar] = []
-        for team_i in self.four_team_set:
+        for team_i in self.four_team_teams:
             early8 = sum(self.d[team_i, w] for w in range(8))
             flag = self.model.new_bool_var(f"front8at3_{team_i.metro}")
             self.model.add(early8 >= 3).only_enforce_if(flag)
             self.model.add(early8 <= 2).only_enforce_if(flag.Not())
             four_team_frontload_flags.append(flag)
         five_team_frontload_flags: list[cp_model.IntVar] = []
-        for team_i in self.five_team_set:
+        for team_i in self.five_team_teams:
             early10 = sum(self.d[team_i, w] for w in range(10))
             flag = self.model.new_bool_var(f"front10at6_{team_i.metro}")
             self.model.add(early10 >= 6).only_enforce_if(flag)
@@ -768,22 +781,31 @@ class ScheduleBuilder:
         self._constraint_late_divisional_presence()
         self._add_soft_objective()
 
-    def _solve_model(
-        self, seed: int = 0, time_limit: float = DEFAULT_TIME_LIMIT
-    ) -> Schedule:
+    def _make_solver(
+        self, seed: int, time_limit: float, workers: int
+    ) -> cp_model.CpSolver:
+        # Parallel but reproducible. interleave_search is deterministic for a
+        # fixed seed AND a fixed `workers` count -- the schedule changes if the
+        # count changes -- so `workers` comes from config (solver_workers), never
+        # the machine's core count. It stops on deterministic time, not
+        # wall-clock, so the result is machine-speed independent; `time_limit` is
+        # that deterministic-time budget.
         solver = cp_model.CpSolver()
         solver.parameters.random_seed = seed
         solver.parameters.randomize_search = True
-        # interleave_search is the one parallel CP-SAT mode that stays
-        # reproducible for a fixed seed regardless of worker count, so it's
-        # the only mode allowed here. `time_limit` is deterministic time (not
-        # wall-clock seconds) once interleaved.
-        num_workers = os.cpu_count() or 1
-        solver.parameters.num_search_workers = num_workers
+        solver.parameters.num_search_workers = workers
         solver.parameters.interleave_search = True
-        solver.parameters.interleave_batch_size = num_workers
+        solver.parameters.interleave_batch_size = workers
         solver.parameters.max_deterministic_time = time_limit
+        return solver
 
+    def _solve_model(
+        self,
+        seed: int = 0,
+        time_limit: float = DEFAULT_TIME_LIMIT,
+        workers: int = DEFAULT_SOLVER_WORKERS,
+    ) -> Schedule:
+        solver = self._make_solver(seed=seed, time_limit=time_limit, workers=workers)
         status = solver.solve(self.model)
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             raise self.error_cls(
@@ -799,7 +821,11 @@ class ScheduleBuilder:
         return Schedule(games=tuple(games))
 
     def build_schedule(
-        self, matchups: Matchups, seed: int = 0, time_limit: float = DEFAULT_TIME_LIMIT
+        self,
+        matchups: Matchups,
+        seed: int = 0,
+        time_limit: float = DEFAULT_TIME_LIMIT,
+        workers: int = DEFAULT_SOLVER_WORKERS,
     ) -> Schedule:
         self._populate_model(matchups=matchups)
-        return self._solve_model(seed=seed, time_limit=time_limit)
+        return self._solve_model(seed=seed, time_limit=time_limit, workers=workers)

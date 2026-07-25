@@ -23,6 +23,16 @@ DEFAULT_TIME_LIMIT = 300.0  # phase-2 (week-placement) solve, deterministic time
 DEFAULT_PHASE1_TIME_LIMIT = 60.0  # phase-1 (matchup) solve seconds
 DEFAULT_DIFFICULTY_SPREAD = 2.5  # difficulty tilt on the 1-9 conference scale
 
+# Phase-2 parallel search width. CP-SAT interleave search is reproducible only
+# at a FIXED worker count -- the schedule changes with the count -- so this is a
+# pinned setting (not os.cpu_count(), not CLI-overridable). The same seed gives
+# the same schedule only when everyone uses the same value, so treat it as a
+# stable contract: changing it re-rolls every seed's schedule. Default 8 is a
+# balance -- enough parallelism to be fast, low enough to not heavily
+# oversubscribe smaller (e.g. 4-core) machines; higher can be faster on
+# many-core CPUs but is not required.
+DEFAULT_SOLVER_WORKERS = 8
+
 
 class ConfigError(Exception):
     """The config file is missing, or present but invalid."""
@@ -40,6 +50,7 @@ class DifficultyConfig:
 class SolverConfig:
     time_limit: float = DEFAULT_TIME_LIMIT
     phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT
+    solver_workers: int = DEFAULT_SOLVER_WORKERS
 
 
 @dataclass(frozen=True)
@@ -147,6 +158,7 @@ def load_scheduler_config() -> SchedulerConfig:
             phase1_time_limit=_number(
                 solver, "phase1_time_limit", DEFAULT_PHASE1_TIME_LIMIT, path
             ),
+            solver_workers=_int(solver, "solver_workers", DEFAULT_SOLVER_WORKERS, path),
         ),
         phase2=_phase2(phase2, path),
     )
