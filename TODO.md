@@ -2,6 +2,9 @@
 
 ## TODO
 
+- scheduler: Re-order report columns
+- scheduler: league.ini files - order divisions by standings (why both Divisons and DivisionStandings),
+  rename Standings to OverallStandings, and add comments to make ordering clear for divs and confs
 - gameplan check: add profile option? to make sure profile is valid?
   for remaining matchups??
 - gameplan: replace play (single and bulk) - list of plays as input??
