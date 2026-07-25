@@ -47,7 +47,7 @@ CLI-level (Click → exit 2):
 - `--season` provided; `--time-limit` an integer
 
 Config (raise `ConfigError`) — found via `config_dir()` / `ATHC_CONFIG_DIR`, no `--config` flag:
-- `<season>.league.ini` (`[DivisionStandings]` per-division finish order, which defines division membership, + `[Standings]` overall 1–18) is **required** data, selected by the required `--season`. The scheduler uses the overall order and derives its 1–9 conference ranks from it.
+- `<season>.league.ini` (`[DivisionStandings]` per-division finish order, which defines division membership, + `[OverallStandings]` overall 1–18) is **required** data, selected by the required `--season`. The scheduler uses the overall order and derives its 1–9 conference ranks from it.
 - `rules/PNFL.scheduler.toml` scheduler tunables (difficulty `spread`, solver `time_limit` / `solver_workers`) are **optional** (each key defaults when absent); invalid TOML or a wrong-typed value is an error. The difficulty curve drives the scheduler.
 - Invalid INI, or league data that fails domain validation, surfaces as a `ConfigError`
 

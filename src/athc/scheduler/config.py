@@ -167,7 +167,7 @@ def load_scheduler_config() -> SchedulerConfig:
 
 def load_league(path: StrPath) -> League:
     """Read a league from `[DivisionStandings]` (per-division teams in finish
-    order -- this defines division membership) and `[Standings]` (overall 1-18
+    order -- this defines division membership) and `[OverallStandings]` (overall 1-18
     `Order`). Per-conference 1-9 ranks derive from the overall order.
     """
     resolved = Path(path)
@@ -175,12 +175,12 @@ def load_league(path: StrPath) -> League:
         raise ConfigError(f"Config file not found: '{resolved}'.")
     cp = _read_config(resolved)
     _require_section(cp, resolved, "DivisionStandings")
-    _require_section(cp, resolved, "Standings")
+    _require_section(cp, resolved, "OverallStandings")
     division_standings = {
         key: _parse_multiline(cp, "DivisionStandings", key)
         for key in cp.options("DivisionStandings")
     }
-    overall = _required_multiline(cp, resolved, "Standings", "Order")
+    overall = _required_multiline(cp, resolved, "OverallStandings", "Order")
     try:
         return build_league(division_standings, overall_ranking=overall)
     except ValueError as error:

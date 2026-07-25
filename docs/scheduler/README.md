@@ -36,7 +36,7 @@ How the schedule is built, in three docs:
 No `--config` flag — config is found via `ATHC_CONFIG_DIR` / the default config dir (see [../design/config.md](../design/config.md)):
 
 - `rules/PNFL.scheduler.toml` — scheduler tunables (difficulty `spread`, solver `time_limit` / `solver_workers`, `[phase2]` rule amounts); **optional**, each key defaults when absent (invalid TOML/value is an error). `solver_workers` is a fixed reproducibility setting — same value everywhere or a seed's schedule changes. Installed but not advertised.
-- `<season>.league.ini` (`[DivisionStandings]` per-division teams in finish order — this defines division membership — plus `[Standings]` overall 1–18 `Order` list) — **required** league data, selected by `--season`. Both schedulers derive their 1–9 conference ranks from the overall order. A missing/invalid `[Standings]` or `[DivisionStandings]` is an error.
+- `<season>.league.ini` (`[DivisionStandings]` per-division teams in finish order — this defines division membership — plus `[OverallStandings]` overall 1–18 `Order` list) — **required** league data, selected by `--season`. Both schedulers derive their 1–9 conference ranks from the overall order. A missing/invalid `[OverallStandings]` or `[DivisionStandings]` is an error.
 
 ## Tests
 

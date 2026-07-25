@@ -49,7 +49,7 @@ CONFIG FILES (in %LOCALAPPDATA%\athc\)
                            season finish order, best first. This defines the
                            four divisions and their teams (AFC_EAST 4 teams,
                            AFC_WEST 5, NFC_EAST 4, NFC_WEST 5). Required.
-      [Standings]          Order = last season's final standings: all 18
+      [OverallStandings]          Order = last season's final standings: all 18
                            teams, one per line, 1st (best) through 18th. All
                            schedulers rank teams from this; per-conference
                            ranks are derived from it. Required.

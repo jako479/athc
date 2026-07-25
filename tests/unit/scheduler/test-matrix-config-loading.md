@@ -29,15 +29,15 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | Valid file | `League`, 18 teams, overall set | `test_load_league_reads_valid_config` | ☑ |
-| Conference rank from `[Standings]` | derived 1–9 ranks | `test_load_league_derives_conference_rank_from_standings` | ☑ |
-| `[Standings]` missing | `ConfigError` "Standings" | `test_load_league_errors_when_standings_section_missing` | ☑ |
+| Conference rank from `[OverallStandings]` | derived 1–9 ranks | `test_load_league_derives_conference_rank_from_standings` | ☑ |
+| `[OverallStandings]` missing | `ConfigError` "OverallStandings" | `test_load_league_errors_when_standings_section_missing` | ☑ |
 | Duplicate team | `ConfigError` | `test_load_league_errors_on_duplicate_team` | ☑ |
-| `[Standings]` team not in `[DivisionStandings]` | `ConfigError` | `test_load_league_errors_when_standings_team_not_in_divisions` | ☑ |
+| `[OverallStandings]` team not in `[DivisionStandings]` | `ConfigError` | `test_load_league_errors_when_standings_team_not_in_divisions` | ☑ |
 | `Order` key missing | `ConfigError` | `test_load_league_errors_when_order_key_missing` | ☑ |
 | `Order` empty | `ConfigError` | `test_load_league_errors_when_order_empty` | ☑ |
 | Wrong division size | `ConfigError` | `test_load_league_errors_on_invalid_league_data` | ☑ |
 | Unknown division key | `ConfigError` | `test_load_league_errors_on_unknown_division_key` | ☑ |
-| `[Standings]` duplicate team | `ConfigError` | `test_load_league_errors_on_standings_duplicate` | ☑ |
+| `[OverallStandings]` duplicate team | `ConfigError` | `test_load_league_errors_on_standings_duplicate` | ☑ |
 | Malformed INI | `ConfigError` | `test_load_league_errors_on_invalid_ini` | ☑ |
 | File missing | `ConfigError` | `test_load_league_errors_when_file_missing` | ☑ |
 | Shipped `release/2048.league.ini` | loads, 18 teams | `test_release_example_league_loads` | ☑ |

@@ -87,6 +87,6 @@ RENAME = {
     "Indianapolis": "Cincinnati",
     "New York N": "New York",
 }
-print("\n2047.league.ini [Standings] (2046 final, 2047 names):")
+print("\n2047.league.ini [OverallStandings] (2046 final, 2047 names):")
 for i, t in enumerate(final_2046, 1):
     print(f"  {i:>2}  {RENAME.get(t, t)}")

@@ -161,7 +161,9 @@ class League:
 
 def build_league(
     division_standings: Mapping[str, Sequence[str]],  # "AFC_EAST" -> finish order
-    overall_ranking: Sequence[str],  # all 18 metros, best to worst (from [Standings])
+    overall_ranking: Sequence[
+        str
+    ],  # all 18 metros, best to worst (from [OverallStandings])
 ) -> League:
     """Build a `League` from the per-division standings plus the overall 1-18
     standings.
@@ -190,8 +192,8 @@ def build_league(
 def _validate_overall(ranking: tuple[Team, ...], teams: tuple[Team, ...]) -> None:
     if len(ranking) != len(teams):
         raise ValueError(
-            f"Standings must list all {len(teams)} teams; got {len(ranking)}"
+            f"Overall standings must list all {len(teams)} teams; got {len(ranking)}"
         )
     if len(set(ranking)) != len(ranking):
         duplicates = sorted({t.metro for t in ranking if ranking.count(t) > 1})
-        raise ValueError(f"Standings have duplicate teams: {duplicates}")
+        raise ValueError(f"Overall standings have duplicate teams: {duplicates}")

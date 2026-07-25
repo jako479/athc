@@ -79,6 +79,6 @@ final = [
     *hi(["Jacksonville", "Seattle", "Green Bay"]),  # 4-12
 ]
 assert len(final) == 18 and len(set(final)) == 18
-print("\n2045.league.ini [Standings] (2044 final, no rename):")
+print("\n2045.league.ini [OverallStandings] (2044 final, no rename):")
 for i, t in enumerate(final, 1):
     print(f"  {i:>2}  {t}")

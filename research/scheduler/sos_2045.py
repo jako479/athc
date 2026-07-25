@@ -86,6 +86,6 @@ final = [
 assert len(final) == 18 and len(set(final)) == 18
 
 RENAME = {"Los Angeles": "Buffalo"}  # 2045 -> 2046
-print("\n2046.league.ini [Standings] (2045 final, 2046 names):")
+print("\n2046.league.ini [OverallStandings] (2045 final, 2046 names):")
 for i, t in enumerate(final, 1):
     print(f"  {i:>2}  {RENAME.get(t, t)}")

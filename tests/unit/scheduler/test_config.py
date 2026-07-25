@@ -21,7 +21,7 @@ SEASON = 2048  # shipped config file is 2048.league.ini
 # ---------------------------------------------------------------------------
 # Scheduler tunables live in rules/PNFL.scheduler.toml; league data is a separate
 # league.ini: [DivisionStandings] (per-division teams in finish order -- this
-# defines division membership) plus [Standings] (overall 1-18). Tests derive
+# defines division membership) plus [OverallStandings] (overall 1-18). Tests derive
 # invalid variants from VALID_LEAGUE.
 # ---------------------------------------------------------------------------
 
@@ -62,9 +62,9 @@ NFC_WEST =
 """
 
 
-# [Standings] alone: the overall 1-18 finish (a valid file needs this too).
-STANDINGS = """\
-[Standings]
+# [OverallStandings] alone: the overall 1-18 finish (a valid file needs this too).
+OVERALL_STANDINGS = """\
+[OverallStandings]
 Order =
     New England
     Washington
@@ -86,8 +86,10 @@ Order =
     Seattle
 """
 
-VALID_LEAGUE = DIVISION_STANDINGS + "\n" + STANDINGS
-LEAGUE_MISSING_DIVISION_STANDINGS = STANDINGS  # no [DivisionStandings] -> invalid
+VALID_LEAGUE = DIVISION_STANDINGS + "\n" + OVERALL_STANDINGS
+LEAGUE_MISSING_DIVISION_STANDINGS = (
+    OVERALL_STANDINGS  # no [DivisionStandings] -> invalid
+)
 
 
 def _write(path: Path, text: str) -> Path:
@@ -257,11 +259,11 @@ def test_load_league_reads_valid_config(tmp_path: Path) -> None:
     league = load_league(_valid_league(tmp_path))
     assert isinstance(league, League)
     assert len(league.teams) == 18
-    assert league.rankings.overall is not None  # [Standings] -> overall known
+    assert league.rankings.overall is not None  # [OverallStandings] -> overall known
 
 
 def test_load_league_derives_conference_rank_from_standings(tmp_path: Path) -> None:
-    # Conference 1-9 ranks come from the overall [Standings] order, not a separate
+    # Conference 1-9 ranks come from the overall [OverallStandings] order, not a separate
     # section. New England is 1st overall and the top AFC team; Washington 2nd
     # overall and the top NFC team.
     league = load_league(_valid_league(tmp_path))
@@ -283,8 +285,8 @@ def test_load_league_errors_when_division_standings_section_missing(
 
 
 def test_load_league_errors_when_standings_section_missing(tmp_path: Path) -> None:
-    ini = _write(tmp_path / "league.ini", DIVISION_STANDINGS)  # no [Standings]
-    with pytest.raises(ConfigError, match="Standings"):
+    ini = _write(tmp_path / "league.ini", DIVISION_STANDINGS)  # no [OverallStandings]
+    with pytest.raises(ConfigError, match="OverallStandings"):
         load_league(ini)
 
 
@@ -299,7 +301,7 @@ def test_load_league_errors_on_duplicate_team(tmp_path: Path) -> None:
 def test_load_league_errors_when_standings_team_not_in_divisions(
     tmp_path: Path,
 ) -> None:
-    # [Standings] names a team absent from [DivisionStandings] (Nowhere replaces
+    # [OverallStandings] names a team absent from [DivisionStandings] (Nowhere replaces
     # New England in the overall order).
     text = VALID_LEAGUE.replace("Order =\n    New England", "Order =\n    Nowhere")
     ini = _write(tmp_path / "league.ini", text)
@@ -308,7 +310,9 @@ def test_load_league_errors_when_standings_team_not_in_divisions(
 
 
 def test_load_league_errors_when_order_key_missing(tmp_path: Path) -> None:
-    text = VALID_LEAGUE[: VALID_LEAGUE.index("Order =")]  # [Standings] but no Order
+    text = VALID_LEAGUE[
+        : VALID_LEAGUE.index("Order =")
+    ]  # [OverallStandings] but no Order
     ini = _write(tmp_path / "league.ini", text)
     with pytest.raises(ConfigError):
         load_league(ini)
@@ -350,7 +354,7 @@ def test_load_league_errors_on_unknown_division_key(tmp_path: Path) -> None:
 
 
 def test_load_league_errors_on_standings_duplicate(tmp_path: Path) -> None:
-    # Duplicate a team in [Standings] (Seattle twice; Las Vegas dropped).
+    # Duplicate a team in [OverallStandings] (Seattle twice; Las Vegas dropped).
     text = VALID_LEAGUE.replace(
         "    Las Vegas\n    Seattle", "    Seattle\n    Seattle"
     )

@@ -54,7 +54,7 @@ def generate_schedule(
 
     \b
       <season>.league.ini   [DivisionStandings] (per-division teams in finish
-                            order; defines the divisions) + [Standings] overall
+                            order; defines the divisions) + [OverallStandings] overall
 
     Writes a .txt and .html schedule plus an .html report to the current
     directory, named `schedule_<season>_<timestamp>`.

@@ -2,8 +2,7 @@
 
 ## TODO
 
-- gameplan check: add profile option? to make sure profile is valid?
-  for remaining matchups??
+- gameplan check: add profile option to make sure profile is valid for included gameplan categories
 - gameplan: replace play (single and bulk) - list of plays as input??
 - profile: revisit edit\copy options
 - autocontinue: add halftime
