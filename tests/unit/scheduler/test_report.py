@@ -108,9 +108,11 @@ def test_html_report_has_new_columns_and_values() -> None:
         "Avg NC SOS (1-9)",
     ):
         assert header in html
-    # Team leads, then Overall Rank, then Conf Rank.
+    # Team leads, then Overall Rank. Conf Rank sits right after Avg NC SOS (1-18),
+    # as the first 1-9 column.
     assert html.index(">Team<") < html.index("Overall Rank (1-18)")
-    assert html.index("Overall Rank (1-18)") < html.index("Conf Rank (1-9)")
+    assert html.index("Avg NC SOS (1-18)") < html.index("Conf Rank (1-9)")
+    assert html.index("Conf Rank (1-9)") < html.index("Avg NC SOS (1-9)")
     assert "9.50" in html  # avg_sos
     assert "8.25" in html  # avg_nonconference_sos
     assert "4.50" in html  # avg_nonconference_sos_conf
