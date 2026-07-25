@@ -35,7 +35,10 @@ logger = logging.getLogger(__name__)
     "--time-limit",
     type=int,
     default=None,
-    help="Override the solver time limit (CP-SAT deterministic time, not wall-clock seconds).",
+    help=(
+        "Override the solver time limit "
+        "(CP-SAT deterministic time, not wall-clock seconds)."
+    ),
 )
 @click.pass_context
 def generate_schedule(
@@ -50,8 +53,8 @@ def generate_schedule(
     it, or `athc config reveal` to open it):
 
     \b
-      <season>.league.ini   divisions + previous season's standings, including
-                            the [DivisionStandings] section
+      <season>.league.ini   [DivisionStandings] (per-division teams in finish
+                            order; defines the divisions) + [Standings] overall
 
     Writes a .txt and .html schedule plus an .html report to the current
     directory, named `schedule_<season>_<timestamp>`.

@@ -45,14 +45,14 @@ CONFIG FILES (in %LOCALAPPDATA%\athc\)
    <season>.league.ini (e.g. 2048.league.ini) -- divisions and last season's
    standings. You supply this; --season picks which file to read. Sections:
 
-      [Divisions]          the four divisions and their teams (AFC_EAST 4
-                           teams, AFC_WEST 5, NFC_EAST 4, NFC_WEST 5).
+      [DivisionStandings]  each division's teams in last season's regular-
+                           season finish order, best first. This defines the
+                           four divisions and their teams (AFC_EAST 4 teams,
+                           AFC_WEST 5, NFC_EAST 4, NFC_WEST 5). Required.
       [Standings]          Order = last season's final standings: all 18
                            teams, one per line, 1st (best) through 18th. All
                            schedulers rank teams from this; per-conference
-                           ranks are derived from it.
-      [DivisionStandings]  last season's regular-season finish per division,
-                           best first. Required.
+                           ranks are derived from it. Required.
 
    rules\PNFL.scheduler.toml -- optional tuning (difficulty tilts, solver
    time limits, phase-2 rule amounts). Every key defaults if absent; edit

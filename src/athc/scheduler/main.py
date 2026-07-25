@@ -10,7 +10,6 @@ from os import PathLike
 from pathlib import Path
 
 from athc.scheduler.config import (
-    ConfigError,
     load_league,
     load_scheduler_config,
 )
@@ -49,11 +48,7 @@ def generate_schedule(
             scheduler_config,
             solver=replace(scheduler_config.solver, time_limit=time_limit),
         )
-    league = load_league(league_path)
-    if league.division_standings is None:
-        raise ConfigError(
-            f"A [DivisionStandings] section is required in '{league_path}'."
-        )
+    league = load_league(league_path)  # requires [DivisionStandings]
 
     logger.info("Generating the %d schedule", season)
     started = time.perf_counter()

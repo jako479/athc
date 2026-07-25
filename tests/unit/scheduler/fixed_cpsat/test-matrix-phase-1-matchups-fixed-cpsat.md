@@ -33,7 +33,6 @@ One row per behavior. Status: ☑ covered · ☐ no test yet. The phase-1 solve 
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | Place table shape invalid | raises (missing slots / wrong count / asymmetric / same-conference) | `test_place_table_validation_rejects_invalid_table` | ☑ |
-| Missing division standings | raises, names [DivisionStandings] | `test_builder_errors_without_division_standings` | ☑ |
 | CP-SAT drops a forced table pair | raises | — | ☐ |
 | Unfilled slots / wrong totals | raises | — | ☐ |
 | Infeasible CP-SAT model | raises | — | ☐ |

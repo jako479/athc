@@ -45,9 +45,10 @@ _DIVISIONS: dict[str, Sequence[str]] = {
 def _make_league(afc: Sequence[str], nfc: Sequence[str]) -> League:
     # Interleave the two 9-team conference orders into one overall 1-18 list so the
     # derived conference ranks still match afc/nfc (1st AFC, 1st NFC, 2nd AFC, ...).
-    # Division standings follow the same order within each division.
+    # [DivisionStandings] defines the divisions; teams follow the same order within
+    # each division as their conference finish.
     overall = [team for pair in zip(afc, nfc, strict=True) for team in pair]
-    standings = {
+    division_standings = {
         name: tuple(
             metro
             for metro in (afc if name.startswith("AFC") else nfc)
@@ -55,7 +56,7 @@ def _make_league(afc: Sequence[str], nfc: Sequence[str]) -> League:
         )
         for name, members in _DIVISIONS.items()
     }
-    return build_league(_DIVISIONS, overall, division_standings=standings)
+    return build_league(division_standings, overall)
 
 
 LEAGUE_5_SLOTS = _make_league(

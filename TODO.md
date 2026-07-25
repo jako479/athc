@@ -3,13 +3,13 @@
 ## TODO
 
 - scheduler: Re-order report columns
-- scheduler: league.ini files - order divisions by standings (why both Divisons and DivisionStandings),
-  rename Standings to OverallStandings, and add comments to make ordering clear for divs and confs
+- scheduler: league.ini - rename Standings to OverallStandings; add comments to make ordering clear for divs and confs
 - gameplan check: add profile option? to make sure profile is valid?
   for remaining matchups??
 - gameplan: replace play (single and bulk) - list of plays as input??
 - profile: revisit edit\copy options
 - autocontinue: add halftime
+- [DONE] scheduler: league.ini - dropped [Divisions]; [DivisionStandings] now defines division membership + finish order
 - [DONE] scheduler: soft objective so seasons vary like real NFL years; NFL-typical bands per [docs/design/research/cpsat-rule-patterns.md](docs/design/research/cpsat-rule-patterns.md)
 - [DONE] scheduler: count-caps to prevent rule pileups; implemented per [docs/design/research/cpsat-rule-patterns.md](docs/design/research/cpsat-rule-patterns.md)
 - [DONE] scheduler: convert league config into a single file [league.ini only; history file removed]

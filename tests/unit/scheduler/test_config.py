@@ -19,8 +19,10 @@ RELEASE = Path(__file__).resolve().parents[3] / "release"
 SEASON = 2048  # shipped config file is 2048.league.ini
 
 # ---------------------------------------------------------------------------
-# Scheduler tunables live in rules/PNFL.scheduler.toml; league data (divisions +
-# overall standings) is a separate league.ini. Tests derive invalid variants.
+# Scheduler tunables live in rules/PNFL.scheduler.toml; league data is a separate
+# league.ini: [DivisionStandings] (per-division teams in finish order -- this
+# defines division membership) plus [Standings] (overall 1-18). Tests derive
+# invalid variants from VALID_LEAGUE.
 # ---------------------------------------------------------------------------
 
 
@@ -32,56 +34,8 @@ def _write_scheduler_toml(config_dir: Path, body: str) -> Path:
     return path
 
 
-VALID_LEAGUE = """\
-[Divisions]
-AFC_EAST =
-    Buffalo
-    Jacksonville
-    Miami
-    New England
-AFC_WEST =
-    Cincinnati
-    Denver
-    Las Vegas
-    Los Angeles
-    Pittsburgh
-NFC_EAST =
-    Atlanta
-    New York
-    Philadelphia
-    Washington
-NFC_WEST =
-    Chicago
-    Green Bay
-    Minnesota
-    San Francisco
-    Seattle
-
-[Standings]
-Order =
-    New England
-    Washington
-    Miami
-    Atlanta
-    Jacksonville
-    New York
-    Buffalo
-    Philadelphia
-    Cincinnati
-    Chicago
-    Pittsburgh
-    Minnesota
-    Denver
-    San Francisco
-    Los Angeles
-    Green Bay
-    Las Vegas
-    Seattle
-"""
-
-
+# [DivisionStandings] alone: each division's teams in finish order (best first).
 DIVISION_STANDINGS = """\
-
 [DivisionStandings]
 AFC_EAST =
     New England
@@ -107,7 +61,33 @@ NFC_WEST =
     Seattle
 """
 
-LEAGUE_WITH_DIVISION_STANDINGS = VALID_LEAGUE + DIVISION_STANDINGS
+
+# [Standings] alone: the overall 1-18 finish (a valid file needs this too).
+STANDINGS = """\
+[Standings]
+Order =
+    New England
+    Washington
+    Miami
+    Atlanta
+    Jacksonville
+    New York
+    Buffalo
+    Philadelphia
+    Cincinnati
+    Chicago
+    Pittsburgh
+    Minnesota
+    Denver
+    San Francisco
+    Los Angeles
+    Green Bay
+    Las Vegas
+    Seattle
+"""
+
+VALID_LEAGUE = DIVISION_STANDINGS + "\n" + STANDINGS
+LEAGUE_MISSING_DIVISION_STANDINGS = STANDINGS  # no [DivisionStandings] -> invalid
 
 
 def _write(path: Path, text: str) -> Path:
@@ -293,22 +273,23 @@ def test_load_league_derives_conference_rank_from_standings(tmp_path: Path) -> N
     assert league.rankings.rank_of(washington) == 1
 
 
-def test_load_league_errors_when_divisions_section_missing(tmp_path: Path) -> None:
-    text = VALID_LEAGUE[VALID_LEAGUE.index("[Standings]") :]  # standings only
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError):
+def test_load_league_errors_when_division_standings_section_missing(
+    tmp_path: Path,
+) -> None:
+    # [DivisionStandings] defines membership; without it there is no league.
+    ini = _write(tmp_path / "league.ini", LEAGUE_MISSING_DIVISION_STANDINGS)
+    with pytest.raises(ConfigError, match="DivisionStandings"):
         load_league(ini)
 
 
 def test_load_league_errors_when_standings_section_missing(tmp_path: Path) -> None:
-    text = VALID_LEAGUE[: VALID_LEAGUE.index("[Standings]")]  # divisions only
-    ini = _write(tmp_path / "league.ini", text)
+    ini = _write(tmp_path / "league.ini", DIVISION_STANDINGS)  # no [Standings]
     with pytest.raises(ConfigError, match="Standings"):
         load_league(ini)
 
 
 def test_load_league_errors_on_duplicate_team(tmp_path: Path) -> None:
-    # Same metro listed in two divisions.
+    # Same metro in two divisions (Miami replaces Cincinnati in AFC_WEST).
     text = VALID_LEAGUE.replace("    Cincinnati\n", "    Miami\n", 1)
     ini = _write(tmp_path / "league.ini", text)
     with pytest.raises(ConfigError):
@@ -318,8 +299,8 @@ def test_load_league_errors_on_duplicate_team(tmp_path: Path) -> None:
 def test_load_league_errors_when_standings_team_not_in_divisions(
     tmp_path: Path,
 ) -> None:
-    # [Standings] names a team that isn't in [Divisions] (drops New England from
-    # the order and adds a bogus team in its place).
+    # [Standings] names a team absent from [DivisionStandings] (Nowhere replaces
+    # New England in the overall order).
     text = VALID_LEAGUE.replace("Order =\n    New England", "Order =\n    Nowhere")
     ini = _write(tmp_path / "league.ini", text)
     with pytest.raises(ConfigError):
@@ -344,14 +325,14 @@ def test_load_league_errors_on_invalid_league_data(tmp_path: Path) -> None:
     # Drop a team from AFC_EAST so the division is the wrong size.
     ini = _write(
         tmp_path / "league.ini",
-        VALID_LEAGUE.replace("    New England\nAFC_WEST =", "AFC_WEST ="),
+        VALID_LEAGUE.replace("    Buffalo\nAFC_WEST =", "AFC_WEST ="),
     )
     with pytest.raises(ConfigError):
         load_league(ini)
 
 
 def test_load_league_errors_on_invalid_ini(tmp_path: Path) -> None:
-    ini = _write(tmp_path / "league.ini", "[Divisions\nbroken")
+    ini = _write(tmp_path / "league.ini", "[DivisionStandings\nbroken")
     with pytest.raises(ConfigError):
         load_league(ini)
 
@@ -386,17 +367,14 @@ def test_release_example_league_loads() -> None:
 
 
 # ---------------------------------------------------------------------------
-# load_league — optional [DivisionStandings] (required by the scheduler)
+# load_league — [DivisionStandings] defines membership + per-division finish
 # ---------------------------------------------------------------------------
 
 
 def test_load_league_reads_division_standings(tmp_path: Path) -> None:
-    ini = _write(tmp_path / "league.ini", LEAGUE_WITH_DIVISION_STANDINGS)
-    league = load_league(ini)
+    league = load_league(_valid_league(tmp_path))
     standings = league.division_standings
-    assert standings is not None
-    afc_east = standings[Division.AFC_EAST]
-    assert [t.metro for t in afc_east] == [
+    assert [t.metro for t in standings[Division.AFC_EAST]] == [
         "New England",
         "Miami",
         "Jacksonville",
@@ -411,45 +389,21 @@ def test_load_league_reads_division_standings(tmp_path: Path) -> None:
     ]
 
 
-def test_load_league_division_standings_none_when_section_absent(
-    tmp_path: Path,
-) -> None:
+def test_load_league_teams_are_alphabetical_within_division(tmp_path: Path) -> None:
+    # Membership comes from [DivisionStandings] (finish order), but the teams
+    # tuple is canonical: alphabetical within each division.
     league = load_league(_valid_league(tmp_path))
-    assert league.division_standings is None
+    afc_east = [t.metro for t in league.teams if t.division == Division.AFC_EAST]
+    assert afc_east == ["Buffalo", "Jacksonville", "Miami", "New England"]
 
 
-def test_load_league_errors_when_division_standings_incomplete(tmp_path: Path) -> None:
-    # Section present but a division key missing.
-    text = LEAGUE_WITH_DIVISION_STANDINGS.replace(
+def test_load_league_errors_when_division_missing(tmp_path: Path) -> None:
+    # A whole division absent from [DivisionStandings].
+    text = VALID_LEAGUE.replace(
         "NFC_WEST =\n    Chicago\n    Minnesota\n    San Francisco\n"
         "    Green Bay\n    Seattle\n",
         "",
         1,
-    )
-    # Only replace within [DivisionStandings]: the [Divisions] copy differs, so
-    # the text above matches the standings block alone.
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError):
-        load_league(ini)
-
-
-def test_load_league_errors_on_unknown_division_standings_team(tmp_path: Path) -> None:
-    text = LEAGUE_WITH_DIVISION_STANDINGS.replace(
-        "[DivisionStandings]\nAFC_EAST =\n    New England",
-        "[DivisionStandings]\nAFC_EAST =\n    Nowhere",
-    )
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError):
-        load_league(ini)
-
-
-def test_load_league_errors_when_division_standings_team_misplaced(
-    tmp_path: Path,
-) -> None:
-    # Chicago (NFC_WEST) listed in AFC_EAST's standings.
-    text = LEAGUE_WITH_DIVISION_STANDINGS.replace(
-        "[DivisionStandings]\nAFC_EAST =\n    New England",
-        "[DivisionStandings]\nAFC_EAST =\n    Chicago",
     )
     ini = _write(tmp_path / "league.ini", text)
     with pytest.raises(ConfigError):
@@ -457,22 +411,10 @@ def test_load_league_errors_when_division_standings_team_misplaced(
 
 
 def test_load_league_errors_on_division_standings_duplicate(tmp_path: Path) -> None:
-    text = LEAGUE_WITH_DIVISION_STANDINGS.replace(
-        "[DivisionStandings]\nAFC_EAST =\n    New England\n    Miami",
-        "[DivisionStandings]\nAFC_EAST =\n    New England\n    New England",
-    )
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError):
-        load_league(ini)
-
-
-def test_load_league_errors_when_division_standings_team_missing(
-    tmp_path: Path,
-) -> None:
-    # AFC_EAST standings list only three of its four teams.
-    text = LEAGUE_WITH_DIVISION_STANDINGS.replace(
-        "[DivisionStandings]\nAFC_EAST =\n    New England\n    Miami\n",
-        "[DivisionStandings]\nAFC_EAST =\n    New England\n",
+    # A division lists the same team twice.
+    text = VALID_LEAGUE.replace(
+        "AFC_EAST =\n    New England\n    Miami",
+        "AFC_EAST =\n    New England\n    New England",
     )
     ini = _write(tmp_path / "league.ini", text)
     with pytest.raises(ConfigError):
@@ -481,5 +423,4 @@ def test_load_league_errors_when_division_standings_team_missing(
 
 def test_release_league_has_division_standings() -> None:
     league = load_league(RELEASE / f"{SEASON}.league.ini")
-    assert league.division_standings is not None
     assert len(league.division_standings) == 4

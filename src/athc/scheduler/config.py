@@ -165,34 +165,23 @@ def load_scheduler_config() -> SchedulerConfig:
 
 
 def load_league(path: StrPath) -> League:
-    """Read a league from `[Divisions]`, `[Standings]` (overall 1-18 `Order`),
-    and the optional `[DivisionStandings]` (per-division finish; both
-    schedulers need it). Per-conference 1-9 ranks derive from the order.
+    """Read a league from `[DivisionStandings]` (per-division teams in finish
+    order -- this defines division membership) and `[Standings]` (overall 1-18
+    `Order`). Per-conference 1-9 ranks derive from the overall order.
     """
     resolved = Path(path)
     if not resolved.is_file():
         raise ConfigError(f"Config file not found: '{resolved}'.")
     cp = _read_config(resolved)
-    _require_section(cp, resolved, "Divisions")
+    _require_section(cp, resolved, "DivisionStandings")
     _require_section(cp, resolved, "Standings")
-    divisions = {
-        key: _parse_multiline(cp, "Divisions", key) for key in cp.options("Divisions")
+    division_standings = {
+        key: _parse_multiline(cp, "DivisionStandings", key)
+        for key in cp.options("DivisionStandings")
     }
     overall = _required_multiline(cp, resolved, "Standings", "Order")
-    division_standings = (
-        {
-            key: _parse_multiline(cp, "DivisionStandings", key)
-            for key in cp.options("DivisionStandings")
-        }
-        if cp.has_section("DivisionStandings")
-        else None
-    )
     try:
-        return build_league(
-            divisions,
-            overall_ranking=overall,
-            division_standings=division_standings,
-        )
+        return build_league(division_standings, overall_ranking=overall)
     except ValueError as error:
         raise ConfigError(
             f"Config file '{resolved}' has invalid league data: {error}"

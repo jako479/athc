@@ -22,8 +22,6 @@ from athc.scheduler.schedulers.fixed_cpsat_builder import (
 )
 from athc.scheduler.schedulers.types import MatchupPlan, make_matchup
 
-from ..conftest import _DIVISIONS
-
 
 @pytest.fixture(scope="session")
 def fixed_cpsat_matchup_plan(league: League) -> MatchupPlan:
@@ -349,7 +347,7 @@ def test_fixed_pairs_follow_division_standings_not_rank() -> None:
         "NFC_EAST": ("Washington", "Atlanta", "New York", "Philadelphia"),
         "NFC_WEST": ("Chicago", "Minnesota", "San Francisco", "Green Bay", "Seattle"),
     }
-    league = build_league(_DIVISIONS, overall, division_standings=standings)
+    league = build_league(standings, overall)
     plan = FixedCpsatMatchupBuilder(
         teams=league.teams,
         rankings=league.rankings,
@@ -363,13 +361,3 @@ def test_fixed_pairs_follow_division_standings_not_rank() -> None:
         if jacksonville in (i, j)
     }
     assert {t.metro for t in fixed_opponents} == {"Washington", "Chicago"}
-
-
-def test_builder_errors_without_division_standings(league) -> None:
-    builder = FixedCpsatMatchupBuilder(
-        teams=league.teams,
-        rankings=league.rankings,
-        division_standings=None,
-    )
-    with pytest.raises(SchedulerError, match="DivisionStandings"):
-        builder.build_matchup_plan()

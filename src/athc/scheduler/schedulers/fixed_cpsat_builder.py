@@ -268,7 +268,7 @@ class FixedCpsatMatchupBuilder:
         self,
         teams: Sequence[Team],
         rankings: ConferenceRankings,
-        division_standings: Mapping[Division, Sequence[Team]] | None,
+        division_standings: Mapping[Division, Sequence[Team]],
         spread: float = DEFAULT_DIFFICULTY_SPREAD,
         phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT,
         seed: int = 0,
@@ -330,7 +330,6 @@ class FixedCpsatMatchupBuilder:
                 )
 
     def _fixed_place_pairs(self) -> set[Matchup]:
-        assert self.division_standings is not None  # checked in build_matchup_plan
         team_at: dict[_PlaceSlot, Team] = {
             (division, index + 1): team
             for division, order in self.division_standings.items()
@@ -353,10 +352,6 @@ class FixedCpsatMatchupBuilder:
         return model.solve(seed=self.seed, time_limit=self.phase1_time_limit)
 
     def build_matchup_plan(self) -> MatchupPlan:
-        if self.division_standings is None:
-            raise SchedulerError(
-                "The scheduler needs the league file's [DivisionStandings] section"
-            )
         _validate_fixed_place_table()
         self._add_divisional_matchups()
         self._add_conference_matchups()

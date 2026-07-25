@@ -30,10 +30,9 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 |---|---|---|---|
 | Valid file | `League`, 18 teams, overall set | `test_load_league_reads_valid_config` | ☑ |
 | Conference rank from `[Standings]` | derived 1–9 ranks | `test_load_league_derives_conference_rank_from_standings` | ☑ |
-| `[Divisions]` missing | `ConfigError` | `test_load_league_errors_when_divisions_section_missing` | ☑ |
 | `[Standings]` missing | `ConfigError` "Standings" | `test_load_league_errors_when_standings_section_missing` | ☑ |
 | Duplicate team | `ConfigError` | `test_load_league_errors_on_duplicate_team` | ☑ |
-| `[Standings]` team not in `[Divisions]` | `ConfigError` | `test_load_league_errors_when_standings_team_not_in_divisions` | ☑ |
+| `[Standings]` team not in `[DivisionStandings]` | `ConfigError` | `test_load_league_errors_when_standings_team_not_in_divisions` | ☑ |
 | `Order` key missing | `ConfigError` | `test_load_league_errors_when_order_key_missing` | ☑ |
 | `Order` empty | `ConfigError` | `test_load_league_errors_when_order_empty` | ☑ |
 | Wrong division size | `ConfigError` | `test_load_league_errors_on_invalid_league_data` | ☑ |
@@ -43,17 +42,15 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 | File missing | `ConfigError` | `test_load_league_errors_when_file_missing` | ☑ |
 | Shipped `release/2048.league.ini` | loads, 18 teams | `test_release_example_league_loads` | ☑ |
 
-### `[DivisionStandings]` (required by both schedulers)
+### `[DivisionStandings]` — defines division membership + finish order
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | Valid section | per-division ordered teams | `test_load_league_reads_division_standings` | ☑ |
-| Section absent | `division_standings` None | `test_load_league_division_standings_none_when_section_absent` | ☑ |
-| Division key missing | `ConfigError` | `test_load_league_errors_when_division_standings_incomplete` | ☑ |
-| Unknown team | `ConfigError` | `test_load_league_errors_on_unknown_division_standings_team` | ☑ |
-| Team in wrong division | `ConfigError` | `test_load_league_errors_when_division_standings_team_misplaced` | ☑ |
+| Teams alphabetical within division | canonical teams tuple | `test_load_league_teams_are_alphabetical_within_division` | ☑ |
+| Section absent | `ConfigError` "DivisionStandings" | `test_load_league_errors_when_division_standings_section_missing` | ☑ |
+| A division missing | `ConfigError` | `test_load_league_errors_when_division_missing` | ☑ |
 | Duplicate team | `ConfigError` | `test_load_league_errors_on_division_standings_duplicate` | ☑ |
-| Team missing | `ConfigError` | `test_load_league_errors_when_division_standings_team_missing` | ☑ |
-| Shipped release file has section | non-None, 4 divisions | `test_release_league_has_division_standings` | ☑ |
+| Shipped release file has section | 4 divisions | `test_release_league_has_division_standings` | ☑ |
 
 ### CLI — `generate-schedule` error paths
 | Case | Expected | Test | Status |

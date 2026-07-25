@@ -11,7 +11,6 @@ from __future__ import annotations
 import math
 import re
 from collections import Counter
-from itertools import pairwise
 
 from athc.scheduler.config import Phase2Config
 from athc.scheduler.domain.league import (

@@ -16,7 +16,7 @@ import athc.scheduler.main as main_module
 from athc.cli.generate_schedule import generate_schedule
 from athc.scheduler.config import ConfigError
 
-from .test_config import LEAGUE_WITH_DIVISION_STANDINGS, VALID_LEAGUE
+from .test_config import LEAGUE_MISSING_DIVISION_STANDINGS, VALID_LEAGUE
 
 
 def _write_season_files(config_dir: Path, season: int) -> None:
@@ -110,14 +110,14 @@ def _run_main(league_path: Path, tmp_path: Path) -> None:
 def test_main_errors_without_division_standings(tmp_path: Path) -> None:
     # [DivisionStandings] is required; the check runs before any solve.
     league_path = tmp_path / "league.ini"
-    league_path.write_text(VALID_LEAGUE, encoding="utf-8")
+    league_path.write_text(LEAGUE_MISSING_DIVISION_STANDINGS, encoding="utf-8")
     with pytest.raises(ConfigError, match="DivisionStandings"):
         _run_main(league_path, tmp_path)
 
 
 def test_main_accepts_division_standings(tmp_path: Path, monkeypatch) -> None:
     league_path = tmp_path / "league.ini"
-    league_path.write_text(LEAGUE_WITH_DIVISION_STANDINGS, encoding="utf-8")
+    league_path.write_text(VALID_LEAGUE, encoding="utf-8")
     _stub_solver(monkeypatch)
     with pytest.raises(_ReachedSolver):
         _run_main(league_path, tmp_path)
@@ -127,7 +127,9 @@ def test_cli_errors_without_division_standings(
     runner, caplog, config_dir: Path
 ) -> None:
     # End to end through the CLI: clean exit 1, message names the section.
-    (config_dir / "2048.league.ini").write_text(VALID_LEAGUE, encoding="utf-8")
+    (config_dir / "2048.league.ini").write_text(
+        LEAGUE_MISSING_DIVISION_STANDINGS, encoding="utf-8"
+    )
     with caplog.at_level("ERROR"):
         result = runner.invoke(generate_schedule, ["--season", "2048"])
     assert result.exit_code == 1
