@@ -6,7 +6,7 @@ Phase 2 takes the fixed 144-pairing inventory from phase 1 and uses OR-Tools CP-
 
 - Decision var `x[home, away, week]` (bool) per ordered team pair and week. Helper bools: `h[team, week]` (home that week), `d[team, week]` (divisional game that week).
 - Output: a `Schedule` of 16 weeks × 9 games.
-- Solve: single worker, seeded + randomized search, under the configured time limit. No feasible solution (or timeout) errors.
+- Solve: seeded + randomized interleaved search across `solver_workers` workers (default 8), stopping on deterministic time — not wall-clock — so results are machine-speed independent. Reproducible only for a fixed seed *and* a fixed worker count. No feasible solution (or timeout) errors.
 
 ## Constraints
 
