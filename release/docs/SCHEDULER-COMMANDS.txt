@@ -14,27 +14,22 @@ generate-schedule  --  build the season schedule
    Reads the season's league file, solves the schedule, and writes a .txt
    and .html schedule plus a sortable HTML report (per-team strength of
    schedule; click a column header to sort) to the current folder. Files are
-   named schedule_<season>_<C|D>_<timestamp> (C = fixed-place + CP-SAT,
-   D = C picked-games-only); the report adds a _report.html suffix.
+   named schedule_<season>_<timestamp>; the report adds a _report.html suffix.
 
    Show help:
       athc generate-schedule --help
 
    Example terminal calls:
       athc generate-schedule --season 2048
-      athc generate-schedule --season 2048 --seed 7 --scheduler D
+      athc generate-schedule --season 2048 --seed 7
 
    Options:
       --season YEAR       (required) season to schedule, e.g. 2048; reads
                           <season>.league.ini from the config dir
                           (run 'athc config path')
       --seed INT          random seed for reproducible output
-      --time-limit SECS   override the solver time limit (seconds)
-      --scheduler C|D     C (fixed-place + CP-SAT: division standings fix
-                          2 non-conference games per team, NFL-style
-                          same-place matchups, then CP-SAT fills the rest by
-                          rank) or D (like C, but rank targets cover only the
-                          filled games); default C
+      --time-limit SECS   override the solver time limit (CP-SAT
+                          deterministic time, not wall-clock seconds)
 
    Exit 0 = written, 1 = error, 2 = bad arguments.
 
@@ -49,10 +44,10 @@ CONFIG FILES (in %LOCALAPPDATA%\athc\)
                            season finish order, best first. This defines the
                            four divisions and their teams (AFC_EAST 4 teams,
                            AFC_WEST 5, NFC_EAST 4, NFC_WEST 5). Required.
-      [OverallStandings]          Order = last season's final standings: all 18
-                           teams, one per line, 1st (best) through 18th. All
-                           schedulers rank teams from this; per-conference
-                           ranks are derived from it. Required.
+      [OverallStandings]   Last season's final standings: all 18 teams, one
+                           per line, 1st (best) through 18th. Team ranks come
+                           from this; per-conference ranks are derived from
+                           it. Required.
 
    rules\PNFL.scheduler.toml -- optional tuning (difficulty tilts, solver
    time limits, phase-2 rule amounts). Every key defaults if absent; edit
