@@ -2,6 +2,8 @@
 
 Game plan (.pln) editor, profile (.prf) editor, and other tools for Front Page Sports Football Pro '98 coaches and league managers.
 
+Current state and what's next: [STATUS.md](STATUS.md) · task list: [TODO.md](TODO.md)
+
 ## Install
 
 End-user (from a local wheel; not yet on PyPI):
