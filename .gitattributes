@@ -4,3 +4,15 @@
 *.cmd text eol=crlf
 *.csv text eol=crlf
 *.ps1 text eol=crlf
+
+# FPS Football Pro '98 data files. Binary: never convert line endings, never diff.
+*.ply binary
+*.pln binary
+*.prf binary
+*.pdb binary
+*.bin binary
+
+# Other binary assets
+*.png binary
+*.pdf binary
+*.xlsx binary

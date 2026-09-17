@@ -4,7 +4,6 @@ __pycache__/
 *.pyo
 *.pyd
 *.so
-*.pdb
 *.egg-info/
 .eggs/
 build/
@@ -19,6 +18,8 @@ htmlcov/
 .tox/
 .venv*/
 .venv/
+.env
+.env.*
 .env/
 env/
 .rye/
@@ -26,14 +27,11 @@ env/
 schedule_*_[cd]_*.*
 
 # VS Code
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
-!.vscode/launch.json
-!.vscode/tasks.json
+.vscode/
 
 # uv
-uv.lock
+# uv.lock is committed on purpose: athc is an application, so everyone builds
+# from the same pinned dependency set.
 
 # Node/Prettier stuff (if present)
 node_modules/
@@ -43,7 +41,7 @@ yarn.lock
 
 # AI
 .claude/settings.local.json
-.claude/settings.json
+CLAUDE.local.md
 
 # OS
 .DS_Store
