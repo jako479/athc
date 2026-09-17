@@ -35,7 +35,7 @@ def make_play_data(
 
 def write_pdb(path: Path, plays=(), tendencies=()) -> Path:
     """Write a minimal .pdb: each play prefixed with a 0 byte, each tendency with 1."""
-    with open(path, "wb") as f:
+    with path.open("wb") as f:
         for play in plays:
             f.write(b"\x00" + bytes(play))  # data-type 0 = PLAY
         for tendency in tendencies:

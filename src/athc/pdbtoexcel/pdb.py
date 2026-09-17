@@ -161,7 +161,7 @@ class PDB:
         self.tendencies: list[TENDENCY_DATA] = []
         file_path = Path(filename)
 
-        with open(file_path, "rb") as pdb:
+        with file_path.open("rb") as pdb:
             while True:
                 data = pdb.read(1)
                 if not data:

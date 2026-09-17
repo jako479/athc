@@ -41,7 +41,11 @@ def collect_files(
         if is_glob(raw):
             matches = [
                 Path(m)
-                for m in sorted(glob.glob(raw, recursive=True))
+                # glob.glob is the right tool here: raw is a complete pattern
+                # the user typed, like plays\**\*.ply. pathlib has no
+                # equivalent — Path.glob only matches within a folder you
+                # already have. PTH207 flags glob on sight; it is wrong here.
+                for m in sorted(glob.glob(raw, recursive=True))  # noqa: PTH207
                 if Path(m).is_file() and Path(m).suffix.lower() == suffix
             ]
             if not matches:
