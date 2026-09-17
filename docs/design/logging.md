@@ -38,17 +38,42 @@ stderr instead, where the app can still silence or redirect it.
 - Use `click.echo` for stdout, **never `print()`** — `click.echo` handles
   encoding/redirection. (Audited: no `print()` in the codebase.)
 - CLI commands never call `logger.info`/`logger.warning`; status is echoed to
-  stdout. Libraries never call `logger.error` or `basicConfig` — the app owns
-  handler setup and decides what's fatal.
+  stdout. Libraries never call `logger.error` — the app decides what's fatal.
+- Only the root group callback calls `basicConfig` (see [Handler setup](#handler-setup));
+  neither commands nor libraries configure handlers.
 
-## CLI commands
+## Handler setup
 
-Every command sets up logging identically:
+The umbrella group callback — `cli()` in
+[cli/__init__.py](../../src/athc/cli/__init__.py) — configures the root logger
+once, before any subcommand runs. Click fires the group callback on every
+invocation, so one setup site covers built-ins and plugins alike.
 
 ```python
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+@click.group(cls=AthcGroup, ...)
+@click.option("-v", "--verbose", is_flag=True, help="Log debug detail to stderr.")
+def cli(verbose: bool) -> None:
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.INFO,
+        format="%(message)s",
+        handlers=[RichHandler(console=Console(stderr=True), show_time=False,
+                              show_path=False, markup=False)],
+    )
 ```
+
+Leaf commands call `getLogger(__name__)` and nothing else. **No command calls
+`basicConfig`** — it does nothing when the root logger already has handlers
+(unless `force=True`), so per-command calls are silently order-dependent: the
+first wins, the rest are dead code. One setup site is what makes the handler
+swappable at all.
+
+`-v/--verbose` is the only log-level control; there is no config-file key for it.
+
+> **Not yet wired up.** Today the 13 leaf commands each call `basicConfig` and
+> the umbrella installs no handler, so output is uncolored and `-v` doesn't
+> exist. Tracked in [TODO.md](../../TODO.md).
+
+## CLI commands
 
 - Results and status/success → `click.echo` (stdout).
 - `logger.error` — a failure. **Not** "abort": it may stop the command or be one of
@@ -57,6 +82,25 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 - A `-q/--quiet` flag (where offered) skips the success `click.echo`; errors
   still log.
 - CLI commands don't call `logger.info`/`logger.warning` — status is echoed.
+
+## Color
+
+Both streams are colored, and both fall back to plain text when redirected — so
+`cmd > out.txt` and `2> err.log` stay clean.
+
+| Stream | Colored by | Degrades when not a TTY |
+|---|---|---|
+| stderr (`logging`) | `RichHandler` | Rich's `Console` detects the TTY |
+| stdout (`click.echo`) | `click.style` / `click.secho` | `click.echo` strips ANSI (`should_strip_ansi`) |
+
+`RichHandler` colors the level name; it never sees stdout, so status lines are
+styled explicitly with `click.style` at the call site. Style the label, not the
+whole line.
+
+`markup=False` is deliberate — log messages carry literal bracketed text
+(`[OverallStandings]`, `[phase2]` keys) that Rich would otherwise parse as markup
+tags. `rich` is a required dependency, like every other athc dep
+([cli.md](cli.md#heavy-dependencies)).
 
 ## Libraries
 

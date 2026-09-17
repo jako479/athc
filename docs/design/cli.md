@@ -156,6 +156,8 @@ Production users never set the var; the default `%LOCALAPPDATA%\athc` wins.
 
 When a tool operates on league-specific data (gameplan, profile, playcatalog), it accepts `--league NAME`. This option lives on the command (or group) that needs it, **not** at the umbrella level. Non-league tools (generate-schedule, autocontinue) never see the flag.
 
+`-v/--verbose` is the one option that *does* sit on the root group: it applies to every command without exception, and the handler it configures is process-wide ([logging.md](logging.md#handler-setup)).
+
 A shared decorator keeps the option uniform:
 
 ```python
@@ -182,8 +184,10 @@ For a command group, putting the decorator on the group means every leaf inherit
 ## Output and logging
 
 Two channels: stdout (`click.echo`) for everything the user reads (results and
-status), stderr (`logging`) for errors and warnings only. Full convention — log
-levels, library behavior, exit-code timing: [logging.md](logging.md).
+status), stderr (`logging`) for errors and warnings only. The root group callback
+owns handler setup — one `basicConfig` for the whole process, level set by
+`-v/--verbose`. Full convention — color, log levels, library behavior,
+exit-code timing: [logging.md](logging.md).
 
 **Libraries** (`<pkg>/<tool>/`, `playpool`, …) call `getLogger(__name__)` but **never** `basicConfig` (the app owns handler setup). They use `logger.warning` for recoverable "skipped X" notices (duplicate play, missing file) and `logger.info` for progress — they don't print results.
 

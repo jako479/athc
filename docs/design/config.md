@@ -56,7 +56,6 @@ The `league.` prefix tells code (and humans) whether a section is a tool or a le
 ```ini
 [DEFAULT]
 RosterPath = %(LeagueRoot)s\rosters
-LogLevel = INFO
 
 [athc]
 default_league = PNFL
@@ -72,10 +71,12 @@ Season = 2026
 [league.PCFL]
 LeagueRoot = E:\Leagues\PCFL
 PlayPath = E:\Leagues\PCFL\plays_v2
-LogLevel = DEBUG
+RosterPath = E:\Leagues\PCFL\rosters_2026
 ```
 
-`RosterPath` cascades from `[DEFAULT]` into every league section. `configparser`'s `%(key)s` interpolation resolves `%(LeagueRoot)s` against the section being read, so each league gets its own roster path automatically. `LogLevel` cascades into `[league.PNFL]` (uses default `INFO`) and is overridden in `[league.PCFL]` (`DEBUG`).
+`RosterPath` cascades from `[DEFAULT]` into every league section. `configparser`'s `%(key)s` interpolation resolves `%(LeagueRoot)s` against the section being read, so each league gets its own roster path automatically — and `[league.PCFL]` overrides it outright.
+
+The keys above illustrate the taxonomy and cascade; the shipped key set is `release/athc.ini`. Log level is not among them — it is set by `-v/--verbose` ([logging.md](logging.md#handler-setup)), not by config.
 
 ## Rule-file paths
 
