@@ -25,8 +25,10 @@ dependencies = [
     "ortools>=9.10",  # generate-schedule solver
 ]
 
-[project.optional-dependencies]
-dev = ["pytest", "pyright==1.1.409", "ruff", "ipython", "openpyxl>=3.1"]
+# Dev tooling is a dependency group, not an extra: extras ship to whoever
+# installs athc, groups stay local. `uv sync` installs the dev group by default.
+[dependency-groups]
+dev = ["pytest", "pytest-cov", "pyright==1.1.409", "ruff", "ipython", "openpyxl>=3.1"]
 
 [project.scripts]
 athc = "athc.cli:main"
@@ -53,10 +55,23 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers --strict-config --import-mode=importlib -m 'not slow'"
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib -m 'not slow' --cov=athc --cov-report=term-missing"
+filterwarnings = ["error"]
 markers = [
     "slow: long-running scheduler solver tests; opt-in via `pytest -m slow` or `pytest -m ''`",
 ]
+
+[tool.coverage.run]
+source = ["athc"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+precision = 1
+# Measured 94% on 2026-09-17. Two points of slack, so a real drop fails the
+# test run and normal churn does not.
+fail_under = 92
 
 [tool.ruff]
 line-length = 88
@@ -65,9 +80,13 @@ target-version = "py312"
 [tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
     "F",   # pyflakes (unused imports/vars, undefined names)
     "I",   # isort (import sorting)
     "B",   # flake8-bugbear (likely bugs)
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "PTH", # flake8-use-pathlib (project standard: pathlib over os.path)
     "UP",  # pyupgrade (modernize syntax)
     "RUF", # ruff-specific
 ]
@@ -75,6 +94,7 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = [
     "E501",   # long assertion messages are common in tests
+    "SIM300", # false positive: `assert CONSTANT == frozenset({...})` is not a Yoda condition
 ]
 "research/**" = [
     "E501",   # transcribed schedule/data literals run long
@@ -96,7 +116,7 @@ exclude = [
     "**/output",
     "**/venv",
 ]
-extraPaths = ["src"]
+extraPaths = ["src", "tests"]
 typeCheckingMode = "standard"
 reportUnusedImport = "warning"
 pythonVersion = "3.12"
