@@ -7,7 +7,7 @@ Library + CLI for FbPro98 gameplans (`.pln`). Validates a gameplan against leagu
 ## Setup
 
 ```bash
-uv pip install -e ".[dev]"
+uv sync
 ```
 
 ## Library

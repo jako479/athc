@@ -1,6 +1,6 @@
 # athc — Status
 
-Updated 2026-07-30. Task list: [TODO.md](TODO.md). Detail: [docs/](docs/).
+Updated 2026-09-17. Task list: [TODO.md](TODO.md). Detail: [docs/](docs/).
 
 All non-scheduler work was committed in one batch on 2026-07-19, so git dates lie — the
 work itself is from early-to-mid June. Dates below are when the work happened.
@@ -107,3 +107,15 @@ PyInstaller `.exe` plus a real Windows installer, versus today's uv prerequisite
 only; nothing decided, no code changed. Key point from it: a bundled exe can only carry a
 read-only config template, so the editable config still has to be written to a real folder
 on first run.
+
+## project tooling
+
+Reworked 2026-09-17. Nothing about how the tools behave changed.
+
+- Setup is `uv sync`, commands run through `uv run`. Dev tools moved to a `dev`
+  dependency group, and `uv.lock` is committed.
+- Coverage runs with every test run and fails below 92% (currently 93.5%).
+- Ruff gained the pathlib, simplify and comprehension rule groups; pytest turns
+  warnings into errors.
+- Agent instructions live in [AGENTS.md](AGENTS.md); `.claude/CLAUDE.md` points at it.
+- `.vscode/` is no longer tracked; editor setup is each developer's own.

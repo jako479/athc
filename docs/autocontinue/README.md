@@ -7,7 +7,7 @@ Watches the screen for the FbPro '98 'Continue' button and clicks it — set it 
 pyautogui (+ Pillow/opencv) are required dependencies, so any install includes them; it still needs a display + Windows to run. For development:
 
 ```bash
-uv pip install -e ".[dev]"
+uv sync
 ```
 
 ## Usage

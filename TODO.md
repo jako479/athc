@@ -16,6 +16,7 @@ One line per task. Current state and reasoning: [STATUS.md](STATUS.md).
 - gameplan: replace play (single and bulk) - list of plays as input??
 - profile: revisit edit\copy options
 - autocontinue: add halftime
+- tests: add ruff's `PT` rule group (pytest style); 117 findings today, 111 auto-fixable under `--unsafe-fixes`
 - cli: wire logging in the `cli()` group callback — global `-v/--verbose`, `RichHandler` on stderr, `click.style` on stdout; drop the 13 per-command `basicConfig` calls. Design: [docs/design/logging.md](docs/design/logging.md)
 - [DONE] scheduler: league.ini - dropped [Divisions]; [DivisionStandings] now defines division membership + finish order
 - [DONE] scheduler: soft objective so seasons vary like real NFL years; NFL-typical bands per [docs/design/research/cpsat-rule-patterns.md](docs/design/research/cpsat-rule-patterns.md)

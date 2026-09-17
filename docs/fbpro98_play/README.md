@@ -12,9 +12,7 @@ Library for parsing Front Page Sports Football Pro '98 play (`.ply`) files.
 ## Setup
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-pip install -e ".[dev]"
+uv sync
 ```
 
 ## Usage

@@ -78,7 +78,7 @@ Extension packages can also extend athc libraries (e.g., a separate package impo
 ## Click and uv
 
 - **Click** is the CLI framework. A custom `AthcGroup` (subclass of `click.Group`) lazy-loads subcommands via entry points. Built-in and extension commands register through the same `athc.commands` entry-point group. Full design + per-tool patterns: [cli.md](cli.md). Terminology cheat-sheet: [cli-terminology.md](cli-terminology.md).
-- **uv** is the package/env manager. Replaces `pip` + `virtualenv` + `pip-tools`. Per-repo `.venv`. `uv venv` creates it, `uv pip install -e .` is editable install, `uv build` produces wheels, `uv tool install` installs a wheel as a system-wide CLI tool.
+- **uv** is the package/env manager. Replaces `pip` + `virtualenv` + `pip-tools`. Per-repo `.venv`. `uv sync` creates it and installs everything from the committed `uv.lock`, `uv add` adds a dependency, `uv run` runs a command inside it, `uv build` produces wheels, `uv tool install` installs a wheel as a system-wide CLI tool.
 
 ## Windows version support
 
@@ -102,7 +102,7 @@ Extension packages can also extend athc libraries (e.g., a separate package impo
 ## Build / install / release
 
 **Development**
-- Per-repo `.venv`: `uv venv && uv pip install -e ".[dev]"`.
+- Per-repo `.venv`: `uv sync`. Dev tools live in the `dev` dependency group and install by default.
 
 **Build wheels**
 - `uv build` writes wheel + sdist to `dist/`.

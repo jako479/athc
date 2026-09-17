@@ -13,9 +13,7 @@ Library for reading and writing Front Page Sports Football Pro '98 gameplan (`.p
 ## Setup
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-pip install -e ".[dev]"
+uv sync
 ```
 
 ## Usage

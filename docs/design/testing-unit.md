@@ -57,4 +57,4 @@ OSS treats the **test suite as the spec** (well-named tests + CI coverage), not 
 
 ## Coverage
 
-`coverage.py` (`pytest --cov`) measures which lines/branches the tests execute — a measurement *over* whatever suite runs, not a test tier of its own. Run it on the unit suite in CI; treat surprise gaps as missing tests, not a number to chase.
+`coverage.py` (`pytest --cov`) measures which lines/branches the tests execute — a measurement *over* whatever suite runs, not a test tier of its own. It runs on every `uv run pytest`: `--cov=athc` is in `addopts`, and `fail_under = 92` fails the run if coverage drops. The floor catches a real drop; treat surprise gaps as missing tests, not a number to chase.

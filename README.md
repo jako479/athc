@@ -42,11 +42,10 @@ See [docs/design/overview.md](docs/design/overview.md) for the full architecture
 
 ## Development
 
-Perform an editable install (run both):
+Install the project and its dev tools:
 
 ```
-uv venv
-uv pip install -e ".[dev]"
+uv sync
 ```
 
 For local paths different from production (e.g., game files on `E:\`), put a local `athc.ini` in `dev/` at the repo root (gitignored) and set `ATHC_CONFIG_DIR = "$PWD\dev"`. See [docs/design/cli.md](docs/design/cli.md) for the dev-config pattern.
@@ -54,8 +53,10 @@ For local paths different from production (e.g., game files on `E:\`), put a loc
 ## Tests
 
 ```
-pytest
+uv run pytest
 ```
+
+Coverage runs with every test run and fails below 92%.
 
 ## License
 

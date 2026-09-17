@@ -7,7 +7,7 @@ Generates a season schedule with OR-Tools, plus a companion sortable HTML report
 OR-Tools (the solver) is a required dependency, so any install includes it. For development:
 
 ```bash
-uv pip install -e ".[dev]"
+uv sync
 ```
 
 ## Usage
