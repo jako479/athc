@@ -6,15 +6,19 @@
 
 ---
 
-## 1. Container Overview
+## 1. File Layout
 
-A `.pln` contains these blocks in order:
+A `.pln` is three blocks in order: **G95** (offsets and play records), **J95** (summary counts), **S98** (stock map filename). Each block begins with a header: `ID (4 bytes)` + `size (4 bytes)`. `size` is the data length excluding the 8 bytes of `ID+size`.
 
-1. **G95** — index and play records (variable length)
-2. **J95** — summary counts (fixed 7-byte data)
-3. **S98** — stock map filename (NUL-terminated)
-
-Each block begins with a header: `ID (4 bytes)` + `size (4 bytes)`. `size` is the data length excluding the 8 bytes of `ID+size`.
+| Offset          |     Size | Block | Region                            | Section |
+| :-------------- | -------: | :---- | :-------------------------------- | :------ |
+| 0x0000          |        8 | G95   | Header: `ID` + `size`             | 2.1     |
+| 0x0008          |        4 | G95   | `audible`                         | 2.1     |
+| 0x000C          |      172 | G95   | Play record offsets (`u16[86]`)   | 2.2     |
+| 0x00B8          | variable | G95   | Play records, packed back-to-back | 2.3, 3  |
+| `8 + G95.size`  |       15 | J95   | Header + 7 bytes of counts        | 4       |
+| `23 + G95.size` |       20 | S98   | Header + `"STOCK98.MAP\0"`        | 5       |
+| `43 + G95.size` |   0 or 1 | —     | Trailing parity pad, defense only | 6       |
 
 ---
 
