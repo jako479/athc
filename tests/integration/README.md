@@ -364,7 +364,6 @@ In [test_autocontinue.py](test_autocontinue.py). Config-driven (`athc.ini [autoc
 | No file / explicit missing | config_dir / tmp | `ConfigError` | `test_load_config_errors_when_no_config_found` / `..._explicit_path_missing` | ☑ |
 | Explicit path works w/o default | tmp ini | loads | `test_load_config_succeeds_with_explicit_path_when_no_default` | ☑ |
 | Missing setting / bad value / missing section | tmp ini | `ConfigError` | `test_load_config_errors_on_missing_setting` / `..._invalid_value` / `..._missing_section` | ☑ |
-| Release `athc.ini` is valid | release | loads `(0.0, 1.0)` | `test_release_example_config_loads` | ☑ |
 | `hot_corner`: missing → on / parses bools / bad value | tmp ini | enabled / parsed / `ConfigError` | `test_hot_corner_defaults_enabled_when_missing` / `..._parses_boolean` `[P]` / `..._invalid_value_errors` | ☑ |
 | Signature: missing / tuple / stable / changes / config-dir | tmp / config_dir | per change-detection | `test_signature_*` | ☑ |
 
@@ -423,6 +422,18 @@ In [test_config.py](test_config.py). Direct tests of `load_league()`, the shared
 | Unknown league name | ask missing | `LeagueError` names `[league.PCFL]` | `test_unknown_league_errors` | ☑ |
 | Misspelled prefix `[leagu.AFCL]` | typo'd section | no parse error; inert — unlisted, selecting it errors | `test_misspelled_prefix_section_is_inert` | ☑ |
 | `[DEFAULT]` cascade + `%(key)s` | DEFAULT + league | PlayPath + RosterPath interpolated | `test_default_cascade_and_interpolation` | ☑ |
+
+## shipped `release/athc.ini`
+
+`ATHC_CONFIG_DIR` is pointed at `release/` itself (the `release_config_dir` fixture), so the file is read exactly as installed and its relative rule paths resolve to the bundled `release/rules/`. One test per section loader: it must load, and every rule file it resolves must exist.
+
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| `[athc]` + `[league.PNFL]` via `load_league()` | release/ | PlayPath set; PlayPoolRules is a file | `test_release_league_section_loads` | ☑ |
+| `[autocontinue]` | release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
+| `[gameplan]` + league | release/ | loads; playpool rules and rule files exist | `test_release_gameplan_config_loads` | ☑ |
+| `[profile]` | release/ | loads; rule files exist | `test_release_profile_config_loads` | ☑ |
+| `[convert-pdb]` | release/ | loads; playpool rules exist | `test_release_convert_pdb_config_loads` | ☑ |
 
 ---
 

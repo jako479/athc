@@ -66,15 +66,6 @@ def test_load_config_errors_on_invalid_value(valid: Callable[..., Path]) -> None
         config.load_config()
 
 
-def test_release_example_section_loads(write_config: WriteConfig) -> None:
-    """The shipped release/athc.ini [autocontinue] section is valid."""
-    example = Path(__file__).resolve().parents[2] / "release" / "athc.ini"
-    write_config(example.read_text(encoding="utf-8"))
-    cfg = config.load_config()
-    assert cfg.mouse_move_duration == 0.0 and cfg.delay_before_continue == 1.0
-    assert cfg.hot_corner is True
-
-
 # ── hot_corner: optional, defaults to enabled ─────────────────────────────────
 
 

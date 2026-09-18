@@ -2,6 +2,7 @@
 
 ## athc
 
+- tests: the shipped `release/athc.ini` is loaded through every section loader and its rule files must exist
 - docs: added STATUS.md — per-tool state, what is done, what is next
 - docs: TODO modifications
 - tests: golden integration test for `generate-schedule` — three output files compared byte for byte

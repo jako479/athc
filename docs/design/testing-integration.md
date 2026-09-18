@@ -15,7 +15,7 @@ How athc's **system/integration** tests are structured — a command invoked end
 
 ## Config
 
-Tests use an **isolated, empty config dir**, never the real `athc.ini`: the autouse `config_dir` fixture (root `tests/conftest.py`) monkeypatches `ATHC_CONFIG_DIR` to a `tmp_path`. Tests needing config write their `athc.ini` there with the shared `write_config` helper (also in root `tests/conftest.py`) or pass `--rules`. Subprocess packaging checks set `ATHC_CONFIG_DIR` in the child `env` explicitly.
+Tests use an **isolated, empty config dir**, never the real `athc.ini`: the autouse `config_dir` fixture (root `tests/conftest.py`) monkeypatches `ATHC_CONFIG_DIR` to a `tmp_path`. Tests needing config write their `athc.ini` there with the shared `write_config` helper (also in root `tests/conftest.py`) or pass `--rules`. Subprocess packaging checks set `ATHC_CONFIG_DIR` in the child `env` explicitly. The one exception is the shipped-config tests in `test_config.py`, which point `ATHC_CONFIG_DIR` at the repo's `release/` folder itself -- still never the machine config.
 
 ## Layout
 

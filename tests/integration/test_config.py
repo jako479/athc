@@ -7,7 +7,8 @@ than per command. League sections use the `[league.NAME]` convention; bare
 sections (`[athc]`, `[gameplan]`) are not leagues.
 
 Also covers the `athc config` command group (path / edit / reveal), with the
-editor and Explorer launches mocked.
+editor and Explorer launches mocked, and loads the shipped `release/athc.ini`
+through every section loader so the bundled config cannot silently go stale.
 """
 
 from __future__ import annotations
@@ -17,11 +18,15 @@ from pathlib import Path
 
 import pytest
 
+from athc.autocontinue import config as autocontinue_config
 from athc.cli.config import config as config_group
 from athc.cli.config.edit import edit
 from athc.cli.config.path import path
 from athc.cli.config.reveal import reveal
 from athc.config import LeagueError, load_league, resolve_path
+from athc.gameplan import config as gameplan_config
+from athc.pdbtoexcel import config as pdbtoexcel_config
+from athc.profile import config as profile_config
 
 WriteConfig = Callable[..., Path]
 
@@ -135,6 +140,52 @@ def test_default_cascade_and_interpolation(write_config: WriteConfig) -> None:
     cfg = load_league("PNFL")
     assert cfg["PlayPath"] == "D:/Leagues/PNFL/plays"  # in-section interpolation
     assert cfg["RosterPath"] == "D:/Leagues/PNFL/rosters"  # DEFAULT cascade + interp
+
+
+# ── shipped release/athc.ini: every section loader reads it as installed ──
+
+RELEASE = Path(__file__).resolve().parents[2] / "release"
+
+
+@pytest.fixture
+def release_config_dir(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Point config lookup at the shipped `release/` folder itself (overriding the
+    autouse temp dir) so relative rule paths resolve to the bundled
+    `release/rules/`. `ATHC_LEAGUE` is cleared so the league comes from the file,
+    as on a fresh install."""
+    monkeypatch.setenv("ATHC_CONFIG_DIR", str(RELEASE))
+    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
+
+
+@pytest.mark.usefixtures("release_config_dir")
+def test_release_league_section_loads() -> None:
+    league = load_league()  # [athc] default_league -> [league.PNFL]
+    assert league["PlayPath"]
+    assert resolve_path(league["PlayPoolRules"]).is_file()
+
+
+@pytest.mark.usefixtures("release_config_dir")
+def test_release_autocontinue_section_loads() -> None:
+    autocontinue_config.load_config()
+
+
+@pytest.mark.usefixtures("release_config_dir")
+def test_release_gameplan_config_loads() -> None:
+    cfg = gameplan_config.load_config()
+    assert cfg.playpool_rules is not None and cfg.playpool_rules.is_file()
+    assert cfg.rule_files and all(p.is_file() for p in cfg.rule_files)
+
+
+@pytest.mark.usefixtures("release_config_dir")
+def test_release_profile_config_loads() -> None:
+    cfg = profile_config.load_config()
+    assert cfg.rule_files and all(p.is_file() for p in cfg.rule_files)
+
+
+@pytest.mark.usefixtures("release_config_dir")
+def test_release_convert_pdb_config_loads() -> None:
+    cfg = pdbtoexcel_config.load_config()
+    assert cfg.playpool_rules is not None and cfg.playpool_rules.is_file()
 
 
 # ── athc config command group: path / edit / reveal ──

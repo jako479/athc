@@ -2,6 +2,10 @@
 
 History of what changed and why. Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-09-18 — the shipped `release/athc.ini` is checked by one test per
+  section loader in `test_config.py`, with `ATHC_CONFIG_DIR` pointed at
+  `release/` so the bundled rule files must exist. The old autocontinue-only
+  check is gone; it proved only that its own section parsed.
 - 2026-09-17 — project tooling reworked to match how a modern Python project is
   normally set up. No tool behaves differently; 1153 tests pass at 93.5%
   coverage, ruff and pyright are clean.
