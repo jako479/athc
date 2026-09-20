@@ -11,7 +11,7 @@ src/athc/profile/          # tool logic (no Click)
 ├── __init__.py    # public API
 ├── config.py      # [profile] rule_files from athc.ini
 ├── model.py       # RuleName, Violation
-├── rules.py       # ProfileRules, SituationRule, load_rules, RulesFileError
+├── rules.py       # ProfileRules, SituationRule, SubstitutionRule/PercentBound, load_rules, RulesFileError
 ├── validators.py  # validate_profile
 ├── compat.py      # check_gameplan_compatibility/CompatIssue + gameplan_extra_categories/CompatWarning (profile vs .pln)
 ├── diff.py        # diff_profiles, ProfileDiff + change types
@@ -34,8 +34,11 @@ ship in the package**; `validate_profile` requires a rule set and never falls
 back to one. Situation rules are a list: each has optional game-state filters
 (time/down/yards/fields — omitted = all) and constraints (`allowed`,
 `disallowed`, `mandatory`, `min_categories`); a situation gets every rule it
-matches. The shipped `release/rules/PNFL.profile.toml` is the documented
-reference; rule meanings (matrix, category counts, exemptions, disallowed):
+matches. Substitution rules are one `SubstitutionRule` per position group, a
+`PercentBound` per side (out/in): an exact value or an optional min/max range;
+a side with no key is unchecked, and each unmet side is its own violation. The
+shipped `release/rules/PNFL.profile.toml` is the documented reference; rule
+meanings (matrix, category counts, exemptions, disallowed, substitutions):
 [RULES_PNFL.md](RULES_PNFL.md).
 
 The min-categories exemption is built into `validators.py`, not the rules file: a

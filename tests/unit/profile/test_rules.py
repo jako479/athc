@@ -6,8 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from athc.fbpro98_profile import Down, MinutesRemaining, SubstitutionPair, YardsToGo
-from athc.profile import RulesFileError, SituationRule, load_rules
+from athc.fbpro98_profile import Down, MinutesRemaining, YardsToGo
+from athc.profile import (
+    PercentBound,
+    RulesFileError,
+    SituationRule,
+    SubstitutionRule,
+    load_rules,
+)
 from athc.profile.rules import (
     PASS_LONG_RIGHT,
     RAZZLE_DAZZLE_PASS,
@@ -16,7 +22,7 @@ from athc.profile.rules import (
     RUN_MIDDLE,
     RUN_RANDOM,
 )
-from tests.unit.profile.conftest import DATA
+from tests.unit.profile.conftest import DATA, exact_substitution
 
 MINIMAL = "audibles_allowed = false\nmin_categories = 2\n"
 
@@ -52,7 +58,7 @@ def test_load_valid_full() -> None:
     rules = load_rules([DATA / "profile_rules.toml"])
     assert rules.audibles_allowed is False
     assert rules.min_categories == 2
-    assert rules.substitutions["QB"] == SubstitutionPair(75, 80)
+    assert rules.substitutions["QB"] == exact_substitution(75, 80)
     assert rules.offense_situations and rules.defense_situations
 
 
@@ -261,16 +267,31 @@ def test_unknown_field_name(tmp_path: Path) -> None:
 # ── substitutions ───────────────────────────────────────────────────────────────
 
 ALL_POSITIONS = ["OL", "QB", "RB", "WR", "K", "DL", "LB", "DB"]
+SUB_KEYS = [
+    "out_percent",
+    "min_out_percent",
+    "max_out_percent",
+    "in_percent",
+    "min_in_percent",
+    "max_in_percent",
+]
 
 
 def _subs(body: str) -> str:
     return MINIMAL + "[substitutions]\n" + body
 
 
+def _single_key_rule(key: str, value: int) -> SubstitutionRule:
+    """The rule one `key = value` produces (every other bound unchecked)."""
+    side = "out_percent" if key.endswith("out_percent") else "in_percent"
+    field = {"": "exact", "min_": "minimum", "max_": "maximum"}[key.removesuffix(side)]
+    return SubstitutionRule(**{side: PercentBound(**{field: value})})
+
+
 def test_substitutions_single_group(tmp_path: Path) -> None:
     text = _subs("QB = { out_percent = 75, in_percent = 80 }\n")
     rules = load_rules([write(tmp_path, text)])
-    assert rules.substitutions == {"QB": SubstitutionPair(75, 80)}
+    assert rules.substitutions == {"QB": exact_substitution(75, 80)}
 
 
 def test_substitutions_all_groups(tmp_path: Path) -> None:
@@ -279,7 +300,44 @@ def test_substitutions_all_groups(tmp_path: Path) -> None:
     )
     rules = load_rules([write(tmp_path, _subs(body))])
     assert set(rules.substitutions) == set(ALL_POSITIONS)
-    assert all(s == SubstitutionPair(70, 80) for s in rules.substitutions.values())
+    assert all(s == exact_substitution(70, 80) for s in rules.substitutions.values())
+
+
+def test_substitutions_min_max_both_sides(tmp_path: Path) -> None:
+    text = _subs(
+        "QB = { min_out_percent = 70, max_out_percent = 80, "
+        "min_in_percent = 75, max_in_percent = 90 }\n"
+    )
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.substitutions["QB"] == SubstitutionRule(
+        out_percent=PercentBound(minimum=70, maximum=80),
+        in_percent=PercentBound(minimum=75, maximum=90),
+    )
+
+
+# Any one key alone is a valid group (limits 0 and 100 included); everything
+# else in the group stays unchecked.
+@pytest.mark.parametrize("key", SUB_KEYS)
+@pytest.mark.parametrize("value", [0, 100])
+def test_substitutions_single_key_leaves_rest_unchecked(
+    tmp_path: Path, key: str, value: int
+) -> None:
+    rules = load_rules([write(tmp_path, _subs(f"QB = {{ {key} = {value} }}\n"))])
+    assert rules.substitutions["QB"] == _single_key_rule(key, value)
+
+
+def test_substitutions_exact_one_side_range_other(tmp_path: Path) -> None:
+    text = _subs("QB = { out_percent = 75, min_in_percent = 80 }\n")
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.substitutions["QB"] == SubstitutionRule(
+        out_percent=PercentBound(exact=75), in_percent=PercentBound(minimum=80)
+    )
+
+
+def test_substitutions_min_equals_max_ok(tmp_path: Path) -> None:
+    text = _subs("QB = { min_out_percent = 75, max_out_percent = 75 }\n")
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.substitutions["QB"].out_percent == PercentBound(minimum=75, maximum=75)
 
 
 def test_substitutions_omitted_is_empty(tmp_path: Path) -> None:
@@ -294,13 +352,16 @@ def test_substitutions_layering_override_and_accumulate(tmp_path: Path) -> None:
     )
     b = tmp_path / "b.toml"
     b.write_text(
-        "[substitutions]\nQB = { out_percent = 70, in_percent = 90 }\n"
+        "[substitutions]\nQB = { min_out_percent = 70 }\n"
         "DL = { out_percent = 60, in_percent = 70 }\n",
         encoding="utf-8",
     )
     rules = load_rules([a, b])
-    assert rules.substitutions["QB"] == SubstitutionPair(70, 90)  # later file wins
-    assert rules.substitutions["DL"] == SubstitutionPair(60, 70)  # accumulated
+    # The later file replaces the whole group — the exact pair is gone.
+    assert rules.substitutions["QB"] == SubstitutionRule(
+        out_percent=PercentBound(minimum=70)
+    )
+    assert rules.substitutions["DL"] == exact_substitution(60, 70)  # accumulated
 
 
 # Percent limits (min 0, max 100, out == in) accepted for every group.
@@ -311,30 +372,67 @@ def test_substitutions_percent_limits_ok(
 ) -> None:
     text = _subs(f"{position} = {{ out_percent = {out}, in_percent = {in_} }}\n")
     rules = load_rules([write(tmp_path, text)])
-    assert rules.substitutions[position] == SubstitutionPair(out, in_)
+    assert rules.substitutions[position] == exact_substitution(out, in_)
 
 
-# One below min / one above max / out > in rejected for every group.
-@pytest.mark.parametrize("position", ALL_POSITIONS)
-@pytest.mark.parametrize(
-    "out,in_,msg",
-    [
-        (-1, 50, r"\[0, 100\]"),  # one below 0
-        (50, 101, r"\[0, 100\]"),  # one above 100
-        (90, 80, "must be <="),  # out > in
-    ],
-)
-def test_substitutions_percent_invalid(
-    tmp_path: Path, position: str, out: int, in_: int, msg: str
+# One below 0 / one above 100 rejected for every key; the message names the key.
+@pytest.mark.parametrize("key", SUB_KEYS)
+@pytest.mark.parametrize("value", [-1, 101])
+def test_substitutions_percent_out_of_range(
+    tmp_path: Path, key: str, value: int
 ) -> None:
-    text = _subs(f"{position} = {{ out_percent = {out}, in_percent = {in_} }}\n")
-    with pytest.raises(RulesFileError, match=msg):
+    text = _subs(f"QB = {{ {key} = {value} }}\n")
+    with pytest.raises(RulesFileError, match=rf"{key}: must be in \[0, 100\]"):
         load_rules([write(tmp_path, text)])
 
 
-def test_substitutions_missing_key(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="requires"):
-        load_rules([write(tmp_path, _subs("QB = { out_percent = 75 }\n"))])
+@pytest.mark.parametrize(
+    "body",
+    [
+        "out_percent = 75, min_out_percent = 70",
+        "out_percent = 75, max_out_percent = 80",
+        "in_percent = 80, min_in_percent = 75",
+        "in_percent = 80, max_in_percent = 90",
+    ],
+)
+def test_substitutions_exact_with_bound_same_side_rejected(
+    tmp_path: Path, body: str
+) -> None:
+    with pytest.raises(RulesFileError, match="mutually exclusive"):
+        load_rules([write(tmp_path, _subs(f"QB = {{ {body} }}\n"))])
+
+
+@pytest.mark.parametrize("side", ["out", "in"])
+def test_substitutions_min_above_max_rejected(tmp_path: Path, side: str) -> None:
+    body = f"min_{side}_percent = 71, max_{side}_percent = 70"  # one past equal
+    msg = rf"min_{side}_percent` must be <= `max_{side}_percent"
+    with pytest.raises(RulesFileError, match=msg):
+        load_rules([write(tmp_path, _subs(f"QB = {{ {body} }}\n"))])
+
+
+# Exact out one above exact in rejected for every group (out == in is accepted
+# by test_substitutions_percent_limits_ok).
+@pytest.mark.parametrize("position", ALL_POSITIONS)
+def test_substitutions_out_above_in_rejected(tmp_path: Path, position: str) -> None:
+    text = _subs(f"{position} = {{ out_percent = 81, in_percent = 80 }}\n")
+    with pytest.raises(
+        RulesFileError, match=r"out_percent \(81\) must be <= in_percent \(80\)"
+    ):
+        load_rules([write(tmp_path, text)])
+
+
+def test_substitutions_out_vs_in_not_checked_for_ranges(tmp_path: Path) -> None:
+    """Only the two exact keys are compared; bounds never are."""
+    text = _subs("QB = { min_out_percent = 90, max_in_percent = 80 }\n")
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.substitutions["QB"] == SubstitutionRule(
+        out_percent=PercentBound(minimum=90), in_percent=PercentBound(maximum=80)
+    )
+
+
+def test_substitutions_empty_group_rejected(tmp_path: Path) -> None:
+    with pytest.raises(RulesFileError, match="needs one of"):
+        load_rules([write(tmp_path, _subs("QB = {}\n"))])
 
 
 def test_substitutions_unknown_position(tmp_path: Path) -> None:
@@ -343,7 +441,7 @@ def test_substitutions_unknown_position(tmp_path: Path) -> None:
         load_rules([write(tmp_path, text)])
 
 
-def test_substitutions_unknown_pair_key(tmp_path: Path) -> None:
+def test_substitutions_unknown_group_key(tmp_path: Path) -> None:
     text = _subs("QB = { out_percent = 75, in_percent = 80, foo = 1 }\n")
     with pytest.raises(RulesFileError, match="unknown key"):
         load_rules([write(tmp_path, text)])
@@ -359,8 +457,17 @@ def test_substitutions_position_not_a_table(tmp_path: Path) -> None:
         load_rules([write(tmp_path, _subs("QB = 5\n"))])
 
 
-def test_substitutions_non_integer(tmp_path: Path) -> None:
-    text = _subs('QB = { out_percent = "x", in_percent = 80 }\n')
+@pytest.mark.parametrize("key", SUB_KEYS)
+def test_substitutions_non_integer(tmp_path: Path, key: str) -> None:
+    text = _subs(f'QB = {{ {key} = "x" }}\n')
+    with pytest.raises(RulesFileError, match=rf"{key}: must be an integer"):
+        load_rules([write(tmp_path, text)])
+
+
+@pytest.mark.parametrize("value", ["70.0", "true"])
+def test_substitutions_float_or_bool_rejected(tmp_path: Path, value: str) -> None:
+    """Whole numbers only — a float or boolean is not an integer."""
+    text = _subs(f"QB = {{ min_out_percent = {value} }}\n")
     with pytest.raises(RulesFileError, match="must be an integer"):
         load_rules([write(tmp_path, text)])
 

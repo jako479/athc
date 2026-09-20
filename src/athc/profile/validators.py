@@ -20,6 +20,7 @@ from athc.profile.rules import (
     PUNT,
     RUN_CLOCK,
     SUBSTITUTION_POSITIONS,
+    PercentBound,
     ProfileRules,
     SituationRule,
 )
@@ -66,7 +67,8 @@ _SUBSTITUTION_ATTR = {
 
 def _validate_substitutions(profile: Profile, rules: ProfileRules) -> list[Violation]:
     """Check each configured position group against the profile, for the profile's
-    side only (the other side's groups aren't user-editable)."""
+    side only (the other side's groups aren't user-editable). Each side (out/in)
+    that breaks its bound is its own violation."""
     side = "offense" if profile.is_offense else "defense"
     violations: list[Violation] = []
     for position, required in rules.substitutions.items():
@@ -74,16 +76,30 @@ def _validate_substitutions(profile: Profile, rules: ProfileRules) -> list[Viola
         if pos_side != side:
             continue
         actual = getattr(profile.substitutions, _SUBSTITUTION_ATTR[position])
-        if actual != required:
-            violations.append(
-                Violation(
-                    RuleName.SUBSTITUTION,
-                    f"{display} substitution must be "
-                    f"{required.out_percent}/{required.in_percent}, "
-                    f"got {actual.out_percent}/{actual.in_percent}.",
+        for key, bound, value in (
+            ("out_percent", required.out_percent, actual.out_percent),
+            ("in_percent", required.in_percent, actual.in_percent),
+        ):
+            unmet = _unmet_bound(bound, value)
+            if unmet is not None:
+                violations.append(
+                    Violation(
+                        RuleName.SUBSTITUTION,
+                        f"{display} {key} must be {unmet}, got {value}.",
+                    )
                 )
-            )
     return violations
+
+
+def _unmet_bound(bound: PercentBound, value: int) -> str | None:
+    """The requirement `value` breaks — `75`, `>= 70` or `<= 90` — or None if met."""
+    if bound.exact is not None and value != bound.exact:
+        return str(bound.exact)
+    if bound.minimum is not None and value < bound.minimum:
+        return f">= {bound.minimum}"
+    if bound.maximum is not None and value > bound.maximum:
+        return f"<= {bound.maximum}"
+    return None
 
 
 # ---------------------------------------------------------------------------

@@ -18,7 +18,14 @@ from athc.fbpro98_profile import (
     YardsToGo,
     read_profile,
 )
-from athc.profile import ProfileRules, RuleName, load_rules, validate_profile
+from athc.profile import (
+    PercentBound,
+    ProfileRules,
+    RuleName,
+    SubstitutionRule,
+    load_rules,
+    validate_profile,
+)
 from athc.profile.rules import (
     FAKE_PUNT_PASS,
     FIELD_GOAL_PAT,
@@ -33,7 +40,12 @@ from athc.profile.validators import (
     DEFENSE_EXEMPT_CATEGORIES,
     OFFENSE_EXEMPT_CATEGORIES,
 )
-from tests.unit.profile.conftest import DATA, make_profile, weights
+from tests.unit.profile.conftest import (
+    DATA,
+    exact_substitution,
+    make_profile,
+    weights,
+)
 
 OFF1 = read_profile(str(DATA / "TST-OFF1.prf"))  # offense, audibles off, qb 75/80
 OFF1_AUD = read_profile(str(DATA / "TST-OFF1-AUD.prf"))  # offense, audibles ON
@@ -127,13 +139,27 @@ def _profile_with_sub(ptype: ProfileType, attr: str, pair: SubstitutionPair) -> 
     return make_profile(ptype, substitutions=subs)
 
 
+def _qb_profile(out: int, in_: int) -> Profile:
+    return _profile_with_sub(
+        ProfileType.OFFENSE, "quarterbacks", SubstitutionPair(out, in_)
+    )
+
+
+def _sub_messages(profile: Profile, rules: ProfileRules) -> list[str]:
+    return [
+        v.message
+        for v in validate_profile(profile, rules)
+        if v.rule_name == RuleName.SUBSTITUTION
+    ]
+
+
 @pytest.mark.parametrize("label,attr,ptype", _SUB_GROUPS)
 def test_substitution_fires_when_mismatched(
     label: str, attr: str, ptype: ProfileType
 ) -> None:
     """Every group is checked on its own side; a differing pair is flagged."""
     profile = _profile_with_sub(ptype, attr, SubstitutionPair(80, 90))
-    rules = make_rules(substitutions={label: SubstitutionPair(70, 75)})
+    rules = make_rules(substitutions={label: exact_substitution(70, 75)})
     assert RuleName.SUBSTITUTION in names(profile, rules)
 
 
@@ -142,7 +168,7 @@ def test_substitution_passes_when_matched(
     label: str, attr: str, ptype: ProfileType
 ) -> None:
     profile = _profile_with_sub(ptype, attr, SubstitutionPair(70, 75))
-    rules = make_rules(substitutions={label: SubstitutionPair(70, 75)})
+    rules = make_rules(substitutions={label: exact_substitution(70, 75)})
     assert RuleName.SUBSTITUTION not in names(profile, rules)
 
 
@@ -152,32 +178,115 @@ def test_substitution_skipped_on_other_side(
 ) -> None:
     """A group's rule is ignored on the opposite-side profile."""
     other = ProfileType.DEFENSE if ptype == ProfileType.OFFENSE else ProfileType.OFFENSE
-    rules = make_rules(substitutions={label: SubstitutionPair(70, 75)})
+    rules = make_rules(substitutions={label: exact_substitution(70, 75)})
     assert RuleName.SUBSTITUTION not in names(make_profile(other), rules)
 
 
-def test_substitution_message_names_group() -> None:
-    profile = make_profile(ProfileType.OFFENSE)  # default subs (QB 80/90)
-    rules = make_rules(substitutions={"QB": SubstitutionPair(70, 80)})
-    msg = next(
-        v.message
-        for v in validate_profile(profile, rules)
-        if v.rule_name == RuleName.SUBSTITUTION
+def test_substitution_exact_reports_each_side() -> None:
+    """Each mismatched side is its own violation: group, side, bound, actual."""
+    rules = make_rules(substitutions={"QB": exact_substitution(70, 80)})
+    assert _sub_messages(_qb_profile(80, 90), rules) == [
+        "Quarterbacks out_percent must be 70, got 80.",
+        "Quarterbacks in_percent must be 80, got 90.",
+    ]
+
+
+def test_substitution_exact_matched_side_is_silent() -> None:
+    rules = make_rules(substitutions={"QB": exact_substitution(70, 80)})
+    assert _sub_messages(_qb_profile(70, 90), rules) == [
+        "Quarterbacks in_percent must be 80, got 90."
+    ]
+
+
+@pytest.mark.parametrize(
+    "actual,expected",
+    [
+        (65, ["Quarterbacks out_percent must be >= 70, got 65."]),
+        (70, []),  # at min
+        (75, []),
+        (80, []),  # at max
+        (85, ["Quarterbacks out_percent must be <= 80, got 85."]),
+    ],
+)
+def test_substitution_range_bounds_inclusive(actual: int, expected: list[str]) -> None:
+    """min/max are inclusive; a value outside names the bound it breaks."""
+    rules = make_rules(
+        substitutions={
+            "QB": SubstitutionRule(out_percent=PercentBound(minimum=70, maximum=80))
+        }
     )
-    assert "Quarterbacks" in msg and "70/80" in msg
+    assert _sub_messages(_qb_profile(actual, 90), rules) == expected
+
+
+def test_substitution_min_only() -> None:
+    rules = make_rules(
+        substitutions={"QB": SubstitutionRule(in_percent=PercentBound(minimum=85))}
+    )
+    assert _sub_messages(_qb_profile(80, 84), rules) == [
+        "Quarterbacks in_percent must be >= 85, got 84."
+    ]
+    assert _sub_messages(_qb_profile(80, 100), rules) == []
+
+
+def test_substitution_max_only() -> None:
+    rules = make_rules(
+        substitutions={"QB": SubstitutionRule(in_percent=PercentBound(maximum=85))}
+    )
+    assert _sub_messages(_qb_profile(80, 86), rules) == [
+        "Quarterbacks in_percent must be <= 85, got 86."
+    ]
+    assert _sub_messages(_qb_profile(80, 85), rules) == []
+
+
+def test_substitution_unchecked_side_accepts_any_value() -> None:
+    rules = make_rules(
+        substitutions={"QB": SubstitutionRule(out_percent=PercentBound(exact=75))}
+    )
+    assert _sub_messages(_qb_profile(75, 75), rules) == []
+    assert _sub_messages(_qb_profile(75, 100), rules) == []
+
+
+def test_substitution_exact_and_range_mixed() -> None:
+    rules = make_rules(
+        substitutions={
+            "QB": SubstitutionRule(
+                out_percent=PercentBound(exact=75), in_percent=PercentBound(minimum=80)
+            )
+        }
+    )
+    assert _sub_messages(_qb_profile(75, 80), rules) == []
+    assert _sub_messages(_qb_profile(70, 79), rules) == [
+        "Quarterbacks out_percent must be 75, got 70.",
+        "Quarterbacks in_percent must be >= 80, got 79.",
+    ]
+
+
+def test_substitution_bound_on_defense_group() -> None:
+    """Bounds apply to defense groups on defense profiles and are skipped on offense."""
+    rules = make_rules(
+        substitutions={"DL": SubstitutionRule(out_percent=PercentBound(maximum=70))}
+    )
+    dl = _profile_with_sub(
+        ProfileType.DEFENSE, "defensive_linemen", SubstitutionPair(80, 90)
+    )
+    assert _sub_messages(dl, rules) == [
+        "Defensive linemen out_percent must be <= 70, got 80."
+    ]
+    assert _sub_messages(make_profile(ProfileType.OFFENSE), rules) == []
 
 
 def test_substitution_multiple_groups_each_fire() -> None:
     profile = make_profile(ProfileType.OFFENSE)  # default subs all 80/90
     rules = make_rules(
-        substitutions={"QB": SubstitutionPair(70, 75), "OL": SubstitutionPair(60, 65)}
+        substitutions={
+            "QB": SubstitutionRule(out_percent=PercentBound(exact=70)),
+            "OL": SubstitutionRule(out_percent=PercentBound(exact=60)),
+        }
     )
-    fired = [
-        v
-        for v in validate_profile(profile, rules)
-        if v.rule_name == RuleName.SUBSTITUTION
-    ]
+    fired = _sub_messages(profile, rules)
     assert len(fired) == 2
+    assert any("Quarterbacks" in m for m in fired)
+    assert any("Offensive linemen" in m for m in fired)
 
 
 def test_no_substitutions_no_violation() -> None:

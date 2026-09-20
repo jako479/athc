@@ -26,8 +26,14 @@ disallowed_offensive_categories = [
 ]
 disallowed_defensive_categories = []
 
-# Substitution thresholds by position group, each out_percent / in_percent
-# (both 0-100, out <= in). Settable groups, by profile side:
+# Substitution thresholds by position group. Each side (out / in) is either an
+# exact value or a range (whole numbers 0-100, inclusive):
+#   out_percent = N            exact
+#   min_out_percent / max_out_percent = N   range, either end optional
+# and likewise in_percent / min_in_percent / max_in_percent. Exact and min/max
+# on the same side don't mix; a group needs at least one key; a side with no
+# key is unchecked; exact out_percent must be <= in_percent. Settable groups,
+# by profile side:
 #   offense: OL QB RB WR K    defense: DL LB DB
 # Omit a group to leave it unchecked. PNFL mandates only the QB pair.
 [substitutions]

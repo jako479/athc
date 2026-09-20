@@ -56,6 +56,7 @@
 
 ## profile
 
+- rules: substitution thresholds accept `min_`/`max_` bounds per side alongside exact values; one violation per unmet side
 - expanded `check`'s gameplan compatibility checks and validators
 - added the `profile` command — `check`, `copy`, `diff`
 

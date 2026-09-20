@@ -1,6 +1,6 @@
 # athc — Status
 
-Updated 2026-09-17. Task list: [TODO.md](TODO.md). Detail: [docs/](docs/).
+Updated 2026-09-20. Task list: [TODO.md](TODO.md). Detail: [docs/](docs/).
 
 All non-scheduler work was committed in one batch on 2026-07-19, so git dates lie — the
 work itself is from early-to-mid June. Dates below are when the work happened.
@@ -56,7 +56,11 @@ Open: `check` should take a profile and confirm it's valid for the gameplan's ca
 Working. Validates and compares .prf coaching profiles. Docs:
 [README](docs/profile/README.md) · [rules](docs/profile/RULES_PNFL.md)
 
-Latest (June): expanded `check`'s gameplan-compatibility checks and validators (reverse
+Latest (2026-09-20): substitution rules take `min_`/`max_` bounds per side (out/in) as
+well as exact values; a side with no key is unchecked, and each unmet side is reported on
+its own line. The shipped PNFL rules still pin QB to 75/80.
+
+June: expanded `check`'s gameplan-compatibility checks and validators (reverse
 warnings, FG/PAT specials). `diff` was built this cycle — one line per differing situation
 showing situation #, game state, and stop-clock; `--output` infers CSV from the file
 extension. Tests were restructured to sit under the package being tested and to compare

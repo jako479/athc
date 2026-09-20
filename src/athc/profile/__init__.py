@@ -19,9 +19,11 @@ from athc.profile.model import RuleName, Violation
 from athc.profile.rules import (
     DEFENSE_CATEGORIES,
     OFFENSE_CATEGORIES,
+    PercentBound,
     ProfileRules,
     RulesFileError,
     SituationRule,
+    SubstitutionRule,
     load_rules,
 )
 from athc.profile.validators import validate_profile
@@ -33,6 +35,7 @@ __all__ = [
     "CompatIssue",
     "CompatKind",
     "CompatWarning",
+    "PercentBound",
     "ProfileDiff",
     "ProfileRules",
     "ProfileTypeMismatchError",
@@ -43,6 +46,7 @@ __all__ = [
     "SituationChange",
     "SituationRule",
     "SlotChange",
+    "SubstitutionRule",
     "Violation",
     "category_label",
     "check_gameplan_compatibility",

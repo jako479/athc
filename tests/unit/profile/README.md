@@ -21,8 +21,13 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | `min_categories` = 0 (lower limit) ok | tmp | min == 0 | `test_min_categories_zero_ok` | ☑ |
 | Rule `min_categories` = 0 ok | tmp | rule min == 0 | `test_rule_min_categories_zero_ok` | ☑ |
 | Substitutions: one group / all 8 | tmp | parsed into `substitutions` map | `test_substitutions_single_group` / `_all_groups` | ☑ |
+| Sub min/max on both sides | tmp | `PercentBound(minimum, maximum)` per side | `test_substitutions_min_max_both_sides` | ☑ |
+| Sub single key (each of 6, at 0 and 100) → rest unchecked | tmp | only that bound set | `test_substitutions_single_key_leaves_rest_unchecked` `[P]` | ☑ |
+| Sub exact one side, range other | tmp | mixed bounds | `test_substitutions_exact_one_side_range_other` | ☑ |
+| Sub min == max ok | tmp | accepted | `test_substitutions_min_equals_max_ok` | ☑ |
+| Sub out vs in not checked for ranges | tmp | accepted | `test_substitutions_out_vs_in_not_checked_for_ranges` | ☑ |
 | Substitutions omitted → empty (all optional) | tmp | `{}` | `test_substitutions_omitted_is_empty` | ☑ |
-| Substitutions layering | tmp ×2 | later wins; groups accumulate | `test_substitutions_layering_override_and_accumulate` | ☑ |
+| Substitutions layering | tmp ×2 | later file replaces whole group; groups accumulate | `test_substitutions_layering_override_and_accumulate` | ☑ |
 | Sub percents at limits, every group | tmp | accepted (0/100, out=in) | `test_substitutions_percent_limits_ok` `[P]` | ☑ |
 | Layering overrides `min_categories` | tmp ×2 | later value wins | `test_layering_overrides_scalar` | ☑ |
 | Layering overrides `audibles_allowed` | tmp ×2 | later value wins | `test_layering_overrides_audibles` | ☑ |
@@ -48,13 +53,17 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | `mandatory` unknown category | tmp | "unknown category" | `test_mandatory_unknown_category` | ☑ |
 | Disallowed unknown name | tmp | "unknown name" | `test_disallowed_categories_unknown_name` | ☑ |
 | Unknown field name | tmp | "unknown value" | `test_unknown_field_name` | ☑ |
-| Sub percent below 0 / above 100 / out>in, every group | tmp | "[0, 100]" / "must be <=" | `test_substitutions_percent_invalid` `[P]` | ☑ |
-| Sub missing out/in key | tmp | "requires" | `test_substitutions_missing_key` | ☑ |
+| Sub percent below 0 / above 100, every key | tmp | "<key>: must be in [0, 100]" | `test_substitutions_percent_out_of_range` `[P]` | ☑ |
+| Sub exact + min/max on one side | tmp | "mutually exclusive" | `test_substitutions_exact_with_bound_same_side_rejected` `[P]` | ☑ |
+| Sub min > max, either side | tmp | "`min_…` must be <= `max_…`" | `test_substitutions_min_above_max_rejected` `[P]` | ☑ |
+| Sub exact out one above in, every group | tmp | "out_percent (81) must be <= in_percent (80)" | `test_substitutions_out_above_in_rejected` `[P]` | ☑ |
+| Sub group with no key | tmp | "needs one of" | `test_substitutions_empty_group_rejected` | ☑ |
 | Sub unknown position | tmp | "unknown key" | `test_substitutions_unknown_position` | ☑ |
-| Sub unknown pair key | tmp | "unknown key" | `test_substitutions_unknown_pair_key` | ☑ |
+| Sub unknown group key | tmp | "unknown key" | `test_substitutions_unknown_group_key` | ☑ |
 | `[substitutions]` not a table | tmp | "must be a table" | `test_substitutions_not_a_table` | ☑ |
 | Sub position not a table | tmp | "must be a table" | `test_substitutions_position_not_a_table` | ☑ |
-| Sub non-integer percent | tmp | "must be an integer" | `test_substitutions_non_integer` | ☑ |
+| Sub non-integer, every key | tmp | "<key>: must be an integer" | `test_substitutions_non_integer` `[P]` | ☑ |
+| Sub float / bool | tmp | "must be an integer" | `test_substitutions_float_or_bool_rejected` `[P]` | ☑ |
 
 ## validators.py — `validate_profile`
 | Case | Input | Expected | Test | Status |
@@ -66,7 +75,13 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | Substitution fires when mismatched, every group | built + make | `SUBSTITUTION` | `test_substitution_fires_when_mismatched` `[P]` | ☑ |
 | Substitution clean when matched, every group | built + make | no violation | `test_substitution_passes_when_matched` `[P]` | ☑ |
 | Substitution skipped on opposite side, every group | built + make | no violation | `test_substitution_skipped_on_other_side` `[P]` | ☑ |
-| Substitution message names the group | built + make | "Quarterbacks", "70/80" | `test_substitution_message_names_group` | ☑ |
+| Exact: each unmet side is its own violation | built + make | "Quarterbacks out_percent must be 70, got 80." + in line | `test_substitution_exact_reports_each_side` | ☑ |
+| Exact: matched side silent | built + make | in line only | `test_substitution_exact_matched_side_is_silent` | ☑ |
+| Range bounds inclusive, names broken bound | built + make | ">= 70" / "<= 80" / none at 70..80 | `test_substitution_range_bounds_inclusive` `[P]` | ☑ |
+| Min only / max only | built + make | fires below / above; clean at bound | `test_substitution_min_only` / `_max_only` | ☑ |
+| Unchecked side accepts any value | built + make | no violation | `test_substitution_unchecked_side_accepts_any_value` | ☑ |
+| Exact one side + range other | built + make | one line per unmet side | `test_substitution_exact_and_range_mixed` | ☑ |
+| Bound on defense group | built + make | fires on defense, skipped on offense | `test_substitution_bound_on_defense_group` | ☑ |
 | Multiple groups each fire | built + make | two `SUBSTITUTION` | `test_substitution_multiple_groups_each_fire` | ☑ |
 | No substitutions → no violation | OFF1 + make | no `SUBSTITUTION` | `test_no_substitutions_no_violation` | ☑ |
 | Min-categories scales with threshold | OFF1 + make | higher min flags more | `test_min_categories_scales_with_threshold` | ☑ |

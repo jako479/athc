@@ -18,6 +18,8 @@ from athc.profile.rules import (
     PASS_MEDIUM_LEFT,
     PASS_SHORT_LEFT,
     RUN_MIDDLE,
+    PercentBound,
+    SubstitutionRule,
 )
 
 DATA = Path(__file__).resolve().parent / "data"
@@ -25,6 +27,13 @@ DATA = Path(__file__).resolve().parent / "data"
 
 def weights(c1: int, w1: int, c2: int, w2: int, c3: int, w3: int) -> CategoryWeights:
     return CategoryWeights(c1, w1, c2, w2, c3, w3)
+
+
+def exact_substitution(out: int, in_: int) -> SubstitutionRule:
+    """A substitution rule pinning both sides to exact values."""
+    return SubstitutionRule(
+        out_percent=PercentBound(exact=out), in_percent=PercentBound(exact=in_)
+    )
 
 
 # Every situation/PAT shares one baseline so a diff isolates the change a test makes.

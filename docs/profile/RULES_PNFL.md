@@ -10,7 +10,7 @@ Field position is encoded from the offense's perspective in the `.prf` format. T
 
 ## Offensive
 
-- **QB substitution = 75/80.** Quarterback `out_percent`/`in_percent` must be 75/80. Any position group can be targeted (offense OL/QB/RB/WR/K, defense DL/LB/DB); PNFL sets only QB.
+- **QB substitution = 75/80.** Quarterback `out_percent`/`in_percent` must be 75/80. Any position group can be targeted (offense OL/QB/RB/WR/K, defense DL/LB/DB); PNFL sets only QB. Each side can instead be a range (`min_`/`max_` keys, 0-100 inclusive, either end optional); a side with no key is unchecked; exact `out_percent` must be <= `in_percent` (a rules-file error otherwise). Each side that misses its bound is its own violation, naming the group, side, bound and actual value.
 
 ### Allowed-category matrix (above 5:00)
 

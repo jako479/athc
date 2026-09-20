@@ -13,13 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
 
-from athc.fbpro98_profile import (
-    Down,
-    FieldPosition,
-    MinutesRemaining,
-    SubstitutionPair,
-    YardsToGo,
-)
+from athc.fbpro98_profile import Down, FieldPosition, MinutesRemaining, YardsToGo
 
 # ---------------------------------------------------------------------------
 # Play-category codes (.prf category byte values)
@@ -128,6 +122,25 @@ class SituationRule:
 
 
 @dataclass(frozen=True, slots=True)
+class PercentBound:
+    """Constraint on one side (out or in) of a group's substitution pair: an exact
+    value, or a range with either end optional. All None = that side is unchecked.
+    """
+
+    exact: int | None = None
+    minimum: int | None = None
+    maximum: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SubstitutionRule:
+    """One position group's substitution constraints, one bound per side."""
+
+    out_percent: PercentBound = PercentBound()
+    in_percent: PercentBound = PercentBound()
+
+
+@dataclass(frozen=True, slots=True)
 class ProfileRules:
     """Coaching-profile validation rule set.
 
@@ -141,7 +154,7 @@ class ProfileRules:
     """
 
     audibles_allowed: bool = True
-    substitutions: Mapping[str, SubstitutionPair] = field(default_factory=dict)
+    substitutions: Mapping[str, SubstitutionRule] = field(default_factory=dict)
     offense_situations: tuple[SituationRule, ...] = ()
     defense_situations: tuple[SituationRule, ...] = ()
     min_categories: int = 0
@@ -255,7 +268,13 @@ _ALLOWED_TOP_KEYS: Final[frozenset[str]] = frozenset(
         "defense",
     }
 )
-_ALLOWED_SUB_KEYS: Final[frozenset[str]] = frozenset({"out_percent", "in_percent"})
+# Substitution group keys: per side, an exact value or min/max bounds.
+_SUB_KEYS: Final[tuple[str, ...]] = tuple(
+    f"{prefix}{side}_percent"
+    for side in ("out", "in")
+    for prefix in ("", "min_", "max_")
+)
+_ALLOWED_SUB_KEYS: Final[frozenset[str]] = frozenset(_SUB_KEYS)
 _ALLOWED_SITUATION_KEYS: Final[frozenset[str]] = frozenset(
     {"time", "down", "yards", "fields", "allowed", "disallowed", "mandatory",
      "min_categories"}
@@ -285,7 +304,7 @@ class _MergedData:
 
     audibles_allowed: bool | None = None
     min_categories: int | None = None
-    substitutions: dict[str, SubstitutionPair] = field(default_factory=dict)
+    substitutions: dict[str, SubstitutionRule] = field(default_factory=dict)
     offense_disallowed: frozenset[int] = field(default_factory=frozenset)
     defense_disallowed: frozenset[int] = field(default_factory=frozenset)
     # Keyed by section label so a later file's same-named rule replaces it.
@@ -537,8 +556,8 @@ def _map_each(
 def _merge_substitutions(
     merged: _MergedData, value: object, errors: list[str], *, source: Path
 ) -> None:
-    """Parse `[substitutions]`: one position label -> out/in pair. Each invalid
-    pair is reported; a later file's same position replaces it."""
+    """Parse `[substitutions]`: one position label -> per-side bounds. Each invalid
+    group is reported; a later file's same position replaces it."""
     if not isinstance(value, Mapping):
         errors.append(f"{source}: [substitutions]: must be a table")
         return
@@ -551,33 +570,67 @@ def _merge_substitutions(
     for position in SUBSTITUTION_POSITIONS:
         if position not in value:
             continue
-        pair, ok = _attempt(
+        rule, ok = _attempt(
             errors,
-            lambda position=position: _parse_substitution_pair(
+            lambda position=position: _parse_substitution_rule(
                 value[position], source, position
             ),
         )
         if ok:
-            merged.substitutions[position] = pair
+            merged.substitutions[position] = rule
 
 
-def _parse_substitution_pair(
+def _parse_substitution_rule(
     value: object, source: Path, position: str
-) -> SubstitutionPair:
+) -> SubstitutionRule:
     where = f"[substitutions].{position}"
     if not isinstance(value, Mapping):
         raise RulesFileError(f"{source}: {where} must be a table")
     _reject_unknown_keys(value, _ALLOWED_SUB_KEYS, source, where)
-    if "out_percent" not in value or "in_percent" not in value:
+    if not value:
+        keys = ", ".join(f"`{k}`" for k in _SUB_KEYS)
+        raise RulesFileError(f"{source}: {where}: needs one of {keys}")
+    out = _parse_percent_bound(value, "out", source, where)
+    in_ = _parse_percent_bound(value, "in", source, where)
+    # The game requires out <= in; only the two exact values are compared.
+    if out.exact is not None and in_.exact is not None and out.exact > in_.exact:
         raise RulesFileError(
-            f"{source}: {where} requires `out_percent` and `in_percent`"
+            f"{source}: {where}: out_percent ({out.exact}) must be <= "
+            f"in_percent ({in_.exact})"
         )
-    out = _require_int(value["out_percent"], source, f"{where}.out_percent")
-    in_ = _require_int(value["in_percent"], source, f"{where}.in_percent")
-    try:
-        return SubstitutionPair(out_percent=out, in_percent=in_)  # 0-100, out<=in
-    except ValueError as e:
-        raise RulesFileError(f"{source}: {where}: {e}") from e
+    return SubstitutionRule(out_percent=out, in_percent=in_)
+
+
+def _parse_percent_bound(
+    section: Mapping[str, Any], side: str, source: Path, where: str
+) -> PercentBound:
+    """One side's keys: `<side>_percent` (exact) or `min_/max_<side>_percent`."""
+    exact_key = f"{side}_percent"
+    min_key = f"min_{side}_percent"
+    max_key = f"max_{side}_percent"
+    exact = _optional_percent(section, exact_key, source, where)
+    minimum = _optional_percent(section, min_key, source, where)
+    maximum = _optional_percent(section, max_key, source, where)
+    if exact is not None and (minimum is not None or maximum is not None):
+        raise RulesFileError(
+            f"{source}: {where}: `{exact_key}` and `{min_key}`/`{max_key}` "
+            f"are mutually exclusive"
+        )
+    if minimum is not None and maximum is not None and minimum > maximum:
+        raise RulesFileError(f"{source}: {where}: `{min_key}` must be <= `{max_key}`")
+    return PercentBound(exact=exact, minimum=minimum, maximum=maximum)
+
+
+def _optional_percent(
+    section: Mapping[str, Any], key: str, source: Path, where: str
+) -> int | None:
+    """A whole number 0-100 inclusive; omitted -> None (unchecked)."""
+    if key not in section:
+        return None
+    n = _require_int(section[key], source, f"{where}.{key}")
+    if not 0 <= n <= 100:
+        raise RulesFileError(f"{source}: {where}.{key}: must be in [0, 100]")
+    return n
 
 
 def _reject_unknown_keys(
@@ -670,8 +723,10 @@ __all__ = [
     "PASS_MEDIUM_ANY",
     "PASS_SHORT_ANY",
     "SUBSTITUTION_POSITIONS",
+    "PercentBound",
     "ProfileRules",
     "RulesFileError",
     "SituationRule",
+    "SubstitutionRule",
     "load_rules",
 ]
