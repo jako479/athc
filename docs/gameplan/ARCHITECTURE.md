@@ -54,13 +54,13 @@ The PNFL rule set is [release/rules/PNFL.gameplan.toml](../../release/rules/PNFL
 Shared `athc.ini` (see [../design/config.md](../design/config.md)):
 
 - `[gameplan] rule_files` — one rule-TOML path per line.
-- League section (`[league.PNFL]`, chosen by `--league` / `ATHC_LEAGUE` / `[athc] default_league`) — `PlayPath` (play pool dir) and optional `PlayPoolRules` (a playpool filename-filter TOML).
+- League section (`[league.PNFL]`, chosen by `--league` / `ATHC_LEAGUE` / `[athc] default_league`) — `play_path` (play pool dir) and optional `playpool_rules` (a playpool filename-filter TOML).
 
 `check` also takes `--play-path`, `--playpool-rules`, and repeatable `--rules` to override; given all three it skips league resolution. With no rules resolvable there's nothing to validate → log an error, exit 2.
 
 ## check
 
-`athc gameplan check PATH...` walks the PATHs, builds one `PlayPool` from `PlayPath` (plus optional playpool rules), loads the gameplan `Rules`, and runs `validate_gameplan(read_gameplan(file), rules, pool)` per `.pln`. Exit `0` = clean, `1` = violations, `2` = usage/config error.
+`athc gameplan check PATH...` walks the PATHs, builds one `PlayPool` from `play_path` (plus optional playpool rules), loads the gameplan `Rules`, and runs `validate_gameplan(read_gameplan(file), rules, pool)` per `.pln`. Exit `0` = clean, `1` = violations, `2` = usage/config error.
 
 ## list-normals / list-specials
 

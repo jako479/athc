@@ -25,7 +25,7 @@ All files deploy into `%LOCALAPPDATA%\athc\`.
 | `rules\*.toml` | created | overwritten |
 | `docs\*.txt` | created | overwritten |
 
-The seeded `athc.ini` is a ready-to-run PNFL config: it points at the bundled `rules\` set with config-relative paths (`rules\PNFL.gameplan.toml`, resolved against the config dir — see [config.md](config.md#rule-file-paths)), so the only value a user must edit is `[league.PNFL] PlayPath` (their FbPro98 plays folder). It's a single self-documenting file — every setting is commented inline; there's no separate `.example` reference (the pgcli/mycli model).
+The seeded `athc.ini` is a ready-to-run PNFL config: it points at the bundled `rules\` set with config-relative paths (`rules\PNFL.gameplan.toml`, resolved against the config dir — see [config.md](config.md#rule-file-paths)), so the only value a user must edit is `[league.PNFL] play_path` (their FbPro98 plays folder). It's a single self-documenting file — every setting is commented inline; there's no separate `.example` reference (the pgcli/mycli model).
 
 The wheel goes into a uv-managed tool venv; executables on PATH at `%USERPROFILE%\.local\bin\`.
 

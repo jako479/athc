@@ -421,7 +421,7 @@ In [test_config.py](test_config.py). Direct tests of `load_league()`, the shared
 | None resolvable → lists leagues | `league.*` + tool section | `LeagueError`; "Configured leagues: PNFL, PCFL" (prefix stripped, tool excluded) | `test_no_league_resolvable_lists_configured` | ☑ |
 | Unknown league name | ask missing | `LeagueError` names `[league.PCFL]` | `test_unknown_league_errors` | ☑ |
 | Misspelled prefix `[leagu.AFCL]` | typo'd section | no parse error; inert — unlisted, selecting it errors | `test_misspelled_prefix_section_is_inert` | ☑ |
-| `[DEFAULT]` cascade + `%(key)s` | DEFAULT + league | PlayPath + RosterPath interpolated | `test_default_cascade_and_interpolation` | ☑ |
+| `[DEFAULT]` cascade + `%(key)s` | DEFAULT + league | play_path + roster_path interpolated | `test_default_cascade_and_interpolation` | ☑ |
 
 ## shipped `release/athc.ini`
 

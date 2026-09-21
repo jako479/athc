@@ -51,11 +51,11 @@ FIRST-TIME SETUP
 athc ships configured for PNFL out of the box -- the bundled rule sets
 in rules\ are already wired up. The one thing you must set is your
 plays folder. Run 'athc config edit' (or open athc.ini, see below) and
-set PlayPath under [league.PNFL] to your FbPro98 league plays folder,
+set play_path under [league.PNFL] to your FbPro98 league plays folder,
 for example:
 
    [league.PNFL]
-   PlayPath = D:\SIERRA\FBPRO98\PNFL\plays
+   play_path = D:\SIERRA\FBPRO98\PNFL\plays
 
 
 USING THE TOOLS

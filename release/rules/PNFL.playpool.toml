@@ -1,5 +1,5 @@
 # PNFL playpool rules — filename filters that set each filename-derived play
-# attribute (rollout, qb_draw, pass_logic). Point [league.PNFL] PlayPoolRules (in
+# attribute (rollout, qb_draw, pass_logic). Point [league.PNFL] playpool_rules (in
 # athc.ini) at this file, or pass --playpool-rules. Side and category come from
 # each play file, so these filters apply to any folder layout; only the filters
 # are league data — another league just copies and edits this file.

@@ -55,18 +55,18 @@ Example:
 
 ```ini
 [DEFAULT]
-RosterPath = %(LeagueRoot)s\rosters
+roster_path = %(league_root)s\rosters
 
 [athc]
 default_league = PNFL
 
 [league.PNFL]
-LeagueRoot = D:\Leagues\PNFL
-PlayPath = D:\Leagues\PNFL\plays
+league_root = D:\Leagues\PNFL
+play_path = D:\Leagues\PNFL\plays
 
 [league.PCFL]
-LeagueRoot = E:\Leagues\PCFL
-PlayPath = E:\Leagues\PCFL\plays_v2
+league_root = E:\Leagues\PCFL
+play_path = E:\Leagues\PCFL\plays_v2
 ```
 
 Full design: [config.md](config.md). CLI mechanics: [cli.md](cli.md).

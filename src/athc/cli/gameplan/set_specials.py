@@ -124,14 +124,14 @@ def _update_one(
     "play_path",
     type=click.Path(path_type=Path),
     default=None,
-    help="Play pool directory (overrides the league's PlayPath).",
+    help="Play pool directory (overrides the league's play_path).",
 )
 @click.option(
     "--playpool-rules",
     "playpool_rules",
     type=click.Path(path_type=Path),
     default=None,
-    help="Playpool rules TOML (overrides the league's PlayPoolRules).",
+    help="Playpool rules TOML (overrides the league's playpool_rules).",
 )
 @league_option
 @click.pass_context

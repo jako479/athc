@@ -322,7 +322,7 @@ def test_cli_resolves_from_league_ini(runner, write_config: WriteConfig) -> None
     write_config(
         f"[athc]\ndefault_league = PNFL\n"
         f"[gameplan]\nrule_files =\n    {GP_RULES}\n"
-        f"[league.PNFL]\nPlayPath = {PLAYS}\nPlayPoolRules = {POOL_RULES}\n",
+        f"[league.PNFL]\nplay_path = {PLAYS}\nplaypool_rules = {POOL_RULES}\n",
     )
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 1

@@ -1,4 +1,4 @@
-"""Gameplan config: league `PlayPath` / `PlayPoolRules` + `[gameplan] rule_files`
+"""Gameplan config: league `play_path` / `playpool_rules` + `[gameplan] rule_files`
 from `athc.ini`."""
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def load_config(
 ) -> Config:
     """Assemble the gameplan config.
 
-    `PlayPath` (required) and `PlayPoolRules` (optional playpool rules TOML) come
+    `play_path` (required) and `playpool_rules` (optional playpool rules TOML) come
     from the league section, `rule_files` from `[gameplan]`. The `play_path` /
     `playpool_rules` / `rule_files` overrides win; the league is resolved only when
     a path is still needed. Config file: `config_dir()/athc.ini`.
@@ -42,16 +42,16 @@ def load_config(
     if play_path is None:
         league_cfg = load_league(league)  # LeagueError if none
 
-    pp = str(play_path) if play_path is not None else league_cfg.get("PlayPath")
+    pp = str(play_path) if play_path is not None else league_cfg.get("play_path")
     if not pp:
         raise ConfigFileError(
-            "no PlayPath for the league; set PlayPath in the league "
+            "no play_path for the league; set play_path in the league "
             "section or pass --play-path"
         )
     if playpool_rules is not None:  # CLI override: keep CWD-relative
         ppr_path: Path | None = playpool_rules
     else:
-        raw_ppr = league_cfg.get("PlayPoolRules")
+        raw_ppr = league_cfg.get("playpool_rules")
         ppr_path = resolve_path(raw_ppr) if raw_ppr else None
 
     files = tuple(rule_files) if rule_files is not None else _config_rule_files()

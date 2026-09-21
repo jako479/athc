@@ -127,7 +127,7 @@ def _replace_one(
     "play_path",
     type=click.Path(path_type=Path),
     default=None,
-    help="Play pool directory (overrides the league's PlayPath).",
+    help="Play pool directory (overrides the league's play_path).",
 )
 @league_option
 @click.pass_context
@@ -146,7 +146,7 @@ def replace_play(
     PLAY and REPLACEMENT are single, case-insensitive names (unlike find-play, only
     one PLAY); PATH is a .pln file or a directory (top level, or the whole tree with
     -r). REPLACEMENT must exist in the play pool (--play-path or the league's
-    PlayPath); PLAY need not (it may already be gone). Normal and custom-special slots
+    play_path); PLAY need not (it may already be gone). Normal and custom-special slots
     are searched. A timestamped .bak is written next to each updated file (unless
     --no-backup). Rules are not checked; run `check` afterward to validate.
     """

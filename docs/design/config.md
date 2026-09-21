@@ -33,7 +33,7 @@ Thin wrappers over `click.edit` / `click.launch`; no `[config]` section (the gro
 Source runs read a per-machine **dev config** instead of the installed one:
 
 - **Override**: `ATHC_CONFIG_DIR`, if set, replaces the whole config dir; else the default `%LOCALAPPDATA%\athc` wins. Resolution: [`athc.config.config_dir()`](../../src/athc/config.py).
-- **Location**: a full `athc.ini` in a gitignored `dev/` at the repo root (mirrors `release/`).
+- **Location**: a full `athc.ini` in `dev/` at the repo root (mirrors `release/`).
 - **Shared dir**: athc and athc-admin read the same dir, so one `dev/` serves both.
 - **Production**: end users never set the var.
 
@@ -55,7 +55,7 @@ The `league.` prefix tells code (and humans) whether a section is a tool or a le
 
 ```ini
 [DEFAULT]
-RosterPath = %(LeagueRoot)s\rosters
+roster_path = %(league_root)s\rosters
 
 [athc]
 default_league = PNFL
@@ -64,23 +64,23 @@ default_league = PNFL
 rule_files = house-rules.txt
 
 [league.PNFL]
-LeagueRoot = D:\Leagues\PNFL
-PlayPath = D:\Leagues\PNFL\plays
+league_root = D:\Leagues\PNFL
+play_path = D:\Leagues\PNFL\plays
 Season = 2026
 
 [league.PCFL]
-LeagueRoot = E:\Leagues\PCFL
-PlayPath = E:\Leagues\PCFL\plays_v2
-RosterPath = E:\Leagues\PCFL\rosters_2026
+league_root = E:\Leagues\PCFL
+play_path = E:\Leagues\PCFL\plays_v2
+roster_path = E:\Leagues\PCFL\rosters_2026
 ```
 
-`RosterPath` cascades from `[DEFAULT]` into every league section. `configparser`'s `%(key)s` interpolation resolves `%(LeagueRoot)s` against the section being read, so each league gets its own roster path automatically — and `[league.PCFL]` overrides it outright.
+`roster_path` cascades from `[DEFAULT]` into every league section. `configparser`'s `%(key)s` interpolation resolves `%(league_root)s` against the section being read, so each league gets its own roster path automatically — and `[league.PCFL]` overrides it outright.
 
 The keys above illustrate the taxonomy and cascade; the shipped key set is `release/athc.ini`. Log level is not among them — it is set by `-v/--verbose` ([logging.md](logging.md#handler-setup)), not by config.
 
 ## Rule-file paths
 
-Rule-file settings (`[gameplan] rule_files`, `[profile] rule_files`, `[convert-pdb] playpool_rules`, league `PlayPoolRules`) accept **config-relative** paths: a relative value resolves against the config dir — where `athc.ini` lives — via [`athc.config.resolve_path`](../../src/athc/config.py); an absolute value is used unchanged. So `rule_files = rules\PNFL.gameplan.toml` points at the bundled `rules\` set and works **unchanged in dev and after install** — the same `athc.ini` serves both, since the config dir differs but the layout is identical.
+Rule-file settings (`[gameplan] rule_files`, `[profile] rule_files`, `[convert-pdb] playpool_rules`, league `playpool_rules`) accept **config-relative** paths: a relative value resolves against the config dir — where `athc.ini` lives — via [`athc.config.resolve_path`](../../src/athc/config.py); an absolute value is used unchanged. So `rule_files = rules\PNFL.gameplan.toml` points at the bundled `rules\` set and works **unchanged in dev and after install** — the same `athc.ini` serves both, since the config dir differs but the layout is identical.
 
 This is the mainstream config idiom (ruff, mypy resolve config paths relative to the config file, not the CWD). The exception, also matching ruff: paths passed on the CLI (`--rules`, `--playpool-rules`, `--play-path`) stay CWD-relative — they don't go through `resolve_path`. The scheduler's `rules\PNFL.scheduler.toml` is always read from the config dir directly and isn't listed in `athc.ini`.
 
@@ -108,7 +108,7 @@ Used per command or group that needs it:
 @league_option
 def gameplan_check(league):
     cfg = config.load_league(league)
-    play_path = Path(cfg["PlayPath"])
+    play_path = Path(cfg["play_path"])
     ...
 ```
 
@@ -141,7 +141,7 @@ def load(league: str | None = None) -> Config:
     raw = load_config().get("gameplan", {})
     league_raw = load_league(league)  # raises if no league resolvable
     return Config(
-        play_path=Path(league_raw["PlayPath"]),
+        play_path=Path(league_raw["play_path"]),
         rule_files=tuple(Path(p) for p in raw.get("rule_files", "").split(";") if p),
     )
 ```
@@ -159,7 +159,7 @@ The whole config is optional from the runtime's perspective:
 - Missing section → use defaults for that section.
 - Missing key inside an existing section → use the dataclass default.
 
-A tool only errors when a value it genuinely needs at runtime can't be resolved (e.g., `PlayPath` doesn't exist on disk for the selected league). This matches how peer end-user CLIs behave — pgcli, mycli, and yt-dlp all run on defaults when the config is absent or partial.
+A tool only errors when a value it genuinely needs at runtime can't be resolved (e.g., `play_path` doesn't exist on disk for the selected league). This matches how peer end-user CLIs behave — pgcli, mycli, and yt-dlp all run on defaults when the config is absent or partial.
 
 When a new tool ships with a `[new-tool]` section, the user sees nothing on upgrade. The tool runs on defaults. To customize, the user looks at the freshly-extracted `athc.ini` in the new zip — a single self-documenting file that lists every current setting (the pgcli/mycli model; see [installer.md](installer.md)) — and copies the new section into their own `athc.ini`.
 

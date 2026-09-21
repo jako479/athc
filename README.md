@@ -48,7 +48,7 @@ Install the project and its dev tools:
 uv sync
 ```
 
-For local paths different from production (e.g., game files on `E:\`), put a local `athc.ini` in `dev/` at the repo root (gitignored) and set `ATHC_CONFIG_DIR = "$PWD\dev"`. See [docs/design/cli.md](docs/design/cli.md) for the dev-config pattern.
+For local paths different from production (e.g., game files on `E:\`), use the `athc.ini` in `dev/` at the repo root and set `ATHC_CONFIG_DIR = "$PWD\dev"`. See [docs/design/cli.md](docs/design/cli.md) for the dev-config pattern.
 
 ## Tests
 

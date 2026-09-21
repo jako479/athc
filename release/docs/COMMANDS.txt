@@ -20,8 +20,8 @@ folder next to this file holds the ready-to-use PNFL rule sets
 
    Rules come from athc.ini ([gameplan] rule_files, one path per line) or
    --rules (repeatable). The PNFL rule set ships at rules\PNFL.gameplan.toml.
-   The play pool comes from the league's PlayPath (plus an optional playpool
-   rules TOML via PlayPoolRules), or --play-path / --playpool-rules. Each play's
+   The play pool comes from the league's play_path (plus an optional playpool
+   rules TOML via playpool_rules), or --play-path / --playpool-rules. Each play's
    side and category come from the play file, so any folder layout works; the
    PNFL layout (Offense/Defense/Special with category subfolders) is optional and
    only adds play attributes and misfiled-play warnings. With no gameplan rules
@@ -129,7 +129,7 @@ folder next to this file holds the ready-to-use PNFL rule sets
    .pln in a directory, or a tree (-r). Searches the normal and custom-special
    slots, case-insensitive (same as find-play); only matching slots change, the
    rest are left alone. The replacement play must exist in the play pool (from
-   the league's PlayPath, or --play-path); the play being replaced need not (it
+   the league's play_path, or --play-path); the play being replaced need not (it
    may already be gone). A timestamped backup (file.YYYY-MM-DD-HHMM.bak) is
    created per updated file, suppress with --no-backup. Rules are not checked --
    run `gameplan check` afterward to validate.

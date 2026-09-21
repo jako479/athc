@@ -35,24 +35,24 @@ WriteConfig = Callable[..., Path]
 
 
 def test_resolves_explicit_league_arg(write_config: WriteConfig) -> None:
-    write_config("[league.PNFL]\nPlayPath = D:/p\n")
-    assert load_league("PNFL")["PlayPath"] == "D:/p"
+    write_config("[league.PNFL]\nplay_path = D:/p\n")
+    assert load_league("PNFL")["play_path"] == "D:/p"
 
 
 def test_resolves_from_env(
     write_config: WriteConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    write_config("[league.PNFL]\nPlayPath = D:/p\n")
+    write_config("[league.PNFL]\nplay_path = D:/p\n")
     monkeypatch.setenv("ATHC_LEAGUE", "PNFL")
-    assert load_league()["PlayPath"] == "D:/p"
+    assert load_league()["play_path"] == "D:/p"
 
 
 def test_resolves_from_default_league(
     write_config: WriteConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.delenv("ATHC_LEAGUE", raising=False)
-    write_config("[athc]\ndefault_league = PNFL\n[league.PNFL]\nPlayPath = D:/p\n")
-    assert load_league()["PlayPath"] == "D:/p"
+    write_config("[athc]\ndefault_league = PNFL\n[league.PNFL]\nplay_path = D:/p\n")
+    assert load_league()["play_path"] == "D:/p"
 
 
 def test_arg_beats_env(
@@ -105,7 +105,7 @@ def test_misspelled_prefix_section_is_inert(
     # no parse error. But it is not a league: absent from the hint, and selecting
     # AFCL fails looking for the correctly-spelled `[league.AFCL]`.
     monkeypatch.delenv("ATHC_LEAGUE", raising=False)
-    write_config("[leagu.AFCL]\nPlayPath = D:/x\n")
+    write_config("[leagu.AFCL]\nplay_path = D:/x\n")
     with pytest.raises(LeagueError) as exc:
         load_league()
     msg = str(exc.value)
@@ -134,12 +134,12 @@ def test_resolve_path_absolute_is_unchanged() -> None:
 
 def test_default_cascade_and_interpolation(write_config: WriteConfig) -> None:
     write_config(
-        "[DEFAULT]\nRosterPath = %(LeagueRoot)s/rosters\n"
-        "[league.PNFL]\nLeagueRoot = D:/Leagues/PNFL\nPlayPath = %(LeagueRoot)s/plays\n",
+        "[DEFAULT]\nroster_path = %(league_root)s/rosters\n"
+        "[league.PNFL]\nleague_root = D:/Leagues/PNFL\nplay_path = %(league_root)s/plays\n",
     )
     cfg = load_league("PNFL")
-    assert cfg["PlayPath"] == "D:/Leagues/PNFL/plays"  # in-section interpolation
-    assert cfg["RosterPath"] == "D:/Leagues/PNFL/rosters"  # DEFAULT cascade + interp
+    assert cfg["play_path"] == "D:/Leagues/PNFL/plays"  # in-section interpolation
+    assert cfg["roster_path"] == "D:/Leagues/PNFL/rosters"  # DEFAULT cascade + interp
 
 
 # ── shipped release/athc.ini: every section loader reads it as installed ──

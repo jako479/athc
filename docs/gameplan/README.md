@@ -62,7 +62,7 @@ athc gameplan replace-play OLDRUN NEWRUN plans/ -r # swap one play for another (
 Shared `athc.ini` (see [../design/config.md](../design/config.md)):
 
 - `[gameplan] rule_files` — one gameplan-rules path per line.
-- League section (`[league.PNFL]`, picked by `--league` / `ATHC_LEAGUE` / `[athc] default_league`) — `PlayPath` (pool dir) and optional `PlayPoolRules` (a playpool filename-filter TOML).
+- League section (`[league.PNFL]`, picked by `--league` / `ATHC_LEAGUE` / `[athc] default_league`) — `play_path` (pool dir) and optional `playpool_rules` (a playpool filename-filter TOML).
 
 `--play-path`, `--playpool-rules`, and repeatable `--rules` override config; given all three, no league is needed. No rules resolvable ⇒ exit 2 (nothing to validate).
 

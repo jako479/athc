@@ -45,13 +45,6 @@ class LeagueError(ValueError):
     """Raised when no league can be resolved for a league-specific tool."""
 
 
-class _CaseSensitiveParser(configparser.ConfigParser):
-    """Keep key case (PlayPath, not playpath) so returned keys match the ini."""
-
-    def optionxform(self, optionstr: str) -> str:
-        return optionstr
-
-
 def load_league(league: str | None = None) -> dict[str, str]:
     """Resolve the league and return its config section (with `%(key)s` resolved).
 
@@ -60,7 +53,7 @@ def load_league(league: str | None = None) -> dict[str, str]:
     if none resolves or the named league has no section.
     """
     path = config_dir() / CONFIG_FILE
-    cp = _CaseSensitiveParser()  # BasicInterpolation: %(LeagueRoot)s works
+    cp = configparser.ConfigParser()  # BasicInterpolation: %(key)s works
     if path.is_file():
         cp.read(path, encoding="utf-8")
     name = (

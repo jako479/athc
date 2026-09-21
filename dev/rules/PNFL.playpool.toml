@@ -1,5 +1,5 @@
 # PNFL playpool rules — filename filters that set each filename-derived play
-# attribute. Point [league.PNFL] PlayPoolRules (in athc.ini) at this file, or
+# attribute. Point [league.PNFL] playpool_rules (in athc.ini) at this file, or
 # pass --playpool-rules. Folder conventions, play attributes, and enums are fixed
 # in code; only these filename filters are league data, so another league with
 # the same folder layout but different play names just copies and edits this file.
