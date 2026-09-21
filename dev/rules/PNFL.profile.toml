@@ -28,9 +28,15 @@ disallowed_defensive_categories = []
 # and likewise for the in side. A group needs at least one key, and an exact
 # out_percent must be <= in_percent.
 #
-# Groups: offense OL QB RB WR K · defense DL LB DB. PNFL mandates only QB.
+# Groups: offense OL QB RB WR K · defense DL LB DB. PNFL leaves only K unchecked.
 [substitutions]
 QB = { out_percent = 75, in_percent = 80 }
+OL = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }
+RB = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }
+WR = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }
+DL = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }
+LB = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }
+DB = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }
 
 # Note: min_categories is automatically waived for a situation that uses only
 # kick/punt (plus run-clock on offense) — a pure field-goal or punt situation is
