@@ -4,20 +4,20 @@ One line per task. Current state and reasoning: [STATUS.md](STATUS.md).
 
 ## TODO
 
-- profile: check: new sub % rules
-- profile: check: new 2-DL rules
+- check: one `athc check` taking any mix of .pln and .prf, replacing `gameplan check` and `profile check`; open questions in [STATUS.md](STATUS.md)
+- check: make PyInstaller EXE or subcommand
 - scheduler: switch to PyInstaller exe??
 - autocontinue: switch to PyInstaller exe?
-- add new tool specificall for checking entire PPP, e.g. gameplan check on gameplans, profile check on the profiles, as well as the pairs of profile and gameplan?
-- check-ppp: tool/subcommand to check a set of profile and gameplan pairs (full validation of each)
-- check-ppp: make PyInstaller EXE or subcommand
 - scheduler: review and simplify the ruleset — 50 `[phase2]` keys, some redundant; consider simple vs. full ruleset switch. Reasoning and plan in [STATUS.md](STATUS.md)
-- gameplan check: add profile option to make sure profile is valid for included gameplan categories
 - gameplan: replace play (single and bulk) - list of plays as input??
 - profile: revisit edit\copy options
 - autocontinue: add halftime
 - tests: add ruff's `PT` rule group (pytest style); 117 findings today, 111 auto-fixable under `--unsafe-fixes`
 - cli: wire logging in the `cli()` group callback — global `-v/--verbose`, `RichHandler` on stderr, `click.style` on stdout; drop the 13 per-command `basicConfig` calls. Design: [docs/design/logging.md](docs/design/logging.md)
+- [DONE] profile: new substitution % rules — non-QB, non-K groups capped at 95 out / 96-100 in
+- [DONE] profile: gameplan compatibility is checked both ways, fails the check, and is gated by the rules file
+- [DONE] gameplan: new 2-DL rules — 50% Pass Short/Medium, 75% Pass Long, 100% Pass Dazzle
+- [DONE] gameplan: attribute caps take a count, ratio or percent form
 - [DONE] scheduler: league.ini - dropped [Divisions]; [DivisionStandings] now defines division membership + finish order
 - [DONE] scheduler: soft objective so seasons vary like real NFL years; NFL-typical bands per [docs/design/research/cpsat-rule-patterns.md](docs/design/research/cpsat-rule-patterns.md)
 - [DONE] scheduler: count-caps to prevent rule pileups; implemented per [docs/design/research/cpsat-rule-patterns.md](docs/design/research/cpsat-rule-patterns.md)

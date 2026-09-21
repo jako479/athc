@@ -43,16 +43,19 @@ scheduler C/D output, replaced by the golden test.
 Working. Validates and edits .pln game plans. Docs: [README](docs/gameplan/README.md) ·
 [rules](release/rules/PNFL.gameplan.toml)
 
-Latest (2026-09-20): each attribute cap takes one of three explicit forms —
-`max_<attr>_count`, `max_<attr>_ratio` or `max_<attr>_percent` — and a section may set only
-one form per attribute. Ratio and percent compare the exact play ratio, no rounding.
+Latest (2026-09-21): Brian reviewed the PNFL gameplan rules against the league threads
+and confirmed every one is covered. Attribute caps now take a count, ratio or percent
+form — one form per attribute — so a league writes its rule the way the league states it.
+The PNFL 2-DL caps are 50% Pass Short/Medium, 75% Pass Long, 100% Pass Dazzle.
+Documentation was confirmed clear: the duplicate RULES_PNFL doc is gone, the rules TOML
+is the reference, and exit codes now live in the README.
 
 June: added `find-play` (search by play name across files/trees; reads the category
 straight from the .pln, no pool setup) and `replace-play` (swap one play across .pln files).
 Writes back up first (`file.YYYY-MM-DD-HHMM.bak`, `--no-backup` to skip). Renamed the
 `Play` API to `PlayRef`/`CustomPlay`/`StockPlay`.
 
-Open: `check` should take a profile and confirm it's valid for the gameplan's categories ·
+Open: `check` folds into one `athc check` taking any mix of .pln and .prf (below) ·
 `replace-play` should accept a list of plays for bulk swaps.
 
 ## profile — `check` `copy` `diff`
@@ -60,17 +63,36 @@ Open: `check` should take a profile and confirm it's valid for the gameplan's ca
 Working. Validates and compares .prf coaching profiles. Docs:
 [README](docs/profile/README.md) · [rules](release/rules/PNFL.profile.toml)
 
-Latest (2026-09-20): substitution rules take `min_`/`max_` bounds per side (out/in) as
-well as exact values; a side with no key is unchecked, and each unmet side is reported on
-its own line. The shipped PNFL rules still pin QB to 75/80.
+Latest (2026-09-21): Brian reviewed the PNFL profile rules against the league thread and
+confirmed every one is covered, including both gameplan compatibility checks. Those two
+checks now fail `check` like any other rule and are turned on per direction in the rules
+file under `[gameplan_compatibility]`. Substitution bounds cover every position group —
+QB pinned at 75/80, every other group but K capped at 95 out and 96-100 in. Documentation
+was confirmed clear: the duplicate RULES_PNFL doc is gone, the rules TOML is the
+reference, and exit codes and the compatibility rule now live in the README.
 
-June: expanded `check`'s gameplan-compatibility checks and validators (reverse
-warnings, FG/PAT specials). `diff` was built this cycle — one line per differing situation
-showing situation #, game state, and stop-clock; `--output` infers CSV from the file
-extension. Tests were restructured to sit under the package being tested and to compare
-written .prf output against known expected files.
+2026-09-20: substitution rules take `min_`/`max_` bounds per side (out/in) as well as
+exact values; a side with no key is unchecked, and each unmet side is reported on its own
+line.
 
-Open: revisit `edit`/`copy` options.
+June: expanded `check`'s gameplan-compatibility checks and validators (FG/PAT specials).
+`diff` was built this cycle — one line per differing situation showing situation #, game
+state, and stop-clock; `--output` infers CSV from the file extension. Tests were
+restructured to sit under the package being tested and to compare written .prf output
+against known expected files.
+
+Open: `check` folds into one `athc check` taking any mix of .pln and .prf (below) ·
+revisit `edit`/`copy` options.
+
+## check — planned
+
+One `athc check FILES...` taking any mix of `.pln` and `.prf`, replacing `gameplan check`
+and `profile check`. It runs each file's own league rules and adds the compatibility
+checks when it has a matching pair, so a league manager validates a coach's submission in
+one command.
+
+To settle: how a directory or glob pairs many files of both types, and whether `gameplan`
+and `profile` keep their other subcommands with `check` moved out.
 
 ## playpool (library)
 

@@ -2,6 +2,28 @@
 
 History of what changed and why. Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-09-21 — **gameplan**: attribute caps were one fixed form per attribute
+  (a count for QB draws and rollouts, a fraction for timed and 2-DL), so a
+  league could not say what its own rule said. Each attribute now takes one of
+  `max_<attr>_count`, `max_<attr>_ratio` or `max_<attr>_percent`, and naming two
+  forms for one attribute is a rules-file error. Ratio and percent compare the
+  exact play ratio, so nothing rounds. The PNFL 2-DL caps moved to the new
+  percent form at their current league values: 50% Pass Short and Medium, 75%
+  Pass Long, 100% Pass Dazzle.
+- 2026-09-21 — **profile**: the league rule that a gameplan's play categories
+  must all appear in the profile was only an informational warning, so a profile
+  breaking it still passed. It is a violation now, like every other rule, and
+  `CompatWarning` is gone — both directions are `CompatIssue`. The two
+  compatibility checks also moved out of the code and into the rules file, under
+  `[gameplan_compatibility]`, so a league enables each one itself. Substitution
+  rules gained the league's non-QB bounds: every group but QB and K is capped at
+  95 out and 96-100 in.
+- 2026-09-21 — **docs**: `RULES_PNFL.md` was deleted for both gameplan and
+  profile. Each restated every league value in prose tables, so it went stale
+  the moment a number changed; the rules TOML and its comments are the reference
+  now. Both rules files lost their `schema_version` and their explanatory
+  preamble. Exit codes and the error-vs-finding distinction moved from
+  ARCHITECTURE into each tool's README, where a coach will actually look.
 - 2026-09-18 — the shipped `release/athc.ini` is checked by one test per
   section loader in `test_config.py`, with `ATHC_CONFIG_DIR` pointed at
   `release/` so the bundled rule files must exist. The old autocontinue-only

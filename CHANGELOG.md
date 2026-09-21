@@ -2,12 +2,7 @@
 
 ## athc
 
-- rules: profile rules files follow the gameplan pattern — trimmed headers, no schema_version
-- profile: `[gameplan_compatibility]` in the rules file turns each gameplan compatibility check on
-- profile: gameplan categories the profile never uses are now a violation, not a warning
-- docs: dropped the gameplan and profile RULES_PNFL.md — the rules TOML is the reference
-- rules: PNFL 2-DL caps are now 50% Pass Short/Medium, 75% Pass Long, 100% Pass Dazzle
-- gameplan: attribute caps take one of `max_<attr>_count`, `max_<attr>_ratio` or `max_<attr>_percent`, one form per attribute
+- docs: the rules TOML is the PNFL reference; the RULES_PNFL docs are gone and exit codes moved into each README
 - tests: the shipped `release/athc.ini` is loaded through every section loader and its rule files must exist
 - docs: added STATUS.md — per-tool state, what is done, what is next
 - docs: TODO modifications
@@ -47,6 +42,7 @@
 
 ## gameplan
 
+- rules: attribute caps take a count, ratio or percent form, and the PNFL 2-DL caps moved to percents
 - added the `find-play` and `replace-play` commands
 - added the `gameplan` command — `check`, `list-normals`, `list-specials`, `set-normals`, `set-specials`, `find-play`
 
@@ -62,6 +58,8 @@
 
 ## profile
 
+- gameplan compatibility is checked both ways, fails the check, and is turned on per direction in the rules file
+- rules: substitution bounds now cover every position group, not just QB
 - rules: substitution thresholds accept `min_`/`max_` bounds per side alongside exact values; one violation per unmet side
 - expanded `check`'s gameplan compatibility checks and validators
 - added the `profile` command — `check`, `copy`, `diff`
