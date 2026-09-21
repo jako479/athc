@@ -5,6 +5,10 @@ schema_version = 1
 audibles_allowed = false
 min_categories = 2
 
+[gameplan_compatibility]
+profile_categories_in_gameplan = true
+gameplan_categories_in_profile = true
+
 [substitutions]
 QB = { out_percent = 75, in_percent = 80 }
 

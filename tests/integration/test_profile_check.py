@@ -329,6 +329,14 @@ def test_cli_malformed_ini(
 # ── --gameplan compatibility (check_file) ─────────────────────────────────────
 
 EMPTY_RULES = ProfileRules()  # no rules -> validate_profile reports nothing
+# No league rules, but both gameplan compatibility checks on.
+COMPAT_RULES = ProfileRules(
+    profile_categories_in_gameplan=True, gameplan_categories_in_profile=True
+)
+COMPAT_TOML = """[gameplan_compatibility]
+profile_categories_in_gameplan = true
+gameplan_categories_in_profile = true
+"""
 
 
 def test_check_file_gameplan_offense_reports_compat() -> None:
@@ -365,7 +373,7 @@ def test_check_file_gameplan_clean(monkeypatch: pytest.MonkeyPatch) -> None:
         "athc.cli.profile.check.gameplan_extra_categories", lambda prof, gp: ()
     )
     gp = read_gameplan(str(GP_OFFENSE))
-    count, line = check_file(COMPAT_OFF_CLEAN, EMPTY_RULES, gp)
+    count, line = check_file(COMPAT_OFF_CLEAN, COMPAT_RULES, gp)
     assert count == 0
     assert line == f"{COMPAT_OFF_CLEAN}: OK (offense, FG range 20; gameplan compatible)"
 
@@ -374,7 +382,7 @@ def test_check_file_gameplan_reverse_only_fails() -> None:
     """Forward-compatible profile, but the gameplan has plays it never calls:
     the reverse issues alone fail the check."""
     gp = read_gameplan(str(GP_OFFENSE))
-    count, line = check_file(COMPAT_OFF_CLEAN, EMPTY_RULES, gp)
+    count, line = check_file(COMPAT_OFF_CLEAN, COMPAT_RULES, gp)
     head = line.splitlines()[0]
     assert count == 10
     assert head.startswith(f"{COMPAT_OFF_CLEAN}: 0 violation(s), 10 gameplan issue(s)")
@@ -436,7 +444,7 @@ def test_cli_gameplan_clean_exit_0(
         "athc.cli.profile.check.gameplan_extra_categories", lambda prof, gp: ()
     )
     empty = tmp_path / "empty.toml"
-    empty.write_text("", encoding="utf-8")
+    empty.write_text(COMPAT_TOML, encoding="utf-8")
     result = runner.invoke(
         check,
         [str(COMPAT_DEF_CLEAN), "--rules", str(empty), "--gameplan", str(GP_DEFENSE)],
@@ -449,7 +457,7 @@ def test_cli_gameplan_reverse_exit_1(runner, tmp_path: Path) -> None:
     """Gameplan categories the profile never uses fail the check on their own:
     a forward-compatible profile still exits 1."""
     empty = tmp_path / "empty.toml"
-    empty.write_text("", encoding="utf-8")
+    empty.write_text(COMPAT_TOML, encoding="utf-8")
     result = runner.invoke(
         check,
         [str(COMPAT_DEF_CLEAN), "--rules", str(empty), "--gameplan", str(GP_DEFENSE)],

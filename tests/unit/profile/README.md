@@ -31,6 +31,12 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | Sub percents at limits, every group | tmp | accepted (0/100, out=in) | `test_substitutions_percent_limits_ok` `[P]` | ☑ |
 | Layering overrides `min_categories` | tmp ×2 | later value wins | `test_layering_overrides_scalar` | ☑ |
 | Layering overrides `audibles_allowed` | tmp ×2 | later value wins | `test_layering_overrides_audibles` | ☑ |
+| `[gameplan_compatibility]` omitted → default | tmp | both flags False | `test_gameplan_compatibility_defaults_when_omitted` | ☑ |
+| `[gameplan_compatibility]` parses | tmp | both flags as written | `test_gameplan_compatibility_parses` | ☑ |
+| `[gameplan_compatibility]` unknown key | tmp | "unknown key" | `test_gameplan_compatibility_unknown_key` | ☑ |
+| `[gameplan_compatibility]` non-bool | tmp | "must be a boolean" | `test_gameplan_compatibility_must_be_bool` | ☑ |
+| `gameplan_compatibility` not a table | tmp | "must be a table" | `test_gameplan_compatibility_must_be_table` | ☑ |
+| Layering overrides a compat flag | tmp ×2 | later value wins | `test_layering_overrides_gameplan_compatibility` | ☑ |
 | Five time buckets → distinct rules | tmp | one rule per `MinutesRemaining` | `test_all_time_buckets_match_distinctly` | ☑ |
 | Shipped PNFL rules load | data | min/disallowed/situations | `test_pnfl_rules_load` | ☑ |
 

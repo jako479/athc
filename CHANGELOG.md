@@ -3,6 +3,7 @@
 ## athc
 
 - rules: profile rules files follow the gameplan pattern — trimmed headers, no schema_version
+- profile: `[gameplan_compatibility]` in the rules file turns each gameplan compatibility check on
 - profile: gameplan categories the profile never uses are now a violation, not a warning
 - docs: dropped the gameplan and profile RULES_PNFL.md — the rules TOML is the reference
 - rules: PNFL 2-DL caps are now 50% Pass Short/Medium, 75% Pass Long, 100% Pass Dazzle

@@ -19,6 +19,12 @@ disallowed_offensive_categories = [
 ]
 disallowed_defensive_categories = []
 
+# Cross-checks between a profile and a gameplan; only `check --gameplan`
+# applies them. Omitted = not enforced.
+[gameplan_compatibility]
+profile_categories_in_gameplan = true  # every category the profile uses needs a play
+gameplan_categories_in_profile = true  # every category the gameplan has must be used
+
 # Substitution thresholds by position group. Each group has an out side and an
 # in side; a side with no key is unchecked.
 #

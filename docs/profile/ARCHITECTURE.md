@@ -69,12 +69,13 @@ and runs `check_gameplan_compatibility(profile, gameplan)` per same-side file.
 normal codes (0x00–0x0F) to the 64 normal slots (resolved by `category_name`,
 defense collapsing pass directions), special codes (FG/PAT, punt, fakes) to the
 10 custom special slots; clock/random codes are skipped, and rules are not
-consulted. A category with no custom play is a `CompatIssue`. The reverse,
+consulted here. A category with no custom play is a `CompatIssue`. The reverse,
 `gameplan_extra_categories`, reports gameplan custom-play categories the profile
 never weights, per gameplan category (defense pass directions stay collapsed,
 so those carry no `category_code`). Both directions are `CompatIssue`s, printed
-as `gameplan:` lines and counted toward exit 1. A profile whose side differs
-from the gameplan is a per-file error (exit 2).
+as `gameplan:` lines and counted toward exit 1, and each runs only when its
+`[gameplan_compatibility]` flag is set. A profile whose side differs from the
+gameplan is a per-file error (exit 2).
 
 ## Diff
 

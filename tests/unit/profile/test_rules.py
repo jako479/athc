@@ -126,6 +126,59 @@ def test_min_categories_defaults_when_omitted(tmp_path: Path) -> None:
     assert rules.min_categories == 0
 
 
+# ── [gameplan_compatibility] ──────────────────────────────────────────────────
+
+
+def test_gameplan_compatibility_defaults_when_omitted(tmp_path: Path) -> None:
+    """Omitted section leaves both compatibility checks off."""
+    rules = load_rules([write(tmp_path, MINIMAL)])
+    assert rules.profile_categories_in_gameplan is False
+    assert rules.gameplan_categories_in_profile is False
+
+
+def test_gameplan_compatibility_parses(tmp_path: Path) -> None:
+    text = (
+        MINIMAL + "[gameplan_compatibility]\n"
+        "profile_categories_in_gameplan = true\n"
+        "gameplan_categories_in_profile = false\n"
+    )
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.profile_categories_in_gameplan is True
+    assert rules.gameplan_categories_in_profile is False
+
+
+def test_gameplan_compatibility_unknown_key(tmp_path: Path) -> None:
+    text = MINIMAL + "[gameplan_compatibility]\nbogus = true\n"
+    with pytest.raises(RulesFileError, match="unknown key"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_gameplan_compatibility_must_be_bool(tmp_path: Path) -> None:
+    text = MINIMAL + '[gameplan_compatibility]\nprofile_categories_in_gameplan = "x"\n'
+    with pytest.raises(RulesFileError, match="must be a boolean"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_gameplan_compatibility_must_be_table(tmp_path: Path) -> None:
+    text = MINIMAL + "gameplan_compatibility = true\n"
+    with pytest.raises(RulesFileError, match="must be a table"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_layering_overrides_gameplan_compatibility(tmp_path: Path) -> None:
+    a = tmp_path / "a.toml"
+    a.write_text(
+        "[gameplan_compatibility]\nprofile_categories_in_gameplan = true\n",
+        encoding="utf-8",
+    )
+    b = tmp_path / "b.toml"
+    b.write_text(
+        "[gameplan_compatibility]\nprofile_categories_in_gameplan = false\n",
+        encoding="utf-8",
+    )
+    assert load_rules([a, b]).profile_categories_in_gameplan is False
+
+
 def test_layering_overrides_scalar(tmp_path: Path) -> None:
     a = tmp_path / "a.toml"
     a.write_text(MINIMAL, encoding="utf-8")

@@ -150,6 +150,9 @@ class ProfileRules:
 
     `audibles_allowed` omitted in the file defaults to True — no audibles check.
 
+    The two `[gameplan_compatibility]` flags gate the compatibility checks
+    `check --gameplan` runs; both default False — not enforced.
+
     Every field is optional; an empty rule set enforces nothing.
     """
 
@@ -160,6 +163,8 @@ class ProfileRules:
     min_categories: int = 0
     offense_disallowed_categories: frozenset[int] = frozenset()
     defense_disallowed_categories: frozenset[int] = frozenset()
+    profile_categories_in_gameplan: bool = False
+    gameplan_categories_in_profile: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -261,12 +266,17 @@ _ALLOWED_TOP_KEYS: Final[frozenset[str]] = frozenset(
         "schema_version",
         "audibles_allowed",
         "min_categories",
+        "gameplan_compatibility",
         "substitutions",
         "disallowed_offensive_categories",
         "disallowed_defensive_categories",
         "offense",
         "defense",
     }
+)
+# Compatibility checks run only by `check --gameplan`; each is a boolean.
+_ALLOWED_COMPAT_KEYS: Final[frozenset[str]] = frozenset(
+    {"profile_categories_in_gameplan", "gameplan_categories_in_profile"}
 )
 # Substitution group keys: per side, an exact value or min/max bounds.
 _SUB_KEYS: Final[tuple[str, ...]] = tuple(
@@ -304,6 +314,8 @@ class _MergedData:
 
     audibles_allowed: bool | None = None
     min_categories: int | None = None
+    profile_categories_in_gameplan: bool | None = None
+    gameplan_categories_in_profile: bool | None = None
     substitutions: dict[str, SubstitutionRule] = field(default_factory=dict)
     offense_disallowed: frozenset[int] = field(default_factory=frozenset)
     defense_disallowed: frozenset[int] = field(default_factory=frozenset)
@@ -382,6 +394,10 @@ def _merge_file(
         )
         if ok:
             merged.min_categories = val
+    if "gameplan_compatibility" in data:
+        _merge_gameplan_compatibility(
+            merged, data["gameplan_compatibility"], errors, source=source
+        )
     if "substitutions" in data:
         _merge_substitutions(merged, data["substitutions"], errors, source=source)
     if "disallowed_offensive_categories" in data:
@@ -553,6 +569,28 @@ def _map_each(
     return result
 
 
+def _merge_gameplan_compatibility(
+    merged: _MergedData, value: object, errors: list[str], *, source: Path
+) -> None:
+    """Parse `[gameplan_compatibility]`: one boolean per compatibility check."""
+    where = "[gameplan_compatibility]"
+    if not isinstance(value, Mapping):
+        errors.append(f"{source}: {where}: must be a table")
+        return
+    _attempt(
+        errors,
+        lambda: _reject_unknown_keys(value, _ALLOWED_COMPAT_KEYS, source, where),
+    )
+    for key in sorted(_ALLOWED_COMPAT_KEYS):
+        if key not in value:
+            continue
+        flag, ok = _attempt(
+            errors, lambda key=key: _require_bool(value[key], source, f"{where}.{key}")
+        )
+        if ok:
+            setattr(merged, key, flag)
+
+
 def _merge_substitutions(
     merged: _MergedData, value: object, errors: list[str], *, source: Path
 ) -> None:
@@ -706,6 +744,9 @@ def _build_rules(m: _MergedData) -> ProfileRules:
         scalars["audibles_allowed"] = m.audibles_allowed
     if m.min_categories is not None:
         scalars["min_categories"] = m.min_categories
+    for key in ("profile_categories_in_gameplan", "gameplan_categories_in_profile"):
+        if (flag := getattr(m, key)) is not None:
+            scalars[key] = flag
     return ProfileRules(
         substitutions=dict(m.substitutions),
         offense_situations=tuple(m.offense_rules.values()),

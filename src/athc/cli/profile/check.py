@@ -129,8 +129,9 @@ def check_file(
     path: Path, rules: ProfileRules, gameplan: GamePlan | None = None
 ) -> tuple[int, str]:
     """Return `(count, line)`; a parse/I/O error or side mismatch returns
-    `(-1, error line)`. With a gameplan, `count` also includes compatibility
-    issues in both directions, and the head line reports them."""
+    `(-1, error line)`. With a gameplan, `count` also includes whichever
+    compatibility checks `[gameplan_compatibility]` enables, and the head line reports
+    them."""
     try:
         prof = read_profile(str(path))
     except (OSError, InvalidProfileError, UnsupportedProfileError) as error:
@@ -148,9 +149,11 @@ def check_file(
             f"{path}: ERROR: profile is {side} but gameplan is {gp_side}; "
             f"sides must match"
         )
-    issues = check_gameplan_compatibility(prof, gameplan) + gameplan_extra_categories(
-        prof, gameplan
-    )
+    issues: tuple[CompatIssue, ...] = ()
+    if rules.profile_categories_in_gameplan:
+        issues += check_gameplan_compatibility(prof, gameplan)
+    if rules.gameplan_categories_in_profile:
+        issues += gameplan_extra_categories(prof, gameplan)
     return _render_with_compat(path, violations, issues, summary)
 
 
