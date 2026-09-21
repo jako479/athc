@@ -57,7 +57,7 @@ Shared `athc.ini` (see [../design/config.md](../design/config.md)):
 ## See also
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — layers, layout, violation format.
-- [RULES_PNFL.md](RULES_PNFL.md) — the PNFL rule set, and [release/rules/PNFL.gameplan.toml](../../release/rules/PNFL.gameplan.toml).
+- [release/rules/PNFL.gameplan.toml](../../release/rules/PNFL.gameplan.toml) — the PNFL rule set.
 
 ## Tests
 

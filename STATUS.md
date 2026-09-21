@@ -41,7 +41,7 @@ scheduler C/D output, replaced by the golden test.
 ## gameplan — `check` `list-normals` `list-specials` `set-normals` `set-specials` `find-play` `replace-play`
 
 Working. Validates and edits .pln game plans. Docs: [README](docs/gameplan/README.md) ·
-[rules](docs/gameplan/RULES_PNFL.md)
+[rules](release/rules/PNFL.gameplan.toml)
 
 Latest (2026-09-20): each attribute cap takes one of three explicit forms —
 `max_<attr>_count`, `max_<attr>_ratio` or `max_<attr>_percent` — and a section may set only

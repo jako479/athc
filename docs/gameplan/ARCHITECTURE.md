@@ -47,7 +47,7 @@ Each capped attribute (`qb_draws`, `rollouts`, `timed`, `two_dl`) takes one of t
 
 Loading reports every problem at once (`RulesFileError.errors`); any error aborts `check` with each logged (exit 2).
 
-The PNFL rule set is in [RULES_PNFL.md](RULES_PNFL.md) — data a coach supplies as a file, not code.
+The PNFL rule set is [release/rules/PNFL.gameplan.toml](../../release/rules/PNFL.gameplan.toml) — data a coach supplies as a file, not code.
 
 ## Config
 

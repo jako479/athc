@@ -2,6 +2,8 @@
 
 ## athc
 
+- docs: dropped docs/gameplan/RULES_PNFL.md — the rules TOML is the reference
+- rules: PNFL 2-DL caps are now 50% Pass Short/Medium, 75% Pass Long, 100% Pass Dazzle
 - gameplan: attribute caps take one of `max_<attr>_count`, `max_<attr>_ratio` or `max_<attr>_percent`, one form per attribute
 - tests: the shipped `release/athc.ini` is loaded through every section loader and its rule files must exist
 - docs: added STATUS.md — per-tool state, what is done, what is next
