@@ -62,6 +62,6 @@ rule_files = C:\athc\rules\pnfl_profile.toml
 
 One path per line (later files layer over earlier). Override with `--rules <path>`
 (repeatable), or point `ATHC_CONFIG_DIR` at a different config folder. With no
-rules configured, `check` reports an error and exits 2. The shipped, documented rule set is
-[`release/rules/PNFL.profile.toml`](../../release/rules/PNFL.profile.toml);
-rule meanings are in [RULES_PNFL.md](RULES_PNFL.md).
+rules configured, `check` reports an error and exits 2. The shipped rule set is
+[`release/rules/PNFL.profile.toml`](../../release/rules/PNFL.profile.toml), and
+its comments explain every key.

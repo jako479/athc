@@ -37,9 +37,9 @@ back to one. Situation rules are a list: each has optional game-state filters
 matches. Substitution rules are one `SubstitutionRule` per position group, a
 `PercentBound` per side (out/in): an exact value or an optional min/max range;
 a side with no key is unchecked, and each unmet side is its own violation. The
-shipped `release/rules/PNFL.profile.toml` is the documented reference; rule
-meanings (matrix, category counts, exemptions, disallowed, substitutions):
-[RULES_PNFL.md](RULES_PNFL.md).
+shipped [release/rules/PNFL.profile.toml](../../release/rules/PNFL.profile.toml)
+is the reference; its comments cover the matrix, category counts, disallowed
+categories and substitutions.
 
 The min-categories exemption is built into `validators.py`, not the rules file: a
 situation using only kick/punt (plus run-clock on offense; never fakes) is never

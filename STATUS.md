@@ -58,7 +58,7 @@ Open: `check` should take a profile and confirm it's valid for the gameplan's ca
 ## profile — `check` `copy` `diff`
 
 Working. Validates and compares .prf coaching profiles. Docs:
-[README](docs/profile/README.md) · [rules](docs/profile/RULES_PNFL.md)
+[README](docs/profile/README.md) · [rules](release/rules/PNFL.profile.toml)
 
 Latest (2026-09-20): substitution rules take `min_`/`max_` bounds per side (out/in) as
 well as exact values; a side with no key is unchecked, and each unmet side is reported on

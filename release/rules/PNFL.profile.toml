@@ -1,12 +1,5 @@
-# PNFL coaching-profile rules — the official set, ready to use as-is.
-# Wire it up: point [profile] rule_files (in athc.ini) at this file.
+# PNFL coaching-profile rules. Point [profile] rule_files (in athc.ini) at this file.
 # Source: https://pnfl.biz/messageboard/viewtopic.php?f=18&t=28
-#
-# Every key is optional (omitted = not enforced). A situation section
-# ([offense.<name>] / [defense.<name>]) applies when ALL its filters match; an
-# omitted filter matches every value. Filter/label glossaries are inline below.
-
-schema_version = 1
 
 audibles_allowed = false   # if false, profiles must save with audibles off
 min_categories = 2         # baseline distinct categories per situation (>= 0)
@@ -26,16 +19,16 @@ disallowed_offensive_categories = [
 ]
 disallowed_defensive_categories = []
 
-# Substitution thresholds by position group. Each side (out / in) is either an
-# exact value or a range (whole numbers 0-100, inclusive):
-#   out_percent = N            exact
-#   min_out_percent / max_out_percent = N   range, either end optional
-# and likewise in_percent / min_in_percent / max_in_percent. Exact and min/max
-# on the same side don't mix; a group needs at least one key; a side with no
-# key is unchecked; exact out_percent must be <= in_percent. Settable groups,
-# by profile side:
-#   offense: OL QB RB WR K    defense: DL LB DB
-# Omit a group to leave it unchecked. PNFL mandates only the QB pair.
+# Substitution thresholds by position group. Each group has an out side and an
+# in side; a side with no key is unchecked.
+#
+# Two options per side; a side takes one or the other, not both:
+#   out_percent = <int>                       exact, 0-100
+#   min_out_percent / max_out_percent = <int> range, either end optional
+# and likewise for the in side. A group needs at least one key, and an exact
+# out_percent must be <= in_percent.
+#
+# Groups: offense OL QB RB WR K · defense DL LB DB. PNFL mandates only QB.
 [substitutions]
 QB = { out_percent = 75, in_percent = 80 }
 

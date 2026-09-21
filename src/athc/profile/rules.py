@@ -2,7 +2,7 @@
 
 Rule data lives in external TOML files — none ship with this package. Use
 `load_rules(paths)` to load one or more into a `ProfileRules`. Rule semantics:
-docs/profile/RULES_PNFL.md.
+release/rules/PNFL.profile.toml.
 """
 
 from __future__ import annotations
