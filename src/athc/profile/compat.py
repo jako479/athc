@@ -10,8 +10,8 @@ Profile and gameplan must be the same side (offense/defense) — the caller chec
 that first. Rules are not consulted here; this only compares categories to plays.
 
 `check_gameplan_compatibility` reports profile categories the gameplan does not
-back (issues); `gameplan_extra_categories` reports the reverse — gameplan custom
-plays the profile never weights (warnings).
+back; `gameplan_extra_categories` reports the reverse — gameplan custom plays the
+profile never weights. Both are `CompatIssue`s.
 """
 
 from __future__ import annotations
@@ -125,19 +125,11 @@ class CompatKind(StrEnum):
 @dataclass(frozen=True, slots=True)
 class CompatIssue:
     """One profile/gameplan incompatibility. `category_code` is the .prf category
-    byte the profile uses but the gameplan does not cover."""
+    byte at fault; it is None for an extra normal category, where defense pass
+    directions collapse to one gameplan category spanning several codes."""
 
     kind: CompatKind
-    category_code: int
-    message: str
-
-
-@dataclass(frozen=True, slots=True)
-class CompatWarning:
-    """A gameplan custom-play category the profile never weights — the gameplan
-    has plays this profile will never call. Informational; does not fail check."""
-
-    kind: CompatKind
+    category_code: int | None
     message: str
 
 
@@ -183,7 +175,7 @@ def check_gameplan_compatibility(
 
 def gameplan_extra_categories(
     profile: Profile, gameplan: GamePlan
-) -> tuple[CompatWarning, ...]:
+) -> tuple[CompatIssue, ...]:
     """Report gameplan custom-play categories the profile never weights.
 
     The reverse of `check_gameplan_compatibility`: plays the profile will never
@@ -191,15 +183,16 @@ def gameplan_extra_categories(
     not per profile code. Profile and gameplan must already be the same side.
     """
     used = _used_categories(profile)
-    warnings: list[CompatWarning] = []
+    issues: list[CompatIssue] = []
 
     name_codes = _OFFENSE_NORMAL_CODES if profile.is_offense else _DEFENSE_NORMAL_CODES
     present = _present_normal_names(gameplan, name_codes)
     for name in sorted(present, key=lambda n: min(name_codes[n])):
         if not (name_codes[name] & used):
-            warnings.append(
-                CompatWarning(
+            issues.append(
+                CompatIssue(
                     CompatKind.EXTRA_NORMAL_CATEGORY,
+                    None,
                     f"gameplan play category {name} is not used by the profile",
                 )
             )
@@ -207,15 +200,16 @@ def gameplan_extra_categories(
     for code in sorted(_SPECIAL_SLOT_BY_CODE):
         slot = _SPECIAL_SLOT_BY_CODE[code]
         if gameplan.custom_special_plays[slot - 1] is not None and code not in used:
-            warnings.append(
-                CompatWarning(
+            issues.append(
+                CompatIssue(
                     CompatKind.EXTRA_SPECIAL_CATEGORY,
+                    code,
                     f"gameplan special-teams category {_SPECIAL_NAME[code]} "
                     f"is not used by the profile",
                 )
             )
 
-    return tuple(warnings)
+    return tuple(issues)
 
 
 def _used_categories(profile: Profile) -> frozenset[int]:
@@ -276,7 +270,6 @@ def _category_name(play: PlayRef) -> str:
 __all__ = [
     "CompatIssue",
     "CompatKind",
-    "CompatWarning",
     "check_gameplan_compatibility",
     "gameplan_extra_categories",
 ]

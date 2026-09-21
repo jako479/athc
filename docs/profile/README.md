@@ -7,13 +7,12 @@ Validate and compare FbPro98 coaching profiles (`.prf`). Built on
 
 | Exit | Meaning |
 |---|---|
-| `0` | **Clean** — no violations or issues (`check`), identical (`diff`), done (`copy`). Warnings may still print. |
+| `0` | **Clean** — no violations or issues (`check`), identical (`diff`), done (`copy`). |
 | `1` | **Findings** — rule violations + gameplan coverage issues (`check`), differences (`diff`), or a per-file failure (`copy`). |
 | `2` | **Error** — couldn't run: I/O, parse, side mismatch, or usage. |
 
-Three tiers: an **error** means the check couldn't run, a **finding** is a real
-problem to fix, and a **warning** is informational and never changes the exit
-code. Every check runs to the end — one bad file or violation does not stop the
+An **error** means the check couldn't run; a **finding** is a real problem to
+fix. Every check runs to the end — one bad file or violation does not stop the
 rest.
 
 ## check
@@ -28,13 +27,16 @@ athc profile check OFF.prf --gameplan OFF.pln
 Each PATH is a `.prf` file, a directory (top level, or the whole tree with `-r`),
 or a glob. Each profile prints `OK` or its violations. Needs rules (below).
 
-`--gameplan FILE` (no short form) also checks play-category coverage: every
-category the profile weights — normal run/pass and special teams (FG/PAT, punt,
-the fakes) — must have a custom play in the `.pln`. It also warns (`gameplan
-warning:` lines) about gameplan categories the profile never uses; warnings are
-informational and don't affect the exit code. Profile and gameplan must be the
-same side; a mismatch is an error (exit 2). Clock and "random" categories aren't
-backed by custom plays and are skipped. Gameplan rules are not checked (use
+`--gameplan FILE` (no short form) also checks that the profile and the gameplan
+cover the same play categories, both ways:
+
+- Every category the profile uses must have a custom play in the `.pln`.
+- Every category the `.pln` has a custom play for must be used by the profile.
+
+Either way is a `gameplan:` line and a finding. Categories are the normal
+run/pass ones plus special teams (FG/PAT, punt, the fakes); clock and "random"
+have no custom plays, so they are skipped. Profile and gameplan must be the same
+side; a mismatch is an error. Gameplan rules are not checked (use
 `gameplan check`).
 
 ## diff

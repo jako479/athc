@@ -345,23 +345,22 @@ def test_check_file_gameplan_defense_reports_compat() -> None:
     gp = read_gameplan(str(GP_DEFENSE))
     count, line = check_file(DEF1, RULES, gp)
     assert "gameplan: special-teams category Field Goal/PAT" in line
-    assert count == 8
+    # 7 rule violations + 1 forward issue + 4 reverse issues
+    assert count == 12
 
 
-def test_check_file_gameplan_reverse_warnings() -> None:
-    """Gameplan categories the profile never weights are warned about, but they do
-    not count toward `count` (exit code) — only the 8 issues/violations do."""
+def test_check_file_gameplan_reverse_counts() -> None:
+    """Gameplan categories the profile never weights are issues like any other:
+    they print as `gameplan:` lines and count toward the exit code."""
     gp = read_gameplan(str(GP_DEFENSE))
     count, line = check_file(DEF1, RULES, gp)
-    assert count == 8
-    assert "; 4 gameplan warning(s)" in line.splitlines()[0]
-    assert "gameplan warning: gameplan special-teams category Fake FG Run" in line
+    assert count == 12
+    assert "5 gameplan issue(s)" in line.splitlines()[0]
+    assert "gameplan: gameplan special-teams category Fake FG Run" in line
 
 
-def test_check_file_gameplan_clean_no_warnings(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """No issues and no extra gameplan categories -> the bare compatible line."""
+def test_check_file_gameplan_clean(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No issues in either direction -> the bare compatible line."""
     monkeypatch.setattr(
         "athc.cli.profile.check.gameplan_extra_categories", lambda prof, gp: ()
     )
@@ -371,16 +370,15 @@ def test_check_file_gameplan_clean_no_warnings(
     assert line == f"{COMPAT_OFF_CLEAN}: OK (offense, FG range 20; gameplan compatible)"
 
 
-def test_check_file_gameplan_clean_with_warnings() -> None:
+def test_check_file_gameplan_reverse_only_fails() -> None:
     """Forward-compatible profile, but the gameplan has plays it never calls:
-    exit-0 count, OK head, plus warning lines."""
+    the reverse issues alone fail the check."""
     gp = read_gameplan(str(GP_OFFENSE))
     count, line = check_file(COMPAT_OFF_CLEAN, EMPTY_RULES, gp)
     head = line.splitlines()[0]
-    assert count == 0
-    assert head.startswith(f"{COMPAT_OFF_CLEAN}: OK (offense, FG range 20")
-    assert "gameplan compatible); 10 gameplan warning(s)" in head
-    assert "gameplan warning: gameplan play category Run Left" in line
+    assert count == 10
+    assert head.startswith(f"{COMPAT_OFF_CLEAN}: 0 violation(s), 10 gameplan issue(s)")
+    assert "gameplan: gameplan play category Run Left" in line
 
 
 def test_check_file_gameplan_side_mismatch() -> None:
@@ -431,7 +429,12 @@ def test_cli_gameplan_defense_exit_1(runner) -> None:
     assert "special-teams category Field Goal/PAT" in result.output
 
 
-def test_cli_gameplan_clean_exit_0(runner, tmp_path: Path) -> None:
+def test_cli_gameplan_clean_exit_0(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "athc.cli.profile.check.gameplan_extra_categories", lambda prof, gp: ()
+    )
     empty = tmp_path / "empty.toml"
     empty.write_text("", encoding="utf-8")
     result = runner.invoke(
@@ -442,18 +445,18 @@ def test_cli_gameplan_clean_exit_0(runner, tmp_path: Path) -> None:
     assert "gameplan compatible" in result.output
 
 
-def test_cli_gameplan_warnings_exit_0(runner, tmp_path: Path) -> None:
-    """Gameplan categories the profile never uses are warned about but never fail
-    the check: forward-compatible profile still exits 0."""
+def test_cli_gameplan_reverse_exit_1(runner, tmp_path: Path) -> None:
+    """Gameplan categories the profile never uses fail the check on their own:
+    a forward-compatible profile still exits 1."""
     empty = tmp_path / "empty.toml"
     empty.write_text("", encoding="utf-8")
     result = runner.invoke(
         check,
         [str(COMPAT_DEF_CLEAN), "--rules", str(empty), "--gameplan", str(GP_DEFENSE)],
     )
-    assert result.exit_code == 0
-    assert "gameplan warning(s)" in result.output
-    assert "gameplan warning: gameplan play category Goal Line Run" in result.output
+    assert result.exit_code == 1
+    assert "gameplan issue(s)" in result.output
+    assert "gameplan: gameplan play category Goal Line Run" in result.output
 
 
 def test_cli_gameplan_side_mismatch_exit_2(runner) -> None:

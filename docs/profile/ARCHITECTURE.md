@@ -13,7 +13,7 @@ src/athc/profile/          # tool logic (no Click)
 ├── model.py       # RuleName, Violation
 ├── rules.py       # ProfileRules, SituationRule, SubstitutionRule/PercentBound, load_rules, RulesFileError
 ├── validators.py  # validate_profile
-├── compat.py      # check_gameplan_compatibility/CompatIssue + gameplan_extra_categories/CompatWarning (profile vs .pln)
+├── compat.py      # check_gameplan_compatibility + gameplan_extra_categories -> CompatIssue (profile vs .pln)
 ├── diff.py        # diff_profiles, ProfileDiff + change types
 ├── display.py     # category / bucket labels for diff output
 └── writer.py      # ProfileWriter, ProfileTypeMismatchError (field copy)
@@ -69,13 +69,12 @@ and runs `check_gameplan_compatibility(profile, gameplan)` per same-side file.
 normal codes (0x00–0x0F) to the 64 normal slots (resolved by `category_name`,
 defense collapsing pass directions), special codes (FG/PAT, punt, fakes) to the
 10 custom special slots; clock/random codes are skipped, and rules are not
-consulted. A category with no custom play is a `CompatIssue` reported as a
-`gameplan:` line and counted toward exit 1. The reverse,
+consulted. A category with no custom play is a `CompatIssue`. The reverse,
 `gameplan_extra_categories`, reports gameplan custom-play categories the profile
-never weights as `CompatWarning`s (`gameplan warning:` lines): informational,
-per gameplan category (defense pass directions stay collapsed), and not counted
-toward the exit code. A profile whose side differs from the gameplan is a
-per-file error (exit 2).
+never weights, per gameplan category (defense pass directions stay collapsed,
+so those carry no `category_code`). Both directions are `CompatIssue`s, printed
+as `gameplan:` lines and counted toward exit 1. A profile whose side differs
+from the gameplan is a per-file error (exit 2).
 
 ## Diff
 

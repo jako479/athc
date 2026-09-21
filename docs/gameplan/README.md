@@ -12,9 +12,8 @@ Library + CLI for FbPro98 gameplans (`.pln`). Validates a gameplan against leagu
 | `1` | **Findings** — violations, a play missed, nothing replaced, or some files failed | error (read, write, or invalid input) |
 | `2` | **Error** — couldn't run: usage, config, I/O, no rules, or replacement not in pool | usage (bad arguments) |
 
-Three tiers: an **error** means the command couldn't run, a **finding** is a real
-problem to fix, and a **warning** is informational and never changes the exit
-code. Every check runs to the end — one bad file or violation does not stop the
+An **error** means the command couldn't run; a **finding** is a real problem to
+fix. Every check runs to the end — one bad file or violation does not stop the
 rest.
 
 ## Setup

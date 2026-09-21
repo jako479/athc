@@ -17,7 +17,6 @@ from athc.fbpro98_profile import (
 )
 from athc.profile import (
     CompatIssue,
-    CompatWarning,
     ProfileRules,
     Violation,
     check_gameplan_compatibility,
@@ -50,9 +49,8 @@ logger = logging.getLogger(__name__)
     "gameplan_path",
     type=click.Path(path_type=Path),
     default=None,
-    help="Also check each profile's play categories are covered by this .pln "
-    "gameplan, and warn about gameplan categories the profile never uses "
-    "(same side only).",
+    help="Also check that this .pln gameplan and each profile cover the same "
+    "play categories, in both directions (same side only).",
 )
 @click.pass_context
 def check(
@@ -66,9 +64,9 @@ def check(
 
     Each PATH is a .prf file, a directory (top level, or the whole tree with -r),
     or a glob. With --gameplan, each profile is also checked for play-category
-    coverage against that .pln (offense with offense, defense with defense), and
-    gameplan categories the profile never uses are reported as warnings (these do
-    not affect the exit code).
+    coverage against that .pln (offense with offense, defense with defense), in
+    both directions: categories the gameplan does not back, and gameplan
+    categories the profile never uses.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -132,8 +130,7 @@ def check_file(
 ) -> tuple[int, str]:
     """Return `(count, line)`; a parse/I/O error or side mismatch returns
     `(-1, error line)`. With a gameplan, `count` also includes compatibility
-    issues and the head line reports them; gameplan categories the profile never
-    uses are appended as warnings that do not count toward `count`."""
+    issues in both directions, and the head line reports them."""
     try:
         prof = read_profile(str(path))
     except (OSError, InvalidProfileError, UnsupportedProfileError) as error:
@@ -151,9 +148,10 @@ def check_file(
             f"{path}: ERROR: profile is {side} but gameplan is {gp_side}; "
             f"sides must match"
         )
-    issues = check_gameplan_compatibility(prof, gameplan)
-    warnings = gameplan_extra_categories(prof, gameplan)
-    return _render_with_compat(path, violations, issues, warnings, summary)
+    issues = check_gameplan_compatibility(prof, gameplan) + gameplan_extra_categories(
+        prof, gameplan
+    )
+    return _render_with_compat(path, violations, issues, summary)
 
 
 def _render(
@@ -170,27 +168,18 @@ def _render_with_compat(
     path: Path,
     violations: tuple[Violation, ...],
     issues: tuple[CompatIssue, ...],
-    warnings: tuple[CompatWarning, ...],
     summary: str,
 ) -> tuple[int, str]:
-    """Render the gameplan report. `count` excludes warnings, which are
-    informational and do not affect the exit code."""
+    """Render the gameplan report; every issue counts toward the exit code."""
     total = len(violations) + len(issues)
-    if total == 0 and not warnings:
-        return 0, f"{path}: OK ({summary}; gameplan compatible)"
     if total == 0:
-        head = f"{path}: OK ({summary}; gameplan compatible)"
-    else:
-        head = (
-            f"{path}: {len(violations)} violation(s), "
-            f"{len(issues)} gameplan issue(s) ({summary})"
-        )
-    if warnings:
-        head += f"; {len(warnings)} gameplan warning(s)"
-    lines = [head]
+        return 0, f"{path}: OK ({summary}; gameplan compatible)"
+    lines = [
+        f"{path}: {len(violations)} violation(s), "
+        f"{len(issues)} gameplan issue(s) ({summary})"
+    ]
     lines.extend(f"  {_format_violation(v)}" for v in violations)
     lines.extend(f"  gameplan: {issue.message}" for issue in issues)
-    lines.extend(f"  gameplan warning: {w.message}" for w in warnings)
     return total, "\n".join(lines)
 
 

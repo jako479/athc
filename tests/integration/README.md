@@ -55,15 +55,15 @@ Real `TST-OFF1.prf`/`TST-DEF1.prf` + real `offense.pln`/`defense.pln`; clean `co
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | check_file offense reports compat | data | head "gameplan issue(s)"; GLR line; count 19 | `test_check_file_gameplan_offense_reports_compat` | ☑ |
-| check_file defense reports compat | data | FG/PAT special line; count 8 | `test_check_file_gameplan_defense_reports_compat` | ☑ |
-| check_file reverse warnings | data | 4 `gameplan warning:` lines; count still 8 | `test_check_file_gameplan_reverse_warnings` | ☑ |
-| check_file clean, no warnings (mocked) | data | bare `(0, "... gameplan compatible")` | `test_check_file_gameplan_clean_no_warnings` | ☑ |
-| check_file clean, with warnings | data | `(0, ...)`; OK head + 10 warning lines | `test_check_file_gameplan_clean_with_warnings` | ☑ |
+| check_file defense reports compat | data | FG/PAT special line; count 12 | `test_check_file_gameplan_defense_reports_compat` | ☑ |
+| check_file reverse counts | data | 4 extra `gameplan:` lines; count 12 | `test_check_file_gameplan_reverse_counts` | ☑ |
+| check_file clean both ways (mocked) | data | bare `(0, "... gameplan compatible")` | `test_check_file_gameplan_clean` | ☑ |
+| check_file reverse only fails | data | count 10; `0 violation(s), 10 gameplan issue(s)` | `test_check_file_gameplan_reverse_only_fails` | ☑ |
 | check_file side mismatch (both ways) | data | `(-1, "profile is X but gameplan is Y")` | `test_check_file_gameplan_side_mismatch` / `_defense` | ☑ |
 | **Golden report (real)** | data ↔ expected | byte-equal (path normalized) | `test_check_file_gameplan_matches_golden` `[P]` | ☑ |
 | CLI offense / defense | data + `--gameplan` | exit 1; compat line | `test_cli_gameplan_offense_exit_1` / `_defense_exit_1` | ☑ |
-| CLI clean | clean + empty rules | exit 0; "gameplan compatible" | `test_cli_gameplan_clean_exit_0` | ☑ |
-| CLI reverse warnings | clean + empty rules | exit 0; `gameplan warning:` line | `test_cli_gameplan_warnings_exit_0` | ☑ |
+| CLI clean (mocked) | clean + empty rules | exit 0; "gameplan compatible" | `test_cli_gameplan_clean_exit_0` | ☑ |
+| CLI reverse fails | clean + empty rules | exit 1; `gameplan:` line | `test_cli_gameplan_reverse_exit_1` | ☑ |
 | CLI side mismatch | data | exit 2; "profile is offense but gameplan is defense" | `test_cli_gameplan_side_mismatch_exit_2` | ☑ |
 | CLI mixed sides continues | 2 files, 1 gameplan | exit 2; both lines; "2 file(s) checked" | `test_cli_gameplan_mixed_sides_continues` | ☑ |
 | CLI gameplan missing / bad ext / malformed | tmp | exit 2; logged | `test_cli_gameplan_missing_file_exit_2` / `_bad_extension_exit_2` / `_malformed_exit_2` | ☑ |

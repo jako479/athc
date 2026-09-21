@@ -3,7 +3,6 @@
 from athc.profile.compat import (
     CompatIssue,
     CompatKind,
-    CompatWarning,
     check_gameplan_compatibility,
     gameplan_extra_categories,
 )
@@ -34,7 +33,6 @@ __all__ = [
     "OFFENSE_CATEGORIES",
     "CompatIssue",
     "CompatKind",
-    "CompatWarning",
     "PercentBound",
     "ProfileDiff",
     "ProfileRules",

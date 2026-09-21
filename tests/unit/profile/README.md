@@ -126,9 +126,9 @@ One row per behavior. Input: `built` = `Profile`/`GamePlan` constructed in-test.
 ## compat.py — `gameplan_extra_categories` (gameplan categories the profile never uses)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Extra normal / special category warned | built | `EXTRA_NORMAL` (Goal Line Run) / `EXTRA_SPECIAL` (FG/PAT) | `test_extra_offense_normal_category_warned` / `test_extra_special_category_warned` | ☑ |
-| Used categories not warned | built | empty | `test_used_categories_are_not_warned` | ☑ |
-| Defense direction collapse not false-warned | built | one used dir ⇒ category not extra | `test_defense_direction_collapse_not_falsely_warned` | ☑ |
+| Extra normal / special category reported | built | `EXTRA_NORMAL` (Goal Line Run, no code) / `EXTRA_SPECIAL` (FG/PAT) | `test_extra_offense_normal_category_reported` / `test_extra_special_category_reported` | ☑ |
+| Used categories not reported | built | empty | `test_used_categories_are_not_reported` | ☑ |
+| Defense direction collapse not false-flagged | built | one used dir ⇒ category not extra | `test_defense_direction_collapse_not_falsely_reported` | ☑ |
 | Extra normals sorted by code | built | GLR before GLP | `test_extra_normal_sorted_by_code` | ☑ |
 | Stock-only special is not extra | built | empty | `test_stock_special_play_is_not_an_extra` | ☑ |
 

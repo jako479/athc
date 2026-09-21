@@ -297,36 +297,37 @@ def test_fully_compatible_returns_empty() -> None:
     assert check_gameplan_compatibility(prof, gp) == ()
 
 
-# ── reverse: gameplan categories not used by the profile (warnings) ─────────────
+# ── reverse: gameplan categories not used by the profile ──────────────────────
 
 
-def test_extra_offense_normal_category_warned() -> None:
-    """A gameplan normal play whose category the profile never weights -> warning."""
+def test_extra_offense_normal_category_reported() -> None:
+    """A gameplan normal play whose category the profile never weights -> issue."""
     prof = make_profile(
         offense=True,
         sit=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
         pat=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
     )
     gp = make_gameplan(offense=True, normal=(OFF_RUN_MIDDLE, OFF_GOAL_LINE_RUN))
-    warnings = gameplan_extra_categories(prof, gp)
-    assert len(warnings) == 1
-    assert warnings[0].kind == CompatKind.EXTRA_NORMAL_CATEGORY
-    assert "Goal Line Run" in warnings[0].message
+    issues = gameplan_extra_categories(prof, gp)
+    assert len(issues) == 1
+    assert issues[0].kind == CompatKind.EXTRA_NORMAL_CATEGORY
+    assert issues[0].category_code is None
+    assert "Goal Line Run" in issues[0].message
 
 
-def test_extra_special_category_warned() -> None:
+def test_extra_special_category_reported() -> None:
     prof = make_profile(
         offense=True,
         sit=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
         pat=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
     )
     gp = make_gameplan(offense=True, normal=(OFF_RUN_MIDDLE,), special=(1,))
-    warnings = gameplan_extra_categories(prof, gp)
-    assert [w.kind for w in warnings] == [CompatKind.EXTRA_SPECIAL_CATEGORY]
-    assert "Field Goal/PAT" in warnings[0].message
+    issues = gameplan_extra_categories(prof, gp)
+    assert [i.kind for i in issues] == [CompatKind.EXTRA_SPECIAL_CATEGORY]
+    assert "Field Goal/PAT" in issues[0].message
 
 
-def test_used_categories_are_not_warned() -> None:
+def test_used_categories_are_not_reported() -> None:
     prof = make_profile(
         offense=True,
         sit=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
@@ -336,9 +337,9 @@ def test_used_categories_are_not_warned() -> None:
     assert gameplan_extra_categories(prof, gp) == ()
 
 
-def test_defense_direction_collapse_not_falsely_warned() -> None:
+def test_defense_direction_collapse_not_falsely_reported() -> None:
     """A defense 'Pass Long' play covers L/M/R; if the profile uses any one of
-    them the category is used, so no false 'extra' warning for the others."""
+    them the category is used, so no false 'extra' issue for the others."""
     prof = make_profile(
         offense=False,
         sit=weights(PASS_LONG_LEFT, 4, PASS_LONG_LEFT, 0, PASS_LONG_LEFT, 0),
@@ -356,7 +357,7 @@ def test_extra_normal_sorted_by_code() -> None:
     )
     # Goal Line Run (0x00) before Goal Line Pass (0x05) by minimum code.
     gp = make_gameplan(offense=True, normal=(0x33, OFF_GOAL_LINE_RUN, OFF_RUN_MIDDLE))
-    msgs = [w.message for w in gameplan_extra_categories(prof, gp)]
+    msgs = [i.message for i in gameplan_extra_categories(prof, gp)]
     assert msgs == [
         "gameplan play category Goal Line Run is not used by the profile",
         "gameplan play category Goal Line Pass is not used by the profile",
