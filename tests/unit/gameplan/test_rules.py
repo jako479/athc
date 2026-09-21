@@ -113,7 +113,10 @@ def test_min_count_must_be_int(tmp_path: Path) -> None:
 
 
 def test_run_cap_rejected_on_pass(tmp_path: Path) -> None:
-    text = MINIMAL + "[offense.PSL]\nrequired = true\nmin_count = 5\nmax_qb_draws = 1\n"
+    text = (
+        MINIMAL
+        + "[offense.PSL]\nrequired = true\nmin_count = 5\nmax_qb_draws_count = 1\n"
+    )
     with pytest.raises(RulesFileError, match="unknown key"):
         load_rules([write(tmp_path, text)])
 
@@ -121,12 +124,42 @@ def test_run_cap_rejected_on_pass(tmp_path: Path) -> None:
 def test_pass_caps_parse(tmp_path: Path) -> None:
     text = (
         MINIMAL + "[offense.PSL]\nrequired = true\nmin_count = 5\n"
-        'max_rollouts = 2\nmax_timed_percent = "1/2"\n'
+        'max_rollouts_count = 2\nmax_timed_ratio = "1/2"\n'
     )
     rules = load_rules([write(tmp_path, text)])
     rule = rules.offense_categories["Pass Short Left"]
-    assert rule.max_rollouts == 2
-    assert rule.max_timed_percent == Fraction(1, 2)
+    assert rule.max_rollouts_count == 2
+    assert rule.max_timed_ratio == Fraction(1, 2)
+
+
+# ── one form per attribute ────────────────────────────────────────────────────
+
+# (section, attribute) for every capped attribute.
+ATTRIBUTES = [
+    ("[offense.RM]", "max_qb_draws"),
+    ("[offense.PSL]", "max_rollouts"),
+    ("[offense.PSL]", "max_timed"),
+    ("[defense.PassShort]", "max_two_dl"),
+]
+
+
+@pytest.mark.parametrize("section,attr", ATTRIBUTES)
+def test_two_forms_of_one_attribute_rejected(
+    tmp_path: Path, section: str, attr: str
+) -> None:
+    text = MINIMAL + f'{section}\n{attr}_count = 2\n{attr}_ratio = "1/2"\n'
+    with pytest.raises(RulesFileError, match="at most one of"):
+        load_rules([write(tmp_path, text)])
+
+
+@pytest.mark.parametrize("section,attr", ATTRIBUTES)
+@pytest.mark.parametrize(
+    "form,value", [("count", "2"), ("ratio", '"1/2"'), ("percent", "50")]
+)
+def test_one_form_of_one_attribute_accepted(
+    tmp_path: Path, section: str, attr: str, form: str, value: str
+) -> None:
+    load_rules([write(tmp_path, MINIMAL + f"{section}\n{attr}_{form} = {value}\n")])
 
 
 # ── count ranges (>= 0, no upper bound) ───────────────────────────────────────
@@ -135,8 +168,8 @@ def test_pass_caps_parse(tmp_path: Path) -> None:
 COUNT_SETTINGS = [
     ("[offense.RM]", "min_count"),
     ("[offense.RM]", "max_count"),
-    ("[offense.RM]", "max_qb_draws"),
-    ("[offense.PSL]", "max_rollouts"),
+    ("[offense.RM]", "max_qb_draws_count"),
+    ("[offense.PSL]", "max_rollouts_count"),
 ]
 
 
@@ -153,18 +186,18 @@ def test_count_negative_rejected(tmp_path: Path, section: str, key: str) -> None
         load_rules([write(tmp_path, MINIMAL + f"{section}\n{key} = -1\n")])
 
 
-# ── percent ranges (fraction in [0, 1]) ───────────────────────────────────────
+# ── ratio ranges (fraction in [0, 1]) ─────────────────────────────────────────
 
 # (section, key, category name) for every fraction setting.
-PERCENT_SETTINGS = [
-    ("[offense.PSL]", "max_timed_percent", "Pass Short Left"),
-    ("[defense.PassShort]", "max_two_dl_percent", "Pass Short"),
+RATIO_SETTINGS = [
+    ("[offense.PSL]", "max_timed_ratio", "Pass Short Left"),
+    ("[defense.PassShort]", "max_two_dl_ratio", "Pass Short"),
 ]
 
 
-@pytest.mark.parametrize("section,key,name", PERCENT_SETTINGS)
+@pytest.mark.parametrize("section,key,name", RATIO_SETTINGS)
 @pytest.mark.parametrize("val", ["0", "1", "1/2"])  # 0 and 1 = the limits
-def test_percent_in_range_ok(
+def test_ratio_in_range_ok(
     tmp_path: Path, section: str, key: str, name: str, val: str
 ) -> None:
     rules = load_rules([write(tmp_path, MINIMAL + f'{section}\n{key} = "{val}"\n')])
@@ -176,13 +209,43 @@ def test_percent_in_range_ok(
     assert getattr(cats[name], key) == Fraction(val)
 
 
-@pytest.mark.parametrize("section,key", [(s, k) for s, k, _ in PERCENT_SETTINGS])
+@pytest.mark.parametrize("section,key", [(s, k) for s, k, _ in RATIO_SETTINGS])
 @pytest.mark.parametrize("val", ["-1/100", "101/100"])  # just below 0 / just above 1
-def test_percent_out_of_range_rejected(
+def test_ratio_out_of_range_rejected(
     tmp_path: Path, section: str, key: str, val: str
 ) -> None:
     with pytest.raises(RulesFileError, match=r"\[0, 1\]"):
         load_rules([write(tmp_path, MINIMAL + f'{section}\n{key} = "{val}"\n')])
+
+
+def test_ratio_must_be_string(tmp_path: Path) -> None:
+    text = MINIMAL + "[offense.PSL]\nmax_timed_ratio = 0.5\n"
+    with pytest.raises(RulesFileError, match='must be a string like "1/2"'):
+        load_rules([write(tmp_path, text)])
+
+
+# ── percent ranges (whole number 0-100) ───────────────────────────────────────
+# One shared validator, so one key exercises it.
+
+
+@pytest.mark.parametrize("val", [0, 100, 50])  # 0 and 100 = the limits
+def test_percent_in_range_ok(tmp_path: Path, val: int) -> None:
+    text = MINIMAL + f"[offense.PSL]\nmax_timed_percent = {val}\n"
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.offense_categories["Pass Short Left"].max_timed_percent == val
+
+
+@pytest.mark.parametrize("val", [-1, 101])  # just below 0 / just above 100
+def test_percent_out_of_range_rejected(tmp_path: Path, val: int) -> None:
+    text = MINIMAL + f"[offense.PSL]\nmax_timed_percent = {val}\n"
+    with pytest.raises(RulesFileError, match=r"\[0, 100\]"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_percent_must_be_int(tmp_path: Path) -> None:
+    text = MINIMAL + '[offense.PSL]\nmax_timed_percent = "50"\n'
+    with pytest.raises(RulesFileError, match="must be an integer"):
+        load_rules([write(tmp_path, text)])
 
 
 # ── disallowed categories ─────────────────────────────────────────────────────

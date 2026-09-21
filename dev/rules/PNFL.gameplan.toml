@@ -1,26 +1,27 @@
-# PNFL gameplan rules — the official PNFL rule set, ready to use as-is. Point
-# [gameplan] rule_files (in athc.ini) at this file.
+# PNFL gameplan rules. Point [gameplan] rule_files (in athc.ini) at this file.
+# Sources: https://pnfl.biz/messageboard/viewtopic.php?f=16&t=14 (offense)
+#          https://pnfl.biz/messageboard/viewtopic.php?f=16&t=15 (defense)
 #
-# Sources: PNFL offense (messageboard t=14) and defense (t=15) rules.
+# Per-section keys (counts >= 0):
+#   required  = true|false   default false; true -> needs >= min_count plays
+#   min_count = <int>        minimum plays in the category (default 0)
+#   max_count = <int>        maximum plays in the category
 #
-# Each section is keyed by a category's fixed SHORT label (tool-defined, same for
-# every league). All per-section keys are optional; set at least one.
-#   required  = true|false   default false. true -> category must appear with at
-#                                        least min_count plays; false -> optional,
-#                                        but the caps still apply if used.
-#   min_count = <int>        default 0. minimum plays in the category.
-#   max_count = <int>        maximum plays in the category.
-#   max_qb_draws       = <int>   run offense only.
-#   max_rollouts       = <int>   pass offense only.
-#   max_timed_percent  = "n/m"   pass offense only; exact fraction 0-1.
-#   max_two_dl_percent = "n/m"   defense only; exact fraction 0-1.
-# Counts (min_count, max_count, max_qb_draws, max_rollouts) must be >= 0.
+# Attribute caps.
+# Offense:
+#   qb_draws
+#   rollouts
+#   timed
+# Defense:
+#   two_dl
+# Three options each; at most one per attribute:
+#   max_<attr>_count   = <int>   whole number of plays
+#   max_<attr>_ratio   = "n/m"   quoted fraction 0-1, compared exactly
+#   max_<attr>_percent = <int>   whole number 0-100, no % sign
 #
 # Valid OFFENSE labels:  GLR RL RM RR  GLP PRD PLR  PML PMM PMR  PSL PSM PSR
 # Valid DEFENSE labels:  GLrun RunDazzle RunLeft RunMiddle RunRight
 #                        GLpass PassDazzle PassLong PassMedium PassShort
-
-schema_version = 1
 
 # Special teams that must each have a play assigned. Valid names:
 #   "Field Goal/PAT" "Kickoff" "Punt" "Onside Kick" "Fake FG Run" "Fake FG Pass"
@@ -49,17 +50,17 @@ disallowed_defensive_categories = ["User Specific"]
 [offense.RM]
 required = true
 min_count = 10
-max_qb_draws = 2
+max_qb_draws_count = 2
 
 [offense.RL]
 required = false
 min_count = 4
-max_qb_draws = 2
+max_qb_draws_count = 2
 
 [offense.RR]
 required = false
 min_count = 4
-max_qb_draws = 2
+max_qb_draws_count = 2
 
 [offense.GLR]
 required = false
@@ -68,56 +69,56 @@ min_count = 3
 [offense.PSL]
 required = true
 min_count = 5
-max_rollouts = 2
-max_timed_percent = "1/2"
+max_rollouts_count = 2
+max_timed_ratio = "1/2"
 
 [offense.PSM]
 required = true
 min_count = 5
-max_rollouts = 2
-max_timed_percent = "1/2"
+max_rollouts_count = 2
+max_timed_ratio = "1/2"
 
 [offense.PSR]
 required = true
 min_count = 5
-max_rollouts = 2
-max_timed_percent = "1/2"
+max_rollouts_count = 2
+max_timed_ratio = "1/2"
 
 [offense.PML]
 required = true
 min_count = 5
-max_rollouts = 2
-max_timed_percent = "1/2"
+max_rollouts_count = 2
+max_timed_ratio = "1/2"
 
 [offense.PMM]
 required = true
 min_count = 5
-max_rollouts = 2
-max_timed_percent = "1/2"
+max_rollouts_count = 2
+max_timed_ratio = "1/2"
 
 [offense.PMR]
 required = true
 min_count = 5
-max_rollouts = 2
-max_timed_percent = "1/2"
+max_rollouts_count = 2
+max_timed_ratio = "1/2"
 
 [offense.PLR]
 required = true
 min_count = 4
-max_rollouts = 2
-max_timed_percent = "1/2"
+max_rollouts_count = 2
+max_timed_ratio = "1/2"
 
 [offense.PRD]
 required = true
 min_count = 4
-max_rollouts = 2
-max_timed_percent = "1/2"
+max_rollouts_count = 2
+max_timed_ratio = "1/2"
 
 [offense.GLP]
 required = false
 min_count = 3
-max_rollouts = 2
-max_timed_percent = "1/2"
+max_rollouts_count = 2
+max_timed_ratio = "1/2"
 
 # ── Defense ───────────────────────────────────────────────────────────────────
 
@@ -136,17 +137,17 @@ min_count = 6
 [defense.PassShort]
 required = true
 min_count = 6
-max_two_dl_percent = "1/3"
+max_two_dl_ratio = "1/3"
 
 [defense.PassMedium]
 required = true
 min_count = 6
-max_two_dl_percent = "1/3"
+max_two_dl_ratio = "1/3"
 
 [defense.PassLong]
 required = true
 min_count = 6
-max_two_dl_percent = "1/2"
+max_two_dl_ratio = "1/2"
 
 [defense.GLrun]
 required = false
@@ -163,4 +164,4 @@ min_count = 4
 [defense.PassDazzle]
 required = false
 min_count = 4
-max_two_dl_percent = "1/2"
+max_two_dl_ratio = "1/2"

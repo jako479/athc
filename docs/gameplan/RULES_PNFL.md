@@ -2,7 +2,7 @@
 
 The PNFL rules `validate_gameplan` enforces. Sources: the league's [offensive](https://pnfl.biz/messageboard/viewtopic.php?f=16&t=14) and [defensive](https://pnfl.biz/messageboard/viewtopic.php?f=16&t=15) rules threads. The machine-readable form is [release/rules/PNFL.gameplan.toml](../../release/rules/PNFL.gameplan.toml); this doc is the human reference for it.
 
-Sections are keyed by **short category label** — offense codes (`PSL`), defense words (`RunDazzle`). All per-section keys are optional (set at least one): `required` (default false), `min_count` (default 0), and `max_count`. Caps read playpool attributes: QB draws, rollouts, timed passes, and 2-DL (Run-and-Shoot front).
+Sections are keyed by **short category label** — offense codes (`PSL`), defense words (`RunDazzle`). All per-section keys are optional (set at least one): `required` (default false), `min_count` (default 0), and `max_count`. Caps read playpool attributes: QB draws, rollouts, timed passes, and 2-DL (Run-and-Shoot front). Each attribute takes one of `max_<attr>_count`, `max_<attr>_ratio` or `max_<attr>_percent` — the PNFL set uses counts for QB draws and rollouts, ratios for timed passes and 2-DL.
 
 ## Universal (both sides)
 

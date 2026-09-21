@@ -138,50 +138,63 @@ def _validate_offense(
                 )
             )
 
-        if rule.max_qb_draws is not None:
-            qb_draws = sum(
-                1 for p in plays if isinstance(p, OffensivePlay) and p.qb_draw
-            )
-            if qb_draws > rule.max_qb_draws:
-                violations.append(
-                    Violation(
-                        RuleName.CATEGORY_MAX_QB_DRAWS,
-                        f"Offensive category '{category}' has {qb_draws} QB draws; "
-                        f"allows at most {rule.max_qb_draws}.",
-                        category,
-                    )
+        qb_draws = sum(1 for p in plays if isinstance(p, OffensivePlay) and p.qb_draw)
+        cap = _cap_exceeded(
+            qb_draws,
+            len(plays),
+            rule.max_qb_draws_count,
+            rule.max_qb_draws_ratio,
+            rule.max_qb_draws_percent,
+        )
+        if cap is not None:
+            violations.append(
+                Violation(
+                    RuleName.CATEGORY_MAX_QB_DRAWS,
+                    f"Offensive category '{category}' has {qb_draws} of "
+                    f"{len(plays)} QB draws; allows at most {cap}.",
+                    category,
                 )
+            )
 
-        if rule.max_rollouts is not None:
-            rollouts = sum(
-                1 for p in plays if isinstance(p, OffensivePlay) and p.rollout
-            )
-            if rollouts > rule.max_rollouts:
-                violations.append(
-                    Violation(
-                        RuleName.CATEGORY_MAX_ROLLOUTS,
-                        f"Offensive category '{category}' has {rollouts} rollouts; "
-                        f"allows at most {rule.max_rollouts}.",
-                        category,
-                    )
+        rollouts = sum(1 for p in plays if isinstance(p, OffensivePlay) and p.rollout)
+        cap = _cap_exceeded(
+            rollouts,
+            len(plays),
+            rule.max_rollouts_count,
+            rule.max_rollouts_ratio,
+            rule.max_rollouts_percent,
+        )
+        if cap is not None:
+            violations.append(
+                Violation(
+                    RuleName.CATEGORY_MAX_ROLLOUTS,
+                    f"Offensive category '{category}' has {rollouts} of "
+                    f"{len(plays)} rollouts; allows at most {cap}.",
+                    category,
                 )
+            )
 
-        if rule.max_timed_percent is not None:
-            timed = sum(
-                1
-                for p in plays
-                if isinstance(p, OffensivePlay) and p.pass_logic == PassLogic.TIMED
-            )
-            if Fraction(timed, len(plays)) > rule.max_timed_percent:
-                violations.append(
-                    Violation(
-                        RuleName.CATEGORY_MAX_TIMED_PERCENT,
-                        f"Offensive category '{category}' has {timed} of {len(plays)} "
-                        f"timed passes; allows at most "
-                        f"{_format_percent(rule.max_timed_percent)}.",
-                        category,
-                    )
+        timed = sum(
+            1
+            for p in plays
+            if isinstance(p, OffensivePlay) and p.pass_logic == PassLogic.TIMED
+        )
+        cap = _cap_exceeded(
+            timed,
+            len(plays),
+            rule.max_timed_count,
+            rule.max_timed_ratio,
+            rule.max_timed_percent,
+        )
+        if cap is not None:
+            violations.append(
+                Violation(
+                    RuleName.CATEGORY_MAX_TIMED,
+                    f"Offensive category '{category}' has {timed} of "
+                    f"{len(plays)} timed passes; allows at most {cap}.",
+                    category,
                 )
+            )
 
     return violations
 
@@ -225,25 +238,51 @@ def _validate_defense(
                 )
             )
 
-        if rule.max_two_dl_percent is not None:
-            two_dl = sum(
-                1
-                for p in plays
-                if isinstance(p, DefensivePlay)
-                and p.defensive_front == DefensiveFront.TWO_DL
-            )
-            if Fraction(two_dl, len(plays)) > rule.max_two_dl_percent:
-                violations.append(
-                    Violation(
-                        RuleName.CATEGORY_MAX_TWO_DL_PERCENT,
-                        f"Defensive category '{category}' has {two_dl} of {len(plays)} "
-                        f"2-DL plays; allows at most "
-                        f"{_format_percent(rule.max_two_dl_percent)}.",
-                        category,
-                    )
+        two_dl = sum(
+            1
+            for p in plays
+            if isinstance(p, DefensivePlay)
+            and p.defensive_front == DefensiveFront.TWO_DL
+        )
+        cap = _cap_exceeded(
+            two_dl,
+            len(plays),
+            rule.max_two_dl_count,
+            rule.max_two_dl_ratio,
+            rule.max_two_dl_percent,
+        )
+        if cap is not None:
+            violations.append(
+                Violation(
+                    RuleName.CATEGORY_MAX_TWO_DL,
+                    f"Defensive category '{category}' has {two_dl} of "
+                    f"{len(plays)} 2-DL plays; allows at most {cap}.",
+                    category,
                 )
+            )
 
     return violations
+
+
+def _cap_exceeded(
+    matched: int,
+    total: int,
+    max_count: int | None,
+    max_ratio: Fraction | None,
+    max_percent: int | None,
+) -> str | None:
+    """Apply whichever cap form the rules file set (at most one), and return it
+    formatted for the message when it is exceeded. Ratio and percent compare the
+    exact play ratio, so nothing rounds."""
+    if max_count is not None and matched > max_count:
+        return str(max_count)
+    if max_ratio is not None and Fraction(matched, total) > max_ratio:
+        return str(max_ratio)
+    if max_percent is not None and Fraction(matched, total) > Fraction(
+        max_percent, 100
+    ):
+        return f"{max_percent}%"
+    return None
 
 
 def _validate_disallowed(
@@ -315,13 +354,6 @@ def _slot_label(slot: int) -> str:
     """Format a 0-based normal slot as `slot N (G-C)` — 1-based number, then the
     in-game grid position (group 1..16 of 4, column 1..4)."""
     return f"slot {slot + 1} ({slot // 4 + 1}-{slot % 4 + 1})"
-
-
-def _format_percent(value: Fraction) -> str:
-    text = f"{float(value) * 100:.1f}"
-    if text.endswith(".0"):
-        text = text[:-2]
-    return f"{text}%"
 
 
 __all__ = ["validate_gameplan"]

@@ -132,11 +132,11 @@ def test_two_dl_cap_fires() -> None:
     rules = def_rules(
         defense_categories={
             "Pass Short": DefenseCategoryRule(
-                required=False, min_count=1, max_two_dl_percent=Fraction(1, 2)
+                required=False, min_count=1, max_two_dl_ratio=Fraction(1, 2)
             )
         }
     )
-    assert RuleName.CATEGORY_MAX_TWO_DL_PERCENT in fired(gp, rules, pool)
+    assert RuleName.CATEGORY_MAX_TWO_DL in fired(gp, rules, pool)
 
 
 def test_two_dl_cap_clean_with_other_front() -> None:
@@ -152,11 +152,11 @@ def test_two_dl_cap_clean_with_other_front() -> None:
     rules = def_rules(
         defense_categories={
             "Pass Short": DefenseCategoryRule(
-                required=False, min_count=1, max_two_dl_percent=Fraction(1, 2)
+                required=False, min_count=1, max_two_dl_ratio=Fraction(1, 2)
             )
         }
     )
-    assert RuleName.CATEGORY_MAX_TWO_DL_PERCENT not in fired(gp, rules, pool)
+    assert RuleName.CATEGORY_MAX_TWO_DL not in fired(gp, rules, pool)
 
 
 # ── all issues reported together ──────────────────────────────────────────────
@@ -329,7 +329,7 @@ def test_offense_disallowed_fires() -> None:
 # ── offense: attribute caps ───────────────────────────────────────────────────
 
 
-def test_offense_max_qb_draws_fires() -> None:
+def test_offense_max_qb_draws_count_fires() -> None:
     pool = make_off_pool(
         make_off_record(f"RM{i}", user_category=OFF_RUN_MIDDLE, qb_draw=True)
         for i in range(2)
@@ -338,23 +338,23 @@ def test_offense_max_qb_draws_fires() -> None:
         [make_off_play(f"RM{i}", user_category=OFF_RUN_MIDDLE) for i in range(2)]
     )
     rules = off_rules(
-        offense_categories={"Run Middle": OffenseCategoryRule(max_qb_draws=1)}
+        offense_categories={"Run Middle": OffenseCategoryRule(max_qb_draws_count=1)}
     )
     assert RuleName.CATEGORY_MAX_QB_DRAWS in fired(gp, rules, pool)
 
 
-def test_offense_max_qb_draws_clean() -> None:
+def test_offense_max_qb_draws_count_clean() -> None:
     pool = make_off_pool(
         [make_off_record("RM0", user_category=OFF_RUN_MIDDLE, qb_draw=True)]
     )
     gp = offense_gameplan([make_off_play("RM0", user_category=OFF_RUN_MIDDLE)])
     rules = off_rules(
-        offense_categories={"Run Middle": OffenseCategoryRule(max_qb_draws=1)}
+        offense_categories={"Run Middle": OffenseCategoryRule(max_qb_draws_count=1)}
     )
     assert RuleName.CATEGORY_MAX_QB_DRAWS not in fired(gp, rules, pool)
 
 
-def test_offense_max_rollouts_fires() -> None:
+def test_offense_max_rollouts_count_fires() -> None:
     pool = make_off_pool(
         make_off_record(f"PSR{i}", user_category=OFF_PASS_SHORT_RIGHT, rollout=True)
         for i in range(2)
@@ -363,23 +363,27 @@ def test_offense_max_rollouts_fires() -> None:
         [make_off_play(f"PSR{i}", user_category=OFF_PASS_SHORT_RIGHT) for i in range(2)]
     )
     rules = off_rules(
-        offense_categories={"Pass Short Right": OffenseCategoryRule(max_rollouts=1)}
+        offense_categories={
+            "Pass Short Right": OffenseCategoryRule(max_rollouts_count=1)
+        }
     )
     assert RuleName.CATEGORY_MAX_ROLLOUTS in fired(gp, rules, pool)
 
 
-def test_offense_max_rollouts_clean() -> None:
+def test_offense_max_rollouts_count_clean() -> None:
     pool = make_off_pool(
         [make_off_record("PSR0", user_category=OFF_PASS_SHORT_RIGHT, rollout=True)]
     )
     gp = offense_gameplan([make_off_play("PSR0", user_category=OFF_PASS_SHORT_RIGHT)])
     rules = off_rules(
-        offense_categories={"Pass Short Right": OffenseCategoryRule(max_rollouts=1)}
+        offense_categories={
+            "Pass Short Right": OffenseCategoryRule(max_rollouts_count=1)
+        }
     )
     assert RuleName.CATEGORY_MAX_ROLLOUTS not in fired(gp, rules, pool)
 
 
-def test_offense_max_timed_percent_fires() -> None:
+def test_offense_max_timed_ratio_fires() -> None:
     pool = make_off_pool(
         make_off_record(
             f"PMR{i}", user_category=OFF_PASS_MEDIUM_RIGHT, pass_logic=PassLogic.TIMED
@@ -394,13 +398,13 @@ def test_offense_max_timed_percent_fires() -> None:
     )
     rules = off_rules(
         offense_categories={
-            "Pass Medium Right": OffenseCategoryRule(max_timed_percent=Fraction(1, 2))
+            "Pass Medium Right": OffenseCategoryRule(max_timed_ratio=Fraction(1, 2))
         }
     )
-    assert RuleName.CATEGORY_MAX_TIMED_PERCENT in fired(gp, rules, pool)
+    assert RuleName.CATEGORY_MAX_TIMED in fired(gp, rules, pool)
 
 
-def test_offense_max_timed_percent_clean() -> None:
+def test_offense_max_timed_ratio_clean() -> None:
     pool = make_off_pool(
         [
             make_off_record(
@@ -421,10 +425,71 @@ def test_offense_max_timed_percent_clean() -> None:
     )
     rules = off_rules(
         offense_categories={
-            "Pass Medium Right": OffenseCategoryRule(max_timed_percent=Fraction(1, 2))
+            "Pass Medium Right": OffenseCategoryRule(max_timed_ratio=Fraction(1, 2))
         }
     )
-    assert RuleName.CATEGORY_MAX_TIMED_PERCENT not in fired(gp, rules, pool)
+    assert RuleName.CATEGORY_MAX_TIMED not in fired(gp, rules, pool)
+
+
+def test_offense_max_timed_percent_fires() -> None:
+    """2 of 3 timed is 66.6%, over a 50% cap — compared exactly, no rounding."""
+    pool = make_off_pool(
+        [
+            make_off_record(
+                f"PMR{i}",
+                user_category=OFF_PASS_MEDIUM_RIGHT,
+                pass_logic=PassLogic.TIMED,
+            )
+            for i in range(2)
+        ]
+        + [
+            make_off_record(
+                "PMR2",
+                user_category=OFF_PASS_MEDIUM_RIGHT,
+                pass_logic=PassLogic.CHECK_RECEIVERS,
+            )
+        ]
+    )
+    gp = offense_gameplan(
+        [
+            make_off_play(f"PMR{i}", user_category=OFF_PASS_MEDIUM_RIGHT)
+            for i in range(3)
+        ]
+    )
+    rules = off_rules(
+        offense_categories={
+            "Pass Medium Right": OffenseCategoryRule(max_timed_percent=50)
+        }
+    )
+    assert RuleName.CATEGORY_MAX_TIMED in fired(gp, rules, pool)
+
+
+def test_offense_max_timed_percent_clean_at_cap() -> None:
+    """1 of 2 timed is exactly 50%, the cap — allowed."""
+    pool = make_off_pool(
+        [
+            make_off_record(
+                "PMR0", user_category=OFF_PASS_MEDIUM_RIGHT, pass_logic=PassLogic.TIMED
+            ),
+            make_off_record(
+                "PMR1",
+                user_category=OFF_PASS_MEDIUM_RIGHT,
+                pass_logic=PassLogic.CHECK_RECEIVERS,
+            ),
+        ]
+    )
+    gp = offense_gameplan(
+        [
+            make_off_play(f"PMR{i}", user_category=OFF_PASS_MEDIUM_RIGHT)
+            for i in range(2)
+        ]
+    )
+    rules = off_rules(
+        offense_categories={
+            "Pass Medium Right": OffenseCategoryRule(max_timed_percent=50)
+        }
+    )
+    assert RuleName.CATEGORY_MAX_TIMED not in fired(gp, rules, pool)
 
 
 # ── special categories ────────────────────────────────────────────────────────

@@ -43,7 +43,11 @@ scheduler C/D output, replaced by the golden test.
 Working. Validates and edits .pln game plans. Docs: [README](docs/gameplan/README.md) ·
 [rules](docs/gameplan/RULES_PNFL.md)
 
-Latest (June): added `find-play` (search by play name across files/trees; reads the category
+Latest (2026-09-20): each attribute cap takes one of three explicit forms —
+`max_<attr>_count`, `max_<attr>_ratio` or `max_<attr>_percent` — and a section may set only
+one form per attribute. Ratio and percent compare the exact play ratio, no rounding.
+
+June: added `find-play` (search by play name across files/trees; reads the category
 straight from the .pln, no pool setup) and `replace-play` (swap one play across .pln files).
 Writes back up first (`file.YYYY-MM-DD-HHMM.bak`, `--no-backup` to skip). Renamed the
 `Play` API to `PlayRef`/`CustomPlay`/`StockPlay`.

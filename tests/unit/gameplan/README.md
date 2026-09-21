@@ -30,17 +30,29 @@ One row per behavior. Input: `tmp` = constructed TOML; `data` = shipped `release
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Run cap on pass category | tmp | "unknown key" | `test_run_cap_rejected_on_pass` | ☑ |
-| Pass caps parse | tmp | rollouts + timed fraction | `test_pass_caps_parse` | ☑ |
+| Pass caps parse | tmp | rollouts count + timed ratio | `test_pass_caps_parse` | ☑ |
 
-### value ranges (counts >= 0; percents in [0, 1])
-Covers every count (`min_count`, `max_count`, `max_qb_draws`, `max_rollouts`) and
-every percent (`max_timed_percent`, `max_two_dl_percent`): limit ok + one outside.
+### one form per attribute
+Each attribute (`qb_draws`, `rollouts`, `timed`, `two_dl`) takes exactly one of
+`_count` / `_ratio` / `_percent`.
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Any single form | tmp | loads | `test_one_form_of_one_attribute_accepted` `[P]` | ☑ |
+| Two forms of one attribute | tmp | "at most one of" | `test_two_forms_of_one_attribute_rejected` `[P]` | ☑ |
+
+### value ranges
+Counts (`min_count`, `max_count`, `max_<attr>_count`) >= 0; ratios in [0, 1];
+percents in [0, 100]: limit ok + one outside. One test per shared validator.
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Count at lower limit 0 | tmp | loads | `test_count_zero_ok` `[P]` | ☑ |
 | Count below 0 | tmp | ">= 0" | `test_count_negative_rejected` `[P]` | ☑ |
-| Percent at limits 0 / 1 | tmp | parsed | `test_percent_in_range_ok` `[P]` | ☑ |
-| Percent below 0 / above 1 | tmp | "[0, 1]" | `test_percent_out_of_range_rejected` `[P]` | ☑ |
+| Ratio at limits 0 / 1 | tmp | parsed | `test_ratio_in_range_ok` `[P]` | ☑ |
+| Ratio below 0 / above 1 | tmp | "[0, 1]" | `test_ratio_out_of_range_rejected` `[P]` | ☑ |
+| Ratio not a string | tmp | 'must be a string like "1/2"' | `test_ratio_must_be_string` | ☑ |
+| Percent at limits 0 / 100 | tmp | parsed | `test_percent_in_range_ok` `[P]` | ☑ |
+| Percent below 0 / above 100 | tmp | "[0, 100]" | `test_percent_out_of_range_rejected` `[P]` | ☑ |
+| Percent not an int | tmp | "must be an integer" | `test_percent_must_be_int` | ☑ |
 
 ### disallowed categories
 | Case | Input | Expected | Test | Status |
@@ -72,12 +84,14 @@ Constructed gameplan + pool (records carry typed playpool attributes). Each side
 | Required category absent | make | `CATEGORY_REQUIRED` | `test_offense_required_fires` | ☑ |
 | `max_count` exceeded | make | `CATEGORY_MAX_COUNT` | `test_offense_max_count_fires` | ☑ |
 | Disallowed category present | make | `CATEGORY_DISALLOWED` | `test_offense_disallowed_fires` | ☑ |
-| `max_qb_draws` exceeded | make | `CATEGORY_MAX_QB_DRAWS` | `test_offense_max_qb_draws_fires` | ☑ |
-| `max_qb_draws` within limit | make | no violation | `test_offense_max_qb_draws_clean` | ☑ |
-| `max_rollouts` exceeded | make | `CATEGORY_MAX_ROLLOUTS` | `test_offense_max_rollouts_fires` | ☑ |
-| `max_rollouts` within limit | make | no violation | `test_offense_max_rollouts_clean` | ☑ |
-| `max_timed_percent` exceeded | make | `CATEGORY_MAX_TIMED_PERCENT` | `test_offense_max_timed_percent_fires` | ☑ |
-| `max_timed_percent` within limit | make | no violation | `test_offense_max_timed_percent_clean` | ☑ |
+| `max_qb_draws_count` exceeded | make | `CATEGORY_MAX_QB_DRAWS` | `test_offense_max_qb_draws_count_fires` | ☑ |
+| `max_qb_draws_count` within limit | make | no violation | `test_offense_max_qb_draws_count_clean` | ☑ |
+| `max_rollouts_count` exceeded | make | `CATEGORY_MAX_ROLLOUTS` | `test_offense_max_rollouts_count_fires` | ☑ |
+| `max_rollouts_count` within limit | make | no violation | `test_offense_max_rollouts_count_clean` | ☑ |
+| `max_timed_ratio` exceeded | make | `CATEGORY_MAX_TIMED` | `test_offense_max_timed_ratio_fires` | ☑ |
+| `max_timed_ratio` within limit | make | no violation | `test_offense_max_timed_ratio_clean` | ☑ |
+| `max_timed_percent` exceeded (2/3 > 50%) | make | `CATEGORY_MAX_TIMED` | `test_offense_max_timed_percent_fires` | ☑ |
+| `max_timed_percent` exactly at cap (1/2 = 50%) | make | no violation | `test_offense_max_timed_percent_clean_at_cap` | ☑ |
 
 ### Defense
 | Case | Input | Expected | Test | Status |
@@ -88,7 +102,7 @@ Constructed gameplan + pool (records carry typed playpool attributes). Each side
 | `max_count` within limit | make | no violation | `test_max_count_clean_within_limit` | ☑ |
 | Disallowed category present | make | `CATEGORY_DISALLOWED` | `test_disallowed_fires` | ☑ |
 | Disallowed category unused | make | no violation | `test_disallowed_clean_when_unused` | ☑ |
-| 2-DL front over cap | make | `CATEGORY_MAX_TWO_DL_PERCENT` | `test_two_dl_cap_fires` | ☑ |
+| 2-DL front over cap | make | `CATEGORY_MAX_TWO_DL` | `test_two_dl_cap_fires` | ☑ |
 | 2-DL front under cap | make | no violation | `test_two_dl_cap_clean_with_other_front` | ☑ |
 | All issues reported (incl. disallowed) | make | disallowed + max_count + required all present | `test_all_issues_reported_including_disallowed` | ☑ |
 

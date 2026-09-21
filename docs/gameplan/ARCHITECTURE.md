@@ -37,11 +37,13 @@ src/athc/cli/gameplan/    # CLI group
 
 No rules ship inside the package. `load_rules(paths)` parses one or more external TOML files into a `Rules` value; later files layer over earlier (per-category replace, scalar overwrite). Rules are validation-only — reading a gameplan never needs them.
 
-- `OffenseCategoryRule(required, min_count, max_count, max_qb_draws, max_rollouts, max_timed_percent)`
-- `DefenseCategoryRule(required, min_count, max_count, max_two_dl_percent)`
+- `OffenseCategoryRule(required, min_count, max_count, max_qb_draws_*, max_rollouts_*, max_timed_*)`
+- `DefenseCategoryRule(required, min_count, max_count, max_two_dl_*)`
 - Aggregate counts over the 64 normal slots: min/max plays per game category + per-category attribute caps; required special categories; disallowed categories; optional `custom_special_play_required`.
 
-Section labels are short category labels — `[offense.RM]` (Run Middle), `[defense.RunDazzle]` (Run Dazzle). Every per-category key is optional (`required` defaults false, `min_count` 0), but a section must set at least one. The loader rejects unknown labels, and subkeys applied to the wrong category type. `disallowed_offensive_categories` / `disallowed_defensive_categories` list full category names a gameplan must not contain. Percentages are exact `Fraction`s (`"1/2"` in TOML).
+Section labels are short category labels — `[offense.RM]` (Run Middle), `[defense.RunDazzle]` (Run Dazzle). Every per-category key is optional (`required` defaults false, `min_count` 0), but a section must set at least one. The loader rejects unknown labels, and subkeys applied to the wrong category type. `disallowed_offensive_categories` / `disallowed_defensive_categories` list full category names a gameplan must not contain.
+
+Each capped attribute (`qb_draws`, `rollouts`, `timed`, `two_dl`) takes one of three forms — `max_<attr>_count` (whole plays), `max_<attr>_ratio` (`"1/2"`, an exact `Fraction`) or `max_<attr>_percent` (whole number 0-100). A section may set at most one form per attribute; a second is a rules-file error. Ratio and percent compare the exact play ratio, so nothing rounds.
 
 Loading reports every problem at once (`RulesFileError.errors`); any error aborts `check` with each logged (exit 2).
 

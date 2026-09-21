@@ -29,31 +29,42 @@ class OffenseCategoryRule:
 
     `required` (default False) True means the category must appear with at least
     `min_count` plays; False is optional but still enforces the caps if used.
-    `min_count` defaults to 0. `max_count` caps the play count when set. Other
-    caps apply only when set: `max_qb_draws` for run categories, `max_rollouts`
-    and `max_timed_percent` for pass categories. Counts are >= 0;
-    `max_timed_percent` is a fraction in [0, 1].
+    `min_count` defaults to 0. `max_count` caps the play count when set.
+
+    Attribute caps apply only when set: `qb_draws` for run categories, `rollouts`
+    and `timed` for pass categories. Each comes in three forms and a rules file
+    may set at most one per attribute — `_count` (>= 0 plays), `_ratio` (a
+    `Fraction` in [0, 1]) or `_percent` (a whole number 0-100).
     """
 
     required: bool = False
     min_count: int = 0
     max_count: int | None = None
-    max_qb_draws: int | None = None
-    max_rollouts: int | None = None
-    max_timed_percent: Fraction | None = None
+    max_qb_draws_count: int | None = None
+    max_qb_draws_ratio: Fraction | None = None
+    max_qb_draws_percent: int | None = None
+    max_rollouts_count: int | None = None
+    max_rollouts_ratio: Fraction | None = None
+    max_rollouts_percent: int | None = None
+    max_timed_count: int | None = None
+    max_timed_ratio: Fraction | None = None
+    max_timed_percent: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class DefenseCategoryRule:
     """Constraints on one defensive game category. Every field is optional:
-    `required` defaults False, `min_count` 0. `max_count` caps the play count;
-    `max_two_dl_percent` caps the fraction of plays using the 2-DL (Run-and-Shoot)
-    defensive front. Counts are >= 0; `max_two_dl_percent` is a fraction in [0, 1]."""
+    `required` defaults False, `min_count` 0. `max_count` caps the play count.
+
+    `two_dl` caps plays using the 2-DL (Run-and-Shoot) defensive front, in the
+    same three mutually exclusive forms as the offense caps."""
 
     required: bool = False
     min_count: int = 0
     max_count: int | None = None
-    max_two_dl_percent: Fraction | None = None
+    max_two_dl_count: int | None = None
+    max_two_dl_ratio: Fraction | None = None
+    max_two_dl_percent: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,15 +100,23 @@ _SPECIAL_CATEGORY_BY_NAME: Final[Mapping[str, int]] = {
     c.long: c.code for c in SpecialOffensiveCategory
 }
 
-_RUN_SUBKEYS: Final[frozenset[str]] = frozenset(
-    {"required", "min_count", "max_count", "max_qb_draws"}
-)
-_PASS_SUBKEYS: Final[frozenset[str]] = frozenset(
-    {"required", "min_count", "max_count", "max_rollouts", "max_timed_percent"}
-)
-_DEFENSE_SUBKEYS: Final[frozenset[str]] = frozenset(
-    {"required", "min_count", "max_count", "max_two_dl_percent"}
-)
+# Each capped attribute takes exactly one of these three mutually exclusive forms.
+_CAP_FORMS: Final[tuple[str, ...]] = ("count", "ratio", "percent")
+
+_RUN_ATTRS: Final[tuple[str, ...]] = ("qb_draws",)
+_PASS_ATTRS: Final[tuple[str, ...]] = ("rollouts", "timed")
+_DEFENSE_ATTRS: Final[tuple[str, ...]] = ("two_dl",)
+
+
+def _subkeys(attrs: tuple[str, ...]) -> frozenset[str]:
+    return frozenset({"required", "min_count", "max_count"}) | {
+        f"max_{attr}_{form}" for attr in attrs for form in _CAP_FORMS
+    }
+
+
+_RUN_SUBKEYS: Final[frozenset[str]] = _subkeys(_RUN_ATTRS)
+_PASS_SUBKEYS: Final[frozenset[str]] = _subkeys(_PASS_ATTRS)
+_DEFENSE_SUBKEYS: Final[frozenset[str]] = _subkeys(_DEFENSE_ATTRS)
 _ALLOWED_TOP_KEYS: Final[frozenset[str]] = frozenset(
     {
         "schema_version",
@@ -287,31 +306,17 @@ def _build_offense_rule(
 ) -> OffenseCategoryRule:
     where = f"[offense.{label}]"
     is_run = member.is_run
+    attrs = _RUN_ATTRS if is_run else _PASS_ATTRS
     _reject_unknown_keys(
         section, _RUN_SUBKEYS if is_run else _PASS_SUBKEYS, source, where
     )
     _require_nonempty(section, source, where)
+    _reject_multiple_forms(section, attrs, source, where)
     return OffenseCategoryRule(
         required=_bool_or_false(section.get("required"), source, f"{where}.required"),
         min_count=_int_or_zero(section.get("min_count"), source, f"{where}.min_count"),
         max_count=_optional_int(section.get("max_count"), source, f"{where}.max_count"),
-        max_qb_draws=(
-            _optional_int(section.get("max_qb_draws"), source, f"{where}.max_qb_draws")
-            if is_run
-            else None
-        ),
-        max_rollouts=(
-            _optional_int(section.get("max_rollouts"), source, f"{where}.max_rollouts")
-            if not is_run
-            else None
-        ),
-        max_timed_percent=(
-            _optional_fraction(
-                section.get("max_timed_percent"), source, f"{where}.max_timed_percent"
-            )
-            if not is_run
-            else None
-        ),
+        **_cap_fields(section, attrs, source, where),
     )
 
 
@@ -321,14 +326,41 @@ def _build_defense_rule(
     where = f"[defense.{label}]"
     _reject_unknown_keys(section, _DEFENSE_SUBKEYS, source, where)
     _require_nonempty(section, source, where)
+    _reject_multiple_forms(section, _DEFENSE_ATTRS, source, where)
     return DefenseCategoryRule(
         required=_bool_or_false(section.get("required"), source, f"{where}.required"),
         min_count=_int_or_zero(section.get("min_count"), source, f"{where}.min_count"),
         max_count=_optional_int(section.get("max_count"), source, f"{where}.max_count"),
-        max_two_dl_percent=_optional_fraction(
-            section.get("max_two_dl_percent"), source, f"{where}.max_two_dl_percent"
-        ),
+        **_cap_fields(section, _DEFENSE_ATTRS, source, where),
     )
+
+
+def _reject_multiple_forms(
+    section: Mapping[str, Any], attrs: tuple[str, ...], source: Path, where: str
+) -> None:
+    """An attribute takes one cap form; naming two is a rules-file error."""
+    for attr in attrs:
+        given = [f"max_{attr}_{f}" for f in _CAP_FORMS if f"max_{attr}_{f}" in section]
+        if len(given) > 1:
+            names = ", ".join(repr(k) for k in given)
+            raise RulesFileError(f"{source}: {where}: at most one of {names}")
+
+
+def _cap_fields(
+    section: Mapping[str, Any], attrs: tuple[str, ...], source: Path, where: str
+) -> dict[str, Any]:
+    """Parse every `max_<attr>_<form>` key present into its rule field."""
+    parse = {
+        "count": _optional_int,
+        "ratio": _optional_fraction,
+        "percent": _optional_percent,
+    }
+    return {
+        key: parse[form](section.get(key), source, f"{where}.{key}")
+        for attr in attrs
+        for form in _CAP_FORMS
+        if (key := f"max_{attr}_{form}")
+    }
 
 
 def _build_rules(m: _MergedData) -> Rules:
@@ -388,6 +420,16 @@ def _optional_int(value: object | None, source: Path, where: str) -> int | None:
     n = _require_int(value, source, where)
     if n < 0:
         raise RulesFileError(f"{source}: {where}: must be >= 0")
+    return n
+
+
+def _optional_percent(value: object | None, source: Path, where: str) -> int | None:
+    """Optional whole-number percent; must be in [0, 100] when present."""
+    if value is None:
+        return None
+    n = _require_int(value, source, where)
+    if not 0 <= n <= 100:
+        raise RulesFileError(f"{source}: {where}: must be in [0, 100]")
     return n
 
 

@@ -17,8 +17,8 @@ class RuleName(StrEnum):
     CATEGORY_MAX_COUNT = "category_max_count"
     CATEGORY_MAX_QB_DRAWS = "category_max_qb_draws"
     CATEGORY_MAX_ROLLOUTS = "category_max_rollouts"
-    CATEGORY_MAX_TIMED_PERCENT = "category_max_timed_percent"
-    CATEGORY_MAX_TWO_DL_PERCENT = "category_max_two_dl_percent"
+    CATEGORY_MAX_TIMED = "category_max_timed"
+    CATEGORY_MAX_TWO_DL = "category_max_two_dl"
     SPECIAL_CATEGORY_REQUIRED = "special_category_required"
     CUSTOM_SPECIAL_PLAY_REQUIRED = "custom_special_play_required"
 
