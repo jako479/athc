@@ -1,151 +1,198 @@
 # athc — Status
 
-Updated 2026-09-20. Task list: [TODO.md](TODO.md). Detail: [docs/](docs/).
+Updated 2026-09-21. Task list: [TODO.md](TODO.md). History:
+[WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
-All non-scheduler work was committed in one batch on 2026-07-19, so git dates lie — the
-work itself is from early-to-mid June. Dates below are when the work happened.
+Game plan, profile and league tools for Front Page Sports Football Pro '98.
+Six commands are in. Nothing has been released.
 
-## scheduler — `generate-schedule`
+All non-scheduler work was committed in one batch on 2026-07-19, so git dates
+for it are not when the work happened.
 
-Working. Last worked 2026-07-25. Docs: [README](docs/scheduler/README.md) ·
-[phase 1](docs/scheduler/phase-1-matchups-fixed-cpsat.md) ·
-[phase 2](docs/scheduler/phase-2-schedule.md)
+## Commands
 
-### Done
+```
+athc autocontinue               DONE
+athc config edit                DONE
+athc config path                DONE
+athc config reveal              DONE
+athc convert-pdb                DONE
+athc gameplan check             DONE
+athc gameplan find-play         DONE
+athc gameplan list-normals      DONE
+athc gameplan list-specials     DONE
+athc gameplan replace-play      DONE
+athc gameplan set-normals       DONE
+athc gameplan set-specials      DONE
+athc generate-schedule          DONE
+athc profile check              DONE
+athc profile copy               DONE
+athc profile diff               DONE
+athc check                      FUTURE
+```
 
-- Rule overhaul from NFL data — hard rules, league-wide anti-pileup caps, soft objective
-  with NFL-typical bands so seasons vary.
-- Schedulers A, B, D removed. Just "the scheduler" now — no `--scheduler` flag.
-- Multithreaded phase 2. `solver_workers = 8` is a reproducibility contract: config-only,
-  change it and every seed re-rolls. Stops on deterministic time, not wall-clock.
-- league.ini simplified — `[DivisionStandings]` + `[OverallStandings]` only.
-- Golden integration test for `generate-schedule` (3 files byte-compared, `--bless` to reset).
+## athc
 
-### Next
+Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
-**1. Simplify the ruleset.** 50 `[phase2]` keys + 6 fixed rules, never pruned. Some are
-redundant by construction (a 9-week density cap forces the 10-week one). Too big to hold in
-your head, hard to blame when a solve is slow or infeasible, and probably why every season
-comes out more uniform than a real one.
-Plan: drop rules implied by others; turn each remaining one off and see if the schedule
-actually degrades; add a simple/full ruleset switch (toggles already exist for two rules);
-watch solve time.
+- Exit codes and the error-vs-finding distinction live in each tool's README,
+  where a coach will look, not in ARCHITECTURE.
+- The `RULES_PNFL.md` docs are gone. Each tool's rules TOML is the league
+  reference; a prose copy of every value went stale the moment one changed.
+- The shipped `release/athc.ini` is loaded through every section loader in
+  `test_config.py`, so a missing bundled rule file fails the suite.
+- `dev/athc.ini` points at the real play pool and game log database. It used
+  to point at the test fixtures, which nothing required.
+- Agent instructions live in [AGENTS.md](AGENTS.md); `.claude/CLAUDE.md` points
+  at it. New STATUS, WORKLOG, CHANGELOG and TODO entries go at the top of their
+  section.
+- CHANGELOG is grouped by component, alphabetically, with `config:` and other
+  umbrella topics under athc.
+- Setup is `uv sync` and commands run through `uv run`. Dev tools sit in a
+  `dev` dependency group and `uv.lock` is committed.
+- Coverage runs with every test run and fails below 92%. Ruff gained the
+  pathlib, simplify, comprehension and pycodestyle-warning groups; pytest turns
+  warnings into errors.
+- `.vscode/` is untracked; game data files are marked binary in
+  `.gitattributes`.
+- Config stays INI. Logging is designed but not wired — one `basicConfig` in
+  `cli()` with `-v/--verbose`, per [docs/design/logging.md](docs/design/logging.md).
+- Install is `install.bat` plus a wheel in a zip; uv downloads a managed
+  Python, so Python is no longer a prerequisite.
 
-**2. Quirk budget.** Proposal only — [quirk-budget.md](docs/design/quirk-budget.md). Real NFL
-seasons have a few rare one-offs; athc bans them all. A league-wide budget (default 2) raises
-one team's cap one step; `0` = today's behavior. Do this *after* #1 — it adds rules.
-
-**3. Delete** `TEST_DATA/scheduler_integration/` (workspace root, untracked) — obsolete
-scheduler C/D output, replaced by the golden test.
-
-## gameplan — `check` `list-normals` `list-specials` `set-normals` `set-specials` `find-play` `replace-play`
-
-Working. Validates and edits .pln game plans. Docs: [README](docs/gameplan/README.md) ·
-[rules](release/rules/PNFL.gameplan.toml)
-
-Latest (2026-09-21): Brian reviewed the PNFL gameplan rules against the league threads
-and confirmed every one is covered. Attribute caps now take a count, ratio or percent
-form — one form per attribute — so a league writes its rule the way the league states it.
-The PNFL 2-DL caps are 50% Pass Short/Medium, 75% Pass Long, 100% Pass Dazzle.
-Documentation was confirmed clear: the duplicate RULES_PNFL doc is gone, the rules TOML
-is the reference, and exit codes now live in the README.
-
-June: added `find-play` (search by play name across files/trees; reads the category
-straight from the .pln, no pool setup) and `replace-play` (swap one play across .pln files).
-Writes back up first (`file.YYYY-MM-DD-HHMM.bak`, `--no-backup` to skip). Renamed the
-`Play` API to `PlayRef`/`CustomPlay`/`StockPlay`.
-
-Open: `check` folds into one `athc check` taking any mix of .pln and .prf (below) ·
-`replace-play` should accept a list of plays for bulk swaps.
-
-## profile — `check` `copy` `diff`
-
-Working. Validates and compares .prf coaching profiles. Docs:
-[README](docs/profile/README.md) · [rules](release/rules/PNFL.profile.toml)
-
-Latest (2026-09-21): Brian reviewed the PNFL profile rules against the league thread and
-confirmed every one is covered, including both gameplan compatibility checks. Those two
-checks now fail `check` like any other rule and are turned on per direction in the rules
-file under `[gameplan_compatibility]`. Substitution bounds cover every position group —
-QB pinned at 75/80, every other group but K capped at 95 out and 96-100 in. Documentation
-was confirmed clear: the duplicate RULES_PNFL doc is gone, the rules TOML is the
-reference, and exit codes and the compatibility rule now live in the README.
-
-2026-09-20: substitution rules take `min_`/`max_` bounds per side (out/in) as well as
-exact values; a side with no key is unchecked, and each unmet side is reported on its own
-line.
-
-June: expanded `check`'s gameplan-compatibility checks and validators (FG/PAT specials).
-`diff` was built this cycle — one line per differing situation showing situation #, game
-state, and stop-clock; `--output` infers CSV from the file extension. Tests were
-restructured to sit under the package being tested and to compare written .prf output
-against known expected files.
-
-Open: `check` folds into one `athc check` taking any mix of .pln and .prf (below) ·
-revisit `edit`/`copy` options.
-
-## check — planned
-
-One `athc check FILES...` taking any mix of `.pln` and `.prf`, replacing `gameplan check`
-and `profile check`. It runs each file's own league rules and adds the compatibility
-checks when it has a matching pair, so a league manager validates a coach's submission in
-one command.
-
-To settle: how a directory or glob pairs many files of both types, and whether `gameplan`
-and `profile` keep their other subcommands with `check` moved out.
-
-## playpool (library)
-
-Working. Backs `gameplan` and `convert-pdb`; not a subcommand. Docs:
-[ARCHITECTURE](docs/playpool/ARCHITECTURE.md). Rules: `rules/PNFL.playpool.toml`.
-
-Latest (June): renamed the `PlayRecord` family to `Play`; play attributes now come from the
-pool's folder categories, with the user category treated as authoritative. `pool.py` was
-split up and its over-long comments cut.
-
-## convert-pdb (pdbtoexcel)
-
-Working. Extracts a WinLogStats database into an Excel workbook. Docs:
-[README](docs/pdbtoexcel/README.md) · [ARCHITECTURE](docs/pdbtoexcel/ARCHITECTURE.md)
-
-Latest (June): rules paths are now config-relative, resolved against the config dir.
-Note: a standalone port lives outside this repo at `E:\PNFL\__My Projects\PdbToExcel_2.0`
-for testers — re-sync it by hand when this package changes.
+Open: rename the mixed-case `PlayPath` key to `play_path` and drop the
+case-preserving `configparser` flag · whether a bundled `.exe` and a real
+Windows installer beat today's uv prerequisite for non-dev users · wire the
+logging design into `cli()`.
 
 ## autocontinue
 
 Working. Docs: [README](docs/autocontinue/README.md) ·
 [ARCHITECTURE](docs/autocontinue/ARCHITECTURE.md)
 
-Latest (June): hot-corner toggle, focus checks, halftime assets added.
+- Hot-corner toggle, focus checks and halftime assets added.
 
 Open: halftime handling itself.
 
-## config — `path` `edit` `reveal`
+## fbpro98_gameplan (library)
 
-Working, untouched since June. Docs: [README](docs/config/README.md). `reveal` opens the
-config dir in Explorer — named `reveal`, not `explorer`.
+Reads and writes `.pln` game plans. Docs:
+[spec](docs/fbpro98_gameplan/specs/pln.md)
 
-## install / release
+- The `.pln` spec gained a whole-file map and a slot layout section of its own:
+  86 offsets, slots 1-1 through 16-4, then the special plays.
+- Updated for the `PlayRef` rename.
 
-`install.bat` + a wheel in a zip; uv installs it and pulls deps from PyPI. Python is no
-longer a prerequisite — uv downloads a managed one (2026-07-23).
-Docs: [installer.md](docs/design/installer.md)
+## fbpro98_play (library)
 
-Open: on 2026-07-29 you reopened whether this is the right shape for non-dev users —
-PyInstaller `.exe` plus a real Windows installer, versus today's uv prerequisite. Research
-only; nothing decided, no code changed. Key point from it: a bundled exe can only carry a
-read-only config template, so the editable config still has to be written to a real folder
-on first run.
+Reads `.ply` play files. Docs: [spec](docs/fbpro98_play/specs/ply.md)
 
-## project tooling
+- The `.ply` spec gained a whole-file map and its categories were split into
+  sections.
+- Play category is an enum with short and long forms, resolved from the play
+  file itself.
+- The `Play` family renamed to `PlayRef`/`CustomPlay`/`StockPlay`.
 
-Reworked 2026-09-17. Nothing about how the tools behave changed.
+## fbpro98_profile (library)
 
-- Setup is `uv sync`, commands run through `uv run`. Dev tools moved to a `dev`
-  dependency group, and `uv.lock` is committed.
-- Coverage runs with every test run and fails below 92% (currently 93.5%).
-- Ruff gained the pathlib, simplify and comprehension rule groups; pytest turns
-  warnings into errors.
-- Agent instructions live in [AGENTS.md](AGENTS.md); `.claude/CLAUDE.md` points at it.
-- `.vscode/` is no longer tracked; editor setup is each developer's own.
+Reads and writes `.prf` coaching profiles. Docs:
+[spec](docs/fbpro98_profile/specs/prf.md)
+
+- Reader and writer in, with unit tests.
+
+## gameplan
+
+Working. Validates and edits `.pln` game plans. Docs:
+[README](docs/gameplan/README.md) · [rules](release/rules/PNFL.gameplan.toml)
+
+- Attribute caps take a count, ratio or percent form — one form per attribute,
+  so a league writes its rule the way the league states it. Naming two forms
+  for one attribute is a rules-file error.
+- PNFL 2-DL caps are 50% Pass Short and Medium, 75% Pass Long, 100% Pass
+  Dazzle.
+- Brian reviewed the PNFL gameplan rules against the league threads; every one
+  is covered.
+- `find-play` searches by play name across files and trees, reading the
+  category straight from the `.pln`. `replace-play` swaps one play across
+  files. Both back up first.
+
+Open: `check` folds into one `athc check` · `replace-play` should take a list
+of plays for bulk swaps.
+
+## pdbtoexcel — `convert-pdb`
+
+Working. Extracts a WinLogStats database into an Excel workbook. Docs:
+[README](docs/pdbtoexcel/README.md) ·
+[ARCHITECTURE](docs/pdbtoexcel/ARCHITECTURE.md)
+
+- Rules paths resolve against the config dir.
+
+Note: a standalone port for testers lives outside this repo at
+`E:\PNFL\__My Projects\PdbToExcel_2.0`; re-sync it by hand when this package
+changes.
+
+## playpool (library)
+
+Working. Backs `gameplan` and `convert-pdb`. Docs:
+[ARCHITECTURE](docs/playpool/ARCHITECTURE.md)
+
+- The `PlayRecord` family renamed to `Play`.
+- Plays are classified from the play file, with the user category
+  authoritative; folder categories only add attributes.
+
+## profile
+
+Working. Validates and compares `.prf` coaching profiles. Docs:
+[README](docs/profile/README.md) · [rules](release/rules/PNFL.profile.toml)
+
+- Gameplan compatibility is checked both ways, fails `check` like any other
+  rule, and each direction is turned on in the rules file under
+  `[gameplan_compatibility]`.
+- Substitution bounds cover every position group: QB pinned at 75/80, every
+  other group but K capped at 95 out and 96-100 in.
+- Substitution rules take `min_`/`max_` bounds per side as well as exact
+  values; a side with no key is unchecked and each unmet side reports on its
+  own line.
+- Brian reviewed the PNFL profile rules against the league thread; every one is
+  covered.
+- `diff` reports one line per differing situation and infers CSV from the
+  `--output` extension.
+
+Open: `check` folds into one `athc check` · revisit `edit`/`copy` options.
+
+## scheduler — `generate-schedule`
+
+Working. Docs: [README](docs/scheduler/README.md) ·
+[phase 1](docs/scheduler/phase-1-matchups-fixed-cpsat.md) ·
+[phase 2](docs/scheduler/phase-2-schedule.md)
+
+- Rules overhauled from NFL data: hard rules, league-wide anti-pileup caps,
+  and a soft objective with NFL-typical bands so seasons vary.
+- Schedulers A, B and D removed; there is just the scheduler, no
+  `--scheduler` flag.
+- Phase 2 runs multithreaded and stops on deterministic time, not wall-clock.
+- league.ini simplified to `[DivisionStandings]` and `[OverallStandings]`.
+- Golden integration test compares three output files byte for byte.
+
+Open: simplify the ruleset — 50 `[phase2]` keys, some redundant by
+construction, never pruned · then the quirk budget in
+[quirk-budget.md](docs/design/quirk-budget.md) · delete the obsolete
+`TEST_DATA/scheduler_integration/` at the workspace root.
+
+## Decisions
+
+- **One `athc check FILES...` replaces `gameplan check` and `profile check`.**
+  It runs each file's own league rules and adds the compatibility checks when
+  it has a matching pair, so a league manager validates a submission in one
+  command. To settle: how a directory or glob pairs many files of both types,
+  and whether the two tools keep their other subcommands.
+- **Compatibility rules live in the rules file, not the code.** They are league
+  rules like any other, so a league enables each direction itself.
+- **`solver_workers = 8` is a reproducibility contract.** Change it and every
+  seed re-rolls, so it is config-only.
+- **The config command is `reveal`, not `explorer`.** It opens the config dir
+  in Explorer, but the name should not promise Windows.
+- **A bundled `.exe` still needs a real config folder.** Whatever ships can
+  only carry a read-only template, so the editable config is written on first
+  run.
+- **STATUS carries no test counts.** They change every run.
