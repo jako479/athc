@@ -3,6 +3,19 @@
 Validate and compare FbPro98 coaching profiles (`.prf`). Built on
 [fbpro98_profile](../fbpro98_profile/).
 
+## Results and exit codes
+
+| Exit | Meaning |
+|---|---|
+| `0` | **Clean** — no violations or issues (`check`), identical (`diff`), done (`copy`). Warnings may still print. |
+| `1` | **Findings** — rule violations + gameplan coverage issues (`check`), differences (`diff`), or a per-file failure (`copy`). |
+| `2` | **Error** — couldn't run: I/O, parse, side mismatch, or usage. |
+
+Three tiers: an **error** means the check couldn't run, a **finding** is a real
+problem to fix, and a **warning** is informational and never changes the exit
+code. Every check runs to the end — one bad file or violation does not stop the
+rest.
+
 ## check
 
 ```bash
@@ -13,8 +26,7 @@ athc profile check OFF.prf --gameplan OFF.pln
 ```
 
 Each PATH is a `.prf` file, a directory (top level, or the whole tree with `-r`),
-or a glob. Each profile prints `OK` or its violations; exit 0 (clean), 1
-(violations), or 2 (I/O error or no rules configured). Needs rules (below).
+or a glob. Each profile prints `OK` or its violations. Needs rules (below).
 
 `--gameplan FILE` (no short form) also checks play-category coverage: every
 category the profile weights — normal run/pass and special teams (FG/PAT, punt,

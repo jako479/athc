@@ -103,16 +103,7 @@ Copy does not validate (use `check`). Exit 0 ok / 1 a target failed / 2 couldn't
 
 ## Exit codes
 
-| Exit | Meaning |
-|---|---|
-| `0` | **Clean** — no violations or issues (`check`), identical (`diff`), done (`copy`). Informational warnings may still print. |
-| `1` | **Findings** — rule violations + gameplan coverage issues (`check`), differences (`diff`), or a per-file failure (`copy`). |
-| `2` | **Error** — couldn't run: I/O, parse, side mismatch, or usage. |
-
-Three tiers, distinct: an **error** means the check couldn't run; a **finding** is a
-real problem to fix; a **warning** is informational only. `check --gameplan`
-warnings (gameplan categories the profile never uses) are warnings — they never
-change the exit code.
+See [README.md](README.md#results-and-exit-codes).
 
 ## CLI integration
 
