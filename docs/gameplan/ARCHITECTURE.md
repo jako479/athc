@@ -105,15 +105,10 @@ line each: `<file>: Replaced 'OLD' (cat) in special slot N with 'NEW' (cat)`
 
 ## Exit codes
 
-Two classes (see [../design/cli.md](../design/cli.md#exit-codes)). `check`,
-`find-play`, `set-specials`, and `replace-play` bear a **findings** tier;
-`list-normals`, `list-specials`, and `set-normals` are utilities.
-
-| Exit | `check` / `find-play` / `set-specials` / `replace-play` | `list-*` / `set-normals` |
-|---|---|---|
-| `0` | clean / all updated | ok / updated |
-| `1` | violations, a missed play, nothing replaced, or some files failed | error (read, write, or invalid input) |
-| `2` | couldn't run: usage, config, I/O, no rules, or replacement not in pool | usage (bad arguments) |
+See [README.md](README.md#results-and-exit-codes). Two classes (see
+[../design/cli.md](../design/cli.md#exit-codes)): `check`, `find-play`,
+`set-specials`, and `replace-play` bear a **findings** tier; `list-normals`,
+`list-specials`, and `set-normals` are utilities.
 
 ## .pln format
 

@@ -4,6 +4,19 @@ Library + CLI for FbPro98 gameplans (`.pln`). Validates a gameplan against leagu
 
 **Status:** six pnfl subcommands ported — `check`, `find-play`, `list-normals`, `list-specials`, `set-normals`, `set-specials` — plus `replace-play` (new).
 
+## Results and exit codes
+
+| Exit | `check` / `find-play` / `set-specials` / `replace-play` | `list-*` / `set-normals` |
+|---|---|---|
+| `0` | **Clean** — no violations, all found, all updated | ok / updated |
+| `1` | **Findings** — violations, a play missed, nothing replaced, or some files failed | error (read, write, or invalid input) |
+| `2` | **Error** — couldn't run: usage, config, I/O, no rules, or replacement not in pool | usage (bad arguments) |
+
+Three tiers: an **error** means the command couldn't run, a **finding** is a real
+problem to fix, and a **warning** is informational and never changes the exit
+code. Every check runs to the end — one bad file or violation does not stop the
+rest.
+
 ## Setup
 
 ```bash
@@ -43,7 +56,7 @@ athc gameplan set-specials plans/ spec.txt -r      # merge specials across a tre
 athc gameplan replace-play OLDRUN NEWRUN plans/ -r # swap one play for another (+ .bak)
 ```
 
-`check` exits `0` clean / `1` violations / `2` usage, config error, or no rules. `list-*` and `find-play` just read a `.pln` (no pool/rules/config): `list-*` exit `0`, or `1` on a read error or refused overwrite; `find-play` exits `0` all found / `1` a play missed everywhere / `2` I/O error. `set-*` need the pool (like `check`, minus `--rules`) and edit in place after a `.bak`: `set-normals` exits `0` updated / `1` error / `2` usage, `set-specials` exits `0` all updated / `1` some failed / `2` setup error. `replace-play OLDNAME NEWNAME PATH` swaps one play for another wherever `find-play` would find it (`--play-path`/`--league`, no `--rules`/`--playpool-rules`); `NEWNAME` must be in the pool: exits `0` replaced / `1` nothing replaced or some files failed / `2` setup error or replacement not in pool. `athc gameplan <command> --help` for flags.
+`list-*` and `find-play` just read a `.pln` — no pool, rules or config. `set-*` need the pool (like `check`, minus `--rules`) and edit in place after a `.bak`. `replace-play OLDNAME NEWNAME PATH` swaps one play for another wherever `find-play` would find it (`--play-path`/`--league`, no `--rules`/`--playpool-rules`); `NEWNAME` must be in the pool. `athc gameplan <command> --help` for flags.
 
 ## Config
 
