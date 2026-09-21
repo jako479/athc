@@ -73,10 +73,10 @@ section, never mid-list or at the bottom.
   line per topic.
 - Never mention Claude, Anthropic or any AI tool — commits, comments, docs.
 - At the end, leave the worktree and return the session to the main checkout
-  first. Then give the git commands to squash-merge the branch and delete the
-  worktree and/or branch as two separate code blocks: first the merge and
-  commit, then the worktree and branch removal. Each block is copied and run
-  on its own, so a failed merge is never followed by the cleanup.
+  first. Then give two code blocks, never chaining commands — each on its own
+  line: first the squash-merge and its commit, then the worktree removal and
+  the branch deletion. Each block is copied and run on its own, so a failed
+  merge is never followed by the cleanup.
 
 ## Writing
 
