@@ -35,6 +35,8 @@ athc check                      FUTURE
 
 Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
+- League keys in `athc.ini` are lowercase (`play_path`, `playpool_rules`) like
+  every other key, so the parser no longer needs a subclass to keep key case.
 - Exit codes and the error-vs-finding distinction live in each tool's README,
   where a coach will look, not in ARCHITECTURE.
 - The `RULES_PNFL.md` docs are gone. Each tool's rules TOML is the league

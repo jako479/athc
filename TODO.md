@@ -14,6 +14,7 @@ One line per task. Current state and reasoning: [STATUS.md](STATUS.md).
 - autocontinue: add halftime
 - tests: add ruff's `PT` rule group (pytest style); 117 findings today, 111 auto-fixable under `--unsafe-fixes`
 - cli: wire logging in the `cli()` group callback — global `-v/--verbose`, `RichHandler` on stderr, `click.style` on stdout; drop the 13 per-command `basicConfig` calls. Design: [docs/design/logging.md](docs/design/logging.md)
+- [DONE] config: lowercase league keys (`play_path`, `playpool_rules`); dropped the case-keeping parser
 - [DONE] profile: new substitution % rules — non-QB, non-K groups capped at 95 out / 96-100 in
 - [DONE] profile: gameplan compatibility is checked both ways, fails the check, and is gated by the rules file
 - [DONE] gameplan: new 2-DL rules — 50% Pass Short/Medium, 75% Pass Long, 100% Pass Dazzle

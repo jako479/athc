@@ -2,6 +2,7 @@
 
 ## athc
 
+- config: league keys are lowercase (`play_path`, `playpool_rules`); the case-keeping parser is gone
 - docs: the rules TOML is the PNFL reference; the RULES_PNFL docs are gone and exit codes moved into each README
 - tests: the shipped `release/athc.ini` is loaded through every section loader and its rule files must exist
 - docs: added STATUS.md — per-tool state, what is done, what is next

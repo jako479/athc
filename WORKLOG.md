@@ -2,6 +2,10 @@
 
 History of what changed and why. Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-09-21 — **config**: league sections used mixed-case keys (`PlayPath`,
+  `PlayPoolRules`) while every other key in `athc.ini` was lowercase, and a
+  parser subclass existed only to keep that case. The keys are `play_path` and
+  `playpool_rules` now, matching `[convert-pdb]`, and the subclass is gone.
 - 2026-09-21 — **gameplan**: attribute caps were one fixed form per attribute
   (a count for QB draws and rollouts, a fraction for timed and 2-DL), so a
   league could not say what its own rule said. Each attribute now takes one of
