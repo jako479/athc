@@ -429,7 +429,7 @@ In [test_config.py](test_config.py). Direct tests of `load_league()`, the shared
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| `[athc]` + `[league.PNFL]` via `load_league()` | release/ | PlayPath set; PlayPoolRules is a file | `test_release_league_section_loads` | ☑ |
+| `[athc]` + `[league.PNFL]` via `load_league()` | release/ | play_path set; playpool_rules is a file | `test_release_league_section_loads` | ☑ |
 | `[autocontinue]` | release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
 | `[gameplan]` + league | release/ | loads; playpool rules and rule files exist | `test_release_gameplan_config_loads` | ☑ |
 | `[profile]` | release/ | loads; rule files exist | `test_release_profile_config_loads` | ☑ |

@@ -160,8 +160,8 @@ def release_config_dir(monkeypatch: pytest.MonkeyPatch) -> None:
 @pytest.mark.usefixtures("release_config_dir")
 def test_release_league_section_loads() -> None:
     league = load_league()  # [athc] default_league -> [league.PNFL]
-    assert league["PlayPath"]
-    assert resolve_path(league["PlayPoolRules"]).is_file()
+    assert league["play_path"]
+    assert resolve_path(league["playpool_rules"]).is_file()
 
 
 @pytest.mark.usefixtures("release_config_dir")
