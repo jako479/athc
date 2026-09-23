@@ -42,10 +42,19 @@ DEF1_PATH = TEST_DATA_DIR / "TST-DEF1.prf"
 DEF2_PATH = TEST_DATA_DIR / "TST-DEF2.prf"
 OFF1_AUD_PATH = TEST_DATA_DIR / "TST-OFF1-AUD.prf"
 DEF1_AUD_PATH = TEST_DATA_DIR / "TST-DEF1-AUD.prf"
-ALL_FIXTURES = [OFF1_PATH, OFF2_PATH, DEF1_PATH, DEF2_PATH, OFF1_AUD_PATH, DEF1_AUD_PATH]
+ALL_FIXTURES = [
+    OFF1_PATH,
+    OFF2_PATH,
+    DEF1_PATH,
+    DEF2_PATH,
+    OFF1_AUD_PATH,
+    DEF1_AUD_PATH,
+]
 
 F95_SITUATIONS_OFFSET = F95_HEADER.size + F95_SUBSTITUTIONS.size  # 0x28
-PAT_REGION_OFFSET = F95_SITUATIONS_OFFSET + Profile.NUMBER_SITUATIONS * 6 + 1  # +FG range byte
+PAT_REGION_OFFSET = (
+    F95_SITUATIONS_OFFSET + Profile.NUMBER_SITUATIONS * 6 + 1
+)  # +FG range byte
 
 
 def _require_fixture(path: Path) -> Path:
@@ -71,7 +80,9 @@ def _minimal_profile(profile_type: ProfileType) -> Profile:
         weight3=0,
     )
     situations = tuple(
-        Situation.from_situation_number(n, stop_clock=False, category_weights=zero_weights)
+        Situation.from_situation_number(
+            n, stop_clock=False, category_weights=zero_weights
+        )
         for n in range(1, Profile.NUMBER_SITUATIONS + 1)
     )
     pat_situations = tuple(
@@ -110,7 +121,9 @@ def test_build_profile_bytes_matches_file(fixture_path: Path) -> None:
 
 
 @pytest.mark.parametrize("fixture_path", ALL_FIXTURES, ids=lambda p: p.stem)
-def test_write_profile_round_trips_through_model(tmp_path: Path, fixture_path: Path) -> None:
+def test_write_profile_round_trips_through_model(
+    tmp_path: Path, fixture_path: Path
+) -> None:
     original = read_profile(_require_fixture(fixture_path))
     out_path = tmp_path / "out.prf"
     write_profile(original, out_path)
@@ -185,11 +198,17 @@ def test_pat_weight1_no_stop_clock_bit_set(tmp_path: Path) -> None:
     buf = out_path.read_bytes()
     for i in range(Profile.NUMBER_PAT_SITUATIONS):
         weight1_offset = PAT_REGION_OFFSET + i * 6 + 1
-        assert (buf[weight1_offset] & STOP_CLOCK_BIT) == 0, f"PAT record {i} weight1 has bit 7 set"
+        assert (buf[weight1_offset] & STOP_CLOCK_BIT) == 0, (
+            f"PAT record {i} weight1 has bit 7 set"
+        )
 
 
-@pytest.mark.parametrize("fixture_path", [OFF1_PATH, OFF1_AUD_PATH], ids=lambda p: p.stem)
-def test_i95_mirrors_f95_field_goal_range_and_use_audibles(tmp_path: Path, fixture_path: Path) -> None:
+@pytest.mark.parametrize(
+    "fixture_path", [OFF1_PATH, OFF1_AUD_PATH], ids=lambda p: p.stem
+)
+def test_i95_mirrors_f95_field_goal_range_and_use_audibles(
+    tmp_path: Path, fixture_path: Path
+) -> None:
     profile = read_profile(_require_fixture(fixture_path))
     out_path = tmp_path / "out.prf"
     write_profile(profile, out_path)
@@ -223,8 +242,12 @@ def test_round_trip_modified_use_audibles(tmp_path: Path) -> None:
 # ---------- use_audibles round-trips on real audible-enabled fixtures ----------
 
 
-@pytest.mark.parametrize("fixture_path", [OFF1_AUD_PATH, DEF1_AUD_PATH], ids=lambda p: p.stem)
-def test_use_audibles_preserved_on_round_trip(tmp_path: Path, fixture_path: Path) -> None:
+@pytest.mark.parametrize(
+    "fixture_path", [OFF1_AUD_PATH, DEF1_AUD_PATH], ids=lambda p: p.stem
+)
+def test_use_audibles_preserved_on_round_trip(
+    tmp_path: Path, fixture_path: Path
+) -> None:
     """Reading and writing a use_audibles=True fixture must not silently clear the flag."""
     original = read_profile(_require_fixture(fixture_path))
     assert original.use_audibles is True
@@ -279,8 +302,12 @@ def test_write_new_defense_from_scratch(tmp_path: Path) -> None:
     assert buf[-2:] == b"\x00\x00"
 
 
-@pytest.mark.parametrize("fixture_path", [OFF1_PATH, OFF2_PATH, OFF1_AUD_PATH], ids=lambda p: p.stem)
-def test_reconstructed_offense_matches_fixture_bytes(tmp_path: Path, fixture_path: Path) -> None:
+@pytest.mark.parametrize(
+    "fixture_path", [OFF1_PATH, OFF2_PATH, OFF1_AUD_PATH], ids=lambda p: p.stem
+)
+def test_reconstructed_offense_matches_fixture_bytes(
+    tmp_path: Path, fixture_path: Path
+) -> None:
     original = read_profile(_require_fixture(fixture_path))
     reconstructed = Profile(
         profile_type=original.profile_type,
@@ -295,8 +322,12 @@ def test_reconstructed_offense_matches_fixture_bytes(tmp_path: Path, fixture_pat
     assert out_path.read_bytes() == fixture_path.read_bytes()
 
 
-@pytest.mark.parametrize("fixture_path", [DEF1_PATH, DEF2_PATH, DEF1_AUD_PATH], ids=lambda p: p.stem)
-def test_reconstructed_defense_matches_fixture_bytes(tmp_path: Path, fixture_path: Path) -> None:
+@pytest.mark.parametrize(
+    "fixture_path", [DEF1_PATH, DEF2_PATH, DEF1_AUD_PATH], ids=lambda p: p.stem
+)
+def test_reconstructed_defense_matches_fixture_bytes(
+    tmp_path: Path, fixture_path: Path
+) -> None:
     original = read_profile(_require_fixture(fixture_path))
     reconstructed = Profile(
         profile_type=original.profile_type,

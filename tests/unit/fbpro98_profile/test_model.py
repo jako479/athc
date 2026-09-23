@@ -48,7 +48,9 @@ def _default_situation(
 
 
 def _default_pat_situation(*, situation_number: int = 1) -> PatSituation:
-    return PatSituation.from_situation_number(situation_number=situation_number, category_weights=_default_weights())
+    return PatSituation.from_situation_number(
+        situation_number=situation_number, category_weights=_default_weights()
+    )
 
 
 def _empty_situations(count: int) -> tuple[Situation, ...]:
@@ -56,10 +58,14 @@ def _empty_situations(count: int) -> tuple[Situation, ...]:
 
 
 def _empty_pat_situations(count: int) -> tuple[PatSituation, ...]:
-    return tuple(_default_pat_situation(situation_number=n) for n in range(1, count + 1))
+    return tuple(
+        _default_pat_situation(situation_number=n) for n in range(1, count + 1)
+    )
 
 
-def _make_profile(*, profile_type: ProfileType = ProfileType.OFFENSE, **overrides) -> Profile:
+def _make_profile(
+    *, profile_type: ProfileType = ProfileType.OFFENSE, **overrides
+) -> Profile:
     base = Profile(
         profile_type=profile_type,
         substitutions=SubstitutionSettings.default(),
@@ -251,13 +257,17 @@ def test_situation_rejects_mismatched_situation_number() -> None:
 
 
 def test_pat_situation_from_first_situation_number_yields_expected_game_state() -> None:
-    pat = PatSituation.from_situation_number(situation_number=1, category_weights=_default_weights())
+    pat = PatSituation.from_situation_number(
+        situation_number=1, category_weights=_default_weights()
+    )
     assert pat.minutes_remaining is PatMinutesRemaining.OVER_FIVE
     assert pat.point_spread is PatPointSpread.AHEAD_12_OR_MORE
 
 
 def test_pat_situation_from_last_situation_number_yields_expected_game_state() -> None:
-    pat = PatSituation.from_situation_number(situation_number=60, category_weights=_default_weights())
+    pat = PatSituation.from_situation_number(
+        situation_number=60, category_weights=_default_weights()
+    )
     assert pat.minutes_remaining is PatMinutesRemaining.ZERO_TO_ONE
     assert pat.point_spread is PatPointSpread.BEHIND_13_OR_MORE
 
@@ -265,7 +275,9 @@ def test_pat_situation_from_last_situation_number_yields_expected_game_state() -
 def test_pat_situation_round_trip_for_every_valid_situation_number() -> None:
     for situation_number in range(1, Profile.NUMBER_PAT_SITUATIONS + 1):
         state = PatSituation._game_state_from_situation_number(situation_number)
-        assert PatSituation._situation_number_from_game_state(*state) == situation_number
+        assert (
+            PatSituation._situation_number_from_game_state(*state) == situation_number
+        )
 
 
 def test_pat_situation_rejects_out_of_range_situation_number() -> None:
