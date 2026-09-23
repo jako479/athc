@@ -1,4 +1,4 @@
-# athc — Status
+# Status
 
 Updated 2026-09-21. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
@@ -28,7 +28,7 @@ athc generate-schedule          DONE
 athc profile check              DONE
 athc profile copy               DONE
 athc profile diff               DONE
-athc check                      FUTURE
+athc check-ppp                  FUTURE
 ```
 
 ## athc
@@ -117,8 +117,10 @@ Working. Validates and edits `.pln` game plans. Docs:
 - `find-play` searches by play name across files and trees, reading the
   category straight from the `.pln`. `replace-play` swaps one play across
   files. Both back up first.
+- Every command that writes makes a timestamped `.bak` next to the file first,
+  unless `--no-backup`. Covered in the README and in tests.
 
-Open: `check` folds into one `athc check` · `replace-play` should take a list
+Open: `check` folds into one `athc check-ppp` · `replace-play` should take a list
 of plays for bulk swaps.
 
 ## pdbtoexcel — `convert-pdb`
@@ -159,8 +161,10 @@ Working. Validates and compares `.prf` coaching profiles. Docs:
   covered.
 - `diff` reports one line per differing situation and infers CSV from the
   `--output` extension.
+- `copy` makes a timestamped `.bak` next to each target before writing, unless
+  `--no-backup`. Covered in the README and in tests.
 
-Open: `check` folds into one `athc check` · revisit `edit`/`copy` options.
+Open: `check` folds into one `athc check-ppp` · revisit `edit`/`copy` options.
 
 ## scheduler — `generate-schedule`
 
@@ -175,6 +179,11 @@ Working. Docs: [README](docs/scheduler/README.md) ·
 - Phase 2 runs multithreaded and stops on deterministic time, not wall-clock.
 - league.ini simplified to `[DivisionStandings]` and `[OverallStandings]`.
 - Golden integration test compares three output files byte for byte.
+- Past PNFL seasons were re-ranked from real results using SOS tiebreaks, which
+  gave each following season's `league.ini` standings and a real-schedule
+  baseline to measure generated seasons against.
+- Every run writes to a new timestamped folder, so nothing is overwritten and
+  there is no backup to make.
 
 Open: simplify the ruleset — 50 `[phase2]` keys, some redundant by
 construction, never pruned · then the quirk budget in
@@ -183,7 +192,7 @@ construction, never pruned · then the quirk budget in
 
 ## Decisions
 
-- **One `athc check FILES...` replaces `gameplan check` and `profile check`.**
+- **One `athc check-ppp FILES...` replaces `gameplan check` and `profile check`.**
   It runs each file's own league rules and adds the compatibility checks when
   it has a matching pair, so a league manager validates a submission in one
   command. To settle: how a directory or glob pairs many files of both types,
@@ -198,3 +207,11 @@ construction, never pruned · then the quirk budget in
   only carry a read-only template, so the editable config is written on first
   run.
 - **STATUS carries no test counts.** They change every run.
+- **The tools stay PNFL-specific.** playpool, gameplan and profile all lean on
+  PNFL conventions, and making them fully league-agnostic would cost more than
+  it is worth.
+- **The CLI is Click.** CLI tests run through its `CliRunner`.
+- **athc-admin ships the full installer.** Open to revisiting.
+- **`uv` runs the project.** It handles Python, dependencies and the lockfile,
+  in place of pip.
+- **Config is `configparser`.** Pydantic was considered and dropped.
