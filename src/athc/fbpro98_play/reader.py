@@ -6,7 +6,6 @@ Decodes the P95 block: header, 11 player offsets, play metadata
 
 from __future__ import annotations
 
-import logging
 from os import PathLike
 from pathlib import Path
 
@@ -24,11 +23,10 @@ from athc.fbpro98_play.schema import (
 
 StrPath = str | PathLike[str]
 
-logger = logging.getLogger(__name__)
-
 
 class InvalidPlayFileError(ValueError):
-    """Raised when a `.ply` file is structurally invalid."""
+    """Raised when a `.ply` file is structurally invalid or has an unrecognized
+    play category."""
 
 
 def read_play(path: StrPath) -> PlayFile:
@@ -42,20 +40,19 @@ def read_play(path: StrPath) -> PlayFile:
 
     Raises:
         InvalidPlayFileError: If the file is not a valid .ply (bad block ID,
-            size mismatch, or truncated structure).
+            size mismatch, or truncated structure) or its play category is
+            unrecognized.
         OSError: If the file cannot be opened or read (subclasses include
             FileNotFoundError, PermissionError, IsADirectoryError).
     """
     file_path = Path(path)
     play = parse_play(file_path.read_bytes(), file_path)
     if play.category is UNKNOWN_CATEGORY:
-        logger.error(
-            "Unrecognized play category in %s "
-            "(play_category=0x%02X, special_category=0x%02X, user_category=0x%02X)",
-            file_path,
-            play.play_category,
-            play.special_category,
-            play.user_category,
+        raise InvalidPlayFileError(
+            f"Unrecognized play category in {file_path} "
+            f"(play_category=0x{play.play_category:02X}, "
+            f"special_category=0x{play.special_category:02X}, "
+            f"user_category=0x{play.user_category:02X})"
         )
     return play
 

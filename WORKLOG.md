@@ -2,6 +2,11 @@
 
 History of what changed and why. Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-09-23 — **fbpro98_play**: `read_play` logged an error for an unrecognized
+  play category and returned the play anyway, so the play pool loaded it as
+  neither a run nor a pass. A library raises instead of logging errors, so it now
+  raises `InvalidPlayFileError`; the pool skips that file with a warning and keeps
+  reading the rest.
 - 2026-09-21 — **config**: league sections used mixed-case keys (`PlayPath`,
   `PlayPoolRules`) while every other key in `athc.ini` was lowercase, and a
   parser subclass existed only to keep that case. The keys are `play_path` and

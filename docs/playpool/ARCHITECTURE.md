@@ -22,8 +22,8 @@ src/athc/playpool/
 - Classifies each play **from its file**:
   - side from the category bytes (`is_offensive` / `is_defensive` /
     `is_special_teams`);
-  - `category` (an `fbpro98_play` enum member, `UNKNOWN_CATEGORY` if unrecognized)
-    from the play's `user_category`; run/pass is `category.is_run` / `category.is_pass`.
+  - `category` (an `fbpro98_play` enum member; a file with an unrecognized
+    category is skipped) from the play's `user_category`; run/pass is `category.is_run` / `category.is_pass`.
 - Reads optional **PNFL folder** attributes the file can't carry:
   - offense `screen` — a `Screens/` folder;
   - defense `defensive_front` — `34…` → 3-4, `43…` → 4-3, an `R&SDefs/`

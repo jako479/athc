@@ -34,6 +34,7 @@
 
 ## fbpro98_play
 
+- an unrecognized play category is an invalid `.ply` now (it was logged as an error); the play pool skips the file with a warning
 - renamed the `Play` family to `PlayRef`/`CustomPlay`/`StockPlay`
 - added the `.ply` play file reader
 

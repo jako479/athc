@@ -16,7 +16,6 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_ply()` = 
 | Default path sentinel | make_ply | `file_path == Path("<buffer>")` | `test_default_path_sentinel` | ☑ |
 | Explicit path | make_ply | `file_path == Path(path)` | `test_explicit_path` | ☑ |
 | `read_play` accepts str + PathLike | tmp_path | parses; `file_path` set | `test_read_play_accepts_str_and_pathlike` | ☑ |
-| Unrecognized category → logs error, continues | make_ply | `category is UNKNOWN_CATEGORY`; "Unrecognized play category" logged | `test_read_play_unknown_category_logs_and_continues` | ☑ |
 
 ### Error → `InvalidPlayFileError`
 | Case | Input | Expected message | Test | Status |
@@ -27,6 +26,7 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_ply()` = 
 | `len != 8 + stream_length` (too large / small) | make_ply | "File size … does not match" | `test_rejects_size_mismatch` `[P]` | ☑ |
 | Size matches but < 33 bytes | make_ply | "File too small to contain play metadata" | `test_rejects_missing_metadata` | ☑ |
 | Player offset past EOF | make_ply | "File too small to contain player header at 0x…" | `test_rejects_offset_past_eof` | ☑ |
+| Unrecognized category (`read_play`) | make_ply | "Unrecognized play category in …" + file name | `test_read_play_rejects_unknown_category` | ☑ |
 
 ### Error → other (not `InvalidPlayFileError`)
 | Case | Input | Expected | Test | Status |

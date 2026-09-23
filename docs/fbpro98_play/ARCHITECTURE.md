@@ -29,8 +29,8 @@ src/athc/fbpro98_play/
   `resolve_category(play_category, special_category, user_category)` and
   `PlayFile.category` name a category from the raw bytes; `category_name` is `category.long`.
   An unrecognized code resolves to `UNKNOWN_CATEGORY` (never `None`); `read_play`
-  logs an error and continues. `category_by_short(label)` resolves a league short
-  label back to its category (`None` if the label isn't one).
+  rejects the file. `category_by_short(label)` resolves a league short label back
+  to its category (`None` if the label isn't one).
 - Validates structural correctness of `.ply` bytes
 
 ## What this package assumes
@@ -44,6 +44,7 @@ Raise `InvalidPlayFileError` for:
 - Invalid block magic
 - Stream length / offset table not internally consistent
 - Player record prefix corruption
+- An unrecognized play category (`read_play` only)
 
 ## What this package does NOT do
 

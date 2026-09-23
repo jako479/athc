@@ -7,14 +7,12 @@ edge paths no real file can express.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
 from athc.fbpro98_play import (
-    UNKNOWN_CATEGORY,
     InvalidPlayFileError,
     PlayerHeader,
     parse_play,
@@ -318,15 +316,13 @@ def test_read_play_accepts_str_and_pathlike(make_ply, tmp_path) -> None:
     assert read_play(path).file_path == path
 
 
-def test_read_play_unknown_category_logs_and_continues(
-    make_ply, tmp_path, caplog
-) -> None:
+def test_read_play_rejects_unknown_category(make_ply, tmp_path) -> None:
     path = tmp_path / "weird.ply"
     path.write_bytes(make_ply(user_category=0x3F))  # 0x3F is not a known category
-    with caplog.at_level(logging.ERROR, logger="athc.fbpro98_play.reader"):
-        play = read_play(path)
-    assert play.category is UNKNOWN_CATEGORY
-    assert "Unrecognized play category" in caplog.text
+    with pytest.raises(
+        InvalidPlayFileError, match=r"Unrecognized play category in .*weird\.ply"
+    ):
+        read_play(path)
 
 
 @pytest.mark.parametrize("buffer", [b"", b"P95", b"P95:abc"])
