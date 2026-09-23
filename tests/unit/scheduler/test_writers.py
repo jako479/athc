@@ -54,7 +54,10 @@ def test_get_writer_errors_on_unsupported_format(tmp_path: Path) -> None:
 
 
 def test_txt_writer_render_groups_games_by_week() -> None:
-    assert TxtScheduleWriter("unused").render(SCHEDULE) == "Week 1\nBeta#Alpha\nWeek 2\nAlpha#Beta\n"
+    assert (
+        TxtScheduleWriter("unused").render(SCHEDULE)
+        == "Week 1\nBeta#Alpha\nWeek 2\nAlpha#Beta\n"
+    )
 
 
 def test_txt_writer_write_creates_file(tmp_path: Path) -> None:

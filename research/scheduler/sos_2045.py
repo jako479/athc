@@ -53,8 +53,11 @@ for t, o in opp.items():
     assert len(o) == 16, f"{t}: {len(o)}"
 
 sos = {t: sum(WINEQ[x] for x in o) for t, o in opp.items()}
+
+
 def hi(teams):  # tougher (higher) first
     return sorted(teams, key=lambda t: -sos[t])
+
 
 # Tie groups needing SOS, with the 2045 division-standing order as the listed
 # fallback if SOS ties (only matters for same-division pairs).
