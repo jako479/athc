@@ -13,11 +13,11 @@ your own.
 - Every open choice is a question first: approach, naming, structure, behavior,
   file layout, scope, edge cases.
 - Ambiguity in a feature description means ask, never interpret.
-- Run a new feature through the superpowers skills, in plan mode:
-  `brainstorming` (explore, questions, design) → `writing-plans` (written spec)
-  → Brian's approval → `using-git-worktrees` + `test-driven-development` →
-  `verification-before-completion` + `requesting-code-review` → Brian's
-  squash-merge.
+- Start each new feature in its own worktree (`using-git-worktrees`), then run
+  it through the superpowers skills, in plan mode: `brainstorming` (explore,
+  questions, design) → `writing-plans` (written spec) → Brian's approval →
+  `test-driven-development` → `verification-before-completion` +
+  `requesting-code-review` → Brian's squash-merge.
 - Do not merge. Report back and stop.
 
 ## Dev environment
