@@ -44,6 +44,7 @@
 
 ## gameplan
 
+- find-play: a wildcard PATH is a usage error, never expanded
 - find-play: dropped `--verbose`, so misses always print `not found`; hits read `found in slot(s) …`, with no category on normal slots
 - rules: attribute caps take a count, ratio or percent form, and the PNFL 2-DL caps moved to percents
 - added the `find-play` and `replace-play` commands

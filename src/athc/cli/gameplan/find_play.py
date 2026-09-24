@@ -9,7 +9,7 @@ from pathlib import Path
 import click
 
 from athc.cli.gameplan import gameplan
-from athc.cli.gameplan._common import collect_files, find_in_gameplan
+from athc.cli.gameplan._common import collect_files, find_in_gameplan, is_glob
 from athc.fbpro98_gameplan import InvalidGamePlanError, PlayRef, read_gameplan
 from athc.fbpro98_play import resolve_category
 
@@ -64,7 +64,8 @@ def find_play(ctx: click.Context, args: tuple[str, ...], recursive: bool) -> Non
     """Find one or more plays by name across .pln files (normal + custom-special slots).
 
     PLAY... are one or more case-insensitive names; PATH is a .pln file or a directory
-    (top level, or the whole tree with -r). Hits show the slot(s); special hits also
+    (top level, or the whole tree with -r), never a wildcard. Hits show the slot(s);
+    special hits also
     show the game category. Each file missing a play prints 'not found'.
     Directory/tree: a per-play summary is appended.
     """
@@ -72,6 +73,10 @@ def find_play(ctx: click.Context, args: tuple[str, ...], recursive: bool) -> Non
     if len(args) < 2:
         raise click.UsageError("need one or more PLAY names followed by a PATH")
     *play_names, path = args
+    if is_glob(path):
+        raise click.UsageError(
+            "PATH must be a .pln file or a directory; wildcards are not supported"
+        )
 
     files, path_errors = collect_files([path], suffix=".pln", recursive=recursive)
     for error in path_errors:

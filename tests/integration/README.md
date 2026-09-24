@@ -172,6 +172,7 @@ In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find
 |---|---|---|---|---|
 | No args / single arg | — | usage error, exit 2 | `test_cli_requires_args` / `test_cli_single_arg_is_rejected` | ☑ |
 | `--verbose` (removed) | data | usage error, exit 2 | `test_cli_verbose_option_is_rejected` | ☑ |
+| Wildcard `PATH` (matching files present) | tmp | usage error, exit 2; not expanded | `test_cli_wildcard_path_is_rejected` | ☑ |
 | Single file hit (normal / special) | data | slot(s); special adds category; no summary | `test_cli_single_file_hit` / `test_cli_finds_custom_special` | ☑ |
 | Single file miss | data | exit 1; "not found" | `test_cli_single_file_miss_exit_1` | ☑ |
 | Case-insensitive | data | hit | `test_cli_single_file_case_insensitive` | ☑ |

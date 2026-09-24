@@ -359,3 +359,12 @@ def test_cli_malformed_pln_exit_2(runner, tmp_path: Path) -> None:
     result = runner.invoke(find_play, [KNOWN_NORMAL, str(bad)])
     assert result.exit_code == 2
     assert "ERROR" in result.output
+
+
+def test_cli_wildcard_path_is_rejected(runner, tmp_path: Path) -> None:
+    """A wildcard PATH is a usage error, never expanded — even when it would match."""
+    shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
+    result = runner.invoke(find_play, [KNOWN_NORMAL, str(tmp_path / "*.pln")])
+    assert result.exit_code == 2
+    assert "wildcards are not supported" in result.output
+    assert "found in slot" not in result.output
