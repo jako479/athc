@@ -155,33 +155,30 @@ In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `d
 
 # `athc gameplan find-play`
 
-In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find_in_gameplan`, `format_hit_line`, `_join_slots`) on constructed gameplans; CLI tier on real `data/offense.pln` / `data/defense.pln` and tmp-written constructed gameplans. Normal hits show the short category + bracketed slot(s) at the end — `'OR45RL01' (RL) [1-3][16-2]`; special hits keep the long category + `in special slot N`. No pool/rules/config.
+In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find_in_gameplan`, `format_hit_line`) on constructed gameplans; CLI tier on real `data/offense.pln` / `data/defense.pln` and tmp-written constructed gameplans. Normal hits read `'OR45RL01' found in slots 1-3, 16-2` (no category); special hits read `'BCFGPAT' found in special slot 1 (Field Goal/PAT)`. Misses always print `not found`. No pool/rules/config.
 
 ## helpers (constructed gameplans)
 | Case | Expected | Test | Status |
 |---|---|---|---|
-| English slot join (used for specials) | `A` / `A and B` / `A, B, and C` | `test_join_slots_*` | ☑ |
 | find: no match / normal / case-insensitive | correct `(normal, special)` hits | `test_find_no_match_returns_empty` / `test_find_matches_normal_slot` / `test_find_case_insensitive` | ☑ |
 | find: one play in many slots / many plays in one gameplan | hits | `test_find_multiple_in_one_gameplan` / `test_find_multiple_different_plays` | ☑ |
 | find: custom special; skips stock-special + clock | special hit / no hit | `test_find_matches_custom_special` / `test_find_skips_stock_special_slots` / `..._clock_slots` | ☑ |
-| Format — offense normal (short cat, bracket slot) | `'OR45RL01' (RL) [1-1]` | `test_format_offense_normal` | ☑ |
-| Format — normal in 2 / 3 slots | `'DUP' (RM) [1-1][2-2]` / `…[16-4]` | `test_format_normal_two_slots` / `test_format_normal_three_slots` | ☑ |
-| Format — defense normal (defense table) | `'DRL' (RunLeft) [1-1]` | `test_format_defense_normal` | ☑ |
-| Format — offense / defense special (long cat, `special slot N`) | `… in special slot N` | `test_format_offense_special` / `test_format_defense_special` | ☑ |
-| Format — masks user_category bits 7-6 | category from low bits | `test_format_masks_high_user_category_bits` | ☑ |
-| Format — unknown category | `(Unknown)` | `test_format_unrecognized_category_shows_unknown` | ☑ |
+| Format — normal in 1 slot (singular, no category) | `'OR45RL01' found in slot 1-1` | `test_format_normal_one_slot` | ☑ |
+| Format — normal in 2 / 3 slots (plural, comma-separated) | `'DUP' found in slots 1-1, 2-2` / `…, 16-4` | `test_format_normal_two_slots` / `test_format_normal_three_slots` | ☑ |
+| Format — offense / defense special (long cat at the end) | `… found in special slot N (cat)` | `test_format_offense_special` / `test_format_defense_special` | ☑ |
 
 ## command (CliRunner)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | No args / single arg | — | usage error, exit 2 | `test_cli_requires_args` / `test_cli_single_arg_is_rejected` | ☑ |
-| Single file hit (normal / special) | data | slot + category; no summary | `test_cli_single_file_hit` / `test_cli_finds_custom_special` | ☑ |
+| `--verbose` (removed) | data | usage error, exit 2 | `test_cli_verbose_option_is_rejected` | ☑ |
+| Single file hit (normal / special) | data | slot(s); special adds category; no summary | `test_cli_single_file_hit` / `test_cli_finds_custom_special` | ☑ |
 | Single file miss | data | exit 1; "not found" | `test_cli_single_file_miss_exit_1` | ☑ |
 | Case-insensitive | data | hit | `test_cli_single_file_case_insensitive` | ☑ |
 | Several plays over a dir; one play in 2 slots of a gameplan that holds 2 of them; summary | tmp | exit 0; per-play "Found N in M" | `test_cli_multiple_plays_all_hit` | ☑ |
 | Multiple plays, one misses | data | exit 1 | `test_cli_one_play_misses_exit_1` | ☑ |
-| Directory: only matching file + summary | tmp | exit 0; footer | `test_cli_directory_hit_only_matching_file` | ☑ |
-| Directory: no hits silent / `--verbose` | tmp | summary only / misses shown | `test_cli_directory_no_hits_*` / `..._verbose_*` | ☑ |
+| Directory: hit in one file, miss in the other | tmp | exit 0; hit + `not found` lines; footer | `test_cli_directory_reports_hit_and_miss_per_file` | ☑ |
+| Directory: no hits | tmp | exit 1; `not found` + footer | `test_cli_directory_misses_are_reported` | ☑ |
 | Directory: instance/file counts | tmp | "Found N in M" | `test_cli_directory_summary_counts_multiple_hits` / `..._per_play_summary` | ☑ |
 | Recursive subdir | tmp | exit 0; found | `test_cli_recursive_finds_in_subdir` | ☑ |
 | Missing path / malformed `.pln` | tmp | exit 2 | `test_cli_missing_path_exit_2` / `test_cli_malformed_pln_exit_2` | ☑ |

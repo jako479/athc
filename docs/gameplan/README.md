@@ -47,7 +47,7 @@ athc gameplan check OFF.pln --play-path C:/PNFL/plays \
 athc gameplan list-normals OFF.pln                 # 64 normal plays to stdout
 athc gameplan list-normals OFF.pln plays.txt --sort name
 athc gameplan list-specials OFF.pln spec.txt -f    # custom special teams
-athc gameplan find-play OR45RL01 OFF.pln           # slot(s) + game category
+athc gameplan find-play OR45RL01 OFF.pln           # slot(s) holding the play
 athc gameplan find-play OR45RL01 BCFGPAT plans/ -r # many plays across a tree
 athc gameplan set-normals OFF.pln plays.txt        # replace 64 normal slots (+ .bak)
 athc gameplan set-normals OFF.pln --stdin --no-backup

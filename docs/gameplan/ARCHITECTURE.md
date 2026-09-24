@@ -68,7 +68,7 @@ Shared `athc.ini` (see [../design/config.md](../design/config.md)):
 
 ## find-play
 
-`athc gameplan find-play PLAY... PATH` searches one or more case-insensitive names across the normal + custom-special slots of each `.pln` (file, directory, or tree with `-r`); stock specials and clock plays are skipped. Normal hits show `'NAME' (short-cat) [G-C][G-C]` (slots bracketed at the end); custom-special hits keep the long category and `in special slot N`. Single file: a miss prints `not found`; directory/tree: misses are silent unless `--verbose`, with a per-play summary footer. Exit `0` = every play hit somewhere, `1` = a play missed everywhere, `2` = I/O error.
+`athc gameplan find-play PLAY... PATH` searches one or more case-insensitive names across the normal + custom-special slots of each `.pln` (file, directory, or tree with `-r`); stock specials and clock plays are skipped. Normal hits read `'NAME' found in slots G-C, G-C` (`slot` for one); a custom-special hit reads `'NAME' found in special slot N (long-cat)`. Every file missing a play prints `not found`; directory/tree mode adds a per-play summary footer. Exit `0` = every play hit somewhere, `1` = a play missed everywhere, `2` = I/O error.
 
 ## set-normals / set-specials
 

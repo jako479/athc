@@ -70,19 +70,18 @@ folder next to this file holds the ready-to-use PNFL rule sets
 
    Searches a single .pln, every .pln in a directory, or a tree (-r).
    Case-insensitive; only the normal and custom-special slots are searched
-   (stock/clock slots skipped). Normal-play hits show the short category and
-   the slot(s) in brackets, e.g. 'OR45RL01' (RL) [1-3][16-2]; special-teams
-   hits show the category and "in special slot N". No pool setup needed -- the
-   category is read from the .pln. Single file: a miss prints `not found`;
-   directory/tree: misses are silent unless --verbose, ending with a per-play
-   summary.
+   (stock/clock slots skipped). Hits show the slot(s), e.g.
+   'OR45RL01' found in slots 1-3, 16-2; special-teams hits add the category,
+   e.g. 'BCFGPAT' found in special slot 1 (Field Goal/PAT). No pool setup
+   needed -- the category is read from the .pln. A file without the play
+   prints `not found`; a directory/tree ends with a per-play summary.
 
    Show help:
       athc gameplan find-play --help
 
    Example terminal calls:
       athc gameplan find-play OR45RL01 offense.pln
-      athc gameplan find-play OR45RL01 BCFGPAT plans\ -r --verbose
+      athc gameplan find-play OR45RL01 BCFGPAT plans\ -r
 
 
 5) gameplan set-normals  --  set the 64 normal plays in a .pln

@@ -22,27 +22,11 @@ def _normal_slot_label(index: int) -> str:
     return f"{index // 4 + 1}-{index % 4 + 1}"
 
 
-def _join_slots(labels: Sequence[str]) -> str:
-    """Join slot labels in English: 1 -> `A`, 2 -> `A and B`, 3+ -> `A, B, and C`."""
-    if len(labels) == 1:
-        return labels[0]
-    if len(labels) == 2:
-        return f"{labels[0]} and {labels[1]}"
-    return f"{', '.join(labels[:-1])}, and {labels[-1]}"
-
-
 def _category_name(play: PlayRef) -> str:
     """Long game category name for a play, from its category bytes."""
     return resolve_category(
         play.play_category, play.special_category, play.user_category
     ).long
-
-
-def _short_category(play: PlayRef) -> str:
-    """Short game category label for a play (e.g. `RL`), from its category bytes."""
-    return resolve_category(
-        play.play_category, play.special_category, play.user_category
-    ).short
 
 
 def format_hit_line(
@@ -52,17 +36,18 @@ def format_hit_line(
     special_hits: Sequence[tuple[int, PlayRef]],
 ) -> str:
     """Compose the one-line hit summary for a single play in a single gameplan.
-    Normal hits: `'NAME' (short-cat) [G-C][G-C]` (slots bracketed at the end).
-    Special hits keep the long category and `in special slot N` wording."""
+    Normal hits: `'NAME' found in slots G-C, G-C` (`slot` when there is one).
+    Special hits: `'NAME' found in special slot N (long-cat)`; never plural, since a
+    play's special category fixes its one special slot."""
     parts: list[str] = []
     if normal_hits:
-        slots = "".join(f"[{_normal_slot_label(i)}]" for i, _ in normal_hits)
-        parts.append(f"'{play_name}' ({_short_category(normal_hits[0][1])}) {slots}")
-    if special_hits:
-        labels = [str(n) for n, _ in special_hits]
-        section = "special slot" if len(labels) == 1 else "special slots"
-        category = _category_name(special_hits[0][1])
-        parts.append(f"'{play_name}' ({category}) in {section} {_join_slots(labels)}")
+        section = "slot" if len(normal_hits) == 1 else "slots"
+        slots = ", ".join(_normal_slot_label(i) for i, _ in normal_hits)
+        parts.append(f"'{play_name}' found in {section} {slots}")
+    for number, play in special_hits:
+        parts.append(
+            f"'{play_name}' found in special slot {number} ({_category_name(play)})"
+        )
     return f"{path}: {'; '.join(parts)}"
 
 
@@ -74,21 +59,14 @@ def format_hit_line(
     is_flag=True,
     help="Recurse into subdirectories when PATH is a directory.",
 )
-@click.option(
-    "--verbose",
-    is_flag=True,
-    help="In directory/tree mode, also report files missing a requested play.",
-)
 @click.pass_context
-def find_play(
-    ctx: click.Context, args: tuple[str, ...], recursive: bool, verbose: bool
-) -> None:
+def find_play(ctx: click.Context, args: tuple[str, ...], recursive: bool) -> None:
     """Find one or more plays by name across .pln files (normal + custom-special slots).
 
     PLAY... are one or more case-insensitive names; PATH is a .pln file or a directory
-    (top level, or the whole tree with -r). Hits show the slot(s) and game category.
-    Single file: a miss prints 'not found'. Directory/tree: misses are silent unless
-    --verbose, and a per-play summary is appended.
+    (top level, or the whole tree with -r). Hits show the slot(s); special hits also
+    show the game category. Each file missing a play prints 'not found'.
+    Directory/tree: a per-play summary is appended.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     if len(args) < 2:
@@ -120,7 +98,7 @@ def find_play(
                 instances_per_play[play_name] += hit_count
                 files_hit_per_play[play_name] += 1
                 click.echo(format_hit_line(file, play_name, normal_hits, special_hits))
-            elif single_file or verbose:
+            else:
                 click.echo(f"{file}: '{play_name}' not found")
 
     if not single_file:

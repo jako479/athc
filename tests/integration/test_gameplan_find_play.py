@@ -8,7 +8,6 @@ from dataclasses import replace
 from pathlib import Path
 
 from athc.cli.gameplan.find_play import (
-    _join_slots,
     find_in_gameplan,
     find_play,
     format_hit_line,
@@ -24,9 +23,8 @@ from tests.integration.conftest import GP_DEFENSE, GP_OFFENSE
 
 # Real plays in the fixtures (offense.pln = O_64_06a, defense.pln = D_50_09).
 KNOWN_NORMAL = "OR45RL01"
-KNOWN_NORMAL_SHORT = "RL"  # offense Run Left short category (normal hits show short)
 KNOWN_SPECIAL = "SFFGXPAT"
-KNOWN_SPECIAL_CATEGORY = "Field Goal/PAT"  # special hits keep the long category
+KNOWN_SPECIAL_CATEGORY = "Field Goal/PAT"  # special hits end with the long category
 MISSING = "NOSUCHPLAYXX"
 
 
@@ -101,21 +99,6 @@ def _write(gp: GamePlan, tmp_path: Path, name: str = "gp.pln") -> Path:
     path = tmp_path / name
     write_gameplan(gp, path)
     return path
-
-
-# ── _join_slots ───────────────────────────────────────────────────────────────
-
-
-def test_join_slots_one() -> None:
-    assert _join_slots(["1-1"]) == "1-1"
-
-
-def test_join_slots_two_uses_and() -> None:
-    assert _join_slots(["1-1", "2-2"]) == "1-1 and 2-2"
-
-
-def test_join_slots_three_uses_oxford_comma() -> None:
-    assert _join_slots(["1-1", "2-2", "16-4"]) == "1-1, 2-2, and 16-4"
 
 
 # ── find_in_gameplan ──────────────────────────────────────────────────────────
@@ -195,75 +178,41 @@ def test_find_skips_clock_slots() -> None:
 # ── format_hit_line ───────────────────────────────────────────────────────────
 
 
-def test_format_offense_normal() -> None:
-    """Offensive normal: short category, bracketed slot at the end."""
-    play = _make_offense_normal("OR45RL01", user_category=0x05)
+def test_format_normal_one_slot() -> None:
+    """One normal slot: singular `slot`, no category."""
+    play = _make_offense_normal("OR45RL01")
     assert format_hit_line(Path("OFF.pln"), "OR45RL01", [(0, play)], []) == (
-        "OFF.pln: 'OR45RL01' (RL) [1-1]"
+        "OFF.pln: 'OR45RL01' found in slot 1-1"
     )
 
 
 def test_format_normal_two_slots() -> None:
-    play = _make_offense_normal("DUP", user_category=0x09)  # Run Middle
+    """Two normal slots: plural `slots`, comma-separated."""
+    play = _make_offense_normal("DUP")
     assert format_hit_line(Path("OFF.pln"), "DUP", [(0, play), (5, play)], []) == (
-        "OFF.pln: 'DUP' (RM) [1-1][2-2]"
+        "OFF.pln: 'DUP' found in slots 1-1, 2-2"
     )
 
 
 def test_format_normal_three_slots() -> None:
-    play = _make_offense_normal("DUP", user_category=0x09)
+    play = _make_offense_normal("DUP")
     assert format_hit_line(
         Path("OFF.pln"), "DUP", [(0, play), (5, play), (63, play)], []
-    ) == ("OFF.pln: 'DUP' (RM) [1-1][2-2][16-4]")
-
-
-def test_format_masks_high_user_category_bits() -> None:
-    play = _make_offense_normal(
-        "VARMM", user_category=0x49
-    )  # bits 5-0 = 0x09 -> Run Middle
-    assert format_hit_line(Path("OFF.pln"), "VARMM", [(0, play)], []) == (
-        "OFF.pln: 'VARMM' (RM) [1-1]"
-    )
-
-
-def test_format_defense_normal() -> None:
-    """Defensive normal: defense category table, short label."""
-    play = CustomPlayRef(
-        filename="PNFL\\DRL.PLY",
-        play_category=0,
-        special_category=0,
-        user_category=0x04,
-    )
-    assert format_hit_line(Path("DEF.pln"), "DRL", [(0, play)], []) == (
-        "DEF.pln: 'DRL' (RunLeft) [1-1]"
-    )
+    ) == ("OFF.pln: 'DUP' found in slots 1-1, 2-2, 16-4")
 
 
 def test_format_offense_special() -> None:
-    """Offensive special: long category + 'in special slot N' (unchanged)."""
+    """Special: `special slot N`, then the long category."""
     play = _make_offense_special("BCFGPAT", 1)
     assert format_hit_line(Path("OFF.pln"), "BCFGPAT", [], [(1, play)]) == (
-        "OFF.pln: 'BCFGPAT' (Field Goal/PAT) in special slot 1"
+        "OFF.pln: 'BCFGPAT' found in special slot 1 (Field Goal/PAT)"
     )
 
 
 def test_format_defense_special() -> None:
-    """Defensive special: long category + 'in special slot N'."""
     play = _make_defense_special("CINKR", 2)  # Kick Return
     assert format_hit_line(Path("DEF.pln"), "CINKR", [], [(2, play)]) == (
-        "DEF.pln: 'CINKR' (Kick Return) in special slot 2"
-    )
-
-
-def test_format_unrecognized_category_shows_unknown() -> None:
-    play = CustomPlayRef(
-        filename="PNFL\\MYSTERY.PLY",
-        play_category=1,
-        special_category=0,
-        user_category=0x15,  # not a known category code
-    )
-    assert format_hit_line(Path("OFF.pln"), "MYSTERY", [(3, play)], []) == (
-        "OFF.pln: 'MYSTERY' (Unknown) [1-4]"
+        "DEF.pln: 'CINKR' found in special slot 2 (Kick Return)"
     )
 
 
@@ -282,7 +231,7 @@ def test_cli_single_arg_is_rejected(runner) -> None:
 def test_cli_single_file_hit(runner) -> None:
     result = runner.invoke(find_play, [KNOWN_NORMAL, str(GP_OFFENSE)])
     assert result.exit_code == 0
-    assert f"'{KNOWN_NORMAL}' ({KNOWN_NORMAL_SHORT}) [1-1]" in result.output
+    assert f"'{KNOWN_NORMAL}' found in slot 1-1" in result.output
     assert "Found " not in result.output  # no summary in single-file mode
 
 
@@ -295,14 +244,14 @@ def test_cli_single_file_miss_exit_1(runner) -> None:
 def test_cli_single_file_case_insensitive(runner) -> None:
     result = runner.invoke(find_play, [KNOWN_NORMAL.lower(), str(GP_OFFENSE)])
     assert result.exit_code == 0
-    assert f"({KNOWN_NORMAL_SHORT}) [1-1]" in result.output  # hit despite lowercase
+    assert "found in slot 1-1" in result.output  # hit despite lowercase
 
 
 def test_cli_finds_custom_special(runner) -> None:
     result = runner.invoke(find_play, [KNOWN_SPECIAL, str(GP_OFFENSE)])
     assert result.exit_code == 0
     assert (
-        f"'{KNOWN_SPECIAL}' ({KNOWN_SPECIAL_CATEGORY}) in special slot 1"
+        f"'{KNOWN_SPECIAL}' found in special slot 1 ({KNOWN_SPECIAL_CATEGORY})"
         in result.output
     )
 
@@ -323,8 +272,8 @@ def test_cli_multiple_plays_all_hit(runner, tmp_path: Path) -> None:
     _write(gp2, tmp_path, "gp2.pln")
     result = runner.invoke(find_play, ["OR45RL01", "DUPRM", str(tmp_path)])
     assert result.exit_code == 0
-    assert "'OR45RL01' (RL) [1-1][2-3]" in result.output  # one play, two slots in gp1
-    assert "'DUPRM' (RM) [2-2]" in result.output  # a 2nd different play in gp1
+    assert "'OR45RL01' found in slots 1-1, 2-3" in result.output  # two slots in gp1
+    assert "'DUPRM' found in slot 2-2" in result.output  # a 2nd different play in gp1
     assert "'OR45RL01': Found 3 instance(s) in 2 gameplan(s)." in result.output
     assert "'DUPRM': Found 1 instance(s) in 1 gameplan(s)." in result.output
 
@@ -341,30 +290,30 @@ def test_cli_one_play_misses_exit_1(runner) -> None:
 # ── command: directory / tree ─────────────────────────────────────────────────
 
 
-def test_cli_directory_hit_only_matching_file(runner, tmp_path: Path) -> None:
+def test_cli_directory_reports_hit_and_miss_per_file(runner, tmp_path: Path) -> None:
+    """Directory mode reports each file's hit or miss, with no flag needed."""
     shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
     shutil.copy2(GP_DEFENSE, tmp_path / "def.pln")
     result = runner.invoke(find_play, [KNOWN_SPECIAL, str(tmp_path)])
     assert result.exit_code == 0
-    assert "off.pln" in result.output and "def.pln" not in result.output
+    assert f"off.pln: '{KNOWN_SPECIAL}' found in special slot 1" in result.output
+    assert f"def.pln: '{KNOWN_SPECIAL}' not found" in result.output
     assert f"'{KNOWN_SPECIAL}': Found 1 instance(s) in 1 gameplan(s)." in result.output
 
 
-def test_cli_directory_no_hits_silent_except_summary(runner, tmp_path: Path) -> None:
+def test_cli_directory_misses_are_reported(runner, tmp_path: Path) -> None:
     shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
     result = runner.invoke(find_play, [MISSING, str(tmp_path)])
     assert result.exit_code == 1
-    assert "not found" not in result.output
+    assert f"off.pln: '{MISSING}' not found" in result.output
     assert f"'{MISSING}': Found 0 instance(s) in 0 gameplan(s)." in result.output
 
 
-def test_cli_directory_verbose_reports_misses(runner, tmp_path: Path) -> None:
-    shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
-    shutil.copy2(GP_DEFENSE, tmp_path / "def.pln")
-    result = runner.invoke(find_play, [KNOWN_SPECIAL, str(tmp_path), "--verbose"])
-    assert result.exit_code == 0
-    assert "off.pln" in result.output and "def.pln" in result.output
-    assert "not found" in result.output
+def test_cli_verbose_option_is_rejected(runner) -> None:
+    """`--verbose` was removed; misses are always reported."""
+    result = runner.invoke(find_play, [KNOWN_NORMAL, str(GP_OFFENSE), "--verbose"])
+    assert result.exit_code == 2
+    assert "No such option '--verbose'" in result.output
 
 
 def test_cli_directory_summary_counts_multiple_hits(runner, tmp_path: Path) -> None:
