@@ -54,12 +54,14 @@ default; run them with `uv run pytest -m slow`.
 
 ## Docs
 
-Update design documents and project meta as appropriate: STATUS, CHANGELOG,
-TODO, README.md, README.txt. CHANGELOG and TODO entries are single-line when
-possible.
+After a behavior change, read the project's design documents (DESIGN.md,
+ARCHITECTURE.md or similar) end to end and update whatever the change affects.
 
-New entries in STATUS, WORKLOG, CHANGELOG and TODO go at the top of their
-section, never mid-list or at the bottom.
+Update project meta as appropriate: STATUS.md, CHANGELOG.md, TODO.md, README.md,
+release/README.txt. CHANGELOG and TODO entries are single-line when possible.
+
+New entries in STATUS.md, WORKLOG.md, CHANGELOG.md and TODO.md go at the top of
+their section, never mid-list or at the bottom.
 
 ## Commits and hand-off
 
