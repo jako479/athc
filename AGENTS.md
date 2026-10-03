@@ -11,7 +11,8 @@ All decisions are the human's. Ask — never assume, infer, or pick an approach 
 your own.
 
 - Every open choice is a question first: approach, naming, structure, behavior,
-  file layout, scope, edge cases.
+  file layout, scope, edge cases. File layout means the project's own files;
+  a skill's own files (spec, plan) go where that skill says, no question.
 - Ambiguity in a feature description means ask, never interpret.
 - Do not merge. Report back and stop.
 
@@ -46,6 +47,14 @@ default; run them with `uv run pytest -m slow`.
   mode) must pass.
 - Comments explain why, not what, except where the code is likely hard to read
   for a newcomer to the language.
+
+## Text files
+
+- Every text file, Markdown and docs included, is UTF-8 with CRLF line
+  endings and a final newline. Never mix endings; a tool that writes LF is
+  corrected before the file is left.
+- Only Visual Studio files (.cs, .csproj, .resx, .settings, .config, .xml)
+  carry a UTF-8 BOM.
 
 ## Testing
 

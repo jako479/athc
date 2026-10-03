@@ -10,7 +10,15 @@
 - check-ppp: plan how to handle checking compatibility beteen a .prf and a .pln
 - check-ppp: replace `gameplan check`
 - check-ppp: replace `profile check`
+- gameplan: evaluate whether wildcard paths through `collect_files` were added on purpose, per command
+  - check
+  - set-specials
+  - replace-play
+- gameplan: drop wildcard paths — they are expanded before the command sees them, which breaks `find-play`
 - gameplan: replace play (single and bulk) - list of plays as input??
+- profile: check for wildcard path support
+  - check
+  - copy
 - profile: revisit edit\copy options
 - generate-schedule: generate schedules for PCFL
 - generate-schedule: review and simplify the ruleset — 50 `[phase2]` keys, some redundant; consider simple vs. full ruleset switch. Reasoning and plan in [STATUS.md](STATUS.md)
