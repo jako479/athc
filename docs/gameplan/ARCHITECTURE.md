@@ -56,7 +56,7 @@ Shared `athc.ini` (see [../design/config.md](../design/config.md)):
 - `[gameplan] rule_files` — one rule-TOML path per line.
 - League section (`[league.PNFL]`, chosen by `--league` / `ATHC_LEAGUE` / `[athc] default_league`) — `play_path` (play pool dir) and optional `playpool_rules` (a playpool filename-filter TOML).
 
-`check` also takes `--play-path`, `--playpool-rules`, and repeatable `--rules` to override; given all three it skips league resolution. With no rules resolvable there's nothing to validate → log an error, exit 2.
+`check` also takes `--play-path`, `--playpool-rules`, and repeatable `--rules` to override. The league is read only while `play_path` or `playpool_rules` still comes from it: `--play-path` alone keeps the league's `playpool_rules`; with both given, no league is needed. With no rules resolvable there's nothing to validate → log an error, exit 2.
 
 ## check
 

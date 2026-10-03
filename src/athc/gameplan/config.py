@@ -35,11 +35,12 @@ def load_config(
 
     `play_path` (required) and `playpool_rules` (optional playpool rules TOML) come
     from the league section, `rule_files` from `[gameplan]`. The `play_path` /
-    `playpool_rules` / `rule_files` overrides win; the league is resolved only when
-    a path is still needed. Config file: `config_dir()/athc.ini`.
+    `playpool_rules` / `rule_files` overrides win; the league is read only while
+    `play_path` or `playpool_rules` still comes from it, so overriding `play_path`
+    alone keeps the league's `playpool_rules`. Config file: `config_dir()/athc.ini`.
     """
     league_cfg: dict[str, str] = {}
-    if play_path is None:
+    if play_path is None or playpool_rules is None:
         league_cfg = load_league(league)  # LeagueError if none
 
     pp = str(play_path) if play_path is not None else league_cfg.get("play_path")

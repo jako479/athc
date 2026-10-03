@@ -15,6 +15,7 @@ import pytest
 from athc.cli.gameplan._common import collect_files
 from athc.cli.gameplan.check import check, check_file
 from athc.gameplan import load_rules
+from athc.gameplan.config import load_config
 from athc.playpool import load_rules as load_pool_rules
 from athc.playpool import read_play_pool
 from tests.integration.conftest import (
@@ -327,6 +328,50 @@ def test_cli_resolves_from_league_ini(runner, write_config: WriteConfig) -> None
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 1
     assert "violation(s)" in result.output
+
+
+def test_load_config_play_path_alone_reads_league_playpool_rules(
+    tmp_path: Path, write_config: WriteConfig
+) -> None:
+    """`--play-path` overrides only `play_path`; `playpool_rules` still comes from
+    the league section."""
+    write_config(
+        f"[athc]\ndefault_league = PNFL\n"
+        f"[league.PNFL]\nplay_path = {tmp_path / 'league-pool'}\n"
+        f"playpool_rules = {POOL_RULES}\n",
+    )
+    cfg = load_config(play_path=PLAYS)
+    assert cfg.play_path == PLAYS
+    assert cfg.playpool_rules == POOL_RULES
+
+
+def test_cli_play_path_alone_keeps_league_playpool_rules(
+    runner, write_config: WriteConfig
+) -> None:
+    """`--play-path` alone still reads the league's `playpool_rules`, so the
+    filename-derived caps (timed, rollout, QB draw) are checked."""
+    write_config(
+        f"[athc]\ndefault_league = PNFL\n"
+        f"[gameplan]\nrule_files =\n    {GP_RULES}\n"
+        f"[league.PNFL]\nplay_path = {PLAYS}\nplaypool_rules = {POOL_RULES}\n",
+    )
+    result = runner.invoke(check, [str(GP_OFFENSE), "--play-path", str(PLAYS)])
+    assert result.exit_code == 1
+    assert "timed passes" in result.output
+
+
+def test_cli_play_path_alone_needs_league(
+    runner, caplog: pytest.LogCaptureFixture
+) -> None:
+    """`--play-path` without `--playpool-rules` still needs the league; with no
+    config that is an error, not a silent skip of the playpool rules."""
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(
+            check,
+            [str(GP_OFFENSE), "--play-path", str(PLAYS), "--rules", str(GP_RULES)],
+        )
+    assert result.exit_code == 2
+    assert "league" in caplog.text.lower()
 
 
 # ── packaging check (real subprocess) ─────────────────────────────────────────

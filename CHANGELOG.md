@@ -2,6 +2,7 @@
 
 ## athc
 
+- gameplan: `--play-path` alone no longer drops the league's `playpool_rules`; the timed, rollout and QB-draw caps were silently skipped
 - config: league keys are lowercase (`play_path`, `playpool_rules`); the case-keeping parser is gone
 - docs: the rules TOML is the PNFL reference; the RULES_PNFL docs are gone and exit codes moved into each README
 - tests: the shipped `release/athc.ini` is loaded through every section loader and its rule files must exist

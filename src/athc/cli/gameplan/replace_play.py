@@ -152,14 +152,17 @@ def replace_play(
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     # Pool needs no playpool rules: replace-play uses each play's category bytes, not
-    # the filename-derived attributes those rules add.
+    # the filename-derived attributes those rules add. So the league is read only
+    # when --play-path is absent.
     try:
-        config = load_config(league, play_path=play_path)
+        pool_path = (
+            play_path if play_path is not None else load_config(league).play_path
+        )
     except (ConfigFileError, ValueError, OSError) as error:
         logger.error("%s: %s", PROG, error)
         ctx.exit(2)
 
-    pool = build_pool(config.play_path, None, prog=PROG, logger=logger)
+    pool = build_pool(pool_path, None, prog=PROG, logger=logger)
     if pool is None:
         ctx.exit(2)
 
