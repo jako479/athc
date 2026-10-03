@@ -118,7 +118,6 @@ max_timed_ratio = "1/2"
 required = false
 min_count = 3
 max_rollouts_count = 2
-max_timed_ratio = "1/2"
 
 # ── Defense ───────────────────────────────────────────────────────────────────
 
