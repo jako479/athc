@@ -2,6 +2,13 @@
 
 History of what changed and why. Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-09-27 — **scheduler**: the scheduler was hard-wired to the PNFL (four
+  divisions, 16 weeks). A second league, the PCFL, has two conferences of nine,
+  no divisions and 12 weeks with rivalry week last. The league file now takes
+  `[ConferenceStandings]` instead of `[DivisionStandings]`, the rules file gains
+  `[league] weeks`, three toggles for the NFL-pattern home/away rules, two PCFL
+  rules and `[rivalries]`; every divisional rule applies only with divisions. A
+  fingerprint test pins the PNFL CP-SAT models so the golden schedule is unchanged.
 - 2026-09-23 — **fbpro98_play**: `read_play` logged an error for an unrecognized
   play category and returned the play anyway, so the play pool loaded it as
   neither a run nor a pass. A library raises instead of logging errors, so it now

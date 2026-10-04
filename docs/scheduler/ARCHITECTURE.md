@@ -47,12 +47,13 @@ CLI-level (Click → exit 2):
 - `--season` provided; `--time-limit` an integer
 
 Config (raise `ConfigError`) — found via `config_dir()` / `ATHC_CONFIG_DIR`, no `--config` flag:
-- `<season>.league.ini` (`[DivisionStandings]` per-division finish order, which defines division membership, + `[OverallStandings]` overall 1–18) is **required** data, selected by the required `--season`. The scheduler uses the overall order and derives its 1–9 conference ranks from it.
+- `<season>.league.ini` (exactly one of `[DivisionStandings]` (per-division finish order; defines the divisions) or `[ConferenceStandings]` (two conferences of nine; no divisions), plus `[OverallStandings]`) is **required** data, selected by the required `--season`. The scheduler uses the overall order and derives its 1–9 conference ranks from it.
 - `rules/PNFL.scheduler.toml` scheduler tunables (difficulty `spread`, solver `time_limit` / `solver_workers`) are **optional** (each key defaults when absent); invalid TOML or a wrong-typed value is an error. The difficulty curve drives the scheduler.
+- League-resolved rules: `weeks` must fit the league (structural games < weeks ≤ structural + 9, even); `opening_nonconference_weeks` must leave room for every same-conference game; `[rivalries]` must name every team once with exactly one cross-conference pair. All `ConfigError`.
 - Invalid INI, or league data that fails domain validation, surfaces as a `ConfigError`
 
 Domain (raise `ValueError`):
-- Each conference has the expected number of divisions; each division the expected number of teams
+- Each conference has nine teams; a league has four PNFL divisions or none.
 - League invariants (e.g., team count, division balance) are validated at load time
 
 Solver (`SchedulerResult.feasible == False`):
@@ -95,7 +96,8 @@ Phase 1 stays single-threaded (one worker), bounded by `phase1_time_limit` in wa
 
 Under `tests/unit/scheduler/`:
 
-- shared — `test_cli` / `test_config` (CLI + config/league/history loading; matrix in [test-matrix-config-loading.md](../../tests/unit/scheduler/test-matrix-config-loading.md)), `test_schedule_builder` (phase-2 placement), `test_history_costs`, `test_report` (HTML report; matrix in [test-matrix-report.md](../../tests/unit/scheduler/test-matrix-report.md)), `test_writers`.
+- shared — `test_cli` / `test_config` (CLI + config/league/history loading; matrix in [test-matrix-config-loading.md](../../tests/unit/scheduler/test-matrix-config-loading.md)), `test_league` (domain, both formats), `test_schedule_builder` (phase-2 placement), `test_pnfl_model_fingerprint` (pins both PNFL CP-SAT models; re-pin only with the goldens), `test_history_costs`, `test_report` (HTML report; matrix in [test-matrix-report.md](../../tests/unit/scheduler/test-matrix-report.md)), `test_writers`.
 - `fixed_cpsat/` — `test_fixed_cpsat_inventory` (phase-1) plus `test_schedule_structure` / `test_schedule_rules` (end-to-end).
+- `conference_league/` — PCFL inventory + end-to-end rules; matrix in [test-matrix-conference-league.md](../../tests/unit/scheduler/conference_league/test-matrix-conference-league.md). The inventory tests run by default; the solved-schedule rule tests are `slow`.
 
 The `fixed_cpsat/` folder solves end-to-end, so the placement rules are validated. Solver-backed tests (any using a solved-schedule fixture) are marked `slow` and skipped by default; run them with `pytest -m slow`. End-to-end, `tests/integration/test_generate_schedule.py` is a golden regression: it runs the CLI at a fixed seed, validates the produced schedule against every rule, and asserts the three output files byte-match the frozen goldens (regenerate with `python -m tests.integration.test_generate_schedule --bless`). League-parametrized tests use three ranking variants (`5/6/7-free-slots`) spanning the playoff-distribution splits — the 4-team division supplying 1, 2, or 3 of its conference's 4 playoff teams (the scheduler uses overall rank, not playoffs).

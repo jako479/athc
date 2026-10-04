@@ -4,15 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from athc.scheduler.domain.league import Division, Team
+from athc.scheduler.domain.league import AFC, AFC_EAST, Team
 from athc.scheduler.domain.schedule import Game, Schedule
 from athc.scheduler.writers.html_writer import HtmlScheduleWriter
 from athc.scheduler.writers.txt_writer import TxtScheduleWriter
 from athc.scheduler.writers.writer import available_writer_formats, get_writer
 
 # A tiny hand-built schedule — no solver needed to exercise the writers.
-ALPHA = Team("Alpha", Division.AFC_EAST)
-BETA = Team("Beta", Division.AFC_EAST)
+ALPHA = Team("Alpha", AFC, AFC_EAST)
+BETA = Team("Beta", AFC, AFC_EAST)
 SCHEDULE = Schedule(
     (
         Game(week=1, home=ALPHA, away=BETA),

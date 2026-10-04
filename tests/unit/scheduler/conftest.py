@@ -16,23 +16,31 @@ import pytest
 from click.testing import CliRunner
 
 from athc.scheduler.config import SchedulerConfig, SolverConfig
-from athc.scheduler.domain.league import Division, League, build_league
+from athc.scheduler.domain.league import (
+    AFC_EAST,
+    AFC_WEST,
+    NFC_EAST,
+    NFC_WEST,
+    League,
+    build_conference_league,
+    build_league,
+)
 from athc.scheduler.schedulers.types import SchedulerResult, get_scheduler
 from athc.scheduler.writers.report import HtmlReportWriter, build_schedule_report
 
 SLOW_SOLVE_TIME_LIMIT = 1200.0  # cap each slow-test solve at 20 minutes
 
 _DIVISIONS: dict[str, Sequence[str]] = {
-    Division.AFC_EAST.name: ("New England", "Buffalo", "Miami", "Jacksonville"),
-    Division.AFC_WEST.name: (
+    AFC_EAST.name: ("New England", "Buffalo", "Miami", "Jacksonville"),
+    AFC_WEST.name: (
         "Cincinnati",
         "Denver",
         "Los Angeles",
         "Las Vegas",
         "Pittsburgh",
     ),
-    Division.NFC_EAST.name: ("Philadelphia", "Washington", "New York", "Atlanta"),
-    Division.NFC_WEST.name: (
+    NFC_EAST.name: ("Philadelphia", "Washington", "New York", "Atlanta"),
+    NFC_WEST.name: (
         "Chicago",
         "Green Bay",
         "Minnesota",
@@ -144,6 +152,66 @@ _ALL_LEAGUES = [
     pytest.param(LEAGUE_7_SLOTS, id="7-free-slots"),
 ]
 
+# A league without divisions (the PCFL): two conferences of 9. Conference lists
+# are the regular-season finish (record, then point differential); the overall
+# order ranks playoff finish first.
+PCFL_WEST = (
+    "Ohio State",
+    "Notre Dame",
+    "UCLA",
+    "Washington",
+    "Oklahoma",
+    "USC",
+    "Colorado",
+    "Oregon",
+    "Michigan",
+)
+PCFL_EAST = (
+    "Texas",
+    "Tennessee",
+    "Boston College",
+    "Arkansas",
+    "LSU",
+    "Clemson",
+    "Georgia",
+    "Penn State",
+    "Miami",
+)
+PCFL_OVERALL = (
+    "Texas",
+    "Tennessee",
+    "Notre Dame",
+    "Arkansas",
+    "Ohio State",
+    "Boston College",
+    "LSU",
+    "UCLA",
+    "Washington",
+    "Clemson",
+    "Oklahoma",
+    "Georgia",
+    "Penn State",
+    "USC",
+    "Colorado",
+    "Miami",
+    "Oregon",
+    "Michigan",
+)
+PCFL_LEAGUE = build_conference_league(
+    {"WESTERN": PCFL_WEST, "EASTERN": PCFL_EAST}, PCFL_OVERALL
+)
+PCFL_RIVALRIES = (
+    ("Michigan", "Ohio State"),
+    ("USC", "UCLA"),
+    ("Washington", "Oregon"),
+    ("Notre Dame", "Colorado"),
+    ("Oklahoma", "Texas"),
+    ("LSU", "Arkansas"),
+    ("Georgia", "Tennessee"),
+    ("Clemson", "Miami"),
+    ("Penn State", "Boston College"),
+)
+
 _SOLVER_FIXTURES = frozenset({"scheduler_result", "schedule", "matchup_plan"})
 
 
@@ -188,6 +256,7 @@ def solve_and_report(league, tmp_path_factory) -> SchedulerResult:
             scheduler_config=SchedulerConfig(
                 solver=SolverConfig(time_limit=SLOW_SOLVE_TIME_LIMIT)
             ),
+            season=2048,
         )
         _solve_cache[key] = result
         report = build_schedule_report(

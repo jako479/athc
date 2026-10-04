@@ -12,7 +12,17 @@ from collections import Counter
 
 import pytest
 
-from athc.scheduler.domain.league import Division, League, Team, build_league
+from athc.scheduler.domain.league import (
+    AFC_EAST,
+    AFC_WEST,
+    NFC_EAST,
+    NFC_WEST,
+    PNFL_DIVISIONS,
+    PNFL_DIVISIONS_BY_NAME,
+    League,
+    Team,
+    build_league,
+)
 from athc.scheduler.schedulers.errors import SchedulerError
 from athc.scheduler.schedulers.fixed_cpsat_builder import (
     FIXED_NONCONF_PLACE_OPPONENTS,
@@ -25,11 +35,7 @@ from athc.scheduler.schedulers.types import MatchupPlan, make_matchup
 
 @pytest.fixture(scope="session")
 def fixed_cpsat_matchup_plan(league: League) -> MatchupPlan:
-    return FixedCpsatMatchupBuilder(
-        teams=league.teams,
-        rankings=league.rankings,
-        division_standings=league.division_standings,
-    ).build_matchup_plan()
+    return FixedCpsatMatchupBuilder(league).build_matchup_plan()
 
 
 def _team_counts(matchups) -> Counter[Team]:
@@ -55,7 +61,7 @@ def _place_pairs_from(league: League) -> set:
     standings = league.division_standings
     assert standings is not None
     team_at = {
-        (division, index + 1): team
+        (division.name, index + 1): team
         for division, order in standings.items()
         for index, team in enumerate(order)
     }
@@ -66,10 +72,10 @@ def _place_pairs_from(league: League) -> set:
     }
 
 
-def _avg_opponent_conf_rank(team: Team, matchups, rankings) -> float:
-    games = 5 if team.division in (Division.AFC_EAST, Division.NFC_EAST) else 4
+def _avg_opponent_conf_rank(team: Team, matchups, league: League) -> float:
+    games = league.nonconference_games(team, 16)
     total = sum(
-        rankings.rank_of(j if i == team else i)
+        league.rankings.rank_of(j if i == team else i)
         for i, j in matchups
         if team in (i, j) and i.conference != j.conference
     )
@@ -111,7 +117,7 @@ def test_inventory_assigns_expected_nonconference_degree(
     fixed_cpsat_matchup_plan, league
 ):
     for team in league.teams:
-        expected = 5 if team.division in (Division.AFC_EAST, Division.NFC_EAST) else 4
+        expected = 5 if team.division in (AFC_EAST, NFC_EAST) else 4
         actual = len(_nonconference_opponents(team, fixed_cpsat_matchup_plan.matchups))
         assert actual == expected, f"{team.metro}: wrong non-conference degree"
 
@@ -128,7 +134,7 @@ def test_inventory_records_fixed_pairs_per_team(fixed_cpsat_matchup_plan, league
     assert len(fixed) == 17
     assert fixed <= set(fixed_cpsat_matchup_plan.matchups)
     standings = league.division_standings
-    fifth_place = {standings[Division.AFC_WEST][4], standings[Division.NFC_WEST][4]}
+    fifth_place = {standings[AFC_WEST][4], standings[NFC_WEST][4]}
     fixed_degree = _team_counts(fixed)
     for team in league.teams:
         expected = 1 if team in fifth_place else 2
@@ -158,15 +164,7 @@ def test_gives_each_team_a_top_and_bottom_half_opponent(
 
 def test_inventory_is_deterministic(league) -> None:
     def build() -> Counter:
-        return Counter(
-            FixedCpsatMatchupBuilder(
-                teams=league.teams,
-                rankings=league.rankings,
-                division_standings=league.division_standings,
-            )
-            .build_matchup_plan()
-            .matchups
-        )
+        return Counter(FixedCpsatMatchupBuilder(league).build_matchup_plan().matchups)
 
     assert build() == build()
 
@@ -179,14 +177,9 @@ def test_inventory_is_deterministic(league) -> None:
 @pytest.mark.parametrize("spread", [0.0, 1.8, 2.5])
 def test_difficulty_is_near_line_target(league, spread) -> None:
     # Soft target; worst observed across leagues and spreads is 0.75, allow 1.0.
-    plan = FixedCpsatMatchupBuilder(
-        teams=league.teams,
-        rankings=league.rankings,
-        division_standings=league.division_standings,
-        spread=spread,
-    ).build_matchup_plan()
+    plan = FixedCpsatMatchupBuilder(league, spread=spread).build_matchup_plan()
     for team in league.teams:
-        avg = _avg_opponent_conf_rank(team, plan.matchups, league.rankings)
+        avg = _avg_opponent_conf_rank(team, plan.matchups, league)
         target = difficulty_target(league.rankings.rank_of(team), spread)
         assert abs(avg - target) <= 1.0, (
             f"{team.metro}: avg opponent rank {avg:.2f} far from target {target:.2f}"
@@ -195,9 +188,10 @@ def test_difficulty_is_near_line_target(league, spread) -> None:
 
 def test_orders_difficulty_by_conference_rank(fixed_cpsat_matchup_plan, league) -> None:
     matchups = fixed_cpsat_matchup_plan.matchups
-    for ranked in (league.rankings.afc, league.rankings.nfc):
-        top = _avg_opponent_conf_rank(ranked[0], matchups, league.rankings)
-        bottom = _avg_opponent_conf_rank(ranked[-1], matchups, league.rankings)
+    for conference in league.conferences:
+        ranked = league.rankings.ranked(conference)
+        top = _avg_opponent_conf_rank(ranked[0], matchups, league)
+        bottom = _avg_opponent_conf_rank(ranked[-1], matchups, league)
         assert top < bottom, "top seed should get a tougher slate than the bottom seed"
 
 
@@ -223,8 +217,8 @@ def test_difficulty_target_line() -> None:
 
 def test_place_table_covers_every_division_place() -> None:
     expected_slots = {
-        (division, place)
-        for division in Division
+        (division.name, place)
+        for division in PNFL_DIVISIONS
         for place in range(1, division.expected_size + 1)
     }
     assert set(FIXED_NONCONF_PLACE_OPPONENTS) == expected_slots
@@ -234,7 +228,10 @@ def test_place_table_is_symmetric_and_cross_conference() -> None:
     for (division, place), opponents in FIXED_NONCONF_PLACE_OPPONENTS.items():
         assert len(set(opponents)) == len(opponents)
         for opp_division, opp_place in opponents:
-            assert opp_division.conference != division.conference
+            assert (
+                PNFL_DIVISIONS_BY_NAME[opp_division].conference
+                != PNFL_DIVISIONS_BY_NAME[division].conference
+            )
             assert (division, place) in FIXED_NONCONF_PLACE_OPPONENTS[
                 opp_division, opp_place
             ]
@@ -251,31 +248,27 @@ def test_place_table_defines_17_unique_pairs() -> None:
 
 def test_place_table_is_same_place_only() -> None:
     # Places 1-4: both same-place finishers, nothing else. 5ths: each other.
-    for division in Division:
+    for division in PNFL_DIVISIONS:
         for place in range(1, 5):
-            opponents = set(FIXED_NONCONF_PLACE_OPPONENTS[division, place])
+            opponents = set(FIXED_NONCONF_PLACE_OPPONENTS[division.name, place])
             expected = {
-                (other, place)
-                for other in Division
+                (other.name, place)
+                for other in PNFL_DIVISIONS
                 if other.conference != division.conference
             }
             assert opponents == expected, f"{division.name} place {place}"
-    assert FIXED_NONCONF_PLACE_OPPONENTS[Division.AFC_WEST, 5] == (
-        (Division.NFC_WEST, 5),
-    )
-    assert FIXED_NONCONF_PLACE_OPPONENTS[Division.NFC_WEST, 5] == (
-        (Division.AFC_WEST, 5),
-    )
+    assert FIXED_NONCONF_PLACE_OPPONENTS["AFC_WEST", 5] == (("NFC_WEST", 5),)
+    assert FIXED_NONCONF_PLACE_OPPONENTS["NFC_WEST", 5] == (("AFC_WEST", 5),)
 
 
 @pytest.mark.parametrize(
     "bad_table",
     [
-        pytest.param({(Division.AFC_EAST, 1): ()}, id="missing-slots"),
+        pytest.param({("AFC_EAST", 1): ()}, id="missing-slots"),
         pytest.param(
             {
-                slot: (*opponents, (Division.NFC_EAST, 3))
-                if slot == (Division.AFC_EAST, 1)
+                slot: (*opponents, ("NFC_EAST", 3))
+                if slot == ("AFC_EAST", 1)
                 else opponents
                 for slot, opponents in FIXED_NONCONF_PLACE_OPPONENTS.items()
             },
@@ -283,8 +276,8 @@ def test_place_table_is_same_place_only() -> None:
         ),
         pytest.param(
             {
-                slot: ((Division.NFC_EAST, 3), (Division.NFC_WEST, 3))
-                if slot == (Division.AFC_EAST, 1)
+                slot: (("NFC_EAST", 3), ("NFC_WEST", 3))
+                if slot == ("AFC_EAST", 1)
                 else opponents
                 for slot, opponents in FIXED_NONCONF_PLACE_OPPONENTS.items()
             },
@@ -292,8 +285,8 @@ def test_place_table_is_same_place_only() -> None:
         ),
         pytest.param(
             {
-                slot: ((Division.AFC_WEST, 1), *opponents[1:])
-                if slot == (Division.AFC_EAST, 1)
+                slot: (("AFC_WEST", 1), *opponents[1:])
+                if slot == ("AFC_EAST", 1)
                 else opponents
                 for slot, opponents in FIXED_NONCONF_PLACE_OPPONENTS.items()
             },
@@ -307,7 +300,7 @@ def test_place_table_validation_rejects_invalid_table(monkeypatch, bad_table) ->
         bad_table,
     )
     with pytest.raises(SchedulerError):
-        _validate_fixed_place_table()
+        _validate_fixed_place_table(PNFL_DIVISIONS)
 
 
 # ---------------------------------------------------------------------------
@@ -348,11 +341,7 @@ def test_fixed_pairs_follow_division_standings_not_rank() -> None:
         "NFC_WEST": ("Chicago", "Minnesota", "San Francisco", "Green Bay", "Seattle"),
     }
     league = build_league(standings, overall)
-    plan = FixedCpsatMatchupBuilder(
-        teams=league.teams,
-        rankings=league.rankings,
-        division_standings=league.division_standings,
-    ).build_matchup_plan()
+    plan = FixedCpsatMatchupBuilder(league).build_matchup_plan()
     assert plan.fixed_nonconference_pairs == _place_pairs_from(league)
     jacksonville = next(t for t in league.teams if t.metro == "Jacksonville")
     fixed_opponents = {

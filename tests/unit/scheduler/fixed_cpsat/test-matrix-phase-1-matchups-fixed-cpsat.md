@@ -40,3 +40,15 @@ One row per behavior. Status: ☑ covered · ☐ no test yet. The phase-1 solve 
 ## Gaps
 
 Untested: the forced-pair / totals / infeasibility error paths (hard to trigger without mocking the solver). The place-table validation is covered.
+
+## League without divisions (`tests/unit/scheduler/conference_league/test_inventory.py`)
+| Case | Expected | Test | Status |
+|---|---|---|---|
+| Totals | 108 pairings, 12 per team | `test_inventory_totals` | ☑ |
+| Conference once, no repeats | each conference pair 1×, cross ≤1× | `test_every_conference_pair_once_and_no_divisional_repeats` | ☑ |
+| Non-conference degree | 4 distinct opponents | `test_every_team_has_four_distinct_nonconference_opponents` | ☑ |
+| Cross-conference rivalry | fixed and kept | `test_cross_conference_rivalry_is_fixed` | ☑ |
+| Top/bottom guard | ≥1 each | `test_each_team_draws_a_top_and_bottom_half_opponent` | ☑ |
+| Line target | within 1.0 at spread 0 and 2.5 | `test_difficulty_is_near_line_target` | ☑ |
+| Deterministic | same plan twice | `test_inventory_is_deterministic` | ☑ |
+| Fewer weeks | 10 weeks → 2 non-conference | `test_ten_week_season_gives_two_nonconference_games` | ☑ |

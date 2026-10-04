@@ -172,6 +172,10 @@ Working. Docs: [README](docs/scheduler/README.md) ·
 [phase 1](docs/scheduler/phase-1-matchups-fixed-cpsat.md) ·
 [phase 2](docs/scheduler/phase-2-schedule.md)
 
+- Two league formats: the PNFL (divisions, 16 weeks) and the PCFL (two
+  conferences of nine, 12 weeks, rivalry week). One matchup builder and one
+  schedule builder; PNFL-only rules are toggles. The PCFL files are under
+  `dev/leagues/PCFL/`; command-line league selection waits on the config rework.
 - Rules overhauled from NFL data: hard rules, league-wide anti-pileup caps,
   and a soft objective with NFL-typical bands so seasons vary.
 - Schedulers A, B and D removed; there is just the scheduler, no

@@ -14,25 +14,29 @@ from collections import Counter
 
 from athc.scheduler.config import Phase2Config
 from athc.scheduler.domain.league import (
-    Division,
+    AFC_EAST,
+    AFC_WEST,
+    NFC_EAST,
+    NFC_WEST,
     League,
     Team,
     team_by_metro,
 )
-from athc.scheduler.domain.schedule import (
-    GAMES_PER_WEEK,
-    HOME_GAMES_PER_TEAM,
-    NUM_WEEKS,
-    WEEK_16_DIVISIONAL_GAMES,
-    Game,
-    Schedule,
-    nonconference_games_for,
-)
+from athc.scheduler.domain.schedule import GAMES_PER_WEEK, Game, Schedule
 from athc.scheduler.schedulers.types import MatchupPlan, make_matchup
 from athc.scheduler.writers.report import build_schedule_report
 
-FIVE_TEAM_DIVISIONS = (Division.AFC_WEST, Division.NFC_WEST)
-FOUR_TEAM_DIVISIONS = (Division.AFC_EAST, Division.NFC_EAST)
+# This validator is PNFL-only: 16 weeks, two 4-team and two 5-team divisions.
+NUM_WEEKS = 16
+HOME_GAMES_PER_TEAM = 8
+WEEK_16_DIVISIONAL_GAMES = 8
+FIVE_TEAM_DIVISIONS = (AFC_WEST, NFC_WEST)
+FOUR_TEAM_DIVISIONS = (AFC_EAST, NFC_EAST)
+
+
+def nonconference_games_for(team: Team) -> int:
+    return 5 if team.division in FOUR_TEAM_DIVISIONS else 4
+
 
 # Must match HtmlScheduleWriter's week-by-week column width.
 _HTML_COL_WIDTH = 42
@@ -176,7 +180,7 @@ def _divisional_pattern(schedule: Schedule, team: Team) -> list[bool]:
     pattern = [False] * NUM_WEEKS
     for game in schedule.games_for(team):
         opponent = game.away if game.home == team else game.home
-        if opponent.division == team.division:
+        if opponent.same_division(team):
             pattern[game.week - 1] = True
     return pattern
 
@@ -201,7 +205,7 @@ def _divisional_meeting_weeks(schedule: Schedule, team: Team) -> dict[Team, list
     weeks: dict[Team, list[int]] = {}
     for game in schedule.games_for(team):
         opponent = game.away if game.home == team else game.home
-        if opponent.division == team.division:
+        if opponent.same_division(team):
             weeks.setdefault(opponent, []).append(game.week)
     return weeks
 
@@ -226,7 +230,7 @@ def _opens_with_divisional_pair(schedule: Schedule, team: Team) -> bool:
         1
         for g in schedule.games_for(team)
         if g.week in (1, 2)
-        and (g.away if g.home == team else g.home).division == team.division
+        and (g.away if g.home == team else g.home).same_division(team)
     )
     return opening == 2
 
@@ -282,7 +286,7 @@ def _validate_inventory(schedule: Schedule, teams: tuple[Team, ...]) -> None:
     for i, team_a in enumerate(teams):
         for team_b in teams[i + 1 :]:
             pair = make_matchup(team_a, team_b)
-            if team_a.division == team_b.division:
+            if team_a.same_division(team_b):
                 meetings = schedule.games_between(team_a, team_b)
                 assert len(meetings) == 2, (
                     f"{team_a.metro}/{team_b.metro}: expected 2 divisional meetings"
@@ -304,7 +308,7 @@ def _validate_inventory(schedule: Schedule, teams: tuple[Team, ...]) -> None:
             for g in schedule.games_for(team)
             if g.home.conference != g.away.conference
         ]
-        expected = nonconference_games_for(team.division)
+        expected = nonconference_games_for(team)
         assert len(nonconf) == expected, (
             f"{team.metro}: expected {expected} non-conference games, got {len(nonconf)}"
         )
@@ -439,7 +443,7 @@ def _validate_home_balance(schedule: Schedule, teams: tuple[Team, ...]) -> None:
             g
             for g in schedule.games_for(team)
             if g.home.conference == g.away.conference
-            and g.home.division != g.away.division
+            and not g.home.same_division(g.away)
         ]
         conf_home = sum(1 for g in conf_games if g.home == team)
         nonconf_home = sum(
@@ -469,7 +473,7 @@ def _validate_home_balance(schedule: Schedule, teams: tuple[Team, ...]) -> None:
                 1
                 for g in schedule.home_games_for(team)
                 if g.away.conference == team.conference
-                and g.away.division != team.division
+                and not g.away.same_division(team)
             )
             for team in div_teams
         )
@@ -536,7 +540,7 @@ def _validate_season_ending(
         final_divisional = sum(
             1
             for g in schedule.games
-            if g.week == NUM_WEEKS and g.home.division == g.away.division
+            if g.week == NUM_WEEKS and g.home.same_division(g.away)
         )
         assert final_divisional == WEEK_16_DIVISIONAL_GAMES, (
             f"week {NUM_WEEKS}: {final_divisional} divisional games, "
@@ -550,6 +554,5 @@ def _validate_season_ending(
                 if g.week in (NUM_WEEKS - 1, NUM_WEEKS)
             ]
             assert any(
-                (g.away if g.home == team else g.home).division == team.division
-                for g in late
+                (g.away if g.home == team else g.home).same_division(team) for g in late
             ), f"{team.metro}: no divisional game in the final 2 weeks"

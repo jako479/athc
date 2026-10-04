@@ -8,12 +8,20 @@ import pytest
 from athc.scheduler import config
 from athc.scheduler.config import (
     ConfigError,
+    Phase2Config,
+    RivalriesConfig,
+    SchedulerConfig,
+    check_opening_weeks,
+    check_weeks,
     find_config_path,
     find_league_path,
     load_league,
     load_scheduler_config,
+    resolve_rivalries,
 )
-from athc.scheduler.domain.league import Division, League
+from athc.scheduler.domain.league import AFC_EAST, NFC_WEST, League
+
+from .conftest import LEAGUE_5_SLOTS, PCFL_LEAGUE, PCFL_RIVALRIES
 
 RELEASE = Path(__file__).resolve().parents[3] / "release"
 SEASON = 2048  # shipped config file is 2048.league.ini
@@ -378,13 +386,13 @@ def test_release_example_league_loads() -> None:
 def test_load_league_reads_division_standings(tmp_path: Path) -> None:
     league = load_league(_valid_league(tmp_path))
     standings = league.division_standings
-    assert [t.metro for t in standings[Division.AFC_EAST]] == [
+    assert [t.metro for t in standings[AFC_EAST]] == [
         "New England",
         "Miami",
         "Jacksonville",
         "Buffalo",
     ]
-    assert [t.metro for t in standings[Division.NFC_WEST]] == [
+    assert [t.metro for t in standings[NFC_WEST]] == [
         "Chicago",
         "Minnesota",
         "San Francisco",
@@ -397,7 +405,7 @@ def test_load_league_teams_are_alphabetical_within_division(tmp_path: Path) -> N
     # Membership comes from [DivisionStandings] (finish order), but the teams
     # tuple is canonical: alphabetical within each division.
     league = load_league(_valid_league(tmp_path))
-    afc_east = [t.metro for t in league.teams if t.division == Division.AFC_EAST]
+    afc_east = [t.metro for t in league.teams if t.division == AFC_EAST]
     assert afc_east == ["Buffalo", "Jacksonville", "Miami", "New England"]
 
 
@@ -428,3 +436,316 @@ def test_load_league_errors_on_division_standings_duplicate(tmp_path: Path) -> N
 def test_release_league_has_division_standings() -> None:
     league = load_league(RELEASE / f"{SEASON}.league.ini")
     assert len(league.division_standings) == 4
+
+
+# ---------------------------------------------------------------------------
+# [league] weeks
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("weeks", [2, 12])
+def test_load_scheduler_config_reads_weeks(config_dir: Path, weeks: int) -> None:
+    _write_scheduler_toml(config_dir, f"[league]\nweeks = {weeks}\n")
+    assert load_scheduler_config().league.weeks == weeks
+
+
+def test_weeks_defaults_to_sixteen() -> None:
+    assert SchedulerConfig().league.weeks == 16
+
+
+@pytest.mark.parametrize("weeks", ["11", "0", "'12'"])
+def test_load_scheduler_config_rejects_bad_weeks(config_dir: Path, weeks: str) -> None:
+    _write_scheduler_toml(config_dir, f"[league]\nweeks = {weeks}\n")
+    with pytest.raises(ConfigError, match="weeks"):
+        load_scheduler_config()
+
+
+def test_load_scheduler_config_rejects_unknown_league_key(config_dir: Path) -> None:
+    _write_scheduler_toml(config_dir, "[league]\nteams = 18\n")
+    with pytest.raises(ConfigError, match="unknown \\[league\\] key"):
+        load_scheduler_config()
+
+
+def test_load_scheduler_config_from_explicit_path(tmp_path: Path) -> None:
+    path = _write(tmp_path / "other.toml", "[league]\nweeks = 12\n")
+    assert load_scheduler_config(path).league.weeks == 12
+
+
+def test_load_scheduler_config_explicit_path_must_exist(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError, match="not found"):
+        load_scheduler_config(tmp_path / "missing.toml")
+
+
+# ---------------------------------------------------------------------------
+# [phase2] new keys
+# ---------------------------------------------------------------------------
+
+
+def test_load_scheduler_config_reads_new_phase2_keys(config_dir: Path) -> None:
+    _write_scheduler_toml(
+        config_dir,
+        """
+        [phase2]
+        max_consecutive_conference_home_or_away = 2
+        opening_nonconference_weeks = 3
+        require_home_balance_per_six_weeks = false
+        require_home_away_streak_caps = false
+        require_mixed_home_away_at_season_ends = false
+        """,
+    )
+    phase2 = load_scheduler_config().phase2
+    assert phase2.max_consecutive_conference_home_or_away == 2
+    assert phase2.opening_nonconference_weeks == 3
+    assert phase2.require_home_balance_per_six_weeks is False
+    assert phase2.require_home_away_streak_caps is False
+    assert phase2.require_mixed_home_away_at_season_ends is False
+
+
+def test_new_phase2_keys_default_to_pnfl_behaviour() -> None:
+    phase2 = Phase2Config()
+    assert phase2.max_consecutive_conference_home_or_away == 0
+    assert phase2.opening_nonconference_weeks == 0
+    assert phase2.require_home_balance_per_six_weeks is True
+    assert phase2.require_home_away_streak_caps is True
+    assert phase2.require_mixed_home_away_at_season_ends is True
+
+
+@pytest.mark.parametrize(
+    "key", ["max_consecutive_conference_home_or_away", "opening_nonconference_weeks"]
+)
+def test_zero_is_off_and_negative_is_rejected(config_dir: Path, key: str) -> None:
+    _write_scheduler_toml(config_dir, f"[phase2]\n{key} = 0\n")
+    assert getattr(load_scheduler_config().phase2, key) == 0
+    _write_scheduler_toml(config_dir, f"[phase2]\n{key} = -1\n")
+    with pytest.raises(ConfigError, match=key):
+        load_scheduler_config()
+
+
+# ---------------------------------------------------------------------------
+# [rivalries]
+# ---------------------------------------------------------------------------
+
+
+def test_load_scheduler_config_reads_rivalries(config_dir: Path) -> None:
+    _write_scheduler_toml(
+        config_dir,
+        """
+        [rivalries]
+        rotate_home_by_season = false
+        pairs = [[" Michigan ", "Ohio State"], ["USC", "UCLA"]]
+        """,
+    )
+    rivalries = load_scheduler_config().rivalries
+    assert rivalries.pairs == (("Michigan", "Ohio State"), ("USC", "UCLA"))
+    assert rivalries.rotate_home_by_season is False
+
+
+def test_rivalries_default_to_none() -> None:
+    assert SchedulerConfig().rivalries == RivalriesConfig()
+    assert RivalriesConfig().rotate_home_by_season is True
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param("[rivalries]\nrotate_home_by_season = true\n", id="no-pairs"),
+        pytest.param("[rivalries]\npairs = []\n", id="empty"),
+        pytest.param('[rivalries]\npairs = [["A"]]\n', id="one-name"),
+        pytest.param('[rivalries]\npairs = [["A", "B", "C"]]\n', id="three-names"),
+        pytest.param('[rivalries]\npairs = [["A", "A"]]\n', id="same-team"),
+        pytest.param('[rivalries]\npairs = [["A", " "]]\n', id="blank-name"),
+        pytest.param("[rivalries]\npairs = [[1, 2]]\n", id="non-string"),
+        pytest.param('[rivalries]\npairs = "A, B"\n', id="not-a-list"),
+        pytest.param(
+            '[rivalries]\npairs = [["A", "B"]]\nweek = 12\n', id="unknown-key"
+        ),
+    ],
+)
+def test_load_scheduler_config_rejects_bad_rivalries(
+    config_dir: Path, body: str
+) -> None:
+    _write_scheduler_toml(config_dir, body)
+    with pytest.raises(ConfigError, match="rivalries"):
+        load_scheduler_config()
+
+
+# ---------------------------------------------------------------------------
+# League-resolved checks
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("weeks", [10, 16])
+def test_check_weeks_accepts_pcfl_range(weeks: int) -> None:
+    check_weeks(PCFL_LEAGUE, weeks)
+
+
+@pytest.mark.parametrize("weeks", [8, 18, 11])
+def test_check_weeks_rejects_outside_pcfl_range(weeks: int) -> None:
+    with pytest.raises(ConfigError, match="weeks"):
+        check_weeks(PCFL_LEAGUE, weeks)
+
+
+@pytest.mark.parametrize("weeks", [14, 20])
+def test_check_weeks_accepts_pnfl_range(weeks: int) -> None:
+    check_weeks(LEAGUE_5_SLOTS, weeks)
+
+
+@pytest.mark.parametrize("weeks", [12, 22])
+def test_check_weeks_rejects_outside_pnfl_range(weeks: int) -> None:
+    with pytest.raises(ConfigError, match="weeks"):
+        check_weeks(LEAGUE_5_SLOTS, weeks)
+
+
+@pytest.mark.parametrize("opening", [0, 3])
+def test_check_opening_weeks_accepts(opening: int) -> None:
+    check_opening_weeks(PCFL_LEAGUE, 12, opening)
+
+
+def test_check_opening_weeks_rejects_four_for_the_pcfl() -> None:
+    with pytest.raises(ConfigError, match="opening_nonconference_weeks"):
+        check_opening_weeks(PCFL_LEAGUE, 12, 4)
+
+
+def test_resolve_rivalries_returns_team_pairs_in_listed_order() -> None:
+    pairs = resolve_rivalries(PCFL_LEAGUE, RivalriesConfig(pairs=PCFL_RIVALRIES))
+    assert [(a.metro, b.metro) for a, b in pairs] == list(PCFL_RIVALRIES)
+    assert sum(1 for a, b in pairs if a.conference != b.conference) == 1
+
+
+def test_resolve_rivalries_with_no_pairs_is_empty() -> None:
+    assert resolve_rivalries(PCFL_LEAGUE, RivalriesConfig()) == ()
+
+
+@pytest.mark.parametrize(
+    ("pairs", "message"),
+    [
+        pytest.param(PCFL_RIVALRIES[:8], "9 pairs", id="eight-pairs"),
+        pytest.param((*PCFL_RIVALRIES, ("Michigan", "USC")), "9 pairs", id="ten-pairs"),
+        pytest.param(
+            (*PCFL_RIVALRIES[:8], ("Penn State", "Michigan")), "once", id="team-twice"
+        ),
+        pytest.param(
+            (*PCFL_RIVALRIES[:8], ("Penn State", "Nowhere")),
+            "Unknown team",
+            id="unknown",
+        ),
+        pytest.param(
+            (
+                ("Michigan", "Texas"),
+                ("USC", "Tennessee"),
+                ("Washington", "Boston College"),
+                ("Notre Dame", "Colorado"),
+                ("Oklahoma", "Ohio State"),
+                ("UCLA", "Oregon"),
+                ("LSU", "Arkansas"),
+                ("Georgia", "Clemson"),
+                ("Miami", "Penn State"),
+            ),
+            "cross-conference",
+            id="three-cross",
+        ),
+    ],
+)
+def test_resolve_rivalries_rejects(pairs, message: str) -> None:
+    with pytest.raises(ConfigError, match=message):
+        resolve_rivalries(PCFL_LEAGUE, RivalriesConfig(pairs=pairs))
+
+
+# ---------------------------------------------------------------------------
+# load_league — [ConferenceStandings] (a league without divisions)
+# ---------------------------------------------------------------------------
+
+DEV_PCFL = Path(__file__).resolve().parents[3] / "dev" / "leagues" / "PCFL"
+
+CONFERENCE_STANDINGS = """\
+[ConferenceStandings]
+WESTERN =
+    Ohio State
+    Notre Dame
+    UCLA
+    Washington
+    Oklahoma
+    USC
+    Colorado
+    Oregon
+    Michigan
+EASTERN =
+    Texas
+    Tennessee
+    Boston College
+    Arkansas
+    LSU
+    Clemson
+    Georgia
+    Penn State
+    Miami
+"""
+
+PCFL_OVERALL_STANDINGS = """\
+[OverallStandings]
+Order =
+    Texas
+    Tennessee
+    Notre Dame
+    Arkansas
+    Ohio State
+    Boston College
+    LSU
+    UCLA
+    Washington
+    Clemson
+    Oklahoma
+    Georgia
+    Penn State
+    USC
+    Colorado
+    Miami
+    Oregon
+    Michigan
+"""
+
+
+def test_load_league_reads_conference_standings(tmp_path: Path) -> None:
+    ini = _write(
+        tmp_path / "league.ini", CONFERENCE_STANDINGS + "\n" + PCFL_OVERALL_STANDINGS
+    )
+    league = load_league(ini)
+    assert league == PCFL_LEAGUE
+    assert not league.has_divisions
+
+
+def test_load_league_errors_with_both_sections(tmp_path: Path) -> None:
+    ini = _write(tmp_path / "league.ini", VALID_LEAGUE + "\n" + CONFERENCE_STANDINGS)
+    with pytest.raises(ConfigError, match=r"DivisionStandings.*ConferenceStandings"):
+        load_league(ini)
+
+
+def test_load_league_errors_on_wrong_conference_size(tmp_path: Path) -> None:
+    text = CONFERENCE_STANDINGS.replace("    Michigan\n", "") + PCFL_OVERALL_STANDINGS
+    ini = _write(tmp_path / "league.ini", text)
+    with pytest.raises(ConfigError, match="exactly 9 teams"):
+        load_league(ini)
+
+
+def test_dev_pcfl_league_file_loads() -> None:
+    league = load_league(DEV_PCFL / "standings" / "2029.league.ini")
+    assert league == PCFL_LEAGUE
+
+
+def test_dev_pcfl_rules_file_loads() -> None:
+    config = load_scheduler_config(DEV_PCFL / "rules" / "scheduler.toml")
+    assert config.league.weeks == 12
+    assert config.difficulty.spread == 0.0
+    assert config.phase2.max_consecutive_home_or_away == 3
+    assert config.phase2.max_consecutive_conference_home_or_away == 2
+    assert config.phase2.opening_nonconference_weeks == 3
+    assert config.phase2.require_home_balance_per_six_weeks is False
+    assert config.phase2.require_home_away_streak_caps is False
+    assert config.phase2.require_mixed_home_away_at_season_ends is False
+    assert config.rivalries.rotate_home_by_season is True
+    assert config.rivalries.pairs == PCFL_RIVALRIES
+    check_weeks(PCFL_LEAGUE, config.league.weeks)
+    check_opening_weeks(
+        PCFL_LEAGUE, config.league.weeks, config.phase2.opening_nonconference_weeks
+    )
+    assert len(resolve_rivalries(PCFL_LEAGUE, config.rivalries)) == 9

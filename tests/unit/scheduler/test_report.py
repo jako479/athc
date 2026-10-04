@@ -20,12 +20,8 @@ from .conftest import SLOW_SOLVE_TIME_LIMIT
 def test_schedule_report_rows_match_recomputed_sos(league, tmp_path):
     # Build a plan and schedule, then validate every row's rank and SOS fields
     # against an independent computation.
-    matchup_plan = FixedCpsatMatchupBuilder(
-        teams=league.teams,
-        rankings=league.rankings,
-        division_standings=league.division_standings,
-    ).build_matchup_plan()
-    schedule = ScheduleBuilder(league.teams, SchedulerError).build_schedule(
+    matchup_plan = FixedCpsatMatchupBuilder(league).build_matchup_plan()
+    schedule = ScheduleBuilder(league, SchedulerError).build_schedule(
         matchup_plan.matchups, seed=0, time_limit=SLOW_SOLVE_TIME_LIMIT
     )
     report = build_schedule_report(

@@ -4,16 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from athc.scheduler.domain.league import Division, Team
+from athc.scheduler.domain.league import Team
 
-NUM_WEEKS = 16
-GAMES_PER_WEEK = 9
-HOME_GAMES_PER_TEAM = NUM_WEEKS // 2
-WEEK_16_DIVISIONAL_GAMES = 8
-
-
-def nonconference_games_for(division: Division) -> int:
-    return 5 if division.expected_size == 4 else 4
+GAMES_PER_WEEK = 9  # 18 teams, all playing every week
 
 
 @dataclass(frozen=True)

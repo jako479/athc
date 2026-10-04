@@ -7,6 +7,9 @@
 
 schema_version = 1
 
+[league]
+weeks = 16
+
 [difficulty]
 spread = 2.5
 
@@ -79,3 +82,9 @@ soft_open_weeks_1_2_weight = 100
 # Season ending
 require_final_week_divisional = true
 require_divisional_in_final_two_weeks = true
+
+max_consecutive_conference_home_or_away = 0  # off: no conference-sequence streak cap
+opening_nonconference_weeks = 0              # off: no all-non-conference opening weeks
+require_home_balance_per_six_weeks = true
+require_home_away_streak_caps = true
+require_mixed_home_away_at_season_ends = true

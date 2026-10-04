@@ -1,15 +1,16 @@
 # scheduler — Phase 1: Fixed-Place + CP-SAT Matchup Inventory
 
-Phase 1 — [`fixed_cpsat_builder.py`](../../src/athc/scheduler/schedulers/fixed_cpsat_builder.py). NFL-like: division standings fix two non-conference games per team; one CP-SAT solve picks the rest along a configurable difficulty line. Produces the full 144-pairing inventory and feeds [Phase 2](phase-2-schedule.md). Needs the league file's `[DivisionStandings]` section; no history file.
+Phase 1 — [`fixed_cpsat_builder.py`](../../src/athc/scheduler/schedulers/fixed_cpsat_builder.py). Structure fixes the same-conference games; the rest of each team's weeks are non-conference. Fixed non-conference games are the PNFL's same-place pairs (a league with divisions) and any cross-conference rivalry; one CP-SAT solve picks the rest along the difficulty line. Produces the full inventory (`weeks` × 9 pairings: 144 for the PNFL, 108 for the PCFL) and feeds [Phase 2](phase-2-schedule.md). A league with divisions needs `[DivisionStandings]` for the place table; no history file.
 
 ## Fixed by league structure
 
 - Divisional: every divisional opponent twice (home and away).
 - Conference: every same-conference team outside the division once.
+- Without divisions: every conference team once (the PCFL: 8 games, leaving 4 non-conference in 12 weeks).
 
 ## Non-conference
 
-4-team divisions play 5 non-conference games, 5-team divisions play 4.
+PNFL: 4-team divisions play 5 non-conference games, 5-team divisions play 4. PCFL: every team plays 4 (36 pairs); only the cross-conference rivalry is fixed, the solver picks the rest.
 
 1. **Fixed games (17 pairs)** — each team plays the same-place finisher in both other-conference divisions (AE1 vs NE1 and NW1, etc.). The two 5th places play each other, one game.
 
@@ -21,4 +22,4 @@ Phase 1 — [`fixed_cpsat_builder.py`](../../src/athc/scheduler/schedulers/fixed
 
 ## Validation
 
-144 total, exactly 40 non-conference, no unfilled slots, and the solution must keep all forced pairs, or it errors. A missing `[DivisionStandings]`, an infeasible solve, or a timed-out solve errors.
+`weeks × 9` total pairings and the league's non-conference total (40 for the PNFL, 36 for the PCFL), no unfilled slots, and the solution must keep all forced pairs, or it errors. An infeasible or timed-out solve errors.

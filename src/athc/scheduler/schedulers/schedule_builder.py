@@ -1,8 +1,7 @@
 """
-Basic schedule structure and inventory requirements:
-- Each team plays 16 total games, exactly 1 in each week.
-- Each team hosts exactly 8 games.
-- No pair of teams may play each other in back-to-back weeks.
+The rules below are the PNFL's. A league without divisions gets only the
+structural rules and the toggled home/away rules (see
+docs/scheduler/phase-2-schedule.md).
 
 Home/away sequencing requirements:
 - No 4 straight home or away games.
@@ -74,16 +73,12 @@ from ortools.sat.python import cp_model
 from athc.scheduler.config import (
     DEFAULT_SOLVER_WORKERS,
     DEFAULT_TIME_LIMIT,
+    DEFAULT_WEEKS,
+    ConfigError,
     Phase2Config,
 )
-from athc.scheduler.domain.league import Team
-from athc.scheduler.domain.schedule import (
-    HOME_GAMES_PER_TEAM,
-    NUM_WEEKS,
-    WEEK_16_DIVISIONAL_GAMES,
-    Game,
-    Schedule,
-)
+from athc.scheduler.domain.league import League, RivalryPair, Team
+from athc.scheduler.domain.schedule import Game, Schedule
 from athc.scheduler.schedulers.types import Matchup, Matchups, make_matchup
 
 
@@ -92,31 +87,48 @@ class ScheduleBuilder:
 
     def __init__(
         self,
-        teams: Sequence[Team],
+        league: League,
         error_cls: type[RuntimeError],
         amounts: Phase2Config | None = None,
+        *,
+        weeks: int = DEFAULT_WEEKS,
+        rivalries: Sequence[RivalryPair] = (),
+        rotate_rivalry_home_by_season: bool = True,
+        season: int | None = None,
     ) -> None:
         self.model = cp_model.CpModel()
-        self.teams = tuple(teams)
+        self.league = league
+        self.teams = tuple(league.teams)
         self.error_cls = error_cls
         self.amounts = amounts or Phase2Config()
+        self.num_weeks = weeks
+        self.weeks = range(weeks)
+        self.home_games_per_team = weeks // 2
+        self.rivalries = tuple(rivalries)
+        self.rotate_rivalry_home_by_season = rotate_rivalry_home_by_season
+        self.season = season
 
-        self.weeks = range(NUM_WEEKS)
-        self.home_games_per_team = HOME_GAMES_PER_TEAM
+        if league.has_divisions and not self.amounts.require_home_away_streak_caps:
+            raise ConfigError(
+                "require_home_away_streak_caps must be true for a league with "
+                "divisions: the soft objective needs the streak flags."
+            )
+        if self.rivalries and rotate_rivalry_home_by_season and season is None:
+            raise error_cls("A season is required to rotate rivalry hosting.")
 
-        self.div_opponents: dict[Team, list[Team]] = {}
-        for team in self.teams:
-            self.div_opponents[team] = [
-                opp
-                for opp in self.teams
-                if opp.division == team.division and opp != team
-            ]
+        self.div_opponents: dict[Team, list[Team]] = {
+            team: list(league.divisional_opponents(team)) for team in self.teams
+        }
 
         self.four_team_set: set[Team] = {
-            t for t in self.teams if t.division.expected_size == 4
+            t
+            for t in self.teams
+            if t.division is not None and t.division.expected_size == 4
         }
         self.five_team_set: set[Team] = {
-            t for t in self.teams if t.division.expected_size == 5
+            t
+            for t in self.teams
+            if t.division is not None and t.division.expected_size == 5
         }
         # Canonical-order tuples for constraint building. Iterating the sets
         # above would follow Python's per-process hash-randomized order, making
@@ -135,7 +147,7 @@ class ScheduleBuilder:
         for idx, team_i in enumerate(self.teams):
             for team_j in self.teams[idx + 1 :]:
                 pair = make_matchup(team_i, team_j)
-                if team_i.division == team_j.division:
+                if team_i.same_division(team_j):
                     self.divisional_pairs.append(pair)
                 elif team_i.conference == team_j.conference:
                     self.conference_pairs.append(pair)
@@ -165,20 +177,24 @@ class ScheduleBuilder:
                     )
                 )
 
+        # d is only meaningful with divisions; a divisionless league gets none.
         self.d: dict[tuple[Team, int], cp_model.IntVar] = {}
-        for team_i in self.teams:
-            for w in self.weeks:
-                self.d[team_i, w] = self.model.new_bool_var(f"d_{team_i.metro}_w{w}")
-                self.model.add(
-                    self.d[team_i, w]
-                    == sum(
-                        self.x[team_i, opp, w] + self.x[opp, team_i, w]
-                        for opp in self.div_opponents[team_i]
+        if league.has_divisions:
+            for team_i in self.teams:
+                for w in self.weeks:
+                    self.d[team_i, w] = self.model.new_bool_var(
+                        f"d_{team_i.metro}_w{w}"
                     )
-                )
+                    self.model.add(
+                        self.d[team_i, w]
+                        == sum(
+                            self.x[team_i, opp, w] + self.x[opp, team_i, w]
+                            for opp in self.div_opponents[team_i]
+                        )
+                    )
 
     def _constraint_one_game_per_week(self) -> None:
-        # Require each team to play exactly 1 game in each of the 16 weeks.
+        # Require each team to play exactly 1 game in each week.
         for team_i in self.teams:
             for w in self.weeks:
                 self.model.add(
@@ -191,7 +207,7 @@ class ScheduleBuilder:
                 )
 
     def _constraint_home_balance(self) -> None:
-        # Require each team to host exactly 8 home games.
+        # Require each team to host half its games.
         for team_i in self.teams:
             self.model.add(
                 sum(
@@ -203,33 +219,38 @@ class ScheduleBuilder:
                 == self.home_games_per_team
             )
 
-    def _constraint_no_four_straight_home_or_away(self) -> None:
-        # Every 4-game window caps home games (and, symmetrically, away games) at
-        # the max-consecutive amount, so neither a home nor an away streak exceeds it.
+    def _constraint_max_consecutive_home_or_away(self) -> None:
+        # Every (cap + 1)-week window holds at most cap home games and at least
+        # one, so neither a home nor an away streak exceeds cap.
         cap = self.amounts.max_consecutive_home_or_away
+        window = cap + 1
         for team_i in self.teams:
-            for w in range(NUM_WEEKS - 3):
-                self.model.add(
-                    self.h[team_i, w]
-                    + self.h[team_i, w + 1]
-                    + self.h[team_i, w + 2]
-                    + self.h[team_i, w + 3]
-                    <= cap
-                )
-            for w in range(NUM_WEEKS - 3):
-                self.model.add(
-                    self.h[team_i, w]
-                    + self.h[team_i, w + 1]
-                    + self.h[team_i, w + 2]
-                    + self.h[team_i, w + 3]
-                    >= 4 - cap
-                )
+            for w in range(self.num_weeks - cap):
+                self.model.add(self._window_sum(self.h, team_i, w, window) <= cap)
+            for w in range(self.num_weeks - cap):
+                self.model.add(self._window_sum(self.h, team_i, w, window) >= 1)
+
+    def _window_sum(
+        self,
+        var: dict[tuple[Team, int], cp_model.IntVar],
+        team: Team,
+        start: int,
+        length: int,
+    ) -> cp_model.LinearExprT:
+        # Chained addition (not sum()) keeps the expression shape the pinned
+        # PNFL model was built with.
+        expr: cp_model.LinearExprT = var[team, start]
+        for k in range(1, length):
+            expr = expr + var[team, start + k]
+        return expr
 
     def _constraint_home_away_balance_in_six_game_windows(self) -> None:
         # Every 6-game window must have between 2 and 4 home games, which also forces 2
         # to 4 away games.
+        if not self.amounts.require_home_balance_per_six_weeks:
+            return
         for team_i in self.teams:
-            for w in range(NUM_WEEKS - 5):
+            for w in range(self.num_weeks - 5):
                 six_game_home_total = sum(self.h[team_i, w + k] for k in range(6))
                 self.model.add(
                     six_game_home_total <= self.amounts.max_home_per_six_weeks
@@ -243,6 +264,8 @@ class ScheduleBuilder:
     ) -> None:
         # The first and last 3 games must each contain at least 1 home and at least 1
         # away game.
+        if not self.amounts.require_mixed_home_away_at_season_ends:
+            return
         for team_i in self.teams:
             self.model.add(
                 self.h[team_i, 0] + self.h[team_i, 1] + self.h[team_i, 2] <= 2
@@ -251,15 +274,15 @@ class ScheduleBuilder:
                 self.h[team_i, 0] + self.h[team_i, 1] + self.h[team_i, 2] >= 1
             )
             self.model.add(
-                self.h[team_i, NUM_WEEKS - 3]
-                + self.h[team_i, NUM_WEEKS - 2]
-                + self.h[team_i, NUM_WEEKS - 1]
+                self.h[team_i, self.num_weeks - 3]
+                + self.h[team_i, self.num_weeks - 2]
+                + self.h[team_i, self.num_weeks - 1]
                 <= 2
             )
             self.model.add(
-                self.h[team_i, NUM_WEEKS - 3]
-                + self.h[team_i, NUM_WEEKS - 2]
-                + self.h[team_i, NUM_WEEKS - 1]
+                self.h[team_i, self.num_weeks - 3]
+                + self.h[team_i, self.num_weeks - 2]
+                + self.h[team_i, self.num_weeks - 1]
                 >= 1
             )
 
@@ -268,9 +291,11 @@ class ScheduleBuilder:
         # together. Streak vars are kept for the league-wide count caps.
         self._streak3h: dict[Team, list[cp_model.IntVar]] = {}
         self._streak3a: dict[Team, list[cp_model.IntVar]] = {}
+        if not self.amounts.require_home_away_streak_caps:
+            return
         for team_i in self.teams:
             streak3h: list[cp_model.IntVar] = []
-            for w in range(NUM_WEEKS - 2):
+            for w in range(self.num_weeks - 2):
                 streak = self.model.new_bool_var(f"s3h_{team_i.metro}_w{w}")
                 self.model.add_bool_and(
                     [self.h[team_i, w], self.h[team_i, w + 1], self.h[team_i, w + 2]]
@@ -285,7 +310,7 @@ class ScheduleBuilder:
                 streak3h.append(streak)
 
             streak3a: list[cp_model.IntVar] = []
-            for w in range(NUM_WEEKS - 2):
+            for w in range(self.num_weeks - 2):
                 streak = self.model.new_bool_var(f"s3a_{team_i.metro}_w{w}")
                 self.model.add_bool_and(
                     [
@@ -308,9 +333,11 @@ class ScheduleBuilder:
 
     def _constraint_no_back_to_back(self) -> None:
         # Prevent any pair of teams from playing in consecutive weeks.
+        if not self.league.has_divisions:
+            return
         for idx, team_i in enumerate(self.teams):
             for team_j in self.teams[idx + 1 :]:
-                for w in range(NUM_WEEKS - 1):
+                for w in range(self.num_weeks - 1):
                     self.model.add(
                         self.x[team_i, team_j, w]
                         + self.x[team_j, team_i, w]
@@ -344,59 +371,50 @@ class ScheduleBuilder:
     def _constraint_divisional_home_balance(self) -> None:
         # Split each divisional home-and-home into exactly 1 home game and 1 away game
         # for each team.
+        if not self.league.has_divisions:
+            return
         for team_i, team_j in self.divisional_pairs:
             self.model.add(sum(self.x[team_i, team_j, w] for w in self.weeks) == 1)
             self.model.add(sum(self.x[team_j, team_i, w] for w in self.weeks) == 1)
 
     def _constraint_conference_home_balance(self) -> None:
-        # Balanced hosting (forced by 8 home games): 5-team division teams host
-        # exactly 2 of their 4 cross-division games; 4-team teams 2 or 3 of 5.
+        # Balanced hosting: each team hosts half its conference games (2 of 4;
+        # 2 or 3 of 5; 4 of 8).
         for team_i in self.teams:
-            conference_opponents = [
-                team_j
-                for team_j in self.teams
-                if team_j != team_i
-                and team_j.conference == team_i.conference
-                and team_j.division != team_i.division
-            ]
-            conf_home_games = sum(
-                self.x[team_i, team_j, w]
-                for team_j in conference_opponents
-                for w in self.weeks
-            )
-
-            if team_i in self.five_team_set:
-                self.model.add(conf_home_games == 2)
-            else:
-                self.model.add(conf_home_games >= 2)
-                self.model.add(conf_home_games <= 3)
+            opponents = self.league.conference_opponents(team_i)
+            self._add_half_home(team_i, opponents, len(opponents))
 
     def _constraint_nonconference_home_balance(self) -> None:
-        # Balanced hosting: 5-team division teams host exactly 2 of their 4
-        # non-conference games; 4-team teams 2 or 3 of 5.
+        # Balanced hosting: each team hosts half its non-conference games. The
+        # sum spans every other-conference team; the inventory decides which of
+        # them are played, so the bounds come from the team's game count.
         for team_i in self.teams:
-            non_conference_opponents = [
-                team_j
-                for team_j in self.teams
-                if team_j.conference != team_i.conference
-            ]
-            non_conf_home_games = sum(
-                self.x[team_i, team_j, w]
-                for team_j in non_conference_opponents
-                for w in self.weeks
-            )
+            opponents = [t for t in self.teams if t.conference != team_i.conference]
+            count = self.league.nonconference_games(team_i, self.num_weeks)
+            self._add_half_home(team_i, opponents, count)
 
-            if team_i in self.five_team_set:
-                self.model.add(non_conf_home_games == 2)
-            else:
-                self.model.add(non_conf_home_games >= 2)
-                self.model.add(non_conf_home_games <= 3)
+    def _add_half_home(
+        self, team_i: Team, opponents: Sequence[Team], count: int
+    ) -> None:
+        # One `==` when the half is exact, else `>=` then `<=`: the shapes the
+        # pinned PNFL model was built with.
+        home_games = sum(
+            self.x[team_i, team_j, w] for team_j in opponents for w in self.weeks
+        )
+        lo, hi = count // 2, (count + 1) // 2
+        if lo == hi:
+            self.model.add(home_games == lo)
+        else:
+            self.model.add(home_games >= lo)
+            self.model.add(home_games <= hi)
 
     def _constraint_max_consecutive_division(self) -> None:
         # Allow at most 3 straight divisional games but forbid any 4-game divisional
         # streak.
+        if not self.league.has_divisions:
+            return
         for team_i in self.teams:
-            for w in range(NUM_WEEKS - 3):
+            for w in range(self.num_weeks - 3):
                 self.model.add(
                     self.d[team_i, w]
                     + self.d[team_i, w + 1]
@@ -408,6 +426,9 @@ class ScheduleBuilder:
     def _constraint_max_teams_divisional_weeks_1_and_2(self) -> None:
         # Cap the teams that open with divisional games in both weeks 1 and 2, both
         # league-wide and (more tightly) per division size.
+        self._opening_two_div_flags: list[cp_model.IntVar] = []
+        if not self.league.has_divisions:
+            return
         opening_back_to_back: list[cp_model.IntVar] = []
         four_team_openers: list[cp_model.IntVar] = []
         five_team_openers: list[cp_model.IntVar] = []
@@ -442,14 +463,16 @@ class ScheduleBuilder:
     ) -> None:
         # Forbid teams from starting or ending the season with 3 straight divisional
         # games.
+        if not self.league.has_divisions:
+            return
         for team_i in self.teams:
             self.model.add(
                 self.d[team_i, 0] + self.d[team_i, 1] + self.d[team_i, 2] <= 2
             )
             self.model.add(
-                self.d[team_i, NUM_WEEKS - 3]
-                + self.d[team_i, NUM_WEEKS - 2]
-                + self.d[team_i, NUM_WEEKS - 1]
+                self.d[team_i, self.num_weeks - 3]
+                + self.d[team_i, self.num_weeks - 2]
+                + self.d[team_i, self.num_weeks - 1]
                 <= 2
             )
 
@@ -457,9 +480,11 @@ class ScheduleBuilder:
         # Allow each team at most 1 total 3-game divisional streak across the season.
         # Streak vars are kept for the league-wide count cap.
         self._streak3d: dict[Team, list[cp_model.IntVar]] = {}
+        if not self.league.has_divisions:
+            return
         for team_i in self.teams:
             streak3d: list[cp_model.IntVar] = []
-            for w in range(NUM_WEEKS - 2):
+            for w in range(self.num_weeks - 2):
                 streak = self.model.new_bool_var(f"s3d_{team_i.metro}_w{w}")
                 self.model.add_bool_and(
                     [self.d[team_i, w], self.d[team_i, w + 1], self.d[team_i, w + 2]]
@@ -481,11 +506,22 @@ class ScheduleBuilder:
         # League-wide caps on how many teams have a 3-game home, away, or
         # divisional streak (per-team caps allow every team to have one at once).
         self._streak_team_flags: dict[str, list[cp_model.IntVar]] = {}
-        caps = (
-            (self._streak3h, "has3h", self.amounts.max_teams_with_home_streak),
-            (self._streak3a, "has3a", self.amounts.max_teams_with_away_streak),
-            (self._streak3d, "has3d", self.amounts.max_teams_with_divisional_streak),
-        )
+        caps: list[tuple[dict[Team, list[cp_model.IntVar]], str, int]] = []
+        if self.amounts.require_home_away_streak_caps:
+            caps.append(
+                (self._streak3h, "has3h", self.amounts.max_teams_with_home_streak)
+            )
+            caps.append(
+                (self._streak3a, "has3a", self.amounts.max_teams_with_away_streak)
+            )
+        if self.league.has_divisions:
+            caps.append(
+                (
+                    self._streak3d,
+                    "has3d",
+                    self.amounts.max_teams_with_divisional_streak,
+                )
+            )
         for streaks, label, cap in caps:
             flags: list[cp_model.IntVar] = []
             for team_i in self.teams:
@@ -499,14 +535,16 @@ class ScheduleBuilder:
     def _constraint_division_density(self) -> None:
         # Cap divisional clustering at 6 in 9 for 5-team divisions (a 9-window cap
         # forces <=7 in any 10); cap at 4 in 7 for 4-team divisions (forces <=5 in 8).
+        if not self.league.has_divisions:
+            return
         for team_i in self.five_team_teams:
-            for w in range(NUM_WEEKS - 8):
+            for w in range(self.num_weeks - 8):
                 self.model.add(
                     sum(self.d[team_i, w + k] for k in range(9))
                     <= self.amounts.five_team_max_divisional_in_9
                 )
         for team_i in self.four_team_teams:
-            for w in range(NUM_WEEKS - 6):
+            for w in range(self.num_weeks - 6):
                 self.model.add(
                     sum(self.d[team_i, w + k] for k in range(7))
                     <= self.amounts.four_team_max_divisional_in_7
@@ -529,6 +567,8 @@ class ScheduleBuilder:
 
     def _constraint_divisional_front_load(self) -> None:
         # Cap early divisional games per team (NFL front-load walls).
+        if not self.league.has_divisions:
+            return
         for team_i in self.teams:
             for window, cap in self._front_load_windows(team_i):
                 self.model.add(sum(self.d[team_i, w] for w in range(window)) <= cap)
@@ -536,12 +576,15 @@ class ScheduleBuilder:
     def _constraint_max_close_rematches(self) -> None:
         # League-wide cap on rematches within a 3-week span (meetings 2 weeks
         # apart; back-to-back is already forbidden).
+        self._close_rematch_flags: list[cp_model.IntVar] = []
+        if not self.league.has_divisions:
+            return
         close_flags: list[cp_model.IntVar] = []
         for team_i, team_j in self.divisional_pairs:
             wh = sum(w * self.x[team_i, team_j, w] for w in self.weeks)
             wa = sum(w * self.x[team_j, team_i, w] for w in self.weeks)
             gap = self.model.new_int_var(
-                0, NUM_WEEKS - 1, f"gap_{team_i.metro}_{team_j.metro}"
+                0, self.num_weeks - 1, f"gap_{team_i.metro}_{team_j.metro}"
             )
             self.model.add_abs_equality(gap, wh - wa)
             flag = self.model.new_bool_var(f"close_{team_i.metro}_{team_j.metro}")
@@ -555,6 +598,9 @@ class ScheduleBuilder:
         # Count a divisional opponent as interleaved if another rival's first or second
         # meeting
         # falls between the team's first and second meeting with that opponent.
+        self._two_bunched_flags: list[cp_model.IntVar] = []
+        if not self.league.has_divisions:
+            return
         bunch_flags: list[cp_model.IntVar] = []
         for team_i in self.teams:
             opps = self.div_opponents[team_i]
@@ -562,10 +608,10 @@ class ScheduleBuilder:
             second_meet: dict[Team, cp_model.IntVar] = {}
             for opp in opps:
                 wh = self.model.new_int_var(
-                    0, NUM_WEEKS - 1, f"wh_{team_i.metro}_{opp.metro}"
+                    0, self.num_weeks - 1, f"wh_{team_i.metro}_{opp.metro}"
                 )
                 wa = self.model.new_int_var(
-                    0, NUM_WEEKS - 1, f"wa_{team_i.metro}_{opp.metro}"
+                    0, self.num_weeks - 1, f"wa_{team_i.metro}_{opp.metro}"
                 )
                 self.model.add(
                     wh == sum(w * self.x[team_i, opp, w] for w in self.weeks)
@@ -574,10 +620,10 @@ class ScheduleBuilder:
                     wa == sum(w * self.x[opp, team_i, w] for w in self.weeks)
                 )
                 w1 = self.model.new_int_var(
-                    0, NUM_WEEKS - 1, f"fm_{team_i.metro}_{opp.metro}"
+                    0, self.num_weeks - 1, f"fm_{team_i.metro}_{opp.metro}"
                 )
                 w2 = self.model.new_int_var(
-                    0, NUM_WEEKS - 1, f"sm_{team_i.metro}_{opp.metro}"
+                    0, self.num_weeks - 1, f"sm_{team_i.metro}_{opp.metro}"
                 )
                 self.model.add_min_equality(w1, [wh, wa])
                 self.model.add_max_equality(w2, [wh, wa])
@@ -633,33 +679,100 @@ class ScheduleBuilder:
         )
         self._two_bunched_flags = bunch_flags
 
-    def _constraint_week_16_matchups(self) -> None:
-        # All-divisional finale: 8 of the final week's 9 games (the max; each
-        # 5-team division strands one team).
-        if not self.amounts.require_final_week_divisional:
+    def _constraint_final_week_divisional(self) -> None:
+        # All-divisional finale: as many divisional games as one week can hold
+        # (each odd-sized division strands one team).
+        if (
+            not self.league.has_divisions
+            or not self.amounts.require_final_week_divisional
+        ):
             return
-        last_week = NUM_WEEKS - 1
+        last_week = self.num_weeks - 1
         self.model.add(
             sum(
                 self.x[team_i, team_j, last_week] + self.x[team_j, team_i, last_week]
                 for team_i, team_j in self.divisional_pairs
             )
-            == WEEK_16_DIVISIONAL_GAMES
+            == self.league.max_divisional_games_per_week
         )
 
     def _constraint_late_divisional_presence(self) -> None:
         # Every team plays at least 1 divisional game across the last 2 weeks.
+        if not self.league.has_divisions:
+            return
         if not self.amounts.require_divisional_in_final_two_weeks:
             return
         for team_i in self.teams:
             self.model.add(
-                self.d[team_i, NUM_WEEKS - 2] + self.d[team_i, NUM_WEEKS - 1] >= 1
+                self.d[team_i, self.num_weeks - 2] + self.d[team_i, self.num_weeks - 1]
+                >= 1
             )
+
+    def _constraint_opening_nonconference_weeks(self) -> None:
+        # Weeks 1..N hold no same-conference game (divisional or conference).
+        n = self.amounts.opening_nonconference_weeks
+        if n == 0:
+            return
+        for team_i in self.teams:
+            opponents = self.league.same_conference_opponents(team_i)
+            for w in range(n):
+                self.model.add(
+                    sum(
+                        self.x[team_i, opp, w] + self.x[opp, team_i, w]
+                        for opp in opponents
+                    )
+                    == 0
+                )
+
+    def _constraint_max_consecutive_conference_home_or_away(self) -> None:
+        # Along a team's sequence of conference games (non-conference games
+        # between them do not break a streak): no cap + 1 straight at home or
+        # away. For every window of weeks at least cap + 1 long, the conference
+        # home games are capped unless the window also holds a conference away
+        # game (which makes the bound slack), and the mirror.
+        cap = self.amounts.max_consecutive_conference_home_or_away
+        if cap == 0:
+            return
+        for team_i in self.teams:
+            opponents = self.league.same_conference_opponents(team_i)
+            home = [
+                sum(self.x[team_i, opp, w] for opp in opponents) for w in self.weeks
+            ]
+            away = [
+                sum(self.x[opp, team_i, w] for opp in opponents) for w in self.weeks
+            ]
+            for length in range(cap + 1, self.num_weeks + 1):
+                for start in range(self.num_weeks - length + 1):
+                    span = range(start, start + length)
+                    home_in = sum(home[w] for w in span)
+                    away_in = sum(away[w] for w in span)
+                    self.model.add(home_in <= cap + length * away_in)
+                    self.model.add(away_in <= cap + length * home_in)
+
+    def _constraint_rivalry_final_week(self) -> None:
+        # Rivalry week: every listed pair meets in the last week. With rotation,
+        # the first-listed team hosts in even seasons and the second in odd.
+        if not self.rivalries:
+            return
+        last = self.num_weeks - 1
+        for first, second in self.rivalries:
+            if self.rotate_rivalry_home_by_season:
+                assert self.season is not None  # checked in __init__
+                home, away = (
+                    (first, second) if self.season % 2 == 0 else (second, first)
+                )
+                self.model.add(self.x[home, away, last] == 1)
+            else:
+                self.model.add(
+                    self.x[first, second, last] + self.x[second, first, last] == 1
+                )
 
     def _add_soft_objective(self) -> None:
         # Prefer NFL-typical schedules: penalize each metric for landing outside
         # its band [lo, hi], weighted by rarity. Zero penalty inside the band; a
         # linear penalty per step outside. The hard caps stay as backstops.
+        if not self.league.has_divisions:
+            return
         a = self.amounts
         n = len(self.teams)
         penalties: list[cp_model.LinearExpr] = []
@@ -760,7 +873,7 @@ class ScheduleBuilder:
     def _populate_model(self, matchups: Matchups) -> None:
         self._constraint_one_game_per_week()
         self._constraint_home_balance()
-        self._constraint_no_four_straight_home_or_away()
+        self._constraint_max_consecutive_home_or_away()
         self._constraint_home_away_balance_in_six_game_windows()
         self._constraint_no_three_game_home_or_away_streak_at_season_start_or_end()
         self._constraint_max_one_total_three_game_home_or_away_streak()
@@ -778,8 +891,11 @@ class ScheduleBuilder:
         self._constraint_division_density()
         self._constraint_divisional_front_load()
         self._constraint_max_two_non_interleaved_divisional_opponents()
-        self._constraint_week_16_matchups()
+        self._constraint_final_week_divisional()
         self._constraint_late_divisional_presence()
+        self._constraint_opening_nonconference_weeks()
+        self._constraint_max_consecutive_conference_home_or_away()
+        self._constraint_rivalry_final_week()
         self._add_soft_objective()
 
     def _make_solver(

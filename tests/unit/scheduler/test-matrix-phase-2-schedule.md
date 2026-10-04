@@ -42,9 +42,15 @@ These rules are also re-validated end-to-end by `test_schedule_structure.py` / `
 | League cap: bunched rivals | ≤2 teams with 2 non-interleaved | `test_league_cap_on_teams_with_two_bunched_rivals` | ☑ |
 | League cap: close rematches | ≤3 within a 3-week span | `test_league_cap_on_close_rematches` | ☑ |
 | Soft objective wired | model minimizes 8 metrics (16 slack terms) | `test_soft_objective_is_added_to_the_model` | ☑ |
+| Rule gating (no divisions) | no `d_`/streak/objective parts; toggles add only when on; window follows the cap | `test_league_without_divisions_has_no_divisional_model_parts`, `test_home_away_toggles_add_constraints_only_when_on`, `test_streak_caps_on_without_divisions_is_allowed`, `test_max_consecutive_window_follows_the_cap` | ☑ |
+| Opening non-conference weeks | one constraint per team-week | `test_opening_nonconference_weeks_add_one_constraint_per_team_week` | ☑ |
+| Conference-sequence cap | two constraints per window | `test_conference_streak_cap_adds_two_constraints_per_window` | ☑ |
+| Rivalry week | one constraint per pair; host pinned by parity; season required | `test_rivalry_week_adds_one_constraint_per_pair`, `test_rivalry_rotation_pins_the_host_by_season_parity`, `test_rivalry_rotation_needs_a_season` | ☑ |
+| PNFL model pinned | phase-1 and phase-2 proto hashes unchanged | `test_pnfl_phase_models_are_unchanged` | ☑ |
 
 ### Error
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | Phase-1 inventory has an unknown pair | raises | `test_unknown_pair_in_inventory_raises` | ☑ |
 | No feasible schedule (empty inventory) | raises | `test_empty_inventory_is_infeasible` | ☑ |
+| Streak caps off with divisions | `ConfigError` | `test_streak_caps_off_with_divisions_is_a_config_error` | ☑ |

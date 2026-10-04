@@ -48,7 +48,7 @@ def generate_schedule(
             scheduler_config,
             solver=replace(scheduler_config.solver, time_limit=time_limit),
         )
-    league = load_league(league_path)  # requires [DivisionStandings]
+    league = load_league(league_path)  # either standings section
 
     logger.info("Generating the %d schedule", season)
     started = time.perf_counter()
@@ -56,6 +56,7 @@ def generate_schedule(
         league=league,
         seed=seed,
         scheduler_config=scheduler_config,
+        season=season,
     )
     elapsed = time.perf_counter() - started
 

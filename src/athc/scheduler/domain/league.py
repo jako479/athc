@@ -4,110 +4,111 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from enum import Enum
 
 TOTAL_TEAMS = 18
 TEAMS_PER_CONFERENCE = 9
-
-
-class Conference(Enum):
-    AFC = "AFC"
-    NFC = "NFC"
-
-
-class Division(Enum):
-    AFC_EAST = "AFC East"
-    AFC_WEST = "AFC West"
-    NFC_EAST = "NFC East"
-    NFC_WEST = "NFC West"
-
-    @property
-    def conference(self) -> Conference:
-        return _DIVISION_META[self].conference
-
-    @property
-    def expected_size(self) -> int:
-        return _DIVISION_META[self].expected_size
+CONFERENCES_PER_LEAGUE = 2
 
 
 @dataclass(frozen=True)
-class _DivisionMeta:
+class Conference:
+    name: str
+
+
+@dataclass(frozen=True)
+class Division:
+    name: str
     conference: Conference
     expected_size: int
 
 
-_DIVISION_META: dict[Division, _DivisionMeta] = {
-    Division.AFC_EAST: _DivisionMeta(Conference.AFC, 4),
-    Division.AFC_WEST: _DivisionMeta(Conference.AFC, 5),
-    Division.NFC_EAST: _DivisionMeta(Conference.NFC, 4),
-    Division.NFC_WEST: _DivisionMeta(Conference.NFC, 5),
-}
+AFC = Conference("AFC")
+NFC = Conference("NFC")
+AFC_EAST = Division("AFC_EAST", AFC, 4)
+AFC_WEST = Division("AFC_WEST", AFC, 5)
+NFC_EAST = Division("NFC_EAST", NFC, 4)
+NFC_WEST = Division("NFC_WEST", NFC, 5)
 
-DIVISION_ORDER: tuple[Division, ...] = (
-    Division.AFC_EAST,
-    Division.AFC_WEST,
-    Division.NFC_EAST,
-    Division.NFC_WEST,
-)
-DIVISION_INDEX = {division: index for index, division in enumerate(DIVISION_ORDER)}
+# The PNFL's divisions in canonical order, keyed by their [DivisionStandings] names.
+PNFL_DIVISIONS: tuple[Division, ...] = (AFC_EAST, AFC_WEST, NFC_EAST, NFC_WEST)
+PNFL_DIVISIONS_BY_NAME: dict[str, Division] = {d.name: d for d in PNFL_DIVISIONS}
+
+
+@dataclass(frozen=True)
+class Team:
+    metro: str
+    conference: Conference
+    division: Division | None = None  # None in a league without divisions
+
+    def __post_init__(self) -> None:
+        if self.division is not None and self.division.conference != self.conference:
+            raise ValueError(
+                f"{self.metro}: division {self.division.name} is not in conference "
+                f"{self.conference.name}"
+            )
+
+    def same_division(self, other: Team) -> bool:
+        """Whether both teams share a division. Division-less teams never do --
+        a bare `division == division` would call every such pair divisional."""
+        return self.division is not None and self.division == other.division
+
+
+# A rivalry as listed in the rules file: the first team hosts in even seasons.
+RivalryPair = tuple[Team, Team]
 
 
 @dataclass(frozen=True)
 class ConferenceRankings:
     """The overall 1-18 standings (`overall`) plus the per-conference 1-9 ranks
-    (`afc`, `nfc`) derived from it."""
+    derived from it."""
 
-    afc: tuple[Team, ...]
-    nfc: tuple[Team, ...]
+    by_conference: Mapping[Conference, tuple[Team, ...]]
     overall: tuple[Team, ...]
+
+    def ranked(self, conference: Conference) -> tuple[Team, ...]:
+        return self.by_conference[conference]
 
     def rank_of(self, team: Team) -> int:
         """Return 1-based conference rank."""
-        ranking = self.afc if team.conference == Conference.AFC else self.nfc
-        return ranking.index(team) + 1
+        return self.by_conference[team.conference].index(team) + 1
 
     def overall_rank(self, team: Team) -> int:
         """Return 1-based overall rank (1-18)."""
         return self.overall.index(team) + 1
 
 
-@dataclass(frozen=True)
-class Team:
-    metro: str
-    division: Division
+def _division_name(team: Team) -> str:
+    return team.division.name if team.division is not None else ""
 
-    @property
-    def conference(self) -> Conference:
-        return self.division.conference
+
+def ordered_teams(teams: Sequence[Team]) -> list[Team]:
+    """Canonical order: conference name, division name, metro."""
+    return sorted(teams, key=lambda t: (t.conference.name, _division_name(t), t.metro))
 
 
 def build_teams(divisions: Mapping[str, Sequence[str]]) -> tuple[Team, ...]:
-    """Build the canonical teams tuple from division-keyed metro lists.
+    """Build the PNFL teams tuple from division-keyed metro lists.
 
     Validates that all four divisions are present, that each has its expected
-    size, and that no metro is duplicated. Teams are returned in division order,
-    alphabetical within each division; the input line order (a division's finish)
-    is kept separately in `division_standings`.
+    size, and that no metro is duplicated. Teams are returned in canonical order
+    (division, then metro); the input line order (a division's finish) is kept
+    separately in `division_standings`.
     """
     by_division: dict[Division, Sequence[str]] = {}
     for key, metros in divisions.items():
-        try:
-            division = Division[key]
-        except KeyError as exc:
-            valid = ", ".join(d.name for d in DIVISION_ORDER)
-            raise ValueError(
-                f"Unknown division key {key!r}; expected one of {valid}"
-            ) from exc
+        division = PNFL_DIVISIONS_BY_NAME.get(key)
+        if division is None:
+            valid = ", ".join(d.name for d in PNFL_DIVISIONS)
+            raise ValueError(f"Unknown division key {key!r}; expected one of {valid}")
         by_division[division] = metros
 
-    missing = [d.name for d in DIVISION_ORDER if d.name not in divisions]
+    missing = [d.name for d in PNFL_DIVISIONS if d.name not in divisions]
     if missing:
         raise ValueError(f"Missing divisions: {missing}")
 
     teams: list[Team] = []
     seen_metros: set[str] = set()
-
-    for division in DIVISION_ORDER:
+    for division in PNFL_DIVISIONS:
         metros = tuple(sorted(m.strip() for m in by_division[division] if m.strip()))
         if len(metros) != division.expected_size:
             raise ValueError(
@@ -117,15 +118,46 @@ def build_teams(divisions: Mapping[str, Sequence[str]]) -> tuple[Team, ...]:
         for metro in metros:
             if metro in seen_metros:
                 raise ValueError(f"Duplicate team in divisions config: {metro}")
-            teams.append(Team(metro=metro, division=division))
+            teams.append(
+                Team(metro=metro, conference=division.conference, division=division)
+            )
             seen_metros.add(metro)
 
-    expected_teams = sum(d.expected_size for d in DIVISION_ORDER)
+    expected_teams = sum(d.expected_size for d in PNFL_DIVISIONS)
     if len(teams) != expected_teams:
         raise ValueError(
             f"Expected exactly {expected_teams} teams across all divisions, got "
             f"{len(teams)}"
         )
+    return tuple(teams)
+
+
+def build_conference_teams(
+    conferences: Mapping[str, Sequence[str]],
+) -> tuple[Team, ...]:
+    """Build a division-less teams tuple from conference-keyed metro lists: exactly
+    two conferences of nine, no metro twice. Canonical order: conference name,
+    then metro."""
+    if len(conferences) != CONFERENCES_PER_LEAGUE:
+        raise ValueError(
+            f"Expected exactly {CONFERENCES_PER_LEAGUE} conferences, got "
+            f"{len(conferences)}: {sorted(conferences)}"
+        )
+    teams: list[Team] = []
+    seen_metros: set[str] = set()
+    for name in sorted(conferences):
+        conference = Conference(name)
+        metros = tuple(sorted(m.strip() for m in conferences[name] if m.strip()))
+        if len(metros) != TEAMS_PER_CONFERENCE:
+            raise ValueError(
+                f"{name} must list exactly {TEAMS_PER_CONFERENCE} teams; "
+                f"got {len(metros)}"
+            )
+        for metro in metros:
+            if metro in seen_metros:
+                raise ValueError(f"Duplicate team in conferences config: {metro}")
+            teams.append(Team(metro=metro, conference=conference))
+            seen_metros.add(metro)
     return tuple(teams)
 
 
@@ -140,52 +172,103 @@ def lookup_team(teams: Sequence[Team], metro: str) -> Team:
     return by_metro[metro]
 
 
-def ordered_teams(teams: Sequence[Team]) -> list[Team]:
-    return sorted(teams, key=lambda team: (DIVISION_INDEX[team.division], team.metro))
-
-
 @dataclass(frozen=True)
 class League:
-    """Teams, the overall AFC/NFC standings (for strength-of-schedule math), and
-    each division's previous-season finish order.
-
-    `division_standings` is the previous season's regular-season divisional
-    finish (best first), from `[DivisionStandings]` -- which also defines who is
-    in each division.
-    """
+    """Teams in canonical order, the two conferences (sorted by name), the
+    standings-derived rankings, and each division's previous-season finish
+    order (empty for a league without divisions)."""
 
     teams: tuple[Team, ...]
+    conferences: tuple[Conference, ...]
     rankings: ConferenceRankings
     division_standings: Mapping[Division, tuple[Team, ...]]
+
+    @property
+    def has_divisions(self) -> bool:
+        return self.teams[0].division is not None
+
+    @property
+    def divisions(self) -> tuple[Division, ...]:
+        return tuple(sorted(self.division_standings, key=lambda d: d.name))
+
+    @property
+    def max_divisional_games_per_week(self) -> int:
+        """Divisional games one week can hold (each odd division strands a team)."""
+        return sum(d.expected_size // 2 for d in self.divisions)
+
+    def divisional_opponents(self, team: Team) -> tuple[Team, ...]:
+        return tuple(t for t in self.teams if t != team and team.same_division(t))
+
+    def conference_opponents(self, team: Team) -> tuple[Team, ...]:
+        """Same conference, outside the division (the whole conference when there
+        are no divisions)."""
+        return tuple(
+            t
+            for t in self.teams
+            if t != team
+            and t.conference == team.conference
+            and not team.same_division(t)
+        )
+
+    def same_conference_opponents(self, team: Team) -> tuple[Team, ...]:
+        return tuple(
+            t for t in self.teams if t != team and t.conference == team.conference
+        )
+
+    def structural_games(self, team: Team) -> int:
+        """Games fixed by structure: every divisional rival twice, the rest of
+        the conference once."""
+        return 2 * len(self.divisional_opponents(team)) + len(
+            self.conference_opponents(team)
+        )
+
+    def nonconference_games(self, team: Team, weeks: int) -> int:
+        return weeks - self.structural_games(team)
 
 
 def build_league(
     division_standings: Mapping[str, Sequence[str]],  # "AFC_EAST" -> finish order
-    overall_ranking: Sequence[
-        str
-    ],  # all 18 metros, best to worst (from [OverallStandings])
+    overall_ranking: Sequence[str],  # all 18 metros, best to worst
 ) -> League:
-    """Build a `League` from the per-division standings plus the overall 1-18
-    standings.
-
-    `[DivisionStandings]` is the single source of division membership: each
-    division lists its teams in finish order (best first). The teams tuple is
-    canonical (alphabetical within division); the finish order is kept in
-    `division_standings`. Per-conference 1-9 ranks derive from the overall order.
-    """
+    """Build a PNFL-style `League`: `[DivisionStandings]` defines membership and
+    each division's finish order; `[OverallStandings]` gives the 1-18 order."""
     teams = build_teams(division_standings)
+    by_division = {
+        PNFL_DIVISIONS_BY_NAME[key]: tuple(
+            lookup_team(teams, metro) for metro in metros
+        )
+        for key, metros in division_standings.items()
+    }
+    return _finish_league(teams, overall_ranking, by_division)
+
+
+def build_conference_league(
+    conference_standings: Mapping[str, Sequence[str]],  # "WESTERN" -> finish order
+    overall_ranking: Sequence[str],
+) -> League:
+    """Build a division-less `League`: `[ConferenceStandings]` defines the two
+    conferences; `[OverallStandings]` gives the 1-18 order."""
+    teams = build_conference_teams(conference_standings)
+    return _finish_league(teams, overall_ranking, {})
+
+
+def _finish_league(
+    teams: tuple[Team, ...],
+    overall_ranking: Sequence[str],
+    division_standings: Mapping[Division, tuple[Team, ...]],
+) -> League:
     overall = tuple(lookup_team(teams, metro) for metro in overall_ranking)
     _validate_overall(overall, teams)
-    afc = tuple(t for t in overall if t.conference == Conference.AFC)
-    nfc = tuple(t for t in overall if t.conference == Conference.NFC)
-    by_division = {
-        Division[key]: tuple(lookup_team(teams, metro) for metro in metros)
-        for key, metros in division_standings.items()
+    conferences = tuple(sorted({t.conference for t in teams}, key=lambda c: c.name))
+    by_conference = {
+        conference: tuple(t for t in overall if t.conference == conference)
+        for conference in conferences
     }
     return League(
         teams=teams,
-        rankings=ConferenceRankings(afc=afc, nfc=nfc, overall=overall),
-        division_standings=by_division,
+        conferences=conferences,
+        rankings=ConferenceRankings(by_conference=by_conference, overall=overall),
+        division_standings=division_standings,
     )
 
 

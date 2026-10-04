@@ -1,9 +1,11 @@
 from collections import Counter
 from itertools import pairwise
 
-from athc.scheduler.domain.league import Division
-from athc.scheduler.domain.schedule import NUM_WEEKS, WEEK_16_DIVISIONAL_GAMES
+from athc.scheduler.domain.league import AFC_EAST, AFC_WEST, NFC_EAST, NFC_WEST
 from athc.scheduler.schedulers.types import make_matchup
+
+NUM_WEEKS = 16
+WEEK_16_DIVISIONAL_GAMES = 8
 
 
 def _schedule_pair_counts(schedule) -> Counter:
@@ -122,7 +124,7 @@ def test_nonconference_game_counts_match_division_size(schedule, teams):
             for game in schedule.games_for(team)
             if game.home.conference != game.away.conference
         ]
-        expected = 5 if team.division in (Division.AFC_EAST, Division.NFC_EAST) else 4
+        expected = 5 if team.division in (AFC_EAST, NFC_EAST) else 4
         assert len(nonconference_games) == expected, (
             f"{team.metro}: expected {expected} non-conference games, got {len(nonconference_games)}"
         )
@@ -200,7 +202,7 @@ def test_no_four_consecutive_divisional_games(schedule, teams):
 def test_divisional_density_windows(schedule, teams):
     for team in teams:
         divisional_pattern = _divisional_pattern(schedule, team)
-        if team.division in (Division.AFC_WEST, Division.NFC_WEST):
+        if team.division in (AFC_WEST, NFC_WEST):
             for start in range(NUM_WEEKS - 8):
                 div_count = sum(divisional_pattern[start : start + 9])
                 assert div_count <= 6, (
@@ -215,7 +217,7 @@ def test_divisional_density_windows(schedule, teams):
 
 
 def _front_load_caps(team):
-    if team.division in (Division.AFC_WEST, Division.NFC_WEST):
+    if team.division in (AFC_WEST, NFC_WEST):
         return [(5, 3), (6, 4), (8, 5), (10, 6)]
     return [(4, 2), (8, 3), (10, 4)]
 
@@ -253,7 +255,7 @@ def _opens_with_divisional_pair(schedule, team) -> bool:
 
 
 def test_at_most_one_four_team_opens_with_divisional_pair(schedule, teams):
-    four_team = (Division.AFC_EAST, Division.NFC_EAST)
+    four_team = (AFC_EAST, NFC_EAST)
     count = sum(
         1
         for team in teams
@@ -263,7 +265,7 @@ def test_at_most_one_four_team_opens_with_divisional_pair(schedule, teams):
 
 
 def test_at_most_two_five_team_open_with_divisional_pair(schedule, teams):
-    five_team = (Division.AFC_WEST, Division.NFC_WEST)
+    five_team = (AFC_WEST, NFC_WEST)
     count = sum(
         1
         for team in teams
@@ -370,7 +372,7 @@ def test_no_three_game_home_or_away_streak_to_start_or_end(schedule, teams):
 
 
 def test_five_team_divisions_split_conference_home_games_evenly(schedule, teams):
-    five_team_divisions = (Division.AFC_WEST, Division.NFC_WEST)
+    five_team_divisions = (AFC_WEST, NFC_WEST)
 
     for team in teams:
         if team.division not in five_team_divisions:
@@ -390,7 +392,7 @@ def test_five_team_divisions_split_conference_home_games_evenly(schedule, teams)
 
 
 def test_four_team_divisions_split_conference_home_games_2_2_3_3(schedule, teams):
-    four_team_divisions = (Division.AFC_EAST, Division.NFC_EAST)
+    four_team_divisions = (AFC_EAST, NFC_EAST)
 
     for division in four_team_divisions:
         home_counts = []
@@ -412,7 +414,7 @@ def test_four_team_divisions_split_conference_home_games_2_2_3_3(schedule, teams
 
 
 def test_five_team_divisions_have_two_nonconference_home_games(schedule, teams):
-    five_team_divisions = (Division.AFC_WEST, Division.NFC_WEST)
+    five_team_divisions = (AFC_WEST, NFC_WEST)
 
     for team in teams:
         if team.division not in five_team_divisions:
@@ -435,7 +437,7 @@ def test_five_team_divisions_have_two_nonconference_home_games(schedule, teams):
 
 
 def test_four_team_divisions_split_nonconference_home_games_2_2_3_3(schedule, teams):
-    four_team_divisions = (Division.AFC_EAST, Division.NFC_EAST)
+    four_team_divisions = (AFC_EAST, NFC_EAST)
 
     for division in four_team_divisions:
         home_counts = []

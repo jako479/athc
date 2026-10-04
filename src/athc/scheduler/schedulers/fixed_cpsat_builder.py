@@ -1,21 +1,19 @@
 """Phase-1 matchup builder for the scheduler (fixed-place + CP-SAT).
 
-Two non-conference games per team are fixed by division standings: each team
-plays the same-place finisher in both other-conference divisions (5th places
-play each other, one game). One CP-SAT solve picks the remaining games,
-tilting each team's average opponent conference rank (1-9, whole slate) by
-`spread`: best team hardest, worst easiest, linear between.
+Structure fixes the same-conference games: every divisional rival twice (a
+league with divisions) and every other conference team once. The rest of each
+team's `weeks` are non-conference games. Some are fixed -- the PNFL's same-place
+division pairs (5th places play each other) and any cross-conference rivalry --
+and one CP-SAT solve picks the remainder, tilting each team's average opponent
+conference rank (1-9, whole slate) by `spread`: best team hardest, worst
+easiest, linear between.
 
 Self-contained on purpose: owns its table and difficulty line.
-
-Inventory rules enforced here:
-- Each team plays 16 total games.
-- Every divisional opponent twice; every same-conference opponent once.
-- 5-team divisions play 4 non-conference games; 4-team divisions play 5.
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 
 from ortools.sat.python import cp_model
@@ -23,44 +21,42 @@ from ortools.sat.python import cp_model
 from athc.scheduler.config import (
     DEFAULT_DIFFICULTY_SPREAD,
     DEFAULT_PHASE1_TIME_LIMIT,
+    DEFAULT_WEEKS,
 )
 from athc.scheduler.domain.league import (
     TEAMS_PER_CONFERENCE,
-    Conference,
-    ConferenceRankings,
     Division,
+    League,
+    RivalryPair,
     Team,
 )
-from athc.scheduler.domain.schedule import (
-    GAMES_PER_WEEK,
-    NUM_WEEKS,
-    nonconference_games_for,
-)
+from athc.scheduler.domain.schedule import GAMES_PER_WEEK
 from athc.scheduler.schedulers.errors import SchedulerError
 from athc.scheduler.schedulers.types import Matchup, MatchupPlan, make_matchup
 
-# Fixed non-conference games per (division, place) slot (symmetric): places
-# 1-4 play both same-place finishers; the 5th places play each other.
-_PlaceSlot = tuple[Division, int]
+# Fixed non-conference games per (division name, place) slot (symmetric): places
+# 1-4 play both same-place finishers; the 5th places play each other. The PNFL
+# only -- a league with other divisions has no table and errors.
+_PlaceSlot = tuple[str, int]
 FIXED_NONCONF_PLACE_OPPONENTS: dict[_PlaceSlot, tuple[_PlaceSlot, ...]] = {
-    (Division.AFC_EAST, 1): ((Division.NFC_EAST, 1), (Division.NFC_WEST, 1)),
-    (Division.AFC_EAST, 2): ((Division.NFC_EAST, 2), (Division.NFC_WEST, 2)),
-    (Division.AFC_EAST, 3): ((Division.NFC_EAST, 3), (Division.NFC_WEST, 3)),
-    (Division.AFC_EAST, 4): ((Division.NFC_EAST, 4), (Division.NFC_WEST, 4)),
-    (Division.AFC_WEST, 1): ((Division.NFC_EAST, 1), (Division.NFC_WEST, 1)),
-    (Division.AFC_WEST, 2): ((Division.NFC_EAST, 2), (Division.NFC_WEST, 2)),
-    (Division.AFC_WEST, 3): ((Division.NFC_EAST, 3), (Division.NFC_WEST, 3)),
-    (Division.AFC_WEST, 4): ((Division.NFC_EAST, 4), (Division.NFC_WEST, 4)),
-    (Division.AFC_WEST, 5): ((Division.NFC_WEST, 5),),
-    (Division.NFC_EAST, 1): ((Division.AFC_EAST, 1), (Division.AFC_WEST, 1)),
-    (Division.NFC_EAST, 2): ((Division.AFC_EAST, 2), (Division.AFC_WEST, 2)),
-    (Division.NFC_EAST, 3): ((Division.AFC_EAST, 3), (Division.AFC_WEST, 3)),
-    (Division.NFC_EAST, 4): ((Division.AFC_EAST, 4), (Division.AFC_WEST, 4)),
-    (Division.NFC_WEST, 1): ((Division.AFC_EAST, 1), (Division.AFC_WEST, 1)),
-    (Division.NFC_WEST, 2): ((Division.AFC_EAST, 2), (Division.AFC_WEST, 2)),
-    (Division.NFC_WEST, 3): ((Division.AFC_EAST, 3), (Division.AFC_WEST, 3)),
-    (Division.NFC_WEST, 4): ((Division.AFC_EAST, 4), (Division.AFC_WEST, 4)),
-    (Division.NFC_WEST, 5): ((Division.AFC_WEST, 5),),
+    ("AFC_EAST", 1): (("NFC_EAST", 1), ("NFC_WEST", 1)),
+    ("AFC_EAST", 2): (("NFC_EAST", 2), ("NFC_WEST", 2)),
+    ("AFC_EAST", 3): (("NFC_EAST", 3), ("NFC_WEST", 3)),
+    ("AFC_EAST", 4): (("NFC_EAST", 4), ("NFC_WEST", 4)),
+    ("AFC_WEST", 1): (("NFC_EAST", 1), ("NFC_WEST", 1)),
+    ("AFC_WEST", 2): (("NFC_EAST", 2), ("NFC_WEST", 2)),
+    ("AFC_WEST", 3): (("NFC_EAST", 3), ("NFC_WEST", 3)),
+    ("AFC_WEST", 4): (("NFC_EAST", 4), ("NFC_WEST", 4)),
+    ("AFC_WEST", 5): (("NFC_WEST", 5),),
+    ("NFC_EAST", 1): (("AFC_EAST", 1), ("AFC_WEST", 1)),
+    ("NFC_EAST", 2): (("AFC_EAST", 2), ("AFC_WEST", 2)),
+    ("NFC_EAST", 3): (("AFC_EAST", 3), ("AFC_WEST", 3)),
+    ("NFC_EAST", 4): (("AFC_EAST", 4), ("AFC_WEST", 4)),
+    ("NFC_WEST", 1): (("AFC_EAST", 1), ("AFC_WEST", 1)),
+    ("NFC_WEST", 2): (("AFC_EAST", 2), ("AFC_WEST", 2)),
+    ("NFC_WEST", 3): (("AFC_EAST", 3), ("AFC_WEST", 3)),
+    ("NFC_WEST", 4): (("AFC_EAST", 4), ("AFC_WEST", 4)),
+    ("NFC_WEST", 5): (("AFC_WEST", 5),),
 }
 
 TOP_HALF_MAX_RANK = 5
@@ -71,16 +67,17 @@ BOTTOM_HALF_MIN_RANK = 5
 CONF_RANK_CENTER = 5
 CONF_RANK_HALF_RANGE = 4
 
-# Deviations are scored in 1/DIFFICULTY_SCALE-rank units. 20 = LCM(4, 5) keeps
-# opponent_rank_sum * (DIFFICULTY_SCALE / games) an exact integer for both the
-# 4- and 5-non-conference-game teams.
+# Deviations are scored in 1/scale-rank units. The scale is the LCM of this and
+# every non-conference game count, so opponent_rank_sum * (scale / games) is an
+# exact integer for every team (20 for both leagues' 4- and 5-game teams).
 DIFFICULTY_SCALE = 20
 
 
-def _validate_fixed_place_table() -> None:
+def _validate_fixed_place_table(divisions: Sequence[Division]) -> None:
+    by_name = {division.name: division for division in divisions}
     expected_slots = {
-        (division, place)
-        for division in Division
+        (division.name, place)
+        for division in divisions
         for place in range(1, division.expected_size + 1)
     }
     if set(FIXED_NONCONF_PLACE_OPPONENTS) != expected_slots:
@@ -88,8 +85,8 @@ def _validate_fixed_place_table() -> None:
             "Fixed non-conference place table must define every (division, place)"
         )
     for slot, opponents in FIXED_NONCONF_PLACE_OPPONENTS.items():
-        division, place = slot
-        label = f"{division.name} place {place}"
+        name, place = slot
+        label = f"{name} place {place}"
         expected = 1 if place == 5 else 2
         if len(opponents) != expected or len(set(opponents)) != expected:
             raise SchedulerError(
@@ -98,12 +95,12 @@ def _validate_fixed_place_table() -> None:
         for opp in opponents:
             if opp not in FIXED_NONCONF_PLACE_OPPONENTS:
                 raise SchedulerError(f"{label} references invalid slot {opp}")
-            if opp[0].conference == division.conference:
+            if by_name[opp[0]].conference == by_name[name].conference:
                 raise SchedulerError(f"{label} references a same-conference slot")
             if slot not in FIXED_NONCONF_PLACE_OPPONENTS[opp]:
                 raise SchedulerError(
                     f"Fixed non-conference place table is not symmetric: {label} -> "
-                    f"{opp[0].name} place {opp[1]} without the reverse edge"
+                    f"{opp[0]} place {opp[1]} without the reverse edge"
                 )
 
 
@@ -117,63 +114,74 @@ def difficulty_target(
 
 
 class _FixedCpsatNonConferenceModel:
-    """Select every AFC/NFC matchup with the fixed place-table pairs forced in.
+    """Select every cross-conference matchup with the fixed pairs forced in.
 
+    `rows` are the first conference's teams and `columns` the second's, both in
+    conference-rank order (the grid order is part of the pinned PNFL model).
     `fixed_pairs` are pinned to 1 before solving, so the line objective only
     chooses the remaining slots around them.
     """
 
     def __init__(
         self,
-        ranked_teams_by_conf: Mapping[Conference, Sequence[Team]],
-        conf_rank: dict[Team, int],
+        rows: Sequence[Team],
+        columns: Sequence[Team],
+        conf_rank: Mapping[Team, int],
+        nonconference_games: Mapping[Team, int],
         fixed_pairs: frozenset[Matchup],
         spread: float = DEFAULT_DIFFICULTY_SPREAD,
     ) -> None:
         self.model = cp_model.CpModel()
         self.conf_rank = conf_rank
+        self.nonconference_games = nonconference_games
         self.fixed_pairs = fixed_pairs
         self.spread = spread
-        self.afc_teams = list(ranked_teams_by_conf[Conference.AFC])
-        self.nfc_teams = list(ranked_teams_by_conf[Conference.NFC])
-        self.teams = tuple(self.afc_teams + self.nfc_teams)
-        # Name "x" is OR-Tools convention; key is [AFC team, NFC team].
+        self.rows = list(rows)
+        self.columns = list(columns)
+        self.row_conference = self.rows[0].conference
+        self.teams = tuple(self.rows + self.columns)
+        self.scale = math.lcm(DIFFICULTY_SCALE, *nonconference_games.values())
+        # Name "x" is OR-Tools convention; key is [row team, column team].
         self.x: dict[tuple[Team, Team], cp_model.IntVar] = {}
         self.opponent_rank_sum: dict[Team, cp_model.IntVar] = {}
 
-        for afc_team in self.afc_teams:
-            for nfc_team in self.nfc_teams:
-                self.x[afc_team, nfc_team] = self.model.new_bool_var(
-                    f"nc_{afc_team.metro}_{nfc_team.metro}"
+        for row in self.rows:
+            for column in self.columns:
+                self.x[row, column] = self.model.new_bool_var(
+                    f"nc_{row.metro}_{column.metro}"
                 )
 
     def _var_for_pair(self, team: Team, opponent: Team) -> cp_model.IntVar:
-        if team.conference == Conference.AFC:
+        if team.conference == self.row_conference:
             return self.x[team, opponent]
         return self.x[opponent, team]
 
     def _opponents_for(self, team: Team) -> list[Team]:
-        return self.nfc_teams if team.conference == Conference.AFC else self.afc_teams
+        return self.columns if team.conference == self.row_conference else self.rows
 
     def _add_fixed_pair_constraints(self) -> None:
-        for team_a, team_b in self.fixed_pairs:
-            afc, nfc = (
+        # Sorted: a frozenset iterates in hash order, which differs per process,
+        # and the built model must be identical for a seed to reproduce.
+        for team_a, team_b in sorted(
+            self.fixed_pairs, key=lambda pair: (pair[0].metro, pair[1].metro)
+        ):
+            row, column = (
                 (team_a, team_b)
-                if team_a.conference == Conference.AFC
+                if team_a.conference == self.row_conference
                 else (team_b, team_a)
             )
-            self.model.add(self.x[afc, nfc] == 1)
+            self.model.add(self.x[row, column] == 1)
 
     def _add_degree_constraints(self) -> None:
-        for afc_team in self.afc_teams:
+        for row in self.rows:
             self.model.add(
-                sum(self.x[afc_team, nfc_team] for nfc_team in self.nfc_teams)
-                == nonconference_games_for(afc_team.division)
+                sum(self.x[row, column] for column in self.columns)
+                == self.nonconference_games[row]
             )
-        for nfc_team in self.nfc_teams:
+        for column in self.columns:
             self.model.add(
-                sum(self.x[afc_team, nfc_team] for afc_team in self.afc_teams)
-                == nonconference_games_for(nfc_team.division)
+                sum(self.x[row, column] for row in self.rows)
+                == self.nonconference_games[column]
             )
 
     def _add_top_bottom_constraints(self) -> None:
@@ -195,10 +203,9 @@ class _FixedCpsatNonConferenceModel:
     def _add_opponent_rank_sum_constraints(self) -> None:
         for team in self.teams:
             opponents = self._opponents_for(team)
+            games = self.nonconference_games[team]
             score = self.model.new_int_var(
-                nonconference_games_for(team.division),
-                TEAMS_PER_CONFERENCE * nonconference_games_for(team.division),
-                f"nc_rank_sum_{team.metro}",
+                games, TEAMS_PER_CONFERENCE * games, f"nc_rank_sum_{team.metro}"
             )
             self.model.add(
                 score
@@ -210,17 +217,17 @@ class _FixedCpsatNonConferenceModel:
             self.opponent_rank_sum[team] = score
 
     def _set_line_objective(self) -> None:
-        # Score each team's deviation from its line target in
-        # 1/DIFFICULTY_SCALE-rank units, then minimize the largest deviation
-        # (minimax) and, as a tie-break, the total (minisum). The tie-break
-        # weight exceeds any possible total, so the largest is minimized first.
+        # Score each team's deviation from its line target in 1/scale-rank
+        # units, then minimize the largest deviation (minimax) and, as a
+        # tie-break, the total (minisum). The tie-break weight exceeds any
+        # possible total, so the largest is minimized first.
         deviations: list[cp_model.IntVar] = []
-        max_dev = DIFFICULTY_SCALE * TEAMS_PER_CONFERENCE
+        max_dev = self.scale * TEAMS_PER_CONFERENCE
         for team in self.teams:
-            games = nonconference_games_for(team.division)
-            scaled_sum = self.opponent_rank_sum[team] * (DIFFICULTY_SCALE // games)
+            games = self.nonconference_games[team]
+            scaled_sum = self.opponent_rank_sum[team] * (self.scale // games)
             target = round(
-                difficulty_target(self.conf_rank[team], self.spread) * DIFFICULTY_SCALE
+                difficulty_target(self.conf_rank[team], self.spread) * self.scale
             )
             dev = self.model.new_int_var(0, max_dev, f"nc_dev_{team.metro}")
             self.model.add(dev >= scaled_sum - target)
@@ -257,8 +264,8 @@ class _FixedCpsatNonConferenceModel:
             )
 
         return {
-            make_matchup(afc_team, nfc_team)
-            for (afc_team, nfc_team), var in self.x.items()
+            make_matchup(row, column)
+            for (row, column), var in self.x.items()
             if solver.value(var) == 1
         }
 
@@ -266,36 +273,36 @@ class _FixedCpsatNonConferenceModel:
 class FixedCpsatMatchupBuilder:
     def __init__(
         self,
-        teams: Sequence[Team],
-        rankings: ConferenceRankings,
-        division_standings: Mapping[Division, Sequence[Team]],
+        league: League,
+        *,
+        weeks: int = DEFAULT_WEEKS,
+        rivalries: Sequence[RivalryPair] = (),
         spread: float = DEFAULT_DIFFICULTY_SPREAD,
         phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT,
         seed: int = 0,
     ) -> None:
-        self.teams = teams
-        self.rankings = rankings
-        self.division_standings = division_standings
+        self.league = league
+        self.teams = league.teams
+        self.rankings = league.rankings
+        self.weeks = weeks
+        self.rivalries = tuple(rivalries)
         self.spread = spread
         self.phase1_time_limit = phase1_time_limit
         self.seed = seed
 
-        self.ranked_teams_by_conf: dict[Conference, tuple[Team, ...]] = {
-            Conference.AFC: rankings.afc,
-            Conference.NFC: rankings.nfc,
+        self.conf_rank = {team: league.rankings.rank_of(team) for team in self.teams}
+        self.nonconference_games = {
+            team: league.nonconference_games(team, weeks) for team in self.teams
         }
-        self.conf_rank = {team: rankings.rank_of(team) for team in self.teams}
         self.matchups: list[Matchup] = []
         self.selected_nonconference: set[Matchup] = set()
-        self.remaining_nonconference = {
-            team: nonconference_games_for(team.division) for team in self.teams
-        }
+        self.remaining_nonconference = dict(self.nonconference_games)
         self.fixed_nonconference_pairs: set[Matchup] = set()
 
     def _add_divisional_matchups(self) -> None:
         for i, team_i in enumerate(self.teams):
             for team_j in self.teams[i + 1 :]:
-                if team_i.division == team_j.division:
+                if team_i.same_division(team_j):
                     pair = make_matchup(team_i, team_j)
                     self.matchups.append(pair)
                     self.matchups.append(pair)
@@ -303,9 +310,8 @@ class FixedCpsatMatchupBuilder:
     def _add_conference_matchups(self) -> None:
         for i, team_i in enumerate(self.teams):
             for team_j in self.teams[i + 1 :]:
-                if (
-                    team_i.conference == team_j.conference
-                    and team_i.division != team_j.division
+                if team_i.conference == team_j.conference and not team_i.same_division(
+                    team_j
                 ):
                     self.matchups.append(make_matchup(team_i, team_j))
 
@@ -330,9 +336,13 @@ class FixedCpsatMatchupBuilder:
                 )
 
     def _fixed_place_pairs(self) -> set[Matchup]:
+        """The PNFL's same-place pairs; none for a league without divisions."""
+        if not self.league.has_divisions:
+            return set()
+        _validate_fixed_place_table(self.league.divisions)
         team_at: dict[_PlaceSlot, Team] = {
-            (division, index + 1): team
-            for division, order in self.division_standings.items()
+            (division.name, index + 1): team
+            for division, order in self.league.division_standings.items()
             for index, team in enumerate(order)
         }
         return {
@@ -341,28 +351,41 @@ class FixedCpsatMatchupBuilder:
             for opp in opponents
         }
 
-    def _solve_nonconference_pairs(self, fixed_pairs: set[Matchup]) -> set[Matchup]:
+    def _rivalry_pairs(self) -> set[Matchup]:
+        """Cross-conference rivalries are non-conference games the solver must keep."""
+        return {
+            make_matchup(a, b)
+            for a, b in self.rivalries
+            if a.conference != b.conference
+        }
+
+    def _nonconference_model(
+        self, fixed_pairs: set[Matchup]
+    ) -> _FixedCpsatNonConferenceModel:
+        """The built (unsolved) non-conference model; tests fingerprint it."""
+        first, second = self.league.conferences
         model = _FixedCpsatNonConferenceModel(
-            ranked_teams_by_conf=self.ranked_teams_by_conf,
+            rows=self.rankings.ranked(first),
+            columns=self.rankings.ranked(second),
             conf_rank=self.conf_rank,
+            nonconference_games=self.nonconference_games,
             fixed_pairs=frozenset(fixed_pairs),
             spread=self.spread,
         )
         model.build()
-        return model.solve(seed=self.seed, time_limit=self.phase1_time_limit)
+        return model
 
     def build_matchup_plan(self) -> MatchupPlan:
-        _validate_fixed_place_table()
         self._add_divisional_matchups()
         self._add_conference_matchups()
 
-        fixed_pairs = self._fixed_place_pairs()
+        fixed_pairs = self._fixed_place_pairs() | self._rivalry_pairs()
         self.fixed_nonconference_pairs = set(fixed_pairs)
-        nonconference_pairs = self._solve_nonconference_pairs(fixed_pairs)
+        nonconference_pairs = self._nonconference_model(fixed_pairs).solve(
+            seed=self.seed, time_limit=self.phase1_time_limit
+        )
         if not fixed_pairs <= nonconference_pairs:
-            raise SchedulerError(
-                "CP-SAT solve dropped a fixed place-table non-conference pair"
-            )
+            raise SchedulerError("CP-SAT solve dropped a fixed non-conference pair")
         self._add_nonconference_pairs(nonconference_pairs)
 
         if any(slots != 0 for slots in self.remaining_nonconference.values()):
@@ -374,15 +397,17 @@ class FixedCpsatMatchupBuilder:
             raise SchedulerError(
                 f"Non-conference inventory left unresolved slots: {unresolved}"
             )
-        if len(self.selected_nonconference) != 40:
+        expected_nonconference = sum(self.nonconference_games.values()) // 2
+        if len(self.selected_nonconference) != expected_nonconference:
             raise SchedulerError(
-                f"Expected 40 non-conference games, got "
+                f"Expected {expected_nonconference} non-conference games, got "
                 f"{len(self.selected_nonconference)}"
             )
-        if len(self.matchups) != (NUM_WEEKS * GAMES_PER_WEEK):
+        expected_total = self.weeks * GAMES_PER_WEEK
+        if len(self.matchups) != expected_total:
             raise SchedulerError(
-                f"Expected {NUM_WEEKS * GAMES_PER_WEEK} total matchups in phase-1 "
-                f"inventory, got {len(self.matchups)}"
+                f"Expected {expected_total} total matchups in phase-1 inventory, got "
+                f"{len(self.matchups)}"
             )
 
         return MatchupPlan(

@@ -41,7 +41,7 @@ class ScheduleReport:
 
 
 def _opponents(schedule: Schedule, team: Team) -> list[Team]:
-    """All opponents over the team's 16 games (divisional opponents appear twice)."""
+    """All of the team's opponents, one per game (divisional opponents appear twice)."""
     return [(g.away if g.home == team else g.home) for g in schedule.games_for(team)]
 
 

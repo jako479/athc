@@ -71,6 +71,7 @@
 
 ## scheduler
 
+- second league format: a league without divisions (`[ConferenceStandings]`), `[league] weeks`, opening non-conference weeks, a conference-sequence streak cap, rivalry week with home rotation by season; PCFL 2029 data files
 - corrected the phase-2 solver worker count in the design doc
 - removed references to the dropped A, B, C and D schedulers from the league.ini files and release docs
 - league.ini `[Standings]` renamed to `[OverallStandings]`

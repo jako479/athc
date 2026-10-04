@@ -1,19 +1,25 @@
 """The scheduler (fixed-place + CP-SAT): NFL-like same-place seeding.
 
-Phase 1 fixes two non-conference games per team by division place (from
-`[DivisionStandings]`; 5th places play each other), then one CP-SAT solve
-picks the rest, tilting each team's average opponent conference rank by the
-configurable `spread`.
+Phase 1 fixes the PNFL's same-place games (two non-conference games per team by
+division place, from `[DivisionStandings]`; 5th places play each other) and any
+cross-conference rivalry, then one CP-SAT solve picks the rest, tilting each
+team's average opponent conference rank by the configurable `spread`.
 
-Phase 2 uses CP-SAT to place that full inventory into the calendar under the
-week/home-away sequencing constraints in `schedule_builder.py`.
+Phase 2 uses CP-SAT to place that full inventory into the league's weeks under
+the week/home-away sequencing constraints in `schedule_builder.py`; the season
+decides rivalry hosting when it rotates.
 """
 
 from __future__ import annotations
 
 import logging
 
-from athc.scheduler.config import SchedulerConfig
+from athc.scheduler.config import (
+    SchedulerConfig,
+    check_opening_weeks,
+    check_weeks,
+    resolve_rivalries,
+)
 from athc.scheduler.domain.league import League
 from athc.scheduler.schedulers.errors import SchedulerError
 from athc.scheduler.schedulers.fixed_cpsat_builder import FixedCpsatMatchupBuilder
@@ -27,14 +33,21 @@ def generate_schedule(
     league: League,
     seed: int = 0,
     scheduler_config: SchedulerConfig | None = None,
+    *,
+    season: int,
 ) -> SchedulerResult:
-    """Build matchups, then build the final schedule."""
+    """Build matchups, then build the final schedule for `season`."""
     config = scheduler_config or SchedulerConfig()
+    weeks = config.league.weeks
+    check_weeks(league, weeks)
+    check_opening_weeks(league, weeks, config.phase2.opening_nonconference_weeks)
+    rivalries = resolve_rivalries(league, config.rivalries)
+
     logger.info("Phase 1: selecting matchups")
     matchup_plan = FixedCpsatMatchupBuilder(
-        teams=league.teams,
-        rankings=league.rankings,
-        division_standings=league.division_standings,
+        league,
+        weeks=weeks,
+        rivalries=rivalries,
         spread=config.difficulty.spread,
         phase1_time_limit=config.solver.phase1_time_limit,
         seed=seed,
@@ -45,7 +58,13 @@ def generate_schedule(
         "minutes and can take 30 minutes or more.",
     )
     schedule_builder = ScheduleBuilder(
-        teams=league.teams, error_cls=SchedulerError, amounts=config.phase2
+        league,
+        error_cls=SchedulerError,
+        amounts=config.phase2,
+        weeks=weeks,
+        rivalries=rivalries,
+        rotate_rivalry_home_by_season=config.rivalries.rotate_home_by_season,
+        season=season,
     )
     schedule = schedule_builder.build_schedule(
         matchups=matchup_plan.matchups,

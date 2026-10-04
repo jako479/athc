@@ -87,7 +87,9 @@ class _ReachedSolver(Exception):
 
 def _stub_solver(monkeypatch) -> None:
     def fake_get_scheduler():
-        def run(**_: object) -> None:
+        def run(**kwargs: object) -> None:
+            # main() must forward the season: rivalry hosting rotates on it.
+            assert kwargs["season"] == 2048
             raise _ReachedSolver
 
         return run

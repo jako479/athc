@@ -18,6 +18,17 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 | Unknown `[phase2]` key | `ConfigError` | `test_load_scheduler_config_rejects_unknown_phase2_key` | ☑ |
 | Non-integer `[phase2]` | `ConfigError` | `test_load_scheduler_config_errors_on_non_integer_phase2` | ☑ |
 
+### `[league]` / `[rivalries]` / league-resolved checks
+| Case | Expected | Test | Status |
+|---|---|---|---|
+| `[league] weeks` | parsed (min 2 accepted); default 16; odd/zero/non-int/unknown key error | `test_load_scheduler_config_reads_weeks`, `test_weeks_defaults_to_sixteen`, `test_load_scheduler_config_rejects_bad_weeks`, `test_load_scheduler_config_rejects_unknown_league_key` | ☑ |
+| Explicit path | reads it; missing errors | `test_load_scheduler_config_from_explicit_path`, `test_load_scheduler_config_explicit_path_must_exist` | ☑ |
+| New `[phase2]` keys | parsed; PNFL defaults; 0 off, -1 error | `test_load_scheduler_config_reads_new_phase2_keys`, `test_new_phase2_keys_default_to_pnfl_behaviour`, `test_zero_is_off_and_negative_is_rejected` | ☑ |
+| `[rivalries]` | pairs + toggle parsed, names stripped; bad shapes error | `test_load_scheduler_config_reads_rivalries`, `test_rivalries_default_to_none`, `test_load_scheduler_config_rejects_bad_rivalries` | ☑ |
+| `check_weeks` | PCFL 10/16 ok, 8/18/11 error; PNFL 14/20 ok, 12/22 error | `test_check_weeks_*` | ☑ |
+| `check_opening_weeks` | 0/3 ok, 4 error | `test_check_opening_weeks_*` | ☑ |
+| `resolve_rivalries` | listed order; 8/10 pairs, repeat, unknown, 3 cross error | `test_resolve_rivalries_*` | ☑ |
+
 ### Path resolution — `--season` selects the league file
 | Case | Expected | Test | Status |
 |---|---|---|---|
@@ -41,6 +52,8 @@ In `test_config.py` and `test_cli.py`. One row per behavior. Status: ☑ covered
 | Malformed INI | `ConfigError` | `test_load_league_errors_on_invalid_ini` | ☑ |
 | File missing | `ConfigError` | `test_load_league_errors_when_file_missing` | ☑ |
 | Shipped `release/2048.league.ini` | loads, 18 teams | `test_release_example_league_loads` | ☑ |
+| `[ConferenceStandings]` | loads a division-less league | `test_load_league_reads_conference_standings` (Task 4) | ☑ |
+| Both / neither section | `ConfigError` naming both | `test_load_league_errors_with_both_sections`, `test_load_league_errors_when_division_standings_section_missing` (Task 4) | ☑ |
 
 ### `[DivisionStandings]` — defines division membership + finish order
 | Case | Expected | Test | Status |

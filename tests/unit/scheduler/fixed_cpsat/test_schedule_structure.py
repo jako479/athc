@@ -1,6 +1,8 @@
 from collections import Counter
 
-from athc.scheduler.domain.schedule import GAMES_PER_WEEK, NUM_WEEKS
+from athc.scheduler.domain.schedule import GAMES_PER_WEEK
+
+NUM_WEEKS = 16
 
 
 def test_game_count(schedule):

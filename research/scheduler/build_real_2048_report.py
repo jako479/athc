@@ -16,7 +16,7 @@ from pathlib import Path
 
 from athc.scheduler.config import load_league
 from athc.scheduler.domain.league import Team, lookup_team
-from athc.scheduler.domain.schedule import Game, Schedule, nonconference_games_for
+from athc.scheduler.domain.schedule import Game, Schedule
 from athc.scheduler.schedulers.types import MatchupPlan
 from athc.scheduler.writers import report as report_mod
 from athc.scheduler.writers.report import (
@@ -257,7 +257,9 @@ def validate(schedule: Schedule, teams: tuple[Team, ...]) -> None:
 
         nonconf = [t for t in teams if t.conference != team.conference]
         played_nc = [opp for opp in nonconf if counts[opp]]
-        want_nc = nonconference_games_for(team.division)
+        want_nc = (
+            5 if team.division is not None and team.division.expected_size == 4 else 4
+        )
         assert len(played_nc) == want_nc, (
             f"{team.metro}: {len(played_nc)} non-conf opponents, want {want_nc}"
         )

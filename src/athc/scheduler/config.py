@@ -9,12 +9,21 @@ from pathlib import Path
 from typing import Any
 
 from athc.config import config_dir
-from athc.scheduler.domain.league import League, build_league
+from athc.scheduler.domain.league import (
+    TEAMS_PER_CONFERENCE,
+    League,
+    RivalryPair,
+    Team,
+    build_conference_league,
+    build_league,
+    lookup_team,
+)
 
 StrPath = str | PathLike[str]
 
 LEAGUE_FILE = "league.ini"  # actual file is "<season>.league.ini"
 SCHEDULER_RULES_FILE = "PNFL.scheduler.toml"  # in the config dir's rules/ folder
+DEFAULT_WEEKS = 16  # regular-season weeks (the PNFL)
 
 # Scheduler tunables; overridable in PNFL.scheduler.toml (missing -> these).
 # Phase-2 runs multithreaded (interleave_search) and stops on deterministic
@@ -36,6 +45,13 @@ DEFAULT_SOLVER_WORKERS = 8
 
 class ConfigError(Exception):
     """The config file is missing, or present but invalid."""
+
+
+@dataclass(frozen=True)
+class LeagueConfig:
+    """League shape the standings file does not carry."""
+
+    weeks: int = DEFAULT_WEEKS
 
 
 @dataclass(frozen=True)
@@ -64,6 +80,15 @@ class Phase2Config:
     min_home_per_six_weeks: int = 2
     max_home_per_six_weeks: int = 4
     max_three_game_home_away_streaks: int = 1
+    # Conference-sequence streak cap (0 = off): along a team's conference games,
+    # ignoring non-conference games between them.
+    max_consecutive_conference_home_or_away: int = 0
+    # Weeks 1..N hold no same-conference game (0 = off).
+    opening_nonconference_weeks: int = 0
+    # NFL-pattern home/away rules; a league without them turns these off.
+    require_home_balance_per_six_weeks: bool = True
+    require_home_away_streak_caps: bool = True
+    require_mixed_home_away_at_season_ends: bool = True
     # Divisional sequencing
     max_consecutive_divisional: int = 3
     max_three_game_divisional_streaks: int = 1
@@ -123,10 +148,20 @@ class Phase2Config:
 
 
 @dataclass(frozen=True)
+class RivalriesConfig:
+    """Final-week rivalry pairs, as listed (first hosts in even seasons)."""
+
+    pairs: tuple[tuple[str, str], ...] = ()
+    rotate_home_by_season: bool = True
+
+
+@dataclass(frozen=True)
 class SchedulerConfig:
+    league: LeagueConfig = field(default_factory=LeagueConfig)
     difficulty: DifficultyConfig = field(default_factory=DifficultyConfig)
     solver: SolverConfig = field(default_factory=SolverConfig)
     phase2: Phase2Config = field(default_factory=Phase2Config)
+    rivalries: RivalriesConfig = field(default_factory=RivalriesConfig)
 
 
 def scheduler_rules_path() -> Path:
@@ -137,52 +172,74 @@ def scheduler_rules_path() -> Path:
     return config_dir() / "rules" / SCHEDULER_RULES_FILE
 
 
-def load_scheduler_config() -> SchedulerConfig:
-    """Read scheduler tunables from `rules/PNFL.scheduler.toml`, defaulting when
-    the file or any key is absent. Invalid TOML or a non-numeric value errors."""
-    path = scheduler_rules_path()
-    if not path.is_file():
-        return SchedulerConfig()
+def load_scheduler_config(path: StrPath | None = None) -> SchedulerConfig:
+    """Read scheduler tunables from `rules/PNFL.scheduler.toml` (or `path`),
+    defaulting when the default file or any key is absent. An explicit `path`
+    must exist. Invalid TOML or a bad value errors."""
+    if path is None:
+        resolved = scheduler_rules_path()
+        if not resolved.is_file():
+            return SchedulerConfig()
+    else:
+        resolved = Path(path)
+        if not resolved.is_file():
+            raise ConfigError(f"Config file not found: '{resolved}'.")
     try:
-        data = tomllib.loads(path.read_text(encoding="utf-8"))
+        data = tomllib.loads(resolved.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as error:
-        raise ConfigError(f"Config file '{path}' is not valid TOML: {error}") from error
+        raise ConfigError(
+            f"Config file '{resolved}' is not valid TOML: {error}"
+        ) from error
     difficulty = data.get("difficulty", {})
     solver = data.get("solver", {})
-    phase2 = data.get("phase2", {})
     return SchedulerConfig(
+        league=_league(data.get("league", {}), resolved),
         difficulty=DifficultyConfig(
-            spread=_number(difficulty, "spread", DEFAULT_DIFFICULTY_SPREAD, path),
+            spread=_number(difficulty, "spread", DEFAULT_DIFFICULTY_SPREAD, resolved),
         ),
         solver=SolverConfig(
-            time_limit=_number(solver, "time_limit", DEFAULT_TIME_LIMIT, path),
+            time_limit=_number(solver, "time_limit", DEFAULT_TIME_LIMIT, resolved),
             phase1_time_limit=_number(
-                solver, "phase1_time_limit", DEFAULT_PHASE1_TIME_LIMIT, path
+                solver, "phase1_time_limit", DEFAULT_PHASE1_TIME_LIMIT, resolved
             ),
-            solver_workers=_int(solver, "solver_workers", DEFAULT_SOLVER_WORKERS, path),
+            solver_workers=_int(
+                solver, "solver_workers", DEFAULT_SOLVER_WORKERS, resolved
+            ),
         ),
-        phase2=_phase2(phase2, path),
+        phase2=_phase2(data.get("phase2", {}), resolved),
+        rivalries=_rivalries(data.get("rivalries"), resolved),
     )
 
 
+DIVISION_SECTION = "DivisionStandings"
+CONFERENCE_SECTION = "ConferenceStandings"
+
+
 def load_league(path: StrPath) -> League:
-    """Read a league from `[DivisionStandings]` (per-division teams in finish
-    order -- this defines division membership) and `[OverallStandings]` (overall 1-18
-    `Order`). Per-conference 1-9 ranks derive from the overall order.
+    """Read a league from `[OverallStandings]` (overall 1-18 `Order`) plus exactly
+    one of `[DivisionStandings]` (per-division teams in finish order -- the PNFL)
+    or `[ConferenceStandings]` (per-conference teams in finish order -- a league
+    without divisions). Per-conference 1-9 ranks derive from the overall order.
     """
     resolved = Path(path)
     if not resolved.is_file():
         raise ConfigError(f"Config file not found: '{resolved}'.")
     cp = _read_config(resolved)
-    _require_section(cp, resolved, "DivisionStandings")
+    has_divisions = cp.has_section(DIVISION_SECTION)
+    has_conferences = cp.has_section(CONFERENCE_SECTION)
+    if has_divisions == has_conferences:
+        raise ConfigError(
+            f"Config file '{resolved}' must have exactly one of the "
+            f"[{DIVISION_SECTION}] and [{CONFERENCE_SECTION}] sections."
+        )
     _require_section(cp, resolved, "OverallStandings")
-    division_standings = {
-        key: _parse_multiline(cp, "DivisionStandings", key)
-        for key in cp.options("DivisionStandings")
-    }
     overall = _required_multiline(cp, resolved, "OverallStandings", "Order")
+    section = DIVISION_SECTION if has_divisions else CONFERENCE_SECTION
+    standings = {key: _parse_multiline(cp, section, key) for key in cp.options(section)}
     try:
-        return build_league(division_standings, overall_ranking=overall)
+        if has_divisions:
+            return build_league(standings, overall_ranking=overall)
+        return build_conference_league(standings, overall_ranking=overall)
     except ValueError as error:
         raise ConfigError(
             f"Config file '{resolved}' has invalid league data: {error}"
@@ -236,19 +293,77 @@ def _int(section: Mapping[str, Any], key: str, default: int, path: Path) -> int:
     return value
 
 
-def _phase2(table: Mapping[str, Any], path: Path) -> Phase2Config:
-    defaults = Phase2Config()
-    unknown = sorted(set(table) - {f.name for f in fields(defaults)})
+_NON_NEGATIVE_PHASE2_KEYS = frozenset(
+    {"max_consecutive_conference_home_or_away", "opening_nonconference_weeks"}
+)
+
+
+def _reject_unknown(
+    table: Mapping[str, Any], known: set[str], name: str, path: Path
+) -> None:
+    unknown = sorted(set(table) - known)
     if unknown:
         raise ConfigError(
-            f"Config file '{path}': unknown [phase2] key(s): {', '.join(unknown)}."
+            f"Config file '{path}': unknown [{name}] key(s): {', '.join(unknown)}."
         )
+
+
+def _phase2(table: Mapping[str, Any], path: Path) -> Phase2Config:
+    defaults = Phase2Config()
+    _reject_unknown(table, {f.name for f in fields(defaults)}, "phase2", path)
     values = {}
     for f in fields(defaults):
         default = getattr(defaults, f.name)
         parse = _bool if isinstance(default, bool) else _int
         values[f.name] = parse(table, f.name, default, path)
+        if f.name in _NON_NEGATIVE_PHASE2_KEYS and values[f.name] < 0:
+            raise ConfigError(
+                f"Config file '{path}': '{f.name}' must be 0 (off) or positive."
+            )
     return Phase2Config(**values)
+
+
+def _league(table: Mapping[str, Any], path: Path) -> LeagueConfig:
+    _reject_unknown(table, {"weeks"}, "league", path)
+    weeks = _int(table, "weeks", DEFAULT_WEEKS, path)
+    if weeks <= 0 or weeks % 2:
+        raise ConfigError(
+            f"Config file '{path}': 'weeks' must be a positive even integer."
+        )
+    return LeagueConfig(weeks=weeks)
+
+
+def _rivalries(table: Mapping[str, Any] | None, path: Path) -> RivalriesConfig:
+    if table is None:
+        return RivalriesConfig()
+    _reject_unknown(table, {"pairs", "rotate_home_by_season"}, "rivalries", path)
+    raw = table.get("pairs")
+    if not isinstance(raw, list) or not raw:
+        raise ConfigError(
+            f"Config file '{path}': [rivalries] needs a non-empty 'pairs' list."
+        )
+    pairs: list[tuple[str, str]] = []
+    for entry in raw:
+        if (
+            not isinstance(entry, list)
+            or len(entry) != 2
+            or not all(isinstance(name, str) and name.strip() for name in entry)
+        ):
+            raise ConfigError(
+                f"Config file '{path}': each [rivalries] pair is two team names; "
+                f"got {entry!r}."
+            )
+        first, second = (name.strip() for name in entry)
+        if first == second:
+            raise ConfigError(
+                f"Config file '{path}': [rivalries] pair names the same team twice: "
+                f"{first!r}."
+            )
+        pairs.append((first, second))
+    return RivalriesConfig(
+        pairs=tuple(pairs),
+        rotate_home_by_season=_bool(table, "rotate_home_by_season", True, path),
+    )
 
 
 def _read_config(path: Path) -> configparser.ConfigParser:
@@ -286,3 +401,77 @@ def _parse_multiline(
 ) -> tuple[str, ...]:
     raw = cp.get(section, key, fallback="")
     return tuple(line.strip() for line in raw.splitlines() if line.strip())
+
+
+# --- Checks that need both the rules and the league --------------------------
+
+MAX_NONCONFERENCE_GAMES = TEAMS_PER_CONFERENCE  # each other-conference team once
+
+
+def check_weeks(league: League, weeks: int) -> None:
+    """`weeks` must be even and fit every team: more than its structural games,
+    at most those plus one game against each other-conference team."""
+    if weeks <= 0 or weeks % 2:
+        raise ConfigError(
+            f"[league] weeks must be a positive even integer; got {weeks}."
+        )
+    for team in league.teams:
+        structural = league.structural_games(team)
+        if not structural < weeks <= structural + MAX_NONCONFERENCE_GAMES:
+            raise ConfigError(
+                f"[league] weeks = {weeks} does not fit {team.metro}: it plays "
+                f"{structural} structural games, so weeks must be "
+                f"{structural + 1}..{structural + MAX_NONCONFERENCE_GAMES}."
+            )
+
+
+def check_opening_weeks(league: League, weeks: int, opening_weeks: int) -> None:
+    """The weeks after the opening non-conference weeks must hold every
+    same-conference game (a 9-team conference fits at most 4 a week)."""
+    if opening_weeks == 0:
+        return
+    same_conference = sum(league.structural_games(t) for t in league.teams) // 2
+    per_week = sum(TEAMS_PER_CONFERENCE // 2 for _ in league.conferences)
+    if (weeks - opening_weeks) * per_week < same_conference:
+        raise ConfigError(
+            f"[phase2] opening_nonconference_weeks = {opening_weeks} leaves "
+            f"{weeks - opening_weeks} weeks for {same_conference} same-conference "
+            f"games, but a week holds at most {per_week}."
+        )
+
+
+def resolve_rivalries(
+    league: League, rivalries: RivalriesConfig
+) -> tuple[RivalryPair, ...]:
+    """Turn the listed name pairs into teams, in listed order: every team once,
+    exactly one cross-conference pair (each conference strands one team)."""
+    if not rivalries.pairs:
+        return ()
+    expected = len(league.teams) // 2
+    if len(rivalries.pairs) != expected:
+        raise ConfigError(
+            f"[rivalries] must list {expected} pairs; got {len(rivalries.pairs)}."
+        )
+    pairs: list[RivalryPair] = []
+    seen: list[Team] = []
+    for first, second in rivalries.pairs:
+        try:
+            teams = (
+                lookup_team(league.teams, first),
+                lookup_team(league.teams, second),
+            )
+        except ValueError as error:
+            raise ConfigError(f"[rivalries]: {error}") from error
+        for team in teams:
+            if team in seen:
+                raise ConfigError(
+                    f"[rivalries] must name every team once; {team.metro} repeats."
+                )
+            seen.append(team)
+        pairs.append(teams)
+    cross = sum(1 for a, b in pairs if a.conference != b.conference)
+    if cross != 1:
+        raise ConfigError(
+            f"[rivalries] must have exactly one cross-conference pair; got {cross}."
+        )
+    return tuple(pairs)
