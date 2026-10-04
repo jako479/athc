@@ -24,20 +24,20 @@ SCHEDULER_RULES_FILE = "scheduler.toml"  # in the league folder's rules/
 DEFAULT_WEEKS = 16  # regular-season weeks when the rules file sets none
 
 # Scheduler tunables; overridable in rules/scheduler.toml (missing -> these).
-# Phase-2 runs multithreaded (interleave_search) and stops on deterministic
-# time, not wall-clock seconds; phase-1 stays single-threaded, wall-clock.
+# Both phases run multithreaded (interleave_search) and stop on deterministic
+# time, not wall-clock seconds.
 DEFAULT_TIME_LIMIT = 300.0  # phase-2 (week-placement) solve, deterministic time
-DEFAULT_PHASE1_TIME_LIMIT = 60.0  # phase-1 (matchup) solve seconds
+DEFAULT_PHASE1_TIME_LIMIT = 120.0  # phase-1 (matchup) solve, deterministic time
 DEFAULT_DIFFICULTY_SPREAD = 2.5  # difficulty tilt on the 1-9 conference scale
 
-# Phase-2 parallel search width. CP-SAT interleave search is reproducible only
-# at a FIXED worker count -- the schedule changes with the count -- so this is a
-# pinned setting (not os.cpu_count(), not CLI-overridable). The same seed gives
-# the same schedule only when everyone uses the same value, so treat it as a
-# stable contract: changing it re-rolls every seed's schedule. Default 8 is a
-# balance -- enough parallelism to be fast, low enough to not heavily
-# oversubscribe smaller (e.g. 4-core) machines; higher can be faster on
-# many-core CPUs but is not required.
+# Parallel search width for both phases. CP-SAT interleave search is
+# reproducible only at a FIXED worker count -- the result changes with the count
+# -- so this is a pinned setting (not os.cpu_count(), not CLI-overridable). The
+# same seed gives the same matchups and schedule only when everyone uses the
+# same value, so treat it as a stable contract: changing it re-rolls every
+# seed's matchups and schedule. Default 8 is a balance -- enough parallelism to
+# be fast, low enough to not heavily oversubscribe smaller (e.g. 4-core)
+# machines; higher can be faster on many-core CPUs but is not required.
 DEFAULT_SOLVER_WORKERS = 8
 
 

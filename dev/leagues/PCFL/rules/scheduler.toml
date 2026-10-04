@@ -17,8 +17,8 @@ spread = 0.0
 
 [solver]
 time_limit = 300.0       # max deterministic time for the week-placement (phase-2) solve
-phase1_time_limit = 180.0 # max seconds for the matchup (phase-1) solve; the flat line takes ~30 s to prove optimal
-solver_workers = 8       # keep fixed everywhere: the schedule changes with the worker count
+phase1_time_limit = 120.0 # max deterministic time for the matchup (phase-1) solve; the flat line takes ~20 to prove optimal
+solver_workers = 8       # both phases; keep fixed everywhere: the matchups and schedule change with the worker count
 
 [phase2]
 # Fixed policy rules (always enforced, no setting):

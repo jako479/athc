@@ -19,6 +19,7 @@ from ortools.sat.python import cp_model
 from athc.scheduler.config import (
     DEFAULT_DIFFICULTY_SPREAD,
     DEFAULT_PHASE1_TIME_LIMIT,
+    DEFAULT_SOLVER_WORKERS,
     DEFAULT_WEEKS,
 )
 from athc.scheduler.domain.league import (
@@ -30,6 +31,7 @@ from athc.scheduler.domain.league import (
 from athc.scheduler.domain.schedule import GAMES_PER_WEEK
 from athc.scheduler.schedulers.errors import SchedulerError
 from athc.scheduler.schedulers.types import Matchup, MatchupPlan, make_matchup
+from athc.scheduler.schedulers.utils import make_solver
 
 TOP_HALF_MAX_RANK = 5
 BOTTOM_HALF_MIN_RANK = 5
@@ -187,16 +189,14 @@ class _NonConferenceModel:
         self._add_opponent_rank_sum_constraints()
         self._set_line_objective()
 
-    def solve(self, seed: int = 0, time_limit: float | None = None) -> set[Matchup]:
-        solver = cp_model.CpSolver()
-        # Single worker + fixed seed = reproducible; the seed picks among
-        # equally-optimal matchup sets.
-        solver.parameters.num_search_workers = 1
-        solver.parameters.random_seed = seed
-        solver.parameters.randomize_search = True
-        if time_limit is not None:
-            solver.parameters.max_time_in_seconds = time_limit
-
+    def solve(
+        self,
+        seed: int = 0,
+        time_limit: float = DEFAULT_PHASE1_TIME_LIMIT,
+        workers: int = DEFAULT_SOLVER_WORKERS,
+    ) -> set[Matchup]:
+        # The seed picks among equally-optimal matchup sets.
+        solver = make_solver(seed=seed, time_limit=time_limit, workers=workers)
         status = solver.solve(self.model)
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             raise SchedulerError(
@@ -220,6 +220,7 @@ class MatchupBuilder:
         rivalries: Sequence[RivalryPair] = (),
         spread: float = DEFAULT_DIFFICULTY_SPREAD,
         phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT,
+        workers: int = DEFAULT_SOLVER_WORKERS,
         seed: int = 0,
     ) -> None:
         self.league = league
@@ -229,6 +230,7 @@ class MatchupBuilder:
         self.rivalries = tuple(rivalries)
         self.spread = spread
         self.phase1_time_limit = phase1_time_limit
+        self.workers = workers
         self.seed = seed
 
         self.conf_rank = {team: league.rankings.rank_of(team) for team in self.teams}
@@ -318,7 +320,7 @@ class MatchupBuilder:
         fixed_pairs = self._same_place_pairs() | self._rivalry_pairs()
         self.fixed_nonconference_pairs = set(fixed_pairs)
         nonconference_pairs = self._nonconference_model(fixed_pairs).solve(
-            seed=self.seed, time_limit=self.phase1_time_limit
+            seed=self.seed, time_limit=self.phase1_time_limit, workers=self.workers
         )
         if not fixed_pairs <= nonconference_pairs:
             raise SchedulerError("CP-SAT solve dropped a fixed non-conference pair")

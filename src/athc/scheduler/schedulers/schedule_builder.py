@@ -76,6 +76,7 @@ from athc.scheduler.config import (
 from athc.scheduler.domain.league import League, RivalryPair, Team
 from athc.scheduler.domain.schedule import Game, Schedule
 from athc.scheduler.schedulers.types import Matchup, Matchups, make_matchup
+from athc.scheduler.schedulers.utils import make_solver
 
 
 class ScheduleBuilder:
@@ -894,31 +895,13 @@ class ScheduleBuilder:
         self._constraint_rivalry_final_week()
         self._add_soft_objective()
 
-    def _make_solver(
-        self, seed: int, time_limit: float, workers: int
-    ) -> cp_model.CpSolver:
-        # Parallel but reproducible. interleave_search is deterministic for a
-        # fixed seed AND a fixed `workers` count -- the schedule changes if the
-        # count changes -- so `workers` comes from config (solver_workers), never
-        # the machine's core count. It stops on deterministic time, not
-        # wall-clock, so the result is machine-speed independent; `time_limit` is
-        # that deterministic-time budget.
-        solver = cp_model.CpSolver()
-        solver.parameters.random_seed = seed
-        solver.parameters.randomize_search = True
-        solver.parameters.num_search_workers = workers
-        solver.parameters.interleave_search = True
-        solver.parameters.interleave_batch_size = workers
-        solver.parameters.max_deterministic_time = time_limit
-        return solver
-
     def _solve_model(
         self,
         seed: int = 0,
         time_limit: float = DEFAULT_TIME_LIMIT,
         workers: int = DEFAULT_SOLVER_WORKERS,
     ) -> Schedule:
-        solver = self._make_solver(seed=seed, time_limit=time_limit, workers=workers)
+        solver = make_solver(seed=seed, time_limit=time_limit, workers=workers)
         status = solver.solve(self.model)
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             raise self.error_cls(

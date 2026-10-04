@@ -2,7 +2,7 @@
 
 Cases for `matchup_builder.py`, in `test_matchups.py`. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). Design: [phase-1-matchups.md](../../../docs/scheduler/phase-1-matchups.md).
 
-Every row runs for each distinct league (two divisional standings variants, the conference league) unless noted. Status: ☑ covered · ☐ no test yet. The phase-1 solve is fast at spread 2.5; the flat line on the conference league is `slow`.
+Every row runs for each distinct league (two divisional standings variants, the conference league) unless noted. Status: ☑ covered · ☐ no test yet. The phase-1 solve is multithreaded and fast (about 3 s at worst), so every row runs in the default suite.
 
 ### Structure
 | Case | Expected | Test | Status |
@@ -13,6 +13,13 @@ Every row runs for each distinct league (two divisional standings variants, the 
 | Canonical pair ordering | (lower-metro, higher-metro) | `test_inventory_uses_canonical_pair_ordering` | ☑ |
 | Deterministic | same inventory each run | `test_inventory_is_deterministic` | ☑ |
 | Fewer weeks (no divisions) | fewer non-conference games per team | `test_fewer_weeks_give_fewer_nonconference_games` | ☑ |
+
+### Solver
+| Case | Expected | Test | Status |
+|---|---|---|---|
+| Shared solver setup | phase 1 runs `make_solver` with its seed, `phase1_time_limit` and workers (once, one league) | `test_solve_runs_the_shared_solver_with_its_seed_time_limit_and_workers` | ☑ |
+| Default width | no `workers` given → `DEFAULT_SOLVER_WORKERS` (multithreaded) | `test_solve_defaults_to_the_pinned_worker_count` | ☑ |
+| Config reaches phase 1 | the scheduler passes `solver_workers` and `phase1_time_limit` | `test_scheduler_runs_phase_1_with_the_configured_solver_workers` | ☑ |
 
 ### Fixed non-conference games
 | Case | Expected | Test | Status |
@@ -27,7 +34,7 @@ Every row runs for each distinct league (two divisional standings variants, the 
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | ≥1 top-half & ≥1 bottom-half opponent | per team | `test_each_team_draws_a_top_and_bottom_half_opponent` | ☑ |
-| Teams near line target | within 1.0 at spread 0 / 1.8 / 2.5 (flat conference case `slow`) | `test_difficulty_is_near_line_target` | ☑ |
+| Teams near line target | within 1.0 at spread 0 / 1.8 / 2.5 | `test_difficulty_is_near_line_target` | ☑ |
 | Difficulty ordered by rank | top seed's avg < bottom's, both conferences | `test_orders_difficulty_by_conference_rank` | ☑ |
 | Line target values | 2.5/5/7.5; 0 flat; symmetric; monotonic | `test_difficulty_target_line` | ☑ |
 

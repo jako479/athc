@@ -17,6 +17,7 @@ src/athc/scheduler/                 # subsystem source
 │   ├── matchup_builder.py          # phase 1: MatchupBuilder (structure, same-place pairs, rivalries, CP-SAT line)
 │   ├── schedule_builder.py         # phase 2: ScheduleBuilder (CP-SAT week placement)
 │   ├── types.py                    # MatchupPlan, SchedulerResult, get_scheduler
+│   ├── utils.py                    # make_solver: the CP-SAT solver setup both phases share
 │   └── errors.py                   # SchedulerError
 └── writers/
     ├── writer.py                   # ScheduleWriter protocol + factory
@@ -66,20 +67,18 @@ Two-phase CP-SAT. Phase 1 ([phase-1-matchups.md](phase-1-matchups.md)) builds th
 
 ## Solver & reproducibility
 
-Phase 2 runs CP-SAT in **interleave search** — parallel but reproducible. Two rules make a seed's schedule identical across runs and machines:
+Both phases run CP-SAT the same way, through one shared setup (`make_solver`): **interleave search** — parallel but reproducible. Two rules make a seed's matchups and schedule identical across runs and machines:
 
-- **Fixed worker count.** Interleave results change with the number of workers, so the width is the pinned `solver_workers` setting (default 8), not the machine's core count, and it is not CLI-overridable.
-- **Deterministic-time budget.** The solve stops on `time_limit` measured in CP-SAT *deterministic time*, so a slow or fast machine reaches the same stopping point.
+- **Fixed worker count.** Interleave results change with the number of workers, so both phases use the pinned `solver_workers` setting (default 8), not the machine's core count, and it is not CLI-overridable.
+- **Deterministic-time budget.** Each solve stops on its own limit — `phase1_time_limit` (default 120) for phase 1, `time_limit` (default 300) for phase 2 — measured in CP-SAT *deterministic time*, so a slow or fast machine reaches the same stopping point.
 
 Also required: the model is built in canonical team order (never Python `set` iteration order). The model checksum test and the golden regression test guard both.
-
-Phase 1 stays single-threaded (one worker), bounded by `phase1_time_limit` in wall-clock seconds.
 
 ## Testing
 
 One suite in `tests/unit/scheduler/`, parametrized over every league case (two divisional standings variants, the conference league in an even season, an odd season, and with rotation off):
 
-- `test_matchups` (phase 1; matrix in [test-matrix-phase-1-matchups.md](../../tests/unit/scheduler/test-matrix-phase-1-matchups.md)), `test_schedule_builder` (phase-2 model wiring) and `test_schedule_rules` (every rule on a solved schedule, through the shared validator; matrix in [test-matrix-phase-2-schedule.md](../../tests/unit/scheduler/test-matrix-phase-2-schedule.md)).
+- `test_matchups` (phase 1; matrix in [test-matrix-phase-1-matchups.md](../../tests/unit/scheduler/test-matrix-phase-1-matchups.md)), `test_schedule_builder` (phase-2 model wiring), `test_utils` (the shared solver setup) and `test_schedule_rules` (every rule on a solved schedule, through the shared validator; matrix in [test-matrix-phase-2-schedule.md](../../tests/unit/scheduler/test-matrix-phase-2-schedule.md)).
 - `test_cli` / `test_config` (CLI, file resolution, standings and rules loading, every shipped `dev/` and `release/` file; matrix in [test-matrix-config-loading.md](../../tests/unit/scheduler/test-matrix-config-loading.md)), `test_league` (domain), `test_report` (matrix in [test-matrix-report.md](../../tests/unit/scheduler/test-matrix-report.md)), `test_writers`.
 - `test_model_checksum` pins both CP-SAT models per league; re-pin only with that league's goldens.
 

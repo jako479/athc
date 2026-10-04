@@ -14,12 +14,12 @@ weeks = 12               # regular-season weeks (even): 8 conference + 4 non-con
 # non-conference game, tilting each team's average opponent conference rank
 # (1-9) by spread. 0.0 = flat: every team's opponents average near rank 5.
 # 2.5 = max: #1's opponents average near 3.0. Linear between.
-spread = 2.5  # 2.5, not the flat 0.0: proving the flat line optimal takes ~30 s; the checksum test runs in the fast suite
+spread = 2.5  # 2.5, not the flat 0.0: proving the flat line optimal takes ~3 s, ~1 s at 2.5; the checksum test runs in the fast suite
 
 [solver]
 time_limit = 300.0       # max deterministic time for the week-placement (phase-2) solve
-phase1_time_limit = 180.0 # max seconds for the matchup (phase-1) solve
-solver_workers = 8       # keep fixed everywhere: the schedule changes with the worker count
+phase1_time_limit = 120.0 # max deterministic time for the matchup (phase-1) solve
+solver_workers = 8       # both phases; keep fixed everywhere: the matchups and schedule change with the worker count
 
 [phase2]
 # Fixed policy rules (always enforced, no setting):

@@ -50,6 +50,7 @@ def generate_schedule(
         rivalries=rivalries,
         spread=config.difficulty.spread,
         phase1_time_limit=config.solver.phase1_time_limit,
+        workers=config.solver.solver_workers,
         seed=seed,
     ).build_matchup_plan()
 

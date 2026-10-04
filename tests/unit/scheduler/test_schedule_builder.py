@@ -1,4 +1,4 @@
-"""Phase-2 ScheduleBuilder: inventory guards, rule gating, solver wiring.
+"""Phase-2 ScheduleBuilder: inventory guards and rule gating.
 
 Seed determinism and schedule correctness are covered end-to-end by the golden
 regression test in tests/integration/test_generate_schedule.py; each league's
@@ -77,19 +77,6 @@ def test_soft_objective_is_added_to_the_model() -> None:
     builder = ScheduleBuilder(ONE_PLAYOFF_TEAM_FROM_4_TEAM_DIVISION, SchedulerError)
     builder._populate_model(matchups=[])
     assert len(builder.model.proto.objective.vars) == 16
-
-
-def test_solver_is_configured_for_reproducible_parallel_search() -> None:
-    # The worker count must reach the solver as a fixed interleave width (both
-    # num_search_workers and interleave_batch_size), stopping on deterministic
-    # time -- this is what keeps a seed reproducible across machines.
-    builder = ScheduleBuilder(ONE_PLAYOFF_TEAM_FROM_4_TEAM_DIVISION, SchedulerError)
-    params = builder._make_solver(seed=3, time_limit=42.0, workers=5).parameters
-    assert params.random_seed == 3
-    assert params.num_search_workers == 5
-    assert params.interleave_search is True
-    assert params.interleave_batch_size == 5
-    assert params.max_deterministic_time == 42.0
 
 
 # --- Rule gating for a league without divisions -------------------------------

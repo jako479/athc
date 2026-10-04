@@ -4,6 +4,14 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-04 — **scheduler**: phase 1 now solves the way phase 2 does —
+  multithreaded across `solver_workers`, stopping on deterministic time
+  (`phase1_time_limit`, now 120) — through one shared solver setup in
+  `schedulers/utils.py`. Phase 1 ran three times in fresh processes for every
+  test league, spread and seed, and both golden leagues ran end to end twice:
+  identical every time. The goldens and model checksums did not change. The
+  flat-line phase-1 test dropped from about 30 s to about 3 s, so it is no
+  longer `slow`.
 - 2026-10-04 — **config**: rebased the multi-league layout onto the
   league-agnostic scheduler. The scheduler keeps its new code but reads its
   files from the league folder (`standings\<season>.league.ini`,

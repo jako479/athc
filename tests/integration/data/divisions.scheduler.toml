@@ -15,8 +15,8 @@ spread = 2.5
 
 [solver]
 time_limit = 600.0        # phase-2 deterministic-time budget (well above a full solve's ~62-unit burn)
-phase1_time_limit = 180.0 # phase-1 (matchup) solve seconds
-solver_workers = 8        # fixed parallel width; the schedule changes if this changes
+phase1_time_limit = 120.0 # phase-1 (matchup) deterministic-time budget
+solver_workers = 8        # fixed parallel width (both phases); the matchups and schedule change if this changes
 
 [phase2]
 # Home/away sequencing

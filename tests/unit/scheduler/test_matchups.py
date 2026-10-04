@@ -1,21 +1,23 @@
 """Phase-1 matchup inventory for every league: structure, the same-place pairs,
 cross-conference rivalries, and the difficulty line.
 
-The phase-1 solve is fast at spread 2.5, so these run in the default suite;
-proving the flat line (spread 0.0) optimal on the conference league takes about
-30 s, so that case is `slow`.
+The phase-1 solve is fast (multithreaded, the slowest case -- proving the flat
+line, spread 0.0, optimal on the conference league -- takes about 3 s), so these
+all run in the default suite.
 """
 
 from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable
+from dataclasses import replace
 
 import pytest
 
-from athc.scheduler.config import resolve_rivalries
+from athc.scheduler.config import DEFAULT_SOLVER_WORKERS, resolve_rivalries
 from athc.scheduler.domain.league import League, Team, build_league
 from athc.scheduler.domain.schedule import GAMES_PER_WEEK
+from athc.scheduler.schedulers import matchup_builder, scheduler
 from athc.scheduler.schedulers.matchup_builder import MatchupBuilder, difficulty_target
 from athc.scheduler.schedulers.types import (
     Matchup,
@@ -23,6 +25,7 @@ from athc.scheduler.schedulers.types import (
     Matchups,
     make_matchup,
 )
+from athc.scheduler.schedulers.utils import make_solver
 
 from .conftest import MATCHUP_CASES, LeagueCase
 
@@ -132,6 +135,73 @@ def test_inventory_is_deterministic(matchup_case: LeagueCase) -> None:
     first = Counter(_builder(matchup_case).build_matchup_plan().matchups)
     second = Counter(_builder(matchup_case).build_matchup_plan().matchups)
     assert first == second
+
+
+def _spy_on_solver(monkeypatch: pytest.MonkeyPatch) -> list[tuple[int, float, int]]:
+    """Record each phase-1 solver setup's (seed, time_limit, workers); the real
+    solver still runs."""
+    calls: list[tuple[int, float, int]] = []
+
+    def spy(seed: int, time_limit: float, workers: int):
+        calls.append((seed, time_limit, workers))
+        return make_solver(seed=seed, time_limit=time_limit, workers=workers)
+
+    monkeypatch.setattr(matchup_builder, "make_solver", spy)
+    return calls
+
+
+def test_solve_runs_the_shared_solver_with_its_seed_time_limit_and_workers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Phase 1 runs the same reproducible parallel search as phase 2: the seed,
+    # its own deterministic-time budget and the configured worker count.
+    calls = _spy_on_solver(monkeypatch)
+    case = MATCHUP_CASES[0]
+    MatchupBuilder(
+        case.league,
+        spread=FAST_SPREAD,
+        phase1_time_limit=77.0,
+        workers=3,
+        seed=5,
+    ).build_matchup_plan()
+    assert calls == [(5, 77.0, 3)]
+
+
+def test_solve_defaults_to_the_pinned_worker_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Every caller that does not pass `workers` (the tests) still solves
+    # multithreaded, at the same width as phase 2.
+    calls = _spy_on_solver(monkeypatch)
+    MatchupBuilder(MATCHUP_CASES[0].league, spread=FAST_SPREAD).build_matchup_plan()
+    assert [workers for _, _, workers in calls] == [DEFAULT_SOLVER_WORKERS]
+
+
+class _StopAfterPhase1(Exception):
+    """Raised in place of the phase-2 solve, once phase 1 has run."""
+
+
+def test_scheduler_runs_phase_1_with_the_configured_solver_workers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Every shipped config uses the default width, so only a non-default
+    # solver_workers shows whether the scheduler hands it to phase 1.
+    calls = _spy_on_solver(monkeypatch)
+
+    def stop(*args: object, **kwargs: object) -> None:
+        raise _StopAfterPhase1
+
+    monkeypatch.setattr(scheduler.ScheduleBuilder, "build_schedule", stop)
+    case = MATCHUP_CASES[0]
+    config = replace(
+        case.config,
+        solver=replace(case.config.solver, phase1_time_limit=77.0, solver_workers=3),
+    )
+    with pytest.raises(_StopAfterPhase1):
+        scheduler.generate_schedule(
+            case.league, seed=5, scheduler_config=config, season=case.season
+        )
+    assert calls == [(5, 77.0, 3)]
 
 
 @pytest.mark.parametrize(
@@ -263,19 +333,14 @@ def test_each_team_draws_a_top_and_bottom_half_opponent(
         assert any(r >= TOP_HALF for r in ranks), team.metro
 
 
-def _spread_cases():
-    for case in MATCHUP_CASES:
-        for spread in (0.0, 1.8, 2.5):
-            slow = spread == 0.0 and not case.league.has_divisions
-            yield pytest.param(
-                case,
-                spread,
-                id=f"{case.id}-spread-{spread}",
-                marks=[pytest.mark.slow] if slow else [],
-            )
-
-
-@pytest.mark.parametrize(("case", "spread"), list(_spread_cases()))
+@pytest.mark.parametrize(
+    ("case", "spread"),
+    [
+        pytest.param(case, spread, id=f"{case.id}-spread-{spread}")
+        for case in MATCHUP_CASES
+        for spread in (0.0, 1.8, 2.5)
+    ],
+)
 def test_difficulty_is_near_line_target(case: LeagueCase, spread: float) -> None:
     # Soft target; worst observed miss across leagues and spreads is 0.75.
     plan = _builder(case, spread=spread).build_matchup_plan()
