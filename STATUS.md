@@ -180,7 +180,9 @@ Working. Docs: [README](docs/scheduler/README.md) ·
   and a soft objective with NFL-typical bands so seasons vary.
 - Schedulers A, B and D removed; there is just the scheduler, no
   `--scheduler` flag.
-- Phase 2 runs multithreaded and stops on deterministic time, not wall-clock.
+- Phase 2 runs multithreaded and stops on deterministic time, not wall-clock. Verified
+  against the OR-Tools source: interleave search is valid here and used
+  correctly.
 - league.ini simplified to `[DivisionStandings]` and `[OverallStandings]`.
 - Golden integration test compares three output files byte for byte.
 - Past PNFL seasons were re-ranked from real results using SOS tiebreaks, which

@@ -2,6 +2,14 @@
 
 History of what changed and why. Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-04 — **scheduler**: reviewed phase-2 multithreading against the
+  OR-Tools 9.15 source and maintainer guidance. Interleave search is CP-SAT's
+  documented deterministic parallel mode: The threads take turns in lockstep
+  instead of racing, so the same seed always gives the same schedule; the
+  solve ends as soon as it finds a schedule that breaks no rule. The worker
+  pin is needed because the strategy mix depends on the count. Caveats:
+  results can differ across OS/CPU families (floats), and `randomize_search`
+  does nothing without a decision strategy.
 - 2026-09-27 — **scheduler**: the scheduler was hard-wired to the PNFL (four
   divisions, 16 weeks). A second league, the PCFL, has two conferences of nine,
   no divisions and 12 weeks with rivalry week last. The league file now takes
