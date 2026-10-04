@@ -7,8 +7,10 @@ from pathlib import Path
 
 import click
 
+from athc.cli import selected_league
 from athc.cli.profile import profile
 from athc.cli.profile._common import collect_files, resolve_rules
+from athc.config import ConfigFileError, LeagueError
 from athc.fbpro98_gameplan import GamePlan, InvalidGamePlanError, read_gameplan
 from athc.fbpro98_profile import (
     InvalidProfileError,
@@ -23,7 +25,7 @@ from athc.profile import (
     gameplan_extra_categories,
     validate_profile,
 )
-from athc.profile.config import ConfigFileError, load_config
+from athc.profile.config import load_config
 
 PROG = "athc profile check"
 logger = logging.getLogger(__name__)
@@ -69,6 +71,7 @@ def check(
     categories the profile never uses.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    league = selected_league(ctx)
 
     files, path_errors = collect_files(paths, suffix=".prf", recursive=recursive)
     for error in path_errors:
@@ -77,8 +80,8 @@ def check(
         ctx.exit(2)
 
     try:
-        config = load_config(rule_files=list(rule_overrides) or None)
-    except ConfigFileError as error:
+        config = load_config(league, rule_files=list(rule_overrides) or None)
+    except (ConfigFileError, LeagueError) as error:
         logger.error("%s: %s", PROG, error)
         ctx.exit(2)
 

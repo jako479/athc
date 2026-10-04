@@ -13,7 +13,7 @@ Deploy mechanics (install/upgrade overwrite rules) live in [installer.md](instal
 `configparser` is the only mainstream Python option that gives non-dev users a Notepad-editable INI file with native `[DEFAULT]` cascade and `%(key)s` interpolation out of the box. The popular alternatives in 2026 don't fit:
 
 - **pydantic-settings** (370M downloads/month, FastAPI's standard) targets env vars, `.env`, secrets — no native INI reading.
-- **dynaconf** reads INI but its layering model is dev/staging/prod, not `[league.PNFL]`/`[league.PCFL]`; loses `%(key)s` (uses Jinja, Notepad-unfriendly).
+- **dynaconf** reads INI but its layering model is dev/staging/prod, not one folder per league; loses `%(key)s` (uses Jinja, Notepad-unfriendly).
 - **confuse** is YAML-only.
 
 If load-site validation becomes a real pain (user typos `Defualt_League`), the proportionate upgrade is `pydantic` (the core lib, **not** `pydantic-settings`) — swap `@dataclasses.dataclass` for `@pydantic.dataclasses.dataclass` on each `Config` class. One-line change per Config; keep `configparser` as the loader.
@@ -39,87 +39,63 @@ Source runs read a per-machine **dev config** instead of the installed one:
 
 VS Code terminal/F5 steps: [cli.md](cli.md#running-from-source-dev-config).
 
-## Section taxonomy
+## Layout
 
-Three kinds of sections, distinguished by naming convention:
+One folder per league under the config dir; `athc.ini` holds only app-wide settings.
 
-| Section | Convention | Example | Purpose |
-|---|---|---|---|
-| **Umbrella / tool** | bare name | `[athc]`, `[gameplan]`, `[profile]` | Settings owned by the umbrella or a specific tool. One section per command name. |
-| **League** | `league.` prefix | `[league.PNFL]`, `[league.PCFL]` | Per-league overrides for tools that operate on league-specific data. |
-| **Cross-cutting defaults** | `[DEFAULT]` | `[DEFAULT]` | Native to `configparser`. Keys here cascade into every other section unless overridden. |
-
-The `league.` prefix tells code (and humans) whether a section is a tool or a league, and namespaces the name so a league can't collide with a tool section.
-
-## Example
-
-```ini
-[DEFAULT]
-roster_path = %(league_root)s\rosters
-
-[athc]
-default_league = PNFL
-
-[gameplan]
-rule_files = house-rules.txt
-
-[league.PNFL]
-league_root = D:\Leagues\PNFL
-play_path = D:\Leagues\PNFL\plays
-Season = 2026
-
-[league.PCFL]
-league_root = E:\Leagues\PCFL
-play_path = E:\Leagues\PCFL\plays_v2
-roster_path = E:\Leagues\PCFL\rosters_2026
+```
+athc.ini                      app-wide settings + the selected league
+playpool.toml                 default play-pool rules for convert-pdb (a league's rules\playpool.toml overrides)
+leagues\
+  PNFL\
+    league.ini                per-league settings ([league] play_path, …)
+    rules\                    gameplan.toml, profile.toml, playpool.toml, scheduler.toml
+    standings\                <season>.league.ini
+  PCFL\                       same fixed names
 ```
 
-`roster_path` cascades from `[DEFAULT]` into every league section. `configparser`'s `%(key)s` interpolation resolves `%(league_root)s` against the section being read, so each league gets its own roster path automatically — and `[league.PCFL]` overrides it outright.
+Fixed, well-known file names inside a league folder; nothing lists them in config. A league is any folder under `leagues\`; its name is the folder name. Per-league values that are not files (`play_path`; athc-admin's `db_path`, `log_dir`) go in `league.ini` under `[league]`; relative paths there resolve against the league folder.
 
-The keys above illustrate the taxonomy and cascade; the shipped key set is `release/athc.ini`. Log level is not among them — it is set by `-v/--verbose` ([logging.md](logging.md#handler-setup)), not by config.
+Precedent: OBS Studio (`basic/profiles/<Name>/basic.ini`), Kodi (`profiles/<name>/`), Hugo (`config/_default/` + `config/<env>/`).
 
-## Rule-file paths
+## `athc.ini`
 
-Rule-file settings (`[gameplan] rule_files`, `[profile] rule_files`, `[convert-pdb] playpool_rules`, league `playpool_rules`) accept **config-relative** paths: a relative value resolves against the config dir — where `athc.ini` lives — via [`athc.config.resolve_path`](../../src/athc/config.py); an absolute value is used unchanged. So `rule_files = rules\PNFL.gameplan.toml` points at the bundled `rules\` set and works **unchanged in dev and after install** — the same `athc.ini` serves both, since the config dir differs but the layout is identical.
+```ini
+[athc]
+league = PNFL
 
-This is the mainstream config idiom (ruff, mypy resolve config paths relative to the config file, not the CWD). The exception, also matching ruff: paths passed on the CLI (`--rules`, `--playpool-rules`, `--play-path`) stay CWD-relative — they don't go through `resolve_path`. The scheduler's `rules\<league>.scheduler.toml` and `<league>.<season>.ini` are always read from the config dir directly and aren't listed in `athc.ini`.
+[autocontinue]
+mouse_move_duration = 0.0
+delay_before_continue = 1.0
+hot_corner = true
+
+[convert-pdb]
+calculate_total_stats = true
+calculate_percentages = true
+include_category_worksheets = false
+exclude_sacks_from_pass_attempts = true
+```
+
+`[athc] league` is edited by hand or with `athc config set league NAME`, which validates the folder and rewrites the file through ConfigUpdater so comments survive (`configparser` drops them on write).
+
+An unreadable `athc.ini` or `league.ini` raises `ConfigFileError`; a missing or unknown league raises `LeagueError`.
+
+Log level is not a setting — it is set by `-v/--verbose` ([logging.md](logging.md#handler-setup)), not by config.
+
+## Rule files
+
+Each tool reads its one fixed file under the league's `rules\`. An optional multi-line list in `league.ini` (`gameplan_rules`, `profile_rules`) replaces it with an ordered set, later files overriding earlier ones. CLI `--rules` still wins and stays CWD-relative, as do `--play-path` and `--playpool-rules` (the ruff idiom: config paths resolve against the config file, CLI paths against the CWD). convert-pdb's playpool rules also have a shipped default next to `athc.ini` (`playpool.toml`): a league's `rules\playpool.toml` overrides it, `--playpool-rules` overrides both.
 
 ## Multi-league selection
 
-Tools that operate on league-specific data take a `--league NAME` option on whichever node (group or leaf) actually needs it. **Not** a global `athc --league` flag — keeping it scoped means non-league tools (autocontinue, config) don't see an irrelevant option.
-
-A shared decorator keeps the flag consistent:
-
-```python
-# athc/cli.py
-def league_option(f):
-    return click.option(
-        "--league",
-        envvar="ATHC_LEAGUE",
-        default=None,
-        help="League name (must be defined in athc.ini).",
-    )(f)
-```
-
-Used per command or group that needs it:
-
-```python
-@click.command()
-@league_option
-def gameplan_check(league):
-    cfg = config.load_league(league)
-    play_path = Path(cfg["play_path"])
-    ...
-```
+`--league NAME` is one option on the root command (`athc --league NAME <command>`). League-aware commands (`gameplan check` / `replace-play` / `set-normals` / `set-specials`, `profile check`, `convert-pdb`, `generate-schedule`) read it through `selected_league(ctx)`; non-league tools ignore it. The option and helper are in [cli.md](cli.md#cross-cutting-options---league). A league is resolved only when a value is still needed after the CLI overrides.
 
 **Selection priority** (highest wins):
 
-1. `--league NAME` flag (explicit).
+1. `--league NAME` (one run, never persisted).
 2. `ATHC_LEAGUE` environment variable.
-3. `[athc] default_league` key.
-4. Error listing the configured leagues (`league.*` sections in `athc.ini`).
-
-No stateful "current league" pointer — explicit beats hidden state for non-dev users.
+3. `[athc] league`.
+4. Error naming `athc config set league` and listing the folders under `leagues\`.
 
 ## Per-tool config code
 
@@ -130,7 +106,7 @@ Each tool owns its `config.py`:
 from dataclasses import dataclass
 from pathlib import Path
 
-from athc.config import load_config, load_league
+from athc.config import load_league_config
 
 @dataclass(frozen=True)
 class Config:
@@ -138,18 +114,16 @@ class Config:
     rule_files: tuple[Path, ...] = ()
 
 def load(league: str | None = None) -> Config:
-    raw = load_config().get("gameplan", {})
-    league_raw = load_league(league)  # raises if no league resolvable
+    cfg = load_league_config(league)  # LeagueError if no league resolvable
     return Config(
-        play_path=Path(league_raw["play_path"]),
-        rule_files=tuple(Path(p) for p in raw.get("rule_files", "").split(";") if p),
+        play_path=cfg.path("play_path"),
+        rule_files=cfg.rule_files("gameplan_rules", "gameplan.toml"),
     )
 ```
 
 - `Config` is a frozen dataclass with typed defaults.
-- `load()` reads the tool's own section plus any league-specific section.
-- Missing keys → dataclass defaults; missing section → defaults across the board.
-- Type conversion (string → Path, semicolon-list → tuple) is the tool's responsibility — `configparser` returns everything as strings.
+- `load()` asks the resolved `LeagueConfig` for what the tool needs: `path(key)` for a value in `league.ini`, `rules_file(name)` / `rule_files(key, default)` for files under `rules\`.
+- Missing file or key → dataclass defaults. Type conversion is the tool's responsibility — `configparser` returns everything as strings.
 
 ## In-code defaults are authoritative
 
@@ -168,7 +142,7 @@ When a new tool ships with a `[new-tool]` section, the user sees nothing on upgr
 When a tool reads a deprecated key, log a one-line stderr warning at startup:
 
 ```
-WARNING: [gameplan] rules_path is deprecated; use rule_files. Reading rules_path for now.
+WARNING: [autocontinue] hot_corner_delay is deprecated; use delay_before_continue. Reading hot_corner_delay for now.
 ```
 
 Keep reading it for 2–3 releases, then drop. Pattern follows VS Code's `deprecationMessage`.

@@ -21,11 +21,13 @@ All files deploy into `%LOCALAPPDATA%\athc\`.
 | File | First install | Reinstall |
 |---|---|---|
 | `athc.ini` | seeded | **preserved** (user edits survive) |
-| `<league>.<season>.ini` | seeded | **preserved** (commish edits survive) |
-| `rules\*.toml` | created | overwritten |
+| `playpool.toml` | created | overwritten |
+| `leagues\<NAME>\league.ini` | seeded | **preserved** |
+| `leagues\<NAME>\standings\*.league.ini` | seeded | **preserved** (commish edits survive) |
+| `leagues\<NAME>\rules\*.toml` | created | overwritten |
 | `docs\*.txt` | created | overwritten |
 
-The seeded `athc.ini` is a ready-to-run PNFL config: it points at the bundled `rules\` set with config-relative paths (`rules\PNFL.gameplan.toml`, resolved against the config dir — see [config.md](config.md#rule-file-paths)), so the only value a user must edit is `[league.PNFL] play_path` (their FbPro98 plays folder). It's a single self-documenting file — every setting is commented inline; there's no separate `.example` reference (the pgcli/mycli model).
+The seeded `athc.ini` selects PNFL; the only value a user must edit is `play_path` in `leagues\PNFL\league.ini` (their FbPro98 plays folder). `athc.ini` is a single self-documenting file — every setting is commented inline; there's no separate `.example` reference (the pgcli/mycli model). Layout: [config.md](config.md#layout).
 
 The wheel goes into a uv-managed tool venv; executables on PATH at `%USERPROFILE%\.local\bin\`.
 
@@ -48,13 +50,13 @@ When a tool sees a deprecated key: log a one-line startup warning, keep reading 
 
 ## Build pipeline
 
-`release/` contains: `release-build.ps1`, `install.bat`, `athc.ini`, the season config files (`<league>.<season>.ini`), and the `docs\` + `rules\` folders.
+`release/` contains: `release-build.ps1`, `install.bat`, `athc.ini`, `playpool.toml` (convert-pdb's default play-pool rules), and the `docs\` + `leagues\` folders.
 
 `release-build.ps1`:
 
 1. Reads version from `pyproject.toml`.
 2. Runs `uv build --wheel` to produce the project wheel.
-3. Stages the wheel, `install.bat`, `athc.ini`, the season config files (`<league>.<season>.ini`), and the `docs\` + `rules\` folders into `dist/<bundle-name>/`.
+3. Stages the wheel, `install.bat`, `athc.ini`, `playpool.toml`, and the `docs\` + `leagues\` folders into `dist/<bundle-name>/`.
 4. Zips to `dist/<bundle-name>.zip`.
 
 Final user-facing artifact lands in `dist/` (standard Python build output).
@@ -64,7 +66,7 @@ Final user-facing artifact lands in `dist/` (standard Python build output).
 1. Checks `uv` is on PATH (fails with the winget install command if not).
 2. `uv tool install <bundled-wheel> --reinstall` — installs athc from the bundled wheel; **uv resolves the dependencies from PyPI** (needs internet).
 3. `uv tool update-shell` so the tool's bin dir is on PATH.
-4. Copies docs and the `rules\` folder into `%LOCALAPPDATA%\athc\` (overwrite).
+4. Copies docs, `playpool.toml` and each league's `rules\` folder into `%LOCALAPPDATA%\athc\` (overwrite).
 5. Conditionally copies `athc.ini` and each season config file if missing.
 
 Dependencies resolve from PyPI at install time (the normal approach), so uv picks wheels matching the Python it selects — no pre-bundled compiled wheels (ortools, opencv) to mismatch. Trade-off: install needs internet.

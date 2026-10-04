@@ -8,7 +8,7 @@ from pathlib import Path
 
 import click
 
-from athc.cli import league_option
+from athc.cli import selected_league
 from athc.cli.gameplan import gameplan
 from athc.cli.gameplan._common import build_pool, make_backup, parse_play_list
 from athc.fbpro98_gameplan import (
@@ -49,7 +49,6 @@ NORMAL_COUNT = GamePlan.NUMBER_NORMAL_PLAYS
     default=None,
     help="Playpool rules TOML (overrides the league's playpool_rules).",
 )
-@league_option
 @click.pass_context
 def set_normals(
     ctx: click.Context,
@@ -60,7 +59,6 @@ def set_normals(
     quiet: bool,
     play_path: Path | None,
     playpool_rules: Path | None,
-    league: str | None,
 ) -> None:
     """Replace the 64 normal slots of GAMEPLAN_PATH from a play list (file or --stdin).
 
@@ -69,6 +67,7 @@ def set_normals(
     play pool resolves names; run `check` to validate the result.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    league = selected_league(ctx)
     if use_stdin and input_path is not None:
         raise click.UsageError("provide either INPUT_PATH or --stdin, not both")
     if not use_stdin and input_path is None:
@@ -90,6 +89,7 @@ def set_normals(
             league,
             play_path=play_path,
             playpool_rules=playpool_rules,
+            rule_files=(),  # no gameplan rules needed: don't resolve a league for them
         )
     except (ConfigFileError, ValueError, OSError) as error:
         logger.error("%s: %s", PROG, error)

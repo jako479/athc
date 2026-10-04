@@ -2,7 +2,12 @@
 
 from athc.scheduler.config import load_league
 
-real = [t.metro for t in load_league("release/PNFL.2048.ini").rankings.overall]
+real = [
+    t.metro
+    for t in load_league(
+        "release/leagues/PNFL/standings/2048.league.ini"
+    ).rankings.overall
+]
 cand = [
     t.metro
     for t in load_league(

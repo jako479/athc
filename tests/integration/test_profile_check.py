@@ -30,6 +30,7 @@ from tests.integration.conftest import (
 
 RULES = load_rules([RULES_TOML])
 WriteConfig = Callable[..., Path]
+MakeLeague = Callable[..., Path]
 
 
 # ── collect_files ─────────────────────────────────────────────────────────────
@@ -244,35 +245,56 @@ def test_cli_continues_past_bad(runner, tmp_path: Path) -> None:
 # ── rules / config resolution ─────────────────────────────────────────────────
 
 
-def test_cli_no_rules(runner, caplog: pytest.LogCaptureFixture) -> None:
+def test_cli_no_league(runner, caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(check, [str(OFF1)])
     assert result.exit_code == 2
-    assert "no rules configured" in caplog.text
+    assert "no league selected" in caplog.text
 
 
-def test_cli_rules_from_ini(runner, write_config: WriteConfig) -> None:
-    write_config(f"[profile]\nrule_files =\n    {RULES_TOML}\n")
-    assert runner.invoke(check, [str(OFF1)]).exit_code == 1
-
-
-def test_cli_rules_from_ini_relative_to_config_dir(
-    runner, write_config: WriteConfig, config_dir: Path
+def test_cli_no_rules_in_league_folder(
+    runner, make_league: MakeLeague, caplog: pytest.LogCaptureFixture
 ) -> None:
-    # A relative rule path resolves against the config dir (where athc.ini lives),
-    # so dev and installed athc.ini can both point at the bundled rules\ set.
-    (config_dir / "rules").mkdir()
-    shutil.copy(RULES_TOML, config_dir / "rules" / "PNFL.profile.toml")
-    write_config("[profile]\nrule_files =\n    rules\\PNFL.profile.toml\n")
-    assert runner.invoke(check, [str(OFF1)]).exit_code == 1
-
-
-def test_cli_rules_override_ini(
-    runner, write_config: WriteConfig, caplog: pytest.LogCaptureFixture
-) -> None:
-    write_config("[profile]\nrule_files =\n    bogus.toml\n")
+    make_league("PNFL")
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(check, [str(OFF1), "--rules", str(RULES_TOML)])
+        result = runner.invoke(check, [str(OFF1)], obj={"league": "PNFL"})
+    assert result.exit_code == 2
+    assert "no rules configured" in caplog.text
+    assert "rules\\profile.toml" in caplog.text
+
+
+def test_cli_rules_from_league_folder(
+    runner, make_league: MakeLeague, write_config: WriteConfig
+) -> None:
+    folder = make_league("PNFL")
+    shutil.copy(RULES_TOML, folder / "rules" / "profile.toml")
+    write_config("[athc]\nleague = PNFL\n")
+    assert runner.invoke(check, [str(OFF1)]).exit_code == 1
+
+
+def test_cli_league_flag_picks_folder(runner, make_league: MakeLeague) -> None:
+    make_league("PNFL")  # no rules -> would fail
+    other = make_league("PCFL")
+    shutil.copy(RULES_TOML, other / "rules" / "profile.toml")
+    assert runner.invoke(check, [str(OFF1)], obj={"league": "PCFL"}).exit_code == 1
+
+
+def test_cli_profile_rules_list_relative_to_league_folder(
+    runner, make_league: MakeLeague
+) -> None:
+    folder = make_league("PNFL", "[league]\nprofile_rules =\n    rules\\mine.toml\n")
+    shutil.copy(RULES_TOML, folder / "rules" / "mine.toml")
+    assert runner.invoke(check, [str(OFF1)], obj={"league": "PNFL"}).exit_code == 1
+
+
+def test_cli_rules_override_league(
+    runner, make_league: MakeLeague, caplog: pytest.LogCaptureFixture
+) -> None:
+    make_league("PNFL", "[league]\nprofile_rules =\n    bogus.toml\n")
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(
+            check, [str(OFF1), "--rules", str(RULES_TOML)], obj={"league": "PNFL"}
+        )
     assert result.exit_code == 1
     assert "bogus.toml" not in caplog.text
 
@@ -300,19 +322,19 @@ def test_cli_bad_rules_toml(
 @pytest.mark.parametrize("via", ["ini", "cli"])
 def test_cli_missing_rules(
     runner,
-    write_config: WriteConfig,
+    make_league: MakeLeague,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     via: str,
 ) -> None:
     missing = tmp_path / "no-such-rules.toml"
     if via == "ini":
-        write_config(f"[profile]\nrule_files =\n    {missing}\n")
-        args = [str(OFF1)]
+        make_league("PNFL", f"[league]\nprofile_rules =\n    {missing}\n")
+        args, obj = [str(OFF1)], {"league": "PNFL"}
     else:
-        args = [str(OFF1), "--rules", str(missing)]
+        args, obj = [str(OFF1), "--rules", str(missing)], None
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(check, args)
+        result = runner.invoke(check, args, obj=obj)
     assert result.exit_code == 2
     assert str(missing) in caplog.text
 

@@ -26,23 +26,28 @@ REM Make sure uv's tool directory is on PATH (no-op if already there).
 uv tool update-shell
 
 REM Deploy files to the athc config folder.
-REM   - Docs and the rules\ folder are shipped reference material -> always
-REM     overwrite (no guard). Users copy a rule file before editing their own.
-REM   - athc.ini is user-owned -> guard with 'if not exist' so user edits survive.
-REM     New tool sections take effect via in-code defaults; the freshly-extracted
-REM     athc.ini in this zip is the always-current reference of every setting.
+REM   - docs\, playpool.toml (convert-pdb's default play-pool rules) and each
+REM     league's rules\ are shipped reference material -> always overwrite (no
+REM     guard). Users copy a rule file before editing their own.
+REM   - athc.ini, each league's league.ini and standings\ are user-owned ->
+REM     guarded with 'if not exist' so edits survive a reinstall. New tool
+REM     sections take effect via in-code defaults; the freshly-extracted athc.ini
+REM     in this zip is the always-current reference of every setting.
 set "DEST=%LOCALAPPDATA%\athc"
 if not exist "%DEST%" mkdir "%DEST%"
-if not exist "%DEST%\rules" mkdir "%DEST%\rules"
 if not exist "%DEST%\docs" mkdir "%DEST%\docs"
 
-copy /Y "docs\*.txt"   "%DEST%\docs\"  >NUL
-copy /Y "rules\*.toml" "%DEST%\rules\" >NUL
+copy /Y "docs\*.txt" "%DEST%\docs\" >NUL
+copy /Y "playpool.toml" "%DEST%\playpool.toml" >NUL
 if not exist "%DEST%\athc.ini" copy /Y "athc.ini" "%DEST%\athc.ini" >NUL
 
-REM Standings files (<league>.<season>.ini) are
-REM commissioner-owned -> guard per file so edits survive a reinstall.
-for %%f in (*.*.ini) do if not exist "%DEST%\%%f" copy /Y "%%f" "%DEST%\%%f" >NUL
+for /D %%L in (leagues\*) do (
+    if not exist "%DEST%\%%L\rules" mkdir "%DEST%\%%L\rules"
+    if not exist "%DEST%\%%L\standings" mkdir "%DEST%\%%L\standings"
+    copy /Y "%%L\rules\*.toml" "%DEST%\%%L\rules\" >NUL
+    if not exist "%DEST%\%%L\league.ini" copy /Y "%%L\league.ini" "%DEST%\%%L\league.ini" >NUL
+    for %%f in ("%%L\standings\*.league.ini") do if not exist "%DEST%\%%L\standings\%%~nxf" copy /Y "%%f" "%DEST%\%%L\standings\%%~nxf" >NUL
+)
 
 echo.
 echo ============================================

@@ -41,35 +41,16 @@ Default location for a produced file when no path is given.
 
 **Adaptation for athc**: produced output (schedule, report, convert-pdb `.xlsx`, diff export) stays CWD-relative or explicit, like CLI paths in [config.py](../../src/athc/config.py). `platformdirs` is config-only; fixed dirs are for state, not output ([clig.dev](https://clig.dev/)).
 
-## Multi-profile config (named variants selected at runtime)
+## Multi-profile config (one folder per named profile)
 
-For athc's multi-league pattern (selected via `--league NAME`). Grounded in ubiquitous
-end-user tools, not enterprise CLIs.
+For athc's `leagues\<NAME>\` folders and the stored current league.
 
-- **git** `config` — `[remote "origin"]`, `[branch "main"]`: a section type plus a quoted/dotted name. Closest precedent for namespacing a name under a kind.
-- **OpenSSH** `~/.ssh/config` — `Host NAME` blocks selected by name; per-host keys with global fallbacks. Precedent for "pick a named block, fall back to defaults."
+- **OBS Studio** — `basic/profiles/<Name>/basic.ini`; the current profile is one key in a global ini. Direct model for the folder-per-league layout with fixed inner file names.
+- **Kodi** — `profiles/<name>/` plus a registry naming the last-loaded profile.
+- **Calibre** — libraries are folders; the current one is `library_path` in the app-wide prefs. Precedent for keeping the pointer in the main settings file.
+- **pip / gcloud / poetry** — `config set KEY VALUE` writes one setting; precedent for `athc config set league NAME`.
 
-**Adaptation for athc**: dotted `[league.NAME]` sections (the dot is valid TOML, so it survives a future move off INI), `--league` per-command (not umbrella-level). `configparser`'s `[DEFAULT]` + `%(key)s` interpolation handle inheritance natively. Selection priority: `--league` → `ATHC_LEAGUE` → `[athc] default_league` → error.
-
-Example:
-
-```ini
-[DEFAULT]
-roster_path = %(league_root)s\rosters
-
-[athc]
-default_league = PNFL
-
-[league.PNFL]
-league_root = D:\Leagues\PNFL
-play_path = D:\Leagues\PNFL\plays
-
-[league.PCFL]
-league_root = E:\Leagues\PCFL
-play_path = E:\Leagues\PCFL\plays_v2
-```
-
-Full design: [config.md](config.md). CLI mechanics: [cli.md](cli.md).
+**Adaptation for athc**: fixed file names inside each league folder; `[athc] league` in `athc.ini`; `--league` as a root option (`athc --league NAME <command>`); priority `--league` → `ATHC_LEAGUE` → `[athc] league` → error. Full design: [config.md](config.md). CLI mechanics: [cli.md](cli.md).
 
 ## Plugins via entry points
 
@@ -116,7 +97,9 @@ athc's own discipline (golden input→expected-output fixtures with a regen scri
 | In-code defaults; missing section/key → no error | pgcli, mycli, yt-dlp |
 | Config dir override (`ATHC_CONFIG_DIR` env var) | httpie (`HTTPIE_CONFIG_DIR`), llm (`LLM_USER_PATH`), tmuxp |
 | Output → CWD/explicit, never a fixed app dir | yt-dlp, cookiecutter, ffmpeg; clig.dev |
-| Multi-league named sections + `[DEFAULT]` cascade | git `[remote "name"]`, ssh `Host` blocks |
+| Folder per league, fixed inner file names | OBS Studio, Kodi, Hugo |
+| Current league as a key in the main settings file | Calibre |
+| `config set KEY VALUE` | pip, gcloud, poetry |
 | Offline-bundled install (`--no-index --find-links --offline`) | Calibre, MusicBrainz Picard; pnfl predecessor |
 | Release artifact location (`dist/`) | Standard Python build output |
 | Windows installer toolkit (future): Inno Setup | Audacity, qBittorrent |

@@ -55,21 +55,21 @@ athc gameplan set-specials plans/ spec.txt -r      # merge specials across a tre
 athc gameplan replace-play OLDRUN NEWRUN plans/ -r # swap one play for another (+ .bak)
 ```
 
-`list-*` and `find-play` just read a `.pln` — no pool, rules or config. `set-*` need the pool (like `check`, minus `--rules`) and edit in place after a `.bak`. `replace-play OLDNAME NEWNAME PATH` swaps one play for another wherever `find-play` would find it (`--play-path`/`--league`, no `--rules`/`--playpool-rules`); `NEWNAME` must be in the pool. `athc gameplan <command> --help` for flags.
+`list-*` and `find-play` just read a `.pln` — no pool, rules or config. `set-*` need the pool (like `check`, minus `--rules`) and edit in place after a `.bak`. `replace-play OLDNAME NEWNAME PATH` swaps one play for another wherever `find-play` would find it (`--play-path` or the league from `athc --league`, no `--rules`/`--playpool-rules`); `NEWNAME` must be in the pool. `athc gameplan <command> --help` for flags.
 
 ## Config
 
-Shared `athc.ini` (see [../design/config.md](../design/config.md)):
+The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.md)), picked by `--league` / `ATHC_LEAGUE` / `[athc] league`:
 
-- `[gameplan] rule_files` — one gameplan-rules path per line.
-- League section (`[league.PNFL]`, picked by `--league` / `ATHC_LEAGUE` / `[athc] default_league`) — `play_path` (pool dir) and optional `playpool_rules` (a playpool filename-filter TOML).
+- `rules\gameplan.toml` — the rules (or a `gameplan_rules` list in `league.ini`, later files layering over earlier).
+- `league.ini` `play_path` (pool dir) and `rules\playpool.toml` (optional filename-filter TOML).
 
-`--play-path`, `--playpool-rules`, and repeatable `--rules` override config. `--play-path` alone still reads the league's `playpool_rules`; with `--playpool-rules` too, no league is needed. No rules resolvable ⇒ exit 2 (nothing to validate).
+`--play-path`, `--playpool-rules`, and repeatable `--rules` override the folder. `--play-path` alone still reads the league's `rules\playpool.toml`; given all three, no league is needed. No rules resolvable ⇒ exit 2 (nothing to validate).
 
 ## See also
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — layers, layout, violation format.
-- [release/rules/PNFL.gameplan.toml](../../release/rules/PNFL.gameplan.toml) — the PNFL rule set.
+- [release/leagues/PNFL/rules/gameplan.toml](../../release/leagues/PNFL/rules/gameplan.toml) — the PNFL rule set.
 
 ## Tests
 

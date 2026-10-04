@@ -115,7 +115,9 @@ def test_missing_file(tmp_path: Path) -> None:
 
 def test_pnfl_rules_load() -> None:
     root = Path(__file__).resolve().parents[3]
-    rules = load_rules(root / "release" / "rules" / "PNFL.playpool.toml")
+    rules = load_rules(
+        root / "release" / "leagues" / "PNFL" / "rules" / "playpool.toml"
+    )
     assert "SGZfade" in rules.timed.include
     assert rules.qb_draw.regex_any
 

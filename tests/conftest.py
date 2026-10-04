@@ -33,3 +33,21 @@ def write_config(config_dir: Path) -> Callable[..., Path]:
         return path
 
     return _write
+
+
+@pytest.fixture
+def make_league(config_dir: Path) -> Callable[..., Path]:
+    """Create `leagues/<name>/` (with `rules/` and `standings/`) under the temp
+    config dir, write `league.ini` from `body` when given, and return the folder."""
+
+    def _make(name: str = "PNFL", body: str | None = None) -> Path:
+        folder = config_dir / "leagues" / name
+        (folder / "rules").mkdir(parents=True)
+        (folder / "standings").mkdir()
+        if body is not None:
+            (folder / "league.ini").write_text(
+                textwrap.dedent(body).lstrip("\n"), encoding="utf-8"
+            )
+        return folder
+
+    return _make

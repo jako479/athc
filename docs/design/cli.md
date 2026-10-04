@@ -154,9 +154,9 @@ Production users never set the var; the default `%LOCALAPPDATA%\athc` wins.
 
 ## Cross-cutting options: `--league`
 
-When a tool operates on league-specific data (gameplan, profile, generate-schedule), it accepts `--league NAME`. This option lives on the command (or group) that needs it, **not** at the umbrella level. Non-league tools (autocontinue, config) never see the flag.
+`--league NAME` is one option on the root group (`athc --league PCFL gameplan check plan.pln`), like `aws --profile`, `gcloud --configuration`, `kubectl --context` and `docker --context`. The root callback stores it in `ctx.obj`; league-aware commands (gameplan, profile, convert-pdb, generate-schedule) read it with `selected_league(ctx)`. Non-league tools (autocontinue, config) simply ignore it.
 
-`-v/--verbose` is the one option that *does* sit on the root group: it applies to every command without exception, and the handler it configures is process-wide ([logging.md](logging.md#handler-setup)).
+`-v/--verbose` also sits on the root group: it applies to every command without exception, and the handler it configures is process-wide ([logging.md](logging.md#handler-setup)).
 
 A shared decorator keeps the option uniform:
 
@@ -167,13 +167,13 @@ def league_option(f):
         "--league",
         envvar="ATHC_LEAGUE",
         default=None,
-        help="League name (must be defined in athc.ini).",
+        help="League name (a folder under leagues\\ in the config dir).",
     )(f)
 ```
 
-Selection priority (highest first): `--league` flag → `ATHC_LEAGUE` env → `[athc] default_league` in config → error. Full rules in [config.md](config.md).
+Selection priority (highest first): `--league` flag → `ATHC_LEAGUE` env → `[athc] league` in config → error. Full rules in [config.md](config.md).
 
-For a command group, putting the decorator on the group means every leaf inherits it once. For a single leaf, decorate the leaf directly.
+The decorator is applied once, to the root `cli` group. `selected_league(ctx)` returns `None` when a command runs on its own (tests, embedding).
 
 ## Help text conventions
 

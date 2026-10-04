@@ -1,0 +1,30 @@
+# PNFL playpool rules — filename filters that set each filename-derived play
+# attribute (rollout, qb_draw, pass_logic). Read automatically as
+# leagues\<NAME>\rules\playpool.toml, or pass --playpool-rules. Side and category come from
+# each play file, so these filters apply to any folder layout; only the filters
+# are league data — another league just copies and edits this file.
+
+schema_version = 1
+
+# Filter keys, valid in any section (all optional, CASE-SENSITIVE). A name matches
+# when it hits ANY of suffix_any / regex_any / include AND NONE of suffix_none /
+# regex_none / exclude (vetoes win):
+#   suffix_any / suffix_none   name ends with any of these (suffix_none = veto)
+#   regex_any  / regex_none    a regex searches the name (regex_none = veto)
+#   include    / exclude       force on / off: exact play names
+
+# A pass play's pass_logic = Timed (else Check Receivers).
+[TimedPass]
+suffix_any = ["T", "T1", "T2", "TR", "RT", "Ty", "T01", "T01R", "T02", "Top"]
+suffix_none = ["OUT", "SLT1", "FLT1", "OUT1"]
+regex_any = ["(?i)lob.$"]
+include = ["GBglpH1L", "GBglpH1R", "GBglpYL", "GBglpYR", "LVHglp01", "LVIglp03", "SGZfade"]
+
+# A pass play's rollout flag.
+[RolloutPass]
+suffix_any = ["R", "RT", "TR", "wagL", "rolL"]
+suffix_none = ["CR", "WR", "scrR", "trpR", "nRT", "NRT"]
+
+# A run play's qb_draw flag.
+[QBRun]
+regex_any = ["^.1", "^..1"]  # 2nd or 3rd character is "1"

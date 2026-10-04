@@ -9,7 +9,7 @@ TOML file, never in code.
 ```
 src/athc/profile/          # tool logic (no Click)
 ├── __init__.py    # public API
-├── config.py      # [profile] rule_files from athc.ini
+├── config.py      # rules\profile.toml (or profile_rules list) from the league folder
 ├── model.py       # RuleName, Violation
 ├── rules.py       # ProfileRules, SituationRule, SubstitutionRule/PercentBound, load_rules, RulesFileError
 ├── validators.py  # validate_profile
@@ -37,7 +37,7 @@ back to one. Situation rules are a list: each has optional game-state filters
 matches. Substitution rules are one `SubstitutionRule` per position group, a
 `PercentBound` per side (out/in): an exact value or an optional min/max range;
 a side with no key is unchecked, and each unmet side is its own violation. The
-shipped [release/rules/PNFL.profile.toml](../../release/rules/PNFL.profile.toml)
+shipped [release/leagues/PNFL/rules/profile.toml](../../release/leagues/PNFL/rules/profile.toml)
 is the reference; its comments cover the matrix, category counts, disallowed
 categories and substitutions.
 
@@ -50,10 +50,12 @@ Loading reports every problem at once (`RulesFileError.errors`); any error abort
 
 ## Config
 
-`athc.ini [profile] rule_files` — one path per line (config found via
-`ATHC_CONFIG_DIR` / the default config dir; no `--config` flag). `check` accepts
-a repeatable `--rules` to override. No rules configured ⇒ `check` logs an
-error and exits 2 (nothing to validate). See [../design/config.md](../design/config.md).
+`leagues\<NAME>\rules\profile.toml`, or a `profile_rules` list in the league's
+`league.ini` (one path per line); the league comes from `--league` /
+`ATHC_LEAGUE` / `[athc] league` (config found via `ATHC_CONFIG_DIR` / the default
+config dir; no `--config` flag). `check` accepts a repeatable `--rules` to
+override. No rules configured ⇒ `check` logs an error and exits 2 (nothing to
+validate). See [../design/config.md](../design/config.md).
 
 ## Check
 

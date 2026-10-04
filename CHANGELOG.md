@@ -1,8 +1,15 @@
 # Changelog
 
+Very high-level, release-note style: what is new or changed, one line per
+feature or change, nothing technical. A finished TODO item moves here as its
+own line, stripped of the detail that only explained the work; any other
+high-level change completed alongside it gets its own line.
+
 ## athc
 
-- gameplan: `--play-path` alone no longer drops the league's `playpool_rules`; the timed, rollout and QB-draw caps were silently skipped
+- athc: config and rules files reorganised to support multiple leagues
+- athc: new `athc config set` command and a root `--league` option to pick the league
+- gameplan: `--play-path` alone no longer drops the league's playpool rules; the timed, rollout and QB-draw caps were silently skipped
 - config: league keys are lowercase (`play_path`, `playpool_rules`); the case-keeping parser is gone
 - docs: the rules TOML is the PNFL reference; the RULES_PNFL docs are gone and exit codes moved into each README
 - tests: the shipped `release/athc.ini` is loaded through every section loader and its rule files must exist
@@ -71,7 +78,7 @@
 
 ## scheduler
 
-- league-agnostic: `--league` on `generate-schedule`; standings are `<league>.<season>.ini` and rules `rules\<league>.scheduler.toml`; conferences, divisions and same-place games come from the standings file; a solver failure exits 1; the PCFL ships in `dev/` and `release/`; one test suite for every league
+- league-agnostic: `--league` picks the league; conferences, divisions and same-place games come from the standings file; a solver failure exits 1; the PCFL ships in `dev/` and `release/`; one test suite for every league
 - second league format: a league without divisions (`[ConferenceStandings]`), `[league] weeks`, opening non-conference weeks, a conference-sequence streak cap, rivalry week with home rotation by season; PCFL 2029 data files
 - corrected the phase-2 solver worker count in the design doc
 - removed references to the dropped A, B, C and D schedulers from the league.ini files and release docs

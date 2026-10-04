@@ -92,7 +92,7 @@ def resolve_rules(
     if not files:
         logger.error(
             "%s: no rules configured - nothing to check. "
-            "Set rule_files in athc.ini [profile] or pass --rules.",
+            "Add rules\\profile.toml to the league folder or pass --rules.",
             prog,
         )
         return None

@@ -27,7 +27,7 @@ A league without divisions uses the first three rows plus the last three; its ru
 
 ## Constraints
 
-The numeric amounts below come from `[phase2]` in `rules/<league>.scheduler.toml` (defaults shown); the rules themselves, and league/conference sizes, are fixed.
+The numeric amounts below come from `[phase2]` in the league's `rules\scheduler.toml` (defaults shown); the rules themselves, and league/conference sizes, are fixed.
 
 Structure
 - Each team plays exactly 1 game per week and hosts `weeks / 2`.

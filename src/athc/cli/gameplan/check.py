@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from athc.cli import league_option
+from athc.cli import selected_league
 from athc.cli.gameplan import gameplan
 from athc.cli.gameplan._common import build_pool, collect_files, resolve_rules
 from athc.fbpro98_gameplan import InvalidGamePlanError, read_gameplan
@@ -48,7 +48,6 @@ logger = logging.getLogger(__name__)
     multiple=True,
     help="Gameplan rules TOML file; repeat to layer multiple. Overrides config.",
 )
-@league_option
 @click.pass_context
 def check(
     ctx: click.Context,
@@ -57,7 +56,6 @@ def check(
     play_path: Path | None,
     playpool_rules: Path | None,
     rule_overrides: tuple[Path, ...],
-    league: str | None,
 ) -> None:
     """Validate one or more .pln gameplans against the configured rules.
 
@@ -65,6 +63,7 @@ def check(
     or a glob.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    league = selected_league(ctx)
 
     files, path_errors = collect_files(paths, suffix=".pln", recursive=recursive)
     for error in path_errors:

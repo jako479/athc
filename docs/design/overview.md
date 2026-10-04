@@ -60,9 +60,9 @@ A package can start as a library and grow a `cli/` later (or vice versa).
 ## Config handling
 
 - Single shared INI file at `%LOCALAPPDATA%\athc\athc.ini`, read by `configparser`.
-- Three section flavors: tool sections (bare name, e.g. `[gameplan]`), league sections (`league.` prefix, e.g. `[league.PNFL]`), and `[DEFAULT]` for cross-cutting keys.
+- `athc.ini` holds app-wide sections (`[athc]`, `[autocontinue]`, `[convert-pdb]`); everything per-league lives in `leagues\<NAME>\` (`league.ini`, `rules\`, `standings\`).
 - Each tool owns its own `config.py` with a `Config` dataclass; missing keys/sections fall back to in-code defaults.
-- Tools that operate on league-specific data take a `--league NAME` option.
+- `athc --league NAME` (root option) overrides `[athc] league` for one run; `athc config set league NAME` stores the default.
 - `athc config path | edit | reveal` locate, edit, and reveal `athc.ini` (no `[config]` section); see [config.md](config.md#editing-the-config).
 - Dev override: set `ATHC_CONFIG_DIR` to the repo's `dev/` folder when running from source. Design in [config.md](config.md#dev-config-running-from-source); VS Code terminal + F5 steps in [cli.md](cli.md#running-from-source-dev-config).
 - Full structure, multi-league selection rules, dev override details, and deprecation: [config.md](config.md). File deploy/upgrade behavior: [installer.md](installer.md). CLI/run-from-source details: [cli.md](cli.md).

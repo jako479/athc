@@ -11,7 +11,7 @@ src/athc/gameplan/        # tool logic (no Click)
 ├── rules.py              # Rules, OffenseCategoryRule, DefenseCategoryRule, load_rules
 ├── validators.py         # validate_gameplan
 ├── writer.py             # apply_normal_plays / apply_special_plays (name -> slot)
-└── config.py             # Config (athc.ini [gameplan] + league section)
+└── config.py             # Config (play_path + rules from the league folder)
 
 src/athc/cli/gameplan/    # CLI group
 ├── __init__.py           # `athc gameplan` group
@@ -47,16 +47,16 @@ Each capped attribute (`qb_draws`, `rollouts`, `timed`, `two_dl`) takes one of t
 
 Loading reports every problem at once (`RulesFileError.errors`); any error aborts `check` with each logged (exit 2).
 
-The PNFL rule set is [release/rules/PNFL.gameplan.toml](../../release/rules/PNFL.gameplan.toml) — data a coach supplies as a file, not code.
+The PNFL rule set is [release/leagues/PNFL/rules/gameplan.toml](../../release/leagues/PNFL/rules/gameplan.toml) — data a coach supplies as a file, not code.
 
 ## Config
 
-Shared `athc.ini` (see [../design/config.md](../design/config.md)):
+The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.md)), chosen by `--league` / `ATHC_LEAGUE` / `[athc] league`:
 
-- `[gameplan] rule_files` — one rule-TOML path per line.
-- League section (`[league.PNFL]`, chosen by `--league` / `ATHC_LEAGUE` / `[athc] default_league`) — `play_path` (play pool dir) and optional `playpool_rules` (a playpool filename-filter TOML).
+- `rules\gameplan.toml` — the rules (or a `gameplan_rules` list in `league.ini`, one path per line, later files layering over earlier).
+- `league.ini` `play_path` (play pool dir) and `rules\playpool.toml` (optional filename-filter TOML).
 
-`check` also takes `--play-path`, `--playpool-rules`, and repeatable `--rules` to override. The league is read only while `play_path` or `playpool_rules` still comes from it: `--play-path` alone keeps the league's `playpool_rules`; with both given, no league is needed. With no rules resolvable there's nothing to validate → log an error, exit 2.
+`check` also takes `--play-path`, `--playpool-rules`, and repeatable `--rules` to override. The league is read only while a value still comes from it: `--play-path` alone keeps the league's `rules\playpool.toml`; with all three given, no league is needed. With no rules resolvable there's nothing to validate → log an error, exit 2.
 
 ## check
 
@@ -90,9 +90,10 @@ up front; a miss logs an error and exits 2); `PLAY` need not (it may already be
 gone — the rename case). Only matched slots are swapped (surgical, unlike
 `set-normals`); the rest are preserved. The pool is built **without** playpool
 rules — the swap uses each play's category bytes, not the filename-derived
-attributes those rules add — so `replace-play` takes `--play-path` / `--league`
-but no `--playpool-rules` and no `--rules`. The `GamePlan` model validates each
-swap (side parity; a special play's category must match its slot); an invalid
+attributes those rules add — so `replace-play` takes `--play-path` (or the
+league from `athc --league`) but no `--playpool-rules` and no `--rules`. The
+`GamePlan` model validates each swap (side parity; a special play's category
+must match its slot); an invalid
 swap fails that file (reported, not written, no `.bak`). A timestamped `.bak` is
 written next to each updated file (unless `--no-backup`). Run `check` afterward
 to validate against league rules.

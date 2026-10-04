@@ -48,14 +48,20 @@ new versions without touching your settings.
 FIRST-TIME SETUP
 ----------------
 
-athc ships configured for PNFL out of the box -- the bundled rule sets
-in rules\ are already wired up. The one thing you must set is your
-plays folder. Run 'athc config edit' (or open athc.ini, see below) and
-set play_path under [league.PNFL] to your FbPro98 league plays folder,
-for example:
+athc ships configured for PNFL out of the box. The one thing you must
+set is your plays folder: open leagues\PNFL\league.ini in your settings
+folder (see below) and set play_path to your FbPro98 league plays
+folder, for example:
 
-   [league.PNFL]
+   [league]
    play_path = D:\SIERRA\FBPRO98\PNFL\plays
+
+Each league is a folder under leagues\ with its league.ini, rules\ and
+standings\. athc ships two: PNFL and PCFL. To switch league, run:
+
+   athc config set league PCFL
+
+To add another league, copy a league folder and rename it.
 
 
 USING THE TOOLS
@@ -82,9 +88,16 @@ That folder will contain:
 
    athc.ini             your settings (edit to customize; the file
                         documents every setting inline)
+   playpool.toml        default play-pool rules for convert-pdb (a league's
+                        rules\playpool.toml overrides)
    docs\                this README plus per-command references
-   rules\               PNFL rule sets (PNFL.*.toml) for
-                        gameplan/profile/playpool
+   leagues\PNFL\        the PNFL league:
+      league.ini           your plays folder (play_path)
+      rules\               gameplan.toml, profile.toml, playpool.toml,
+                           scheduler.toml
+      standings\           <season>.league.ini for the scheduler
+   leagues\PCFL\        the PCFL league, same layout (rules\ has only
+                        scheduler.toml)
 
 To open this folder, run 'athc config reveal' (or paste
 %LOCALAPPDATA%\athc into File Explorer's address bar).
@@ -93,8 +106,11 @@ What survives reinstalls:
    athc.ini             YES -- your edits are preserved on every reinstall.
                         Delete it to have install.bat seed a fresh PNFL
                         starter copy on the next run.
+   leagues\*\league.ini YES -- preserved
+   leagues\*\standings\ YES -- preserved (files are only added, never replaced)
    docs\                overwritten every install
-   rules\               overwritten every install (copy a file before editing
+   playpool.toml        overwritten every install
+   leagues\*\rules\     overwritten every install (copy a file before editing
                         your own league's rules)
 
 When a new version adds a tool with new settings:

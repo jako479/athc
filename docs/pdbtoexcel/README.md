@@ -22,14 +22,22 @@ Plays are grouped by their **game** category (e.g. "Pass Short Left").
 
 ## Config
 
-`[convert-pdb]` in `athc.ini`:
+The league folder `leagues\<NAME>\` (picked by `--league` / `ATHC_LEAGUE` /
+`[athc] league`; see [../design/config.md](../design/config.md)):
 
 ```ini
-[convert-pdb]
+; leagues\PNFL\league.ini
+[league]
 play_path = E:\SIERRA\FbPro98\PNFL
-playpool_rules = C:\athc\rules\PNFL.playpool.toml
 ```
 
-`play_path` (the `.ply` pool, required) and an optional `playpool_rules` TOML of
-filename filters that tag plays (QB draws, screens, defensive fronts).
-`--play-path` / `--playpool-rules` / `--config` override.
+`play_path` (the `.ply` pool, required) plus the optional `rules\playpool.toml`
+of filename filters that tag plays (QB draws, screens, defensive fronts).
+Playpool rules resolve as `--playpool-rules`, else the league's
+`rules\playpool.toml`, else the default `playpool.toml` next to `athc.ini`
+(shipped: the PNFL filters), else none. `--play-path` skips the league, so it
+uses the default file unless `--playpool-rules` is given. The workbook
+options are app-wide settings in `[convert-pdb]` in `athc.ini`
+(`calculate_total_stats`, `calculate_percentages`,
+`include_category_worksheets`, `exclude_sacks_from_pass_attempts`);
+`--skip-totals` / `--skip-calcs` turn the first two off for one run.

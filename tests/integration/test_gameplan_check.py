@@ -39,6 +39,7 @@ FLAGS = [
     str(GP_RULES),
 ]
 WriteConfig = Callable[..., Path]
+MakeLeague = Callable[..., Path]
 
 
 # ── collect_files ─────────────────────────────────────────────────────────────
@@ -272,7 +273,9 @@ def test_cli_bad_playpool_rules(
     assert result.exit_code == 2
 
 
-def test_cli_no_rules(runner, caplog: pytest.LogCaptureFixture) -> None:
+def test_cli_no_rules_needs_a_league(runner, caplog: pytest.LogCaptureFixture) -> None:
+    # --play-path and --playpool-rules given, --rules not: the rules come from
+    # the league folder, so with no league configured that is the error.
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(
             check,
@@ -285,7 +288,18 @@ def test_cli_no_rules(runner, caplog: pytest.LogCaptureFixture) -> None:
             ],
         )
     assert result.exit_code == 2
+    assert "no league selected" in caplog.text
+
+
+def test_cli_no_rules_in_league_folder(
+    runner, make_league: MakeLeague, caplog: pytest.LogCaptureFixture
+) -> None:
+    make_league("PNFL", f"[league]\nplay_path = {PLAYS}\n")
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(check, [str(GP_OFFENSE)], obj={"league": "PNFL"})
+    assert result.exit_code == 2
     assert "no rules configured" in caplog.text
+    assert "rules\\gameplan.toml" in caplog.text
 
 
 def test_cli_bad_rules_toml(
@@ -318,43 +332,70 @@ def test_cli_no_league(runner, caplog: pytest.LogCaptureFixture) -> None:
     assert "league" in caplog.text.lower()
 
 
-def test_cli_resolves_from_league_ini(runner, write_config: WriteConfig) -> None:
-    # No flags: everything resolves from config_dir()/athc.ini (ATHC_CONFIG_DIR).
-    write_config(
-        f"[athc]\ndefault_league = PNFL\n"
-        f"[gameplan]\nrule_files =\n    {GP_RULES}\n"
-        f"[league.PNFL]\nplay_path = {PLAYS}\nplaypool_rules = {POOL_RULES}\n",
-    )
+def test_cli_resolves_from_league_folder(
+    runner, make_league: MakeLeague, write_config: WriteConfig
+) -> None:
+    # No flags: league from athc.ini, everything else from leagues/PNFL/.
+    folder = make_league("PNFL", f"[league]\nplay_path = {PLAYS}\n")
+    shutil.copy(GP_RULES, folder / "rules" / "gameplan.toml")
+    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
+    write_config("[athc]\nleague = PNFL\n")
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 1
     assert "violation(s)" in result.output
 
 
-def test_load_config_play_path_alone_reads_league_playpool_rules(
-    tmp_path: Path, write_config: WriteConfig
+def test_cli_gameplan_rules_list_layers_in_order(
+    runner, make_league: MakeLeague, tmp_path: Path
 ) -> None:
-    """`--play-path` overrides only `play_path`; `playpool_rules` still comes from
-    the league section."""
-    write_config(
-        f"[athc]\ndefault_league = PNFL\n"
-        f"[league.PNFL]\nplay_path = {tmp_path / 'league-pool'}\n"
-        f"playpool_rules = {POOL_RULES}\n",
+    # A gameplan_rules list replaces the fixed file; the overlay is read last.
+    folder = make_league(
+        "PNFL",
+        f"[league]\nplay_path = {PLAYS}\n"
+        f"gameplan_rules =\n    {GP_RULES}\n    rules\\overlay.toml\n",
     )
+    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
+    (folder / "rules" / "overlay.toml").write_text("", encoding="utf-8")
+    result = runner.invoke(check, [str(GP_OFFENSE)], obj={"league": "PNFL"})
+    assert result.exit_code == 1
+    assert "violation(s)" in result.output
+
+
+def test_cli_missing_listed_rules_file_is_reported(
+    runner, make_league: MakeLeague, caplog: pytest.LogCaptureFixture
+) -> None:
+    make_league(
+        "PNFL",
+        f"[league]\nplay_path = {PLAYS}\ngameplan_rules =\n    rules\\gone.toml\n",
+    )
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(check, [str(GP_OFFENSE)], obj={"league": "PNFL"})
+    assert result.exit_code == 2
+    assert "gone.toml" in caplog.text
+
+
+def test_load_config_play_path_alone_reads_league_playpool_rules(
+    tmp_path: Path, make_league: MakeLeague, write_config: WriteConfig
+) -> None:
+    """`--play-path` overrides only `play_path`; the playpool rules still come from
+    the league folder."""
+    folder = make_league("PNFL", f"[league]\nplay_path = {tmp_path / 'league-pool'}\n")
+    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
+    write_config("[athc]\nleague = PNFL\n")
     cfg = load_config(play_path=PLAYS)
     assert cfg.play_path == PLAYS
-    assert cfg.playpool_rules == POOL_RULES
+    assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
 
 
 def test_cli_play_path_alone_keeps_league_playpool_rules(
-    runner, write_config: WriteConfig
+    runner, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
-    """`--play-path` alone still reads the league's `playpool_rules`, so the
+    """`--play-path` alone still reads the league's playpool rules, so the
     filename-derived caps (timed, rollout, QB draw) are checked."""
-    write_config(
-        f"[athc]\ndefault_league = PNFL\n"
-        f"[gameplan]\nrule_files =\n    {GP_RULES}\n"
-        f"[league.PNFL]\nplay_path = {PLAYS}\nplaypool_rules = {POOL_RULES}\n",
-    )
+    folder = make_league("PNFL", f"[league]\nplay_path = {PLAYS}\n")
+    shutil.copy(GP_RULES, folder / "rules" / "gameplan.toml")
+    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
+    write_config("[athc]\nleague = PNFL\n")
     result = runner.invoke(check, [str(GP_OFFENSE), "--play-path", str(PLAYS)])
     assert result.exit_code == 1
     assert "timed passes" in result.output

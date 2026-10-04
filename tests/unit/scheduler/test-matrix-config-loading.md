@@ -4,7 +4,7 @@ Cases for `config.py` (`load_scheduler_config`, `load_league`, file resolution) 
 
 In `test_config.py` and `test_cli.py`. The test league is named `divisions`. Status: ☑ covered · ☐ no test yet.
 
-### Scheduler rules — `rules/<league>.scheduler.toml` (optional)
+### Scheduler rules — `leagues/<league>/rules/scheduler.toml` (optional)
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | Reads values | parsed floats/ints | `test_load_scheduler_config_reads_values` | ☑ |
@@ -18,12 +18,14 @@ In `test_config.py` and `test_cli.py`. The test league is named `divisions`. Sta
 ### File resolution — `--league` and `--season`
 | Case | Expected | Test | Status |
 |---|---|---|---|
-| Rules path | `rules/<league>.scheduler.toml` | `test_scheduler_rules_path_is_named_by_league` | ☑ |
-| Standings missing | `ConfigError` naming `<league>.<season>.ini` | `test_find_league_path_errors_when_none_exist` | ☑ |
+| Rules path | `leagues/<league>/rules/scheduler.toml` | `test_scheduler_rules_path_is_named_by_league` | ☑ |
+| League has no folder | `LeagueError` | `test_scheduler_rules_path_needs_the_league_folder` | ☑ |
+| Standings missing | `ConfigError` naming `leagues/<league>/standings/<season>.league.ini` | `test_find_league_path_errors_when_none_exist` | ☑ |
 | Standings present (another league's ignored) | that file | `test_find_league_path_resolves_league_and_season_file` | ☑ |
 | CLI resolves both files; output to cwd | league, paths, cwd | `test_league_and_season_resolve_files_and_output_to_cwd` | ☑ |
+| CLI without `--league` | the league named in `athc.ini` | `test_season_resolves_files_for_the_configured_league` | ☑ |
 
-### Standings — `<league>.<season>.ini` (required)
+### Standings — `leagues/<league>/standings/<season>.league.ini` (required)
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | Valid file | `League`, 18 teams, overall set; ranks derived | `test_load_league_reads_valid_config`, `test_load_league_derives_conference_rank_from_standings` | ☑ |
@@ -47,7 +49,8 @@ In `test_config.py` and `test_cli.py`. The test league is named `divisions`. Sta
 |---|---|---|---|
 | No `--season` / non-integer `--time-limit` / `--workers` | exit 2 | `test_requires_season`, `test_rejects_non_integer_time_limit`, `test_no_worker_count_override` | ☑ |
 | No league resolvable | exit 1 + "no league selected" | `test_errors_when_no_league_is_configured` | ☑ |
-| Standings file missing | exit 1 + "league" | `test_errors_when_league_file_missing` | ☑ |
+| `--league` without a league folder | exit 1 + "not found" | `test_errors_when_league_has_no_folder` | ☑ |
+| Standings file missing | exit 1 naming the file | `test_errors_when_league_file_missing` | ☑ |
 | No feasible schedule (`SchedulerError`) | exit 1 + message | `test_errors_when_no_feasible_schedule` | ☑ |
 | No standings section (main / CLI) | `ConfigError` / exit 1 naming the section | `test_main_errors_without_division_standings`, `test_cli_errors_without_division_standings` | ☑ |
 | Standings present (main) | pre-checks pass, solver reached with the season | `test_main_accepts_division_standings` | ☑ |

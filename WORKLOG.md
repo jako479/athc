@@ -1,7 +1,28 @@
 # Worklog
 
-History of what changed and why. Where things stand now: [STATUS.md](STATUS.md).
+History of what changed and why: one entry per session or piece of work, at a
+high level — what was worked on and the reasoning, not the resulting state.
+Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-04 — **config**: rebased the multi-league layout onto the
+  league-agnostic scheduler. The scheduler keeps its new code but reads its
+  files from the league folder (`standings\<season>.league.ini`,
+  `rules\scheduler.toml`). The PCFL standings, rules and settings moved into
+  `leagues\PCFL\`, laid out like the PNFL's. The gameplan fix that keeps the
+  league's playpool rules under `--play-path` carried over.
+- 2026-09-27 — **config**: a second league (PCFL) needs its own rules,
+  standings and play pool, but everything was PNFL-shaped: one `rules\` folder,
+  season files at the config root, and `[league.PNFL]` plus per-tool
+  `rule_files` keys in `athc.ini`, with `profile check` and `generate-schedule`
+  unable to pick a league at all. Surveyed how end-user apps do it (OBS, Kodi,
+  Calibre, Firefox, Hugo; pip/gcloud for `config set`) and went with one
+  folder per league under `leagues\` with fixed file names, the league in use
+  as `[athc] league` written by a new `athc config set` command (ConfigUpdater,
+  so comments survive), and `--league` as a single root option. convert-pdb
+  keeps its workbook options in `athc.ini` and gets default playpool rules
+  next to it, overridable per league. The installer ships the new tree and
+  preserves each league's `league.ini` and standings. Compatibility code for
+  the old layout was written and then dropped: nothing has been released.
 - 2026-10-04 — **scheduler**: the scheduler still named the PNFL everywhere:
   a fixed same-place table, PNFL division constants, `PNFL.scheduler.toml`,
   `<season>.league.ini`, PNFL titles, and two test folders with league-specific

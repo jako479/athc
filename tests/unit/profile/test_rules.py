@@ -541,7 +541,9 @@ def test_rule_min_categories_zero_ok(tmp_path: Path) -> None:
 
 def test_pnfl_rules_load() -> None:
     root = Path(__file__).resolve().parents[3]
-    rules = load_rules([str(root / "release" / "rules" / "PNFL.profile.toml")])
+    rules = load_rules(
+        [str(root / "release" / "leagues" / "PNFL" / "rules" / "profile.toml")]
+    )
     assert rules.min_categories == 2
     assert RUN_RANDOM in rules.offense_disallowed_categories
     assert rules.defense_disallowed_categories == frozenset()

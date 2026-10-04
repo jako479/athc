@@ -70,15 +70,19 @@ validate afterward with `check`.
 
 ## Rules
 
-Rules are **not** built in — point athc at a TOML rule file. In `athc.ini`:
+Rules are **not** built in — they are the league folder's `rules\profile.toml`
+(`leagues\<NAME>\` under the config dir, picked by `--league` / `ATHC_LEAGUE` /
+`[athc] league`). To layer several files, list them in `league.ini`:
 
 ```ini
-[profile]
-rule_files = C:\athc\rules\pnfl_profile.toml
+[league]
+profile_rules =
+    rules\profile.toml
+    rules\house-rules.toml
 ```
 
-One path per line (later files layer over earlier). Override with `--rules <path>`
-(repeatable), or point `ATHC_CONFIG_DIR` at a different config folder. With no
-rules configured, `check` reports an error and exits 2. The shipped rule set is
-[`release/rules/PNFL.profile.toml`](../../release/rules/PNFL.profile.toml), and
-its comments explain every key.
+Later files layer over earlier. Override with `--rules <path>` (repeatable), or
+point `ATHC_CONFIG_DIR` at a different config folder. With no rules configured,
+`check` reports an error and exits 2. The shipped rule set is
+[`release/leagues/PNFL/rules/profile.toml`](../../release/leagues/PNFL/rules/profile.toml),
+and its comments explain every key.

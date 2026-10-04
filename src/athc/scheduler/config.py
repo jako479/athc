@@ -8,7 +8,7 @@ from os import PathLike
 from pathlib import Path
 from typing import Any
 
-from athc.config import config_dir
+from athc.config import RULES_DIR, STANDINGS_DIR, league_dir
 from athc.scheduler.domain.league import (
     TEAMS_PER_CONFERENCE,
     League,
@@ -20,9 +20,10 @@ from athc.scheduler.domain.league import (
 
 StrPath = str | PathLike[str]
 
+SCHEDULER_RULES_FILE = "scheduler.toml"  # in the league folder's rules/
 DEFAULT_WEEKS = 16  # regular-season weeks when the rules file sets none
 
-# Scheduler tunables; overridable in rules/<league>.scheduler.toml (missing -> these).
+# Scheduler tunables; overridable in rules/scheduler.toml (missing -> these).
 # Phase-2 runs multithreaded (interleave_search) and stops on deterministic
 # time, not wall-clock seconds; phase-1 stays single-threaded, wall-clock.
 DEFAULT_TIME_LIMIT = 300.0  # phase-2 (week-placement) solve, deterministic time
@@ -162,12 +163,10 @@ class SchedulerConfig:
 
 
 def scheduler_rules_path(league: str) -> Path:
-    """The league's scheduler tunables file, `rules/<league>.scheduler.toml` in
-    the config dir (may not exist; values then default).
-
-    Set `ATHC_CONFIG_DIR` to override the config dir.
-    """
-    return config_dir() / "rules" / f"{league}.scheduler.toml"
+    """The league's scheduler tunables file, `rules/scheduler.toml` in its league
+    folder (may not exist; values then default). LeagueError when the league has
+    no folder."""
+    return league_dir(league) / RULES_DIR / SCHEDULER_RULES_FILE
 
 
 def load_scheduler_config(path: StrPath, *, required: bool = True) -> SchedulerConfig:
@@ -241,9 +240,9 @@ def load_league(path: StrPath) -> League:
 
 
 def find_league_path(league: str, season: int) -> Path:
-    """The `<league>.<season>.ini` standings file in the config dir; ConfigError
-    if missing."""
-    path = config_dir() / f"{league}.{season}.ini"
+    """`standings/<season>.league.ini` in the league's folder; ConfigError if
+    missing, LeagueError when the league has no folder."""
+    path = league_dir(league) / STANDINGS_DIR / f"{season}.league.ini"
     if not path.is_file():
         raise ConfigError(
             f"No standings file for {league} season {season}. Expected:\n  {path}\n"

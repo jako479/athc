@@ -20,29 +20,30 @@ generate-schedule  --  build the season schedule
       athc generate-schedule --help
 
    Example terminal calls:
-      athc generate-schedule --league PNFL --season 2048
-      athc generate-schedule --league PCFL --season 2029 --seed 7
+      athc generate-schedule --season 2048
+      athc --league PCFL generate-schedule --season 2029 --seed 7
 
    Options:
-      --league NAME       league to schedule (a [league.NAME] section in
-                          athc.ini); or set ATHC_LEAGUE, or [athc]
-                          default_league
-      --season YEAR       (required) season to schedule, e.g. 2048; reads
-                          <league>.<season>.ini from the config dir
-                          (run 'athc config path')
+      --season YEAR      (required) season to schedule, e.g. 2048; reads
+                          standings\<season>.league.ini from the league
+                          folder (run 'athc config path')
       --seed INT          random seed for reproducible output
       --time-limit SECS   override the solver time limit (CP-SAT
                           deterministic time, not wall-clock seconds)
+
+   Put --league NAME before the command (athc --league PCFL generate-schedule
+   ...) to use another league; default is [athc] league.
 
    Exit 0 = written, 1 = error (league, config, no feasible schedule),
    2 = bad arguments.
 
 
-CONFIG FILES (in %LOCALAPPDATA%\athc\)
-   ------------------------------------
+CONFIG FILES (in %LOCALAPPDATA%\athc\leagues\<NAME>\)
+   ---------------------------------------------------
 
-   <league>.<season>.ini (e.g. PNFL.2048.ini, PCFL.2029.ini) -- the standings.
-   You supply this; --league and --season pick which file to read. Sections:
+   standings\<season>.league.ini (e.g. 2048.league.ini, 2029.league.ini) --
+   the standings. You supply this; --league and --season pick which file to
+   read. Sections:
 
       [OverallStandings]   Last season's final standings: all 18 teams, one
                            per line, 1st (best) through 18th. Per-conference
@@ -58,7 +59,7 @@ CONFIG FILES (in %LOCALAPPDATA%\athc\)
 
       A file has exactly one of [DivisionStandings] and [ConferenceStandings].
 
-   rules\<league>.scheduler.toml -- optional tuning (difficulty tilt, solver
-   time limits, weeks, rule amounts and toggles, rivalries). Every key
-   defaults if absent; edit only to change a default. See the comments in
-   the shipped PNFL and PCFL files.
+   rules\scheduler.toml -- optional tuning (difficulty tilt, solver time
+   limits, weeks, rule amounts and toggles, rivalries). Every key defaults if
+   absent; edit only to change a default. See the comments in the shipped
+   PNFL and PCFL files.

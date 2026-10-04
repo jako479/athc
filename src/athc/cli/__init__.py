@@ -35,27 +35,37 @@ class AthcGroup(click.Group):
         return super().get_command(ctx, cmd_name)
 
 
-@click.group(
-    cls=AthcGroup,
-    context_settings={"help_option_names": ["-h", "--help"]},
-    no_args_is_help=True,
-)
-@click.version_option(package_name="athc")
-def cli() -> None:
-    """Assistant to the Head Coach.
-
-    Tools for Front Page Sports Football Pro '98 coaches and league managers.
-    """
-
-
 def league_option(f: Callable[..., Any]) -> Callable[..., Any]:
     """Shared `--league` option for tools that operate on league-specific data."""
     return click.option(
         "--league",
         envvar="ATHC_LEAGUE",
         default=None,
-        help="League name (must be defined in athc.ini).",
+        help="League name (a folder under leagues\\ in the config dir).",
     )(f)
+
+
+@click.group(
+    cls=AthcGroup,
+    context_settings={"help_option_names": ["-h", "--help"]},
+    no_args_is_help=True,
+)
+@click.version_option(package_name="athc")
+@league_option
+@click.pass_context
+def cli(ctx: click.Context, league: str | None) -> None:
+    """Assistant to the Head Coach.
+
+    Tools for Front Page Sports Football Pro '98 coaches and league managers.
+    """
+    ctx.ensure_object(dict)["league"] = league
+
+
+def selected_league(ctx: click.Context) -> str | None:
+    """The league named by `athc --league` (or `ATHC_LEAGUE`) on the root group;
+    None when the command runs on its own (tests, embedding)."""
+    obj = ctx.obj
+    return obj.get("league") if isinstance(obj, dict) else None
 
 
 def main() -> None:

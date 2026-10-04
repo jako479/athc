@@ -8,7 +8,7 @@ from pathlib import Path
 
 import click
 
-from athc.cli import league_option
+from athc.cli import selected_league
 from athc.cli.gameplan import gameplan
 from athc.cli.gameplan._common import (
     build_pool,
@@ -129,7 +129,6 @@ def _replace_one(
     default=None,
     help="Play pool directory (overrides the league's play_path).",
 )
-@league_option
 @click.pass_context
 def replace_play(
     ctx: click.Context,
@@ -139,7 +138,6 @@ def replace_play(
     recursive: bool,
     no_backup: bool,
     play_path: Path | None,
-    league: str | None,
 ) -> None:
     """Replace every instance of PLAY with REPLACEMENT across .pln files.
 
@@ -151,6 +149,7 @@ def replace_play(
     --no-backup). Rules are not checked; run `check` afterward to validate.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    league = selected_league(ctx)
     # Pool needs no playpool rules: replace-play uses each play's category bytes, not
     # the filename-derived attributes those rules add. So the league is read only
     # when --play-path is absent.

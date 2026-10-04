@@ -7,16 +7,19 @@ import logging
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import openpyxl
 import pytest
 
 from athc.cli.convert_pdb import convert_pdb
+from athc.pdbtoexcel import config as pdbtoexcel_config
 from athc.pdbtoexcel.pdb import PLAY_DATA
 from tests.integration.conftest import DATA
 
 PDB = DATA / "2045-2047.pdb"
+MakeLeague = Callable[..., Path]
 
 
 # ── extension / usage validation (exit 2) ─────────────────────────────────────
@@ -144,3 +147,42 @@ def test_entry_point_subprocess(tmp_path: Path) -> None:
         env=env,
     )
     assert result.returncode == 0 and out.is_file()
+
+
+# ── league folder / --league ──────────────────────────────────────────────────
+
+
+def test_config_play_path_from_league_folder(make_league: MakeLeague) -> None:
+    folder = make_league("PNFL", "[league]\nplay_path = plays\n")
+    (folder / "rules" / "playpool.toml").write_text("", encoding="utf-8")
+    cfg = pdbtoexcel_config.load_config("PNFL")
+    assert cfg.play_path == str(folder / "plays")
+    assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
+
+
+def test_config_play_path_override_needs_no_league(config_dir: Path) -> None:
+    cfg = pdbtoexcel_config.load_config(play_path="D:/plays")
+    assert cfg.play_path == "D:/plays"
+    assert cfg.playpool_rules is None  # isolated config dir: no default file either
+
+
+def test_config_missing_play_path_is_empty(make_league: MakeLeague) -> None:
+    make_league("PNFL")
+    assert pdbtoexcel_config.load_config("PNFL").play_path == ""
+
+
+def test_cli_has_no_league_option(runner) -> None:
+    result = runner.invoke(convert_pdb, ["--help"])
+    assert result.exit_code == 0
+    assert "--league" not in result.output
+
+
+def test_cli_no_league_is_one_line_error(
+    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    pdb = tmp_path / "x.pdb"
+    pdb.write_bytes(b"")
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(convert_pdb, [str(pdb), str(tmp_path / "out.xlsx")])
+    assert result.exit_code == 1
+    assert "no league selected" in caplog.text

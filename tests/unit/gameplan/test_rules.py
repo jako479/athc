@@ -306,7 +306,9 @@ def test_layering_replaces_category_rule(tmp_path: Path) -> None:
 
 def test_pnfl_rules_load() -> None:
     root = Path(__file__).resolve().parents[3]
-    rules = load_rules([str(root / "release" / "rules" / "PNFL.gameplan.toml")])
+    rules = load_rules(
+        [str(root / "release" / "leagues" / "PNFL" / "rules" / "gameplan.toml")]
+    )
     assert rules.offense_categories["Run Middle"].min_count == 10
     assert "User Specific" in rules.disallowed_offensive_categories
     assert "Pass Long Left" in rules.disallowed_offensive_categories
@@ -316,7 +318,9 @@ def test_pnfl_rules_load() -> None:
 def test_pnfl_required_special_categories() -> None:
     """The shipped PNFL set requires the six real kicks; fakes stay optional."""
     root = Path(__file__).resolve().parents[3]
-    rules = load_rules([str(root / "release" / "rules" / "PNFL.gameplan.toml")])
+    rules = load_rules(
+        [str(root / "release" / "leagues" / "PNFL" / "rules" / "gameplan.toml")]
+    )
     # Field Goal/PAT(1), Kickoff(2), Punt(3), Onside Kick(4), Free Kick(9), Squib(10).
     assert rules.required_special_categories == frozenset({1, 2, 3, 4, 9, 10})
     # The four fake-kick categories (5-8) are not required.

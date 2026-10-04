@@ -12,6 +12,7 @@ def convert_pdb(
     *,
     pdb_path: str,
     output_path: str,
+    league: str | None = None,
     pln_defense: str | None = None,
     pln_offense: str | None = None,
     pln_defense_2: str | None = None,
@@ -23,13 +24,14 @@ def convert_pdb(
 ) -> None:
     """Build an Excel workbook from a PDB and optional gameplan files."""
     config = load_config(
+        league,
         play_path=play_path_override,
         playpool_rules=playpool_rules_override,
     )
     if not Path(config.play_path).is_dir():
         raise OSError(
             f"play path is not a directory: {config.play_path!r} "
-            f"(set [convert-pdb] play_path in athc.ini or pass --play-path)"
+            f"(set play_path in the league's league.ini or pass --play-path)"
         )
     calculate_totals = config.calculate_total_stats and not skip_totals
 

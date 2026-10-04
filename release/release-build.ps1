@@ -45,21 +45,14 @@ Write-Host "  Staging wheel: $($wheel.Name)"
 Copy-Item $wheel.FullName $staging
 
 # Stage root-level end-user files.
-foreach ($name in "athc.ini", "install.bat") {
+foreach ($name in "athc.ini", "playpool.toml", "install.bat") {
     Write-Host "  Staging: $name"
     Copy-Item (Join-Path $scriptRoot $name) $staging
 }
 
-# Stage the standings files: <league>.<season>.ini.
-foreach ($pattern in "*.*.ini") {
-    Get-ChildItem -Path $scriptRoot -Filter $pattern | ForEach-Object {
-        Write-Host "  Staging: $($_.Name)"
-        Copy-Item $_.FullName $staging
-    }
-}
-
-# Stage the docs\ folder (README + per-command references) and the rules\ folder.
-foreach ($dir in "docs", "rules") {
+# Stage the docs\ folder (README + per-command references) and the leagues\
+# folder (each league's league.ini, rules\ and standings\).
+foreach ($dir in "docs", "leagues") {
     Write-Host "  Staging: $dir\"
     Copy-Item (Join-Path $scriptRoot $dir) $staging -Recurse
 }

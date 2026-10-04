@@ -2,14 +2,16 @@
 
 `athc convert-pdb` — converts a WinLogStats `.pdb` (and optional FbPro '98 game
 plans) into an Excel workbook. League-agnostic: plays are grouped by their own
-**game** category; nothing PNFL-specific is baked in.
+**game** category; the one PNFL-flavoured piece is the default playpool rules
+file shipped next to `athc.ini`, which a league's own `rules\playpool.toml`
+replaces.
 
 ## Layout
 
 ```
 src/athc/pdbtoexcel/       # tool logic (no Click)
 ├── __init__.py          # public API
-├── config.py            # [convert-pdb] from athc.ini; default category order
+├── config.py            # play_path + playpool rules (league file, else the default next to athc.ini); default category order
 ├── pdb.py               # PDB binary format (ctypes) + parser
 ├── excel_workbook.py    # ExcelPdbWorkbook — xlsxwriter layouts + row writers
 ├── workbook_creator.py  # PdbWorkbookCreator — joins PDB stats to the play pool
@@ -43,14 +45,22 @@ src/athc/cli/convert_pdb.py   # Click leaf command
 
 ## Config
 
-`[convert-pdb]` in `athc.ini`: `play_path`, `playpool_rules` (optional),
-`calculate_total_stats`, `calculate_percentages`, `include_category_worksheets`,
-`exclude_sacks_from_pass_attempts`. `--play-path` / `--playpool-rules` / `--config`
-override. play_path must resolve to a real directory at runtime.
+The league folder `leagues\<NAME>\`: `play_path` from `league.ini` and the
+optional `rules\playpool.toml`. `--play-path` / `--playpool-rules` override; the
+league is resolved only when `--play-path` is absent. Playpool rules resolve as
+`--playpool-rules`, else the league's `rules\playpool.toml`, else
+`<config dir>\playpool.toml` (the shipped default, PNFL filters), else none —
+so `--play-path` alone uses the default file. `play_path` must resolve
+to a real directory at runtime. The workbook options (`calculate_total_stats`,
+`calculate_percentages`, `include_category_worksheets`,
+`exclude_sacks_from_pass_attempts`) are app-wide settings in `[convert-pdb]` in
+`athc.ini`, read through `athc.config.load_config()` without resolving a league;
+a missing key takes the `Config` default, a non-boolean value is a
+`ConfigFileError`.
 
 ## CLI
 
-`athc convert-pdb PDB.pdb OUT.{xlsx,xlsm} [-o/-o2 OFF.pln] [-d/-d2 DEF.pln] [--play-path DIR] [--playpool-rules R.toml] [--config INI] [--skip-calcs] [--skip-totals]`.
+`athc convert-pdb PDB.pdb OUT.{xlsx,xlsm} [-o/-o2 OFF.pln] [-d/-d2 DEF.pln] [--play-path DIR] [--playpool-rules R.toml] [--skip-calcs] [--skip-totals]`. `athc --league NAME` before the command picks the league.
 Extensions are validated (`.pdb` / `.xlsx`,`.xlsm` / `.pln` / `.toml` / `.ini`).
 
 ## Exit codes

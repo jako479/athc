@@ -10,18 +10,20 @@ Run tools from any terminal (Command Prompt or PowerShell):
    athc <group> --help                list subcommands in a group
    athc <group> <subcommand> --help   show help for one subcommand
 
-Settings live in athc.ini (the file documents every option inline). The rules\
-folder next to this file holds the ready-to-use PNFL rule sets
-(PNFL.gameplan.toml, PNFL.profile.toml, PNFL.playpool.toml).
+Settings live in athc.ini (the file documents every option inline). Each league
+is a folder under leagues\ next to it: league.ini (play_path), rules\
+(gameplan.toml, profile.toml, playpool.toml, scheduler.toml) and standings\
+(<season>.league.ini). League-aware tools use the league named by [athc] league
+unless --league NAME is given before the command name, as in
+athc --league NAME <command>.
 
 
 1) gameplan check  --  validate a .pln game plan against league rules
    ------------------------------------------------------------------
 
-   Rules come from athc.ini ([gameplan] rule_files, one path per line) or
-   --rules (repeatable). The PNFL rule set ships at rules\PNFL.gameplan.toml.
-   The play pool comes from the league's play_path (plus an optional playpool
-   rules TOML via playpool_rules), or --play-path / --playpool-rules. Each play's
+   Rules come from the league's rules\gameplan.toml or --rules (repeatable).
+   The play pool comes from the league's play_path (plus rules\playpool.toml),
+   or --play-path / --playpool-rules. Each play's
    side and category come from the play file, so any folder layout works; the
    PNFL layout (Offense/Defense/Special with category subfolders) is optional and
    only adds play attributes and misfiled-play warnings. With no gameplan rules
@@ -33,7 +35,7 @@ folder next to this file holds the ready-to-use PNFL rule sets
    Example terminal calls:
       athc gameplan check offense.pln
       athc gameplan check plans\ -r
-      athc gameplan check offense.pln --rules rules\PNFL.gameplan.toml
+      athc --league PCFL gameplan check offense.pln
 
 
 2) gameplan list-normals  --  list the 64 normal plays from a .pln
@@ -148,8 +150,7 @@ folder next to this file holds the ready-to-use PNFL rule sets
 8) profile check  --  validate a .prf coaching profile against league rules
    ------------------------------------------------------------------------
 
-   Rules come from athc.ini ([profile] rule_files, one path per line) or
-   --rules (repeatable). The PNFL rule set ships at rules\PNFL.profile.toml.
+   Rules come from the league's rules\profile.toml or --rules (repeatable).
    With no rules configured, check reports an error and stops.
 
    --gameplan FILE also checks the profile's play categories against a .pln
@@ -163,7 +164,7 @@ folder next to this file holds the ready-to-use PNFL rule sets
 
    Example terminal calls:
       athc profile check OFF1.prf
-      athc profile check profiles\ -r --rules rules\PNFL.profile.toml
+      athc --league PCFL profile check profiles\ -r
       athc profile check OFF1.prf --gameplan OFF.pln
 
 
@@ -205,7 +206,12 @@ folder next to this file holds the ready-to-use PNFL rule sets
 
    Builds an Excel workbook (.xlsx, or .xlsm for embedded sorting macros)
    from a WinLogStats .pdb. Cross-reference up to two offensive (-o/-o2)
-   and two defensive (-d/-d2) game plans to tag plays.
+   and two defensive (-d/-d2) game plans to tag plays. The workbook options
+   (total-stats team, percentage columns, per-category worksheets, sacks
+   excluded from pass attempts) live in athc.ini under [convert-pdb]. Play
+   tags (QB draw, rollout, timed pass) come from playpool rules:
+   --playpool-rules, else the league's rules\playpool.toml, else the default
+   playpool.toml next to athc.ini.
 
    Show help:
       athc convert-pdb --help
@@ -237,13 +243,17 @@ folder next to this file holds the ready-to-use PNFL rule sets
       athc autocontinue --no-hot-corner
 
 
-13) config  --  locate, edit, or reveal your athc settings
-    -----------------------------------------------------
+13) config  --  locate, edit, reveal, or set your athc settings
+    ----------------------------------------------------------
 
    Helpers for the settings file (athc.ini) and its folder. `path` prints
    the file's full path; `edit` opens it in your editor, created if missing
    (uses $EDITOR/$VISUAL, else Notepad); `reveal` shows athc.ini in File
    Explorer (selected), or its folder if it doesn't exist yet.
+
+   `set KEY VALUE` writes one key under [athc], keeping your comments. Today
+   the only key is league: the league used when --league is not given. The
+   value must be a folder under leagues\.
 
    Show help:
       athc config --help
@@ -252,6 +262,7 @@ folder next to this file holds the ready-to-use PNFL rule sets
       athc config path
       athc config edit
       athc config reveal
+      athc config set league PNFL
 
 
 EXIT CODES

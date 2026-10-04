@@ -1,16 +1,17 @@
-"""Gameplan config: league `play_path` / `playpool_rules` + `[gameplan] rule_files`
-from `athc.ini`."""
+"""Gameplan config: `play_path`, `rules\\gameplan.toml` (or the `gameplan_rules`
+list) and `rules\\playpool.toml` from the league folder."""
 
 from __future__ import annotations
 
-import configparser
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from athc.config import CONFIG_FILE, config_dir, load_league, resolve_path
+from athc.config import LeagueConfig, load_league_config
 
-SECTION = "gameplan"
+GAMEPLAN_RULES_FILE = "gameplan.toml"
+PLAYPOOL_RULES_FILE = "playpool.toml"
+GAMEPLAN_RULES_KEY = "gameplan_rules"
 
 
 class ConfigFileError(ValueError):
@@ -31,47 +32,37 @@ def load_config(
     playpool_rules: Path | None = None,
     rule_files: Sequence[Path] | None = None,
 ) -> Config:
-    """Assemble the gameplan config.
+    """Assemble the gameplan config from the league folder.
 
-    `play_path` (required) and `playpool_rules` (optional playpool rules TOML) come
-    from the league section, `rule_files` from `[gameplan]`. The `play_path` /
-    `playpool_rules` / `rule_files` overrides win; the league is read only while
-    `play_path` or `playpool_rules` still comes from it, so overriding `play_path`
-    alone keeps the league's `playpool_rules`. Config file: `config_dir()/athc.ini`.
+    The `play_path` / `playpool_rules` / `rule_files` overrides win and stay
+    CWD-relative; the league is resolved only while a value still comes from it
+    (LeagueError when it can't be), so overriding `play_path` alone keeps the
+    league's playpool rules.
     """
-    league_cfg: dict[str, str] = {}
-    if play_path is None or playpool_rules is None:
-        league_cfg = load_league(league)  # LeagueError if none
+    cfg: LeagueConfig | None = None
 
-    pp = str(play_path) if play_path is not None else league_cfg.get("play_path")
-    if not pp:
-        raise ConfigFileError(
-            "no play_path for the league; set play_path in the league "
-            "section or pass --play-path"
-        )
-    if playpool_rules is not None:  # CLI override: keep CWD-relative
-        ppr_path: Path | None = playpool_rules
-    else:
-        raw_ppr = league_cfg.get("playpool_rules")
-        ppr_path = resolve_path(raw_ppr) if raw_ppr else None
+    def league_cfg() -> LeagueConfig:
+        nonlocal cfg
+        if cfg is None:
+            cfg = load_league_config(league)
+        return cfg
 
-    files = tuple(rule_files) if rule_files is not None else _config_rule_files()
-    return Config(
-        play_path=Path(pp),
-        playpool_rules=ppr_path,
-        rule_files=files,
+    if play_path is None:
+        resolved = league_cfg().path("play_path")
+        if resolved is None:
+            raise ConfigFileError(
+                "no play_path for the league; set play_path in "
+                f"{league_cfg().dir / 'league.ini'} or pass --play-path"
+            )
+        play_path = resolved
+
+    files = (
+        tuple(rule_files)
+        if rule_files is not None
+        else league_cfg().rule_files(GAMEPLAN_RULES_KEY, GAMEPLAN_RULES_FILE)
     )
 
+    if playpool_rules is None:
+        playpool_rules = league_cfg().rules_file(PLAYPOOL_RULES_FILE)
 
-def _config_rule_files() -> tuple[Path, ...]:
-    path = config_dir() / CONFIG_FILE
-    cp = configparser.ConfigParser(interpolation=None)
-    if path.is_file():
-        try:
-            cp.read(path, encoding="utf-8")
-        except configparser.Error as e:
-            raise ConfigFileError(f"{path}: {e}") from e
-    raw = cp.get(SECTION, "rule_files", fallback="")
-    return tuple(
-        resolve_path(line.strip()) for line in raw.splitlines() if line.strip()
-    )
+    return Config(play_path=play_path, playpool_rules=playpool_rules, rule_files=files)

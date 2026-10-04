@@ -13,14 +13,14 @@ uv sync
 ## Usage
 
 ```bash
-athc generate-schedule --league PNFL --season 2048
-athc generate-schedule --league PCFL --season 2029 --seed 7
+athc generate-schedule --season 2048
+athc --league PCFL generate-schedule --season 2029 --seed 7
 ```
 
-`--league` names the league (or `ATHC_LEAGUE`, or `[athc] default_league` in `athc.ini`); `--season` picks its standings file. Both files live in the config dir (find it with `athc config path`):
+`athc --league NAME` names the league (or `ATHC_LEAGUE`, or `[athc] league` in `athc.ini`); `--season` picks its standings file. Both files live in the league's folder under the config dir (find it with `athc config path`):
 
-- `<league>.<season>.ini` — the standings: `[OverallStandings]` plus `[DivisionStandings]` (a league with divisions) or `[ConferenceStandings]` (two conferences, no divisions). Required.
-- `rules\<league>.scheduler.toml` — rule amounts and solver settings. Optional; every key defaults.
+- `standings\<season>.league.ini` — the standings: `[OverallStandings]` plus `[DivisionStandings]` (a league with divisions) or `[ConferenceStandings]` (two conferences, no divisions). Required.
+- `rules\scheduler.toml` — rule amounts and solver settings. Optional; every key defaults.
 
 It writes a `.txt` and `.html` schedule plus a sortable HTML report to the **current directory**, named `schedule_<season>_<timestamp>` (the report adds `_report.html`). Exit `0` = written, `1` = error (config, no feasible schedule, I/O), `2` = bad arguments.
 
@@ -38,7 +38,7 @@ Two phases. Phase 1 picks every matchup: league structure fixes the same-confere
 | Non-conference | same-place pairs fixed, rest by the difficulty line | the cross-conference rivalry fixed, rest by the line |
 | Season shape | NFL-style rules ([phase 2](phase-2-schedule.md)) | opening non-conference weeks, conference-sequence cap, rivalry week last |
 
-Division names are the standings keys (`<CONFERENCE>_<DIVISION>`); division sizes are the line counts. Shipped files: `PNFL.<season>.ini`, `PCFL.2029.ini`, `rules\PNFL.scheduler.toml` and `rules\PCFL.scheduler.toml` in `dev/` and `release/`.
+Division names are the standings keys (`<CONFERENCE>_<DIVISION>`); division sizes are the line counts. Shipped files, in `dev/` and `release/`: `leagues\PNFL\` and `leagues\PCFL\`, each with its `standings\<season>.league.ini` files and `rules\scheduler.toml`.
 
 ## Design
 

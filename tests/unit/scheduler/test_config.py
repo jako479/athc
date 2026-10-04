@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from athc.config import LeagueError
 from athc.scheduler import config
 from athc.scheduler.config import (
     ConfigError,
@@ -31,38 +32,49 @@ ROOT = Path(__file__).resolve().parents[3]
 LEAGUE = "divisions"  # the test league's name
 SEASON = 2048
 
-# Every shipped standings (<league>.<season>.ini) and scheduler rules file.
+# Every shipped standings (leagues/<league>/standings/<season>.league.ini) and
+# scheduler rules (leagues/<league>/rules/scheduler.toml) file.
 SHIPPED_STANDINGS = sorted(
-    path for folder in ("dev", "release") for path in (ROOT / folder).glob("*.*.ini")
+    path
+    for folder in ("dev", "release")
+    for path in (ROOT / folder / "leagues").glob("*/standings/*.league.ini")
 )
 SHIPPED_RULES = sorted(
     path
     for folder in ("dev", "release")
-    for path in (ROOT / folder / "rules").glob("*.scheduler.toml")
+    for path in (ROOT / folder / "leagues").glob("*/rules/scheduler.toml")
 )
 
 
 def _shipped_id(path: Path) -> str:
-    return f"{path.parents[1].name if path.parent.name == 'rules' else path.parent.name}/{path.name}"
+    # dev/PNFL/2049.league.ini, release/PCFL/scheduler.toml
+    return f"{path.parents[3].name}/{path.parents[1].name}/{path.name}"
 
 
 # ---------------------------------------------------------------------------
-# Scheduler tunables live in rules/<league>.scheduler.toml; league data is a
-# separate <league>.<season>.ini: [DivisionStandings] (per-division teams in
-# finish order -- this defines division membership) plus [OverallStandings]
-# (overall 1-18). Tests derive invalid variants from VALID_LEAGUE.
+# Scheduler tunables live in leagues/<league>/rules/scheduler.toml; league data is
+# a separate <season>.league.ini in leagues/<league>/standings/:
+# [DivisionStandings] (per-division teams in finish order -- this defines
+# division membership) plus [OverallStandings] (overall 1-18). Tests derive
+# invalid variants from VALID_LEAGUE.
 # ---------------------------------------------------------------------------
+
+
+def _league_folder(config_dir: Path, name: str = LEAGUE) -> Path:
+    """`leagues/<name>/` with `rules/` and `standings/` under the config dir."""
+    folder = config_dir / "leagues" / name
+    (folder / "rules").mkdir(parents=True, exist_ok=True)
+    (folder / "standings").mkdir(exist_ok=True)
+    return folder
 
 
 def _load() -> SchedulerConfig:
-    """The test league's rules file from the config dir; defaults when absent."""
+    """The test league's rules file from its folder; defaults when absent."""
     return load_scheduler_config(scheduler_rules_path(LEAGUE), required=False)
 
 
 def _write_scheduler_toml(config_dir: Path, body: str) -> Path:
-    rules = config_dir / "rules"
-    rules.mkdir(exist_ok=True)
-    path = rules / "divisions.scheduler.toml"
+    path = _league_folder(config_dir) / "rules" / "scheduler.toml"
     path.write_text(textwrap.dedent(body), encoding="utf-8")
     return path
 
@@ -135,7 +147,7 @@ def _valid_league(tmp_path: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# load_scheduler_config — rules/PNFL.scheduler.toml (optional; missing -> defaults)
+# load_scheduler_config — rules/scheduler.toml (optional; missing -> defaults)
 # ---------------------------------------------------------------------------
 
 
@@ -158,8 +170,9 @@ def test_load_scheduler_config_reads_values(config_dir: Path) -> None:
     assert cfg.solver.solver_workers == 12
 
 
-def test_load_scheduler_config_defaults_when_no_file() -> None:
-    cfg = _load()  # autouse empty config_dir
+def test_load_scheduler_config_defaults_when_no_file(config_dir: Path) -> None:
+    _league_folder(config_dir)  # league exists, rules/scheduler.toml does not
+    cfg = _load()
     assert cfg.difficulty.spread == config.DEFAULT_DIFFICULTY_SPREAD
     assert cfg.solver.time_limit == config.DEFAULT_TIME_LIMIT
     assert cfg.solver.phase1_time_limit == config.DEFAULT_PHASE1_TIME_LIMIT
@@ -269,21 +282,29 @@ def test_load_scheduler_config_errors_on_non_integer_phase2(config_dir: Path) ->
 
 
 def test_scheduler_rules_path_is_named_by_league(config_dir: Path) -> None:
-    # The rules file is optional, so this never raises -- it names the path.
-    assert (
+    # The rules file is optional, so this never raises for an existing league --
+    # it names the path.
+    folder = _league_folder(config_dir)
+    assert scheduler_rules_path(LEAGUE) == folder / "rules" / "scheduler.toml"
+
+
+def test_scheduler_rules_path_needs_the_league_folder() -> None:
+    with pytest.raises(LeagueError, match=f"league '{LEAGUE}' not found"):
         scheduler_rules_path(LEAGUE)
-        == config_dir / "rules" / "divisions.scheduler.toml"
-    )
 
 
 def test_find_league_path_errors_when_none_exist(config_dir: Path) -> None:
-    with pytest.raises(ConfigError, match=r"divisions.2048.ini"):
+    folder = _league_folder(config_dir)
+    with pytest.raises(ConfigError) as exc:
         find_league_path(LEAGUE, SEASON)
+    assert str(folder / "standings" / f"{SEASON}.league.ini") in str(exc.value)
 
 
 def test_find_league_path_resolves_league_and_season_file(config_dir: Path) -> None:
-    present = _write(config_dir / f"{LEAGUE}.{SEASON}.ini", VALID_LEAGUE)
-    _write(config_dir / f"other.{SEASON}.ini", VALID_LEAGUE)
+    folder = _league_folder(config_dir)
+    present = _write(folder / "standings" / f"{SEASON}.league.ini", VALID_LEAGUE)
+    other = _league_folder(config_dir, "other")
+    _write(other / "standings" / f"{SEASON}.league.ini", VALID_LEAGUE)
     assert find_league_path(LEAGUE, SEASON) == present
 
 
@@ -417,13 +438,17 @@ def test_shipped_standings_file_loads(path: Path) -> None:
 
 
 def test_shipped_file_sets_match_between_dev_and_release() -> None:
-    # The two config twins ship the same standings and rules file names.
+    # The two config twins ship the same standings and rules files.
     by_folder = {
-        folder: {p.name for p in SHIPPED_STANDINGS + SHIPPED_RULES if folder in p.parts}
+        folder: {
+            p.relative_to(ROOT / folder)
+            for p in SHIPPED_STANDINGS + SHIPPED_RULES
+            if p.is_relative_to(ROOT / folder)
+        }
         for folder in ("dev", "release")
     }
     assert by_folder["dev"] == by_folder["release"]
-    assert any(name.endswith(".ini") for name in by_folder["dev"])
+    assert any(p.suffix == ".ini" for p in by_folder["dev"])
 
 
 # ---------------------------------------------------------------------------
@@ -813,14 +838,10 @@ def test_load_league_errors_on_wrong_conference_size(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("path", SHIPPED_RULES, ids=_shipped_id)
 def test_shipped_rules_file_fits_its_leagues_standings(path: Path) -> None:
-    # rules/<league>.scheduler.toml must fit every <league>.<season>.ini beside it.
-    name = path.name.split(".")[0]
-    standings = [
-        p
-        for p in SHIPPED_STANDINGS
-        if p.parent == path.parents[1] and p.name.startswith(f"{name}.")
-    ]
-    assert standings, f"no standings file for {name} beside {path}"
+    # A league's rules/scheduler.toml must fit every standings file in its folder.
+    folder = path.parents[1]
+    standings = [p for p in SHIPPED_STANDINGS if p.parents[1] == folder]
+    assert standings, f"no standings file in {folder}"
     config = load_scheduler_config(path)
     for standings_path in standings:
         league = load_league(standings_path)
@@ -832,9 +853,10 @@ def test_shipped_rules_file_fits_its_leagues_standings(path: Path) -> None:
 
 
 def test_shipped_conference_league_files_match_the_test_league() -> None:
-    league = load_league(ROOT / "dev" / "PCFL.2029.ini")
+    folder = ROOT / "dev" / "leagues" / "PCFL"
+    league = load_league(folder / "standings" / "2029.league.ini")
     assert league == CONFERENCES_LEAGUE
-    config = load_scheduler_config(ROOT / "dev" / "rules" / "PCFL.scheduler.toml")
+    config = load_scheduler_config(folder / "rules" / "scheduler.toml")
     assert config.league.weeks == 12
     assert config.difficulty.spread == 0.0
     assert config.phase2.max_consecutive_conference_home_or_away == 2

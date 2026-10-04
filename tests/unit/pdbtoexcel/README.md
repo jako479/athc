@@ -20,10 +20,19 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Default order uses game names | — | run/pass/defense game cats; no overlap | `test_default_category_order_uses_game_names` | ☑ |
-| Defaults (empty config) | env | play_path ""; flags True; rules None | `test_load_config_defaults` | ☑ |
-| `[convert-pdb]` from INI | tmp ini | play_path / flags / playpool_rules parsed | `test_load_config_from_ini` | ☑ |
-| CLI overrides win | tmp ini | `--play-path` / `--playpool-rules` win | `test_load_config_cli_overrides_win` | ☑ |
-| Missing explicit `--config` | path | `ConfigFileError` | `test_load_config_missing_explicit_path` | ☑ |
+| Defaults (league folder, no league.ini) | folder | play_path ""; options True; rules None | `test_load_config_defaults` | ☑ |
+| From the league folder | `league.ini` + `rules/playpool.toml` | play_path / playpool_rules resolved | `test_load_config_from_league_folder` | ☑ |
+| CLI overrides win | folder | `--play-path` / `--playpool-rules` win | `test_load_config_cli_overrides_win` | ☑ |
+| Default rules when the league has none | `<config dir>/playpool.toml`, no league file | the default file | `test_default_playpool_rules_when_league_has_none` | ☑ |
+| League rules override the default | both files | league file | `test_league_playpool_rules_override_default` | ☑ |
+| `--play-path` alone uses the default | no league read | the default file | `test_play_path_override_uses_default_rules` | ☑ |
+| `--playpool-rules` wins | both files + CLI | CLI path | `test_cli_playpool_rules_wins` | ☑ |
+| No rules anywhere | folder only | `None` | `test_no_playpool_rules_anywhere_is_none` | ☑ |
+| Workbook options from `[convert-pdb]` | athc.ini + folder | all four flipped | `test_load_config_reads_workbook_options` | ☑ |
+| Workbook options without the section | folder | True / True / False / True | `test_workbook_options_default_without_section` | ☑ |
+| Workbook options need no league | athc.ini + `--play-path` | flipped values, no league read | `test_workbook_options_need_no_league` | ☑ |
+| configparser booleans accepted | `1/yes/true/on`, `0/no/false/off`, any case | parsed | `test_workbook_option_accepts_configparser_booleans` `[P]` | ☑ |
+| Other boolean spelling | `maybe` | `ConfigFileError` names the key | `test_workbook_option_rejects_other_values` | ☑ |
 
 ## workbook_creator + excel_workbook (read back with openpyxl)
 | Case | Input | Expected | Test | Status |

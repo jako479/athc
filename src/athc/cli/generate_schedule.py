@@ -10,8 +10,8 @@ from pathlib import Path
 
 import click
 
-from athc.cli import league_option
-from athc.config import LeagueError, resolve_league
+from athc.cli import selected_league
+from athc.config import ConfigFileError, LeagueError, resolve_league
 from athc.scheduler.config import (
     ConfigError,
     find_league_path,
@@ -43,29 +43,28 @@ logger = logging.getLogger(__name__)
         "(CP-SAT deterministic time, not wall-clock seconds)."
     ),
 )
-@league_option
 @click.pass_context
 def generate_schedule(
     ctx: click.Context,
     season: int,
     seed: int | None,
     time_limit: int | None,
-    league: str | None,
 ) -> None:
     """Generate a league's seasonal schedule and an HTML report.
 
-    Reads the league's files from the athc config dir (run `athc config path`
-    to find it, or `athc config reveal` to open it):
+    Reads the league's files from its folder under the athc config dir (run
+    `athc config path` to find it, or `athc config reveal` to open it):
 
     \b
-      <league>.<season>.ini           [OverallStandings] plus [DivisionStandings]
-                                      or [ConferenceStandings], teams in finish order
-      rules\\<league>.scheduler.toml  optional rule amounts and solver settings
+      standings\\<season>.league.ini  [OverallStandings] plus [DivisionStandings]
+                                     or [ConferenceStandings], teams in finish order
+      rules\\scheduler.toml           optional rule amounts and solver settings
 
     Writes a .txt and .html schedule plus an .html report to the current
     directory, named `schedule_<season>_<timestamp>`.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    league = selected_league(ctx)
     chosen_seed = seed if seed is not None else random.randint(0, 1_000_000)
 
     try:
@@ -81,7 +80,13 @@ def generate_schedule(
             # argv[1:] already starts with the subcommand name.
             command_line=subprocess.list2cmdline(["athc", *sys.argv[1:]]),
         )
-    except (ConfigError, LeagueError, SchedulerError, OSError) as error:
+    except (
+        ConfigError,
+        ConfigFileError,
+        LeagueError,
+        SchedulerError,
+        OSError,
+    ) as error:
         logger.error("%s: %s", PROG, error)
         ctx.exit(1)
     except ImportError as error:

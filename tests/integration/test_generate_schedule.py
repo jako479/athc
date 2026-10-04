@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from athc.cli.generate_schedule import generate_schedule
+from athc.cli import cli
 from athc.scheduler.config import load_league, load_scheduler_config
 from tests.integration.conftest import DATA, EXPECTED
 from tests.integration.schedule_validation import (
@@ -87,12 +87,13 @@ def _single(directory: Path, pattern: str) -> Path:
 
 
 def _write_config(config_dir: Path, case: GoldenCase) -> None:
-    """Install the league's committed standings + rules into an athc config dir."""
-    (config_dir / "athc.ini").write_text(f"[league.{case.league}]\n", encoding="utf-8")
-    shutil.copy(case.standings, config_dir / f"{case.league}.{case.season}.ini")
-    rules_dir = config_dir / "rules"
-    rules_dir.mkdir(exist_ok=True)
-    shutil.copy(case.rules, rules_dir / f"{case.league}.scheduler.toml")
+    """Install the league's committed standings + rules as its league folder in an
+    athc config dir."""
+    folder = config_dir / "leagues" / case.league
+    (folder / "rules").mkdir(parents=True)
+    (folder / "standings").mkdir()
+    shutil.copy(case.standings, folder / "standings" / f"{case.season}.league.ini")
+    shutil.copy(case.rules, folder / "rules" / "scheduler.toml")
 
 
 def _generate(directory: Path, case: GoldenCase) -> tuple[str, str, str]:
@@ -103,10 +104,11 @@ def _generate(directory: Path, case: GoldenCase) -> tuple[str, str, str]:
     from click.testing import CliRunner
 
     result = CliRunner().invoke(
-        generate_schedule,
+        cli,
         [
             "--league",
             case.league,
+            "generate-schedule",
             "--season",
             str(case.season),
             "--seed",
@@ -132,10 +134,9 @@ def _validate(case: GoldenCase, config_dir: Path, txt: str, html: str) -> None:
     """Correctness of each output file, independent of the golden bytes: the
     .txt schedule obeys every rule, the .html schedule encodes the same games,
     and the report's ranks/SOS values are correct for this schedule."""
-    league = load_league(config_dir / f"{case.league}.{case.season}.ini")
-    config = load_scheduler_config(
-        config_dir / "rules" / f"{case.league}.scheduler.toml"
-    )
+    folder = config_dir / "leagues" / case.league
+    league = load_league(folder / "standings" / f"{case.season}.league.ini")
+    config = load_scheduler_config(folder / "rules" / "scheduler.toml")
     schedule = parse_schedule_txt(txt, league)
     validate_schedule(schedule, league, config, season=case.season)
     assert game_keys(parse_schedule_html(html, league)) == game_keys(schedule), (

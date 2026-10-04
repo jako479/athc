@@ -8,6 +8,7 @@ from pathlib import Path
 import click
 from xlsxwriter.exceptions import XlsxWriterException
 
+from athc.cli import selected_league
 from athc.pdbtoexcel.main import convert_pdb as run_conversion
 
 PROG = "athc convert-pdb"
@@ -67,13 +68,14 @@ def _ext(*extensions: str):
 @click.option(
     "--play-path",
     type=click.Path(path_type=Path),
-    help="Play-files directory (overrides config play_path).",
+    help="Play-files directory (overrides the league's play_path).",
 )
 @click.option(
     "--playpool-rules",
     type=click.Path(path_type=Path),
     callback=_ext(".toml"),
-    help="Playpool rules TOML for play tags (overrides config).",
+    help="Playpool rules TOML for play tags (overrides the league's "
+    "rules\\playpool.toml).",
 )
 @click.option(
     "--skip-calcs",
@@ -102,6 +104,7 @@ def convert_pdb(
     (`-d`/`-d2`) Front Page Sports Football Pro '98 game plans.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    league = selected_league(ctx)
 
     for path in (
         pdbfile,
@@ -119,6 +122,7 @@ def convert_pdb(
         run_conversion(
             pdb_path=str(pdbfile),
             output_path=str(outputfile),
+            league=league,
             pln_offense=str(pln_off) if pln_off else None,
             pln_offense_2=str(pln_off_2) if pln_off_2 else None,
             pln_defense=str(pln_def) if pln_def else None,
@@ -129,7 +133,7 @@ def convert_pdb(
             skip_totals=skip_totals,
         )
     except (OSError, ValueError, XlsxWriterException) as error:
-        # ValueError covers InvalidPDBError / ConfigFileError / RulesFileError /
-        # InvalidGamePlanError; report as one line rather than a traceback.
+        # ValueError covers InvalidPDBError / LeagueError / ConfigFileError /
+        # RulesFileError / InvalidGamePlanError; report as one line, no traceback.
         logger.error("%s: %s", PROG, error)
         ctx.exit(1)
