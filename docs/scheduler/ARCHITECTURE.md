@@ -1,6 +1,6 @@
 # scheduler — Architecture
 
-CLI tool that generates a PNFL season schedule using OR-Tools constraint programming, writes the result in the requested format (HTML or TXT), and emits a companion sortable HTML report.
+CLI tool that generates a league's season schedule with OR-Tools constraint programming, writes it as `.txt` and `.html`, and emits a companion sortable HTML report. No league name or division name lives in the code: both come from the league's files.
 
 ## Module layout
 
@@ -8,21 +8,20 @@ CLI tool that generates a PNFL season schedule using OR-Tools constraint program
 src/athc/scheduler/                 # subsystem source
 ├── __init__.py
 ├── main.py                         # generate_schedule() orchestration
-├── config.py                       # Config dataclass, load_config(), load_league()
+├── config.py                       # SchedulerConfig, load_scheduler_config(), load_league(), file resolution
 ├── domain/
-│   ├── league.py                   # League, Conference, Division, Team
-│   ├── schedule.py                 # Schedule, Game, Week
-│   └── history.py                  # NonConfHistory — past inter-conference matchups
+│   ├── league.py                   # League, Conference, Division, Team; build_league()
+│   └── schedule.py                 # Schedule, Game
 ├── schedulers/
-│   ├── schedule_builder.py         # CP-SAT model + constraints (phase 2, shared)
-│   ├── fixed_cpsat_scheduler.py    # the scheduler (fixed-place + CP-SAT) entry
-│   ├── fixed_cpsat_builder.py      # phase-1 matchup solver
-│   ├── types.py                    # SchedulerFunc, SchedulerResult, get_scheduler
-│   └── errors.py
+│   ├── scheduler.py                # the scheduler entry: phase 1 then phase 2
+│   ├── matchup_builder.py          # phase 1: MatchupBuilder (structure, same-place pairs, rivalries, CP-SAT line)
+│   ├── schedule_builder.py         # phase 2: ScheduleBuilder (CP-SAT week placement)
+│   ├── types.py                    # MatchupPlan, SchedulerResult, get_scheduler
+│   └── errors.py                   # SchedulerError
 └── writers/
     ├── writer.py                   # ScheduleWriter protocol + factory
-    ├── html_writer.py              # HTML output
-    ├── txt_writer.py               # plain-text output
+    ├── html_writer.py              # HTML schedule (titled by league)
+    ├── txt_writer.py               # plain-text schedule
     └── report.py                   # HtmlReportWriter + build_schedule_report
 
 src/athc/cli/generate_schedule.py   # Click command (lazy solver import)
@@ -30,74 +29,58 @@ src/athc/cli/generate_schedule.py   # Click command (lazy solver import)
 
 ## What this package does
 
-- Provides a CLI: `athc generate-schedule --season YEAR [--seed INT] [--time-limit INT]`
-- Loads league structure (conferences, divisions, teams) and rule weights from an INI config
-- Loads the non-conference history file (past inter-conference pairings to penalize / avoid)
-- Solves the schedule (fixed-place + CP-SAT)
-- Writes both a `.txt` and `.html` schedule to the current directory, named `schedule_<season>_<timestamp>`
-- Writes a companion `<base>_report.html`: a sortable per-team strength-of-schedule table (ranks 1–9/1–18, SOS averages) plus run info (scheduler, seed, elapsed time, command line)
-
-## What this package assumes
-
-- The selected scheduler can solve within `time-limit`; if not, the partial / infeasible result surfaces via `SchedulerResult`
+- Provides a CLI: `athc generate-schedule --league NAME --season YEAR [--seed INT] [--time-limit INT]`
+- Resolves the league (`--league` → `ATHC_LEAGUE` → `[athc] default_league`) with the shared `athc.config.resolve_league`
+- Loads `<league>.<season>.ini` (the standings, which define conferences and divisions) and `rules/<league>.scheduler.toml` (optional amounts) from the config dir
+- Solves the schedule in two CP-SAT phases
+- Writes `schedule_<season>_<timestamp>.txt` / `.html` and `_report.html` to the current directory, titled by league
 
 ## What this package enforces
 
 CLI-level (Click → exit 2):
 - `--season` provided; `--time-limit` an integer
 
-Config (raise `ConfigError`) — found via `config_dir()` / `ATHC_CONFIG_DIR`, no `--config` flag:
-- `<season>.league.ini` (exactly one of `[DivisionStandings]` (per-division finish order; defines the divisions) or `[ConferenceStandings]` (two conferences of nine; no divisions), plus `[OverallStandings]`) is **required** data, selected by the required `--season`. The scheduler uses the overall order and derives its 1–9 conference ranks from it.
-- `rules/PNFL.scheduler.toml` scheduler tunables (difficulty `spread`, solver `time_limit` / `solver_workers`) are **optional** (each key defaults when absent); invalid TOML or a wrong-typed value is an error. The difficulty curve drives the scheduler.
-- League-resolved rules: `weeks` must fit the league (structural games < weeks ≤ structural + 9, even); `opening_nonconference_weeks` must leave room for every same-conference game; `[rivalries]` must name every team once with exactly one cross-conference pair. All `ConfigError`.
-- Invalid INI, or league data that fails domain validation, surfaces as a `ConfigError`
+Config (`ConfigError`, `LeagueError` → exit 1):
+- The league must resolve to a `[league.<name>]` section in `athc.ini`.
+- `<league>.<season>.ini` is **required**: `[OverallStandings]` plus exactly one of `[DivisionStandings]` (keys `<CONFERENCE>_<DIVISION>`, division sizes from the file) or `[ConferenceStandings]` (two conferences of nine).
+- `rules/<league>.scheduler.toml` is **optional**; every key defaults; invalid TOML or a bad value is an error.
+- League-resolved rules: `weeks` must fit the league, `opening_nonconference_weeks` must leave room for every same-conference game, `[rivalries]` must name every team once with exactly one cross-conference pair.
 
-Domain (raise `ValueError`):
-- Each conference has nine teams; a league has four PNFL divisions or none.
-- League invariants (e.g., team count, division balance) are validated at load time
+Domain (`ValueError`, surfaced as `ConfigError`):
+- Exactly two conferences of nine teams; no team twice; a division key names its conference.
 
-Solver (`SchedulerResult.feasible == False`):
-- Infeasible models surface a structured failure rather than a crash; the writer is skipped and the report records why
-
-## What this package does NOT do
-
-- Persist league or history changes — both inputs are read-only
-- Produce stat workbooks (lives in `pdbtoexcel`) or play catalogs (lives in `playcatalog`)
-- Run the generated schedule against any game engine
+Solver (`SchedulerError` → exit 1):
+- No feasible inventory or schedule within the limits is a one-line error, not a traceback.
 
 ## Exit codes
 
 | Exit | Meaning |
 |---|---|
 | `0` | **OK** — schedule (and report) written. |
-| `1` | **Error** — config, I/O, or missing solver (ortools). |
+| `1` | **Error** — league, config, no feasible schedule, I/O, or missing solver (ortools). |
 | `2` | **Usage** — bad `--season` / `--time-limit` (Click). |
 
-## Scheduler dispatch
+## The scheduler
 
-`schedulers/types.py` defines the scheduler:
-
-- **Fixed-place + CP-SAT** — phase 1 fixes two non-conference games per team by division place (NFL-style same-place matchups, from the league file's `[DivisionStandings]`; 5ths play each other), then one CP-SAT solve picks the rest along the configurable `spread` line. Phase 2 (week placement) follows.
-
-Its `generate_schedule` matches the `SchedulerFunc` signature and returns a `SchedulerResult` with the schedule and the matchup plan.
+Two-phase CP-SAT. Phase 1 ([phase-1-matchups.md](phase-1-matchups.md)) builds the matchup inventory: structure fixes the same-conference games; the same-place rule (each division place plays the same place in every other-conference division that has that place) and any cross-conference rivalry fix some non-conference games; one CP-SAT solve picks the rest along the `spread` line. Phase 2 ([phase-2-schedule.md](phase-2-schedule.md)) places the inventory into weeks.
 
 ## Solver & reproducibility
 
 Phase 2 runs CP-SAT in **interleave search** — parallel but reproducible. Two rules make a seed's schedule identical across runs and machines:
 
-- **Fixed worker count.** Interleave results change with the number of workers, so the width is the pinned `solver_workers` setting (default 8), not the machine's core count, and it is not CLI-overridable. Everyone must use the same value; changing it re-rolls every seed's schedule.
-- **Deterministic-time budget.** The solve stops on `time_limit` measured in CP-SAT *deterministic time* (not wall-clock seconds), so a slow or fast machine reaches the same stopping point.
+- **Fixed worker count.** Interleave results change with the number of workers, so the width is the pinned `solver_workers` setting (default 8), not the machine's core count, and it is not CLI-overridable.
+- **Deterministic-time budget.** The solve stops on `time_limit` measured in CP-SAT *deterministic time*, so a slow or fast machine reaches the same stopping point.
 
-Also required: the model is built in canonical team order (never Python `set` iteration order, which is per-process randomized) — otherwise the same seed builds a different model each run. The golden regression test ([tests/integration/test_generate_schedule.py](../../tests/integration/test_generate_schedule.py)) pins one seed's exact output and re-validates every rule, guarding both.
+Also required: the model is built in canonical team order (never Python `set` iteration order). The model checksum test and the golden regression test guard both.
 
 Phase 1 stays single-threaded (one worker), bounded by `phase1_time_limit` in wall-clock seconds.
 
 ## Testing
 
-Under `tests/unit/scheduler/`:
+One suite in `tests/unit/scheduler/`, parametrized over every league case (two divisional standings variants, the conference league in an even season, an odd season, and with rotation off):
 
-- shared — `test_cli` / `test_config` (CLI + config/league/history loading; matrix in [test-matrix-config-loading.md](../../tests/unit/scheduler/test-matrix-config-loading.md)), `test_league` (domain, both formats), `test_schedule_builder` (phase-2 placement), `test_pnfl_model_fingerprint` (pins both PNFL CP-SAT models; re-pin only with the goldens), `test_history_costs`, `test_report` (HTML report; matrix in [test-matrix-report.md](../../tests/unit/scheduler/test-matrix-report.md)), `test_writers`.
-- `fixed_cpsat/` — `test_fixed_cpsat_inventory` (phase-1) plus `test_schedule_structure` / `test_schedule_rules` (end-to-end).
-- `conference_league/` — PCFL inventory + end-to-end rules; matrix in [test-matrix-conference-league.md](../../tests/unit/scheduler/conference_league/test-matrix-conference-league.md). The inventory tests run by default; the solved-schedule rule tests are `slow`.
+- `test_matchups` (phase 1; matrix in [test-matrix-phase-1-matchups.md](../../tests/unit/scheduler/test-matrix-phase-1-matchups.md)), `test_schedule_builder` (phase-2 model wiring) and `test_schedule_rules` (every rule on a solved schedule, through the shared validator; matrix in [test-matrix-phase-2-schedule.md](../../tests/unit/scheduler/test-matrix-phase-2-schedule.md)).
+- `test_cli` / `test_config` (CLI, file resolution, standings and rules loading, every shipped `dev/` and `release/` file; matrix in [test-matrix-config-loading.md](../../tests/unit/scheduler/test-matrix-config-loading.md)), `test_league` (domain), `test_report` (matrix in [test-matrix-report.md](../../tests/unit/scheduler/test-matrix-report.md)), `test_writers`.
+- `test_model_checksum` pins both CP-SAT models per league; re-pin only with that league's goldens.
 
-The `fixed_cpsat/` folder solves end-to-end, so the placement rules are validated. Solver-backed tests (any using a solved-schedule fixture) are marked `slow` and skipped by default; run them with `pytest -m slow`. End-to-end, `tests/integration/test_generate_schedule.py` is a golden regression: it runs the CLI at a fixed seed, validates the produced schedule against every rule, and asserts the three output files byte-match the frozen goldens (regenerate with `python -m tests.integration.test_generate_schedule --bless`). League-parametrized tests use three ranking variants (`5/6/7-free-slots`) spanning the playoff-distribution splits — the 4-team division supplying 1, 2, or 3 of its conference's 4 playoff teams (the scheduler uses overall rank, not playoffs).
+The rule validator is `tests/integration/schedule_validation.py`: it checks every rule that applies to a league and its config, with every amount from the config and the league. The golden regression test ([tests/integration/test_generate_schedule.py](../../tests/integration/test_generate_schedule.py)) runs the CLI per league at a fixed seed, validates the output, and byte-compares the three files to the frozen goldens (regenerate both sets with `python -m tests.integration.test_generate_schedule --bless`). Solver-backed tests are `slow`.

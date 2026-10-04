@@ -2,6 +2,16 @@
 
 History of what changed and why. Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-04 — **scheduler**: the scheduler still named the PNFL everywhere:
+  a fixed same-place table, PNFL division constants, `PNFL.scheduler.toml`,
+  `<season>.league.ini`, PNFL titles, and two test folders with league-specific
+  names. Now `--league` picks the league, its files are `<league>.<season>.ini`
+  and `rules\<league>.scheduler.toml`, conferences and divisions come from the
+  standings keys, the same-place rule is computed from the divisions, the writers
+  take the league name, a solver failure exits 1, and one validator and one test
+  suite run every league. The PCFL files moved from `dev/leagues/` to `dev/` and
+  `release/`. The PNFL models and schedule are unchanged (checksums and the
+  `.txt` golden); only the report's Scheduler line and the HTML titles changed.
 - 2026-10-04 — **scheduler**: reviewed phase-2 multithreading against the
   OR-Tools 9.15 source and maintainer guidance. Interleave search is CP-SAT's
   documented deterministic parallel mode: The threads take turns in lockstep

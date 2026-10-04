@@ -19,12 +19,23 @@ class ScheduleWriter(Protocol):
     def write(self, schedule: Schedule) -> None: ...
 
 
-WriterFactory = Callable[[StrPath], ScheduleWriter]
+# A factory takes the output path and the league name (the text writer has no
+# use for the name).
+WriterFactory = Callable[[StrPath, str], ScheduleWriter]
+
+
+def _html(output: StrPath, league_name: str) -> ScheduleWriter:
+    return HtmlScheduleWriter(output, league_name=league_name)
+
+
+def _txt(output: StrPath, league_name: str) -> ScheduleWriter:
+    return TxtScheduleWriter(output)
+
 
 WRITERS: dict[str, WriterFactory] = {
-    "html": HtmlScheduleWriter,
-    "htm": HtmlScheduleWriter,
-    "txt": TxtScheduleWriter,
+    "html": _html,
+    "htm": _html,
+    "txt": _txt,
 }
 
 
@@ -33,7 +44,7 @@ def available_writer_formats() -> tuple[str, ...]:
     return tuple(sorted(set(WRITERS)))
 
 
-def get_writer(fmt: str, output: StrPath) -> ScheduleWriter:
+def get_writer(fmt: str, output: StrPath, league_name: str) -> ScheduleWriter:
     """Return a writer for `fmt` bound to `output`. Raises ValueError if unsupported."""
     try:
         factory = WRITERS[fmt.lower()]
@@ -42,4 +53,4 @@ def get_writer(fmt: str, output: StrPath) -> ScheduleWriter:
         raise ValueError(
             f"Unsupported output format {fmt!r}. Available: {choices}"
         ) from exc
-    return factory(output)
+    return factory(output, league_name)

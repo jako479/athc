@@ -1,46 +1,49 @@
 """Shared fixtures for the scheduler suite.
 
-The `fixed_cpsat/` folder provides the `scheduler_result` / `schedule` /
-`matchup_plan` fixtures (via `solve_and_report` below), so the scheduler is
-exercised end-to-end. Any test using one of those fixtures is auto-marked
-`slow` and skipped by default (`-m 'not slow'`); run with `pytest -m slow`.
+Solved schedules are built once per league case by `solve_and_report` and
+shared through the `solved*` fixtures, so the scheduler is exercised end to end.
+Any test using one of those fixtures is auto-marked `slow` and skipped by
+default (`-m 'not slow'`); run with `pytest -m slow`.
 """
 
 from __future__ import annotations
 
 import random
 from collections.abc import Sequence
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
 
-from athc.scheduler.config import SchedulerConfig, SolverConfig
-from athc.scheduler.domain.league import (
-    AFC_EAST,
-    AFC_WEST,
-    NFC_EAST,
-    NFC_WEST,
-    League,
-    build_conference_league,
-    build_league,
+from athc.scheduler.config import (
+    DifficultyConfig,
+    LeagueConfig,
+    Phase2Config,
+    RivalriesConfig,
+    SchedulerConfig,
+    SolverConfig,
 )
+from athc.scheduler.domain.league import League, build_league
+from athc.scheduler.domain.schedule import Schedule
 from athc.scheduler.schedulers.types import SchedulerResult, get_scheduler
 from athc.scheduler.writers.report import HtmlReportWriter, build_schedule_report
 
 SLOW_SOLVE_TIME_LIMIT = 1200.0  # cap each slow-test solve at 20 minutes
 
+# --- A league with divisions: two 4-team and two 5-team divisions -------------
+
 _DIVISIONS: dict[str, Sequence[str]] = {
-    AFC_EAST.name: ("New England", "Buffalo", "Miami", "Jacksonville"),
-    AFC_WEST.name: (
+    "AFC_EAST": ("New England", "Buffalo", "Miami", "Jacksonville"),
+    "AFC_WEST": (
         "Cincinnati",
         "Denver",
         "Los Angeles",
         "Las Vegas",
         "Pittsburgh",
     ),
-    NFC_EAST.name: ("Philadelphia", "Washington", "New York", "Atlanta"),
-    NFC_WEST.name: (
+    "NFC_EAST": ("Philadelphia", "Washington", "New York", "Atlanta"),
+    "NFC_WEST": (
         "Chicago",
         "Green Bay",
         "Minnesota",
@@ -50,24 +53,27 @@ _DIVISIONS: dict[str, Sequence[str]] = {
 }
 
 
-def _make_league(afc: Sequence[str], nfc: Sequence[str]) -> League:
-    # Interleave the two 9-team conference orders into one overall 1-18 list so the
-    # derived conference ranks still match afc/nfc (1st AFC, 1st NFC, 2nd AFC, ...).
-    # [DivisionStandings] defines the divisions; teams follow the same order within
-    # each division as their conference finish.
-    overall = [team for pair in zip(afc, nfc, strict=True) for team in pair]
-    division_standings = {
+def _divisional_league(first: Sequence[str], second: Sequence[str]) -> League:
+    # Interleave the two 9-team conference orders into one overall 1-18 list so
+    # the derived conference ranks still match (1st of each, 2nd of each, ...).
+    # Each division's finish order is its conference's order among its members.
+    overall = [team for pair in zip(first, second, strict=True) for team in pair]
+    standings = {
         name: tuple(
             metro
-            for metro in (afc if name.startswith("AFC") else nfc)
+            for metro in (first if name.startswith("AFC") else second)
             if metro in set(members)
         )
         for name, members in _DIVISIONS.items()
     }
-    return build_league(division_standings, overall)
+    return build_league(standings, overall, divisions=True)
 
 
-LEAGUE_5_SLOTS = _make_league(
+# Two test leagues: same teams and divisions, different standings. They differ
+# in how many of each conference's four playoff teams came from the 4-team
+# division: 1 or 3. With three, it's harder to find a schedule that meets all the
+# league rules, as well as, to stay close to the strength-of-schedule targets.
+ONE_PLAYOFF_TEAM_FROM_4_TEAM_DIVISION = _divisional_league(
     (
         "New England",
         "Cincinnati",
@@ -91,31 +97,7 @@ LEAGUE_5_SLOTS = _make_league(
         "Seattle",
     ),
 )
-LEAGUE_6_SLOTS = _make_league(
-    (
-        "New England",
-        "Cincinnati",
-        "Miami",
-        "Pittsburgh",
-        "Buffalo",
-        "Jacksonville",
-        "Denver",
-        "Los Angeles",
-        "Las Vegas",
-    ),
-    (
-        "Washington",
-        "Chicago",
-        "Atlanta",
-        "Minnesota",
-        "New York",
-        "Philadelphia",
-        "San Francisco",
-        "Green Bay",
-        "Seattle",
-    ),
-)
-LEAGUE_7_SLOTS = _make_league(
+THREE_PLAYOFF_TEAMS_FROM_4_TEAM_DIVISION = _divisional_league(
     (
         "New England",
         "Cincinnati",
@@ -139,23 +121,13 @@ LEAGUE_7_SLOTS = _make_league(
         "Seattle",
     ),
 )
+DIVISIONS_CONFIG = SchedulerConfig(
+    solver=SolverConfig(time_limit=SLOW_SOLVE_TIME_LIMIT)
+)
 
-# Three conference-ranking variants spanning the playoff-distribution splits:
-# each conference has 4 playoff teams (2 division winners + 2 wild cards), and
-# the 4-team (East) division supplies 1, 2, or 3 of them (label = 4 + that =
-# 5/6/7), the 5-team (West) division the rest. This varies how many
-# 5-non-conf-game teams rank near the top, which stresses the difficulty
-# targets. The scheduler uses plain conference rank, not playoffs.
-_ALL_LEAGUES = [
-    pytest.param(LEAGUE_5_SLOTS, id="5-free-slots"),
-    pytest.param(LEAGUE_6_SLOTS, id="6-free-slots"),
-    pytest.param(LEAGUE_7_SLOTS, id="7-free-slots"),
-]
+# --- A league without divisions: two conferences of nine, 12 weeks, rivalry week
 
-# A league without divisions (the PCFL): two conferences of 9. Conference lists
-# are the regular-season finish (record, then point differential); the overall
-# order ranks playoff finish first.
-PCFL_WEST = (
+CONFERENCES_WEST = (
     "Ohio State",
     "Notre Dame",
     "UCLA",
@@ -166,7 +138,7 @@ PCFL_WEST = (
     "Oregon",
     "Michigan",
 )
-PCFL_EAST = (
+CONFERENCES_EAST = (
     "Texas",
     "Tennessee",
     "Boston College",
@@ -177,7 +149,7 @@ PCFL_EAST = (
     "Penn State",
     "Miami",
 )
-PCFL_OVERALL = (
+CONFERENCES_OVERALL = (
     "Texas",
     "Tennessee",
     "Notre Dame",
@@ -197,10 +169,12 @@ PCFL_OVERALL = (
     "Oregon",
     "Michigan",
 )
-PCFL_LEAGUE = build_conference_league(
-    {"WESTERN": PCFL_WEST, "EASTERN": PCFL_EAST}, PCFL_OVERALL
+CONFERENCES_LEAGUE = build_league(
+    {"WESTERN": CONFERENCES_WEST, "EASTERN": CONFERENCES_EAST},
+    CONFERENCES_OVERALL,
+    divisions=False,
 )
-PCFL_RIVALRIES = (
+CONFERENCES_RIVALRIES = (
     ("Michigan", "Ohio State"),
     ("USC", "UCLA"),
     ("Washington", "Oregon"),
@@ -211,8 +185,87 @@ PCFL_RIVALRIES = (
     ("Clemson", "Miami"),
     ("Penn State", "Boston College"),
 )
+CONFERENCES_AMOUNTS = Phase2Config(
+    max_consecutive_home_or_away=3,
+    max_consecutive_conference_home_or_away=2,
+    opening_nonconference_weeks=3,
+    require_home_balance_per_six_weeks=False,
+    require_home_away_streak_caps=False,
+    require_mixed_home_away_at_season_ends=False,
+)
+CONFERENCES_CONFIG = SchedulerConfig(
+    league=LeagueConfig(weeks=12),
+    difficulty=DifficultyConfig(spread=0.0),
+    solver=SolverConfig(time_limit=SLOW_SOLVE_TIME_LIMIT),
+    phase2=CONFERENCES_AMOUNTS,
+    rivalries=RivalriesConfig(pairs=CONFERENCES_RIVALRIES, rotate_home_by_season=True),
+)
+NO_ROTATION_CONFIG = replace(
+    CONFERENCES_CONFIG,
+    rivalries=replace(CONFERENCES_CONFIG.rivalries, rotate_home_by_season=False),
+)
 
-_SOLVER_FIXTURES = frozenset({"scheduler_result", "schedule", "matchup_plan"})
+
+@dataclass(frozen=True)
+class LeagueCase:
+    """A league, its rules and the season to schedule."""
+
+    id: str
+    league: League
+    config: SchedulerConfig
+    season: int
+    seed: int | None = None  # None: a random seed, printed with the solve
+
+
+LEAGUE_CASES = (
+    LeagueCase(
+        "one-playoff-team-from-4-team-division",
+        ONE_PLAYOFF_TEAM_FROM_4_TEAM_DIVISION,
+        DIVISIONS_CONFIG,
+        2048,
+    ),
+    LeagueCase(
+        "three-playoff-teams-from-4-team-division",
+        THREE_PLAYOFF_TEAMS_FROM_4_TEAM_DIVISION,
+        DIVISIONS_CONFIG,
+        2048,
+    ),
+    LeagueCase(
+        "conferences-even-season", CONFERENCES_LEAGUE, CONFERENCES_CONFIG, 2028, seed=7
+    ),
+    LeagueCase(
+        "conferences-odd-season", CONFERENCES_LEAGUE, CONFERENCES_CONFIG, 2029, seed=7
+    ),
+    LeagueCase(
+        "conferences-no-rotation", CONFERENCES_LEAGUE, NO_ROTATION_CONFIG, 2029, seed=7
+    ),
+)
+CASE_BY_ID = {case.id: case for case in LEAGUE_CASES}
+# One case per distinct league, for the phase-1 (matchup) tests.
+MATCHUP_CASES = LEAGUE_CASES[:3]
+
+
+@dataclass(frozen=True)
+class Solved:
+    case: LeagueCase
+    result: SchedulerResult
+
+    @property
+    def league(self) -> League:
+        return self.case.league
+
+    @property
+    def config(self) -> SchedulerConfig:
+        return self.case.config
+
+    @property
+    def schedule(self) -> Schedule:
+        return self.result.schedule
+
+
+_SOLVED_FIXTURES = frozenset(
+    {"solved", "solved_even_season", "solved_odd_season", "solved_no_rotation"}
+)
 
 
 @pytest.fixture
@@ -223,51 +276,65 @@ def runner() -> CliRunner:
 def pytest_collection_modifyitems(config, items):
     """Mark solver-backed tests (those that build a schedule) as `slow`."""
     for item in items:
-        if _SOLVER_FIXTURES & set(getattr(item, "fixturenames", ())):
+        if _SOLVED_FIXTURES & set(getattr(item, "fixturenames", ())):
             item.add_marker(pytest.mark.slow)
 
 
-_solve_cache: dict[int, SchedulerResult] = {}
+_solve_cache: dict[str, Solved] = {}
 
 
-@pytest.fixture(params=_ALL_LEAGUES, scope="session")
-def league(request) -> League:
+def solve_and_report(case: LeagueCase, tmp_path_factory) -> Solved:
+    """Solve `case` once (cached) and write its report."""
+    if case.id not in _solve_cache:
+        seed = case.seed if case.seed is not None else random.randint(0, 1_000_000)
+        print(f"\n{case.id}: scheduler seed {seed}")
+        result = get_scheduler()(
+            league=case.league,
+            seed=seed,
+            scheduler_config=case.config,
+            season=case.season,
+        )
+        _solve_cache[case.id] = Solved(case, result)
+        report = build_schedule_report(
+            schedule=result.schedule,
+            matchup_plan=result.matchup_plan,
+            league=case.league,
+            seed=seed,
+            config_path=Path("test-config.toml"),
+            elapsed_time_seconds=0.0,
+            difficulty_spread=case.config.difficulty.spread,
+        )
+        report_path = tmp_path_factory.mktemp("schedule_report") / f"{case.id}.html"
+        HtmlReportWriter(str(report_path), league_name=case.id).write(report)
+        print(f"Schedule report: {report_path}")
+    return _solve_cache[case.id]
+
+
+@pytest.fixture(params=LEAGUE_CASES, ids=lambda case: case.id, scope="session")
+def league_case(request) -> LeagueCase:
+    return request.param
+
+
+@pytest.fixture(params=MATCHUP_CASES, ids=lambda case: case.id, scope="session")
+def matchup_case(request) -> LeagueCase:
     return request.param
 
 
 @pytest.fixture(scope="session")
-def teams(league: League):
-    return league.teams
+def solved(league_case: LeagueCase, tmp_path_factory) -> Solved:
+    return solve_and_report(league_case, tmp_path_factory)
 
 
-def solve_and_report(league, tmp_path_factory) -> SchedulerResult:
-    """Solve `league` once (cached) and write its report.
+@pytest.fixture(scope="session")
+def solved_even_season(tmp_path_factory) -> Solved:
+    return solve_and_report(CASE_BY_ID["conferences-even-season"], tmp_path_factory)
 
-    The `fixed_cpsat/` conftest wraps this in its `scheduler_result` fixture, so
-    the scheduler is exercised end-to-end.
-    """
-    key = id(league)
-    if key not in _solve_cache:
-        seed = random.randint(0, 1_000_000)
-        print(f"\nScheduler seed: {seed}")
-        result = get_scheduler()(
-            league=league,
-            seed=seed,
-            scheduler_config=SchedulerConfig(
-                solver=SolverConfig(time_limit=SLOW_SOLVE_TIME_LIMIT)
-            ),
-            season=2048,
-        )
-        _solve_cache[key] = result
-        report = build_schedule_report(
-            schedule=result.schedule,
-            matchup_plan=result.matchup_plan,
-            league=league,
-            seed=seed,
-            config_path=Path("test-config.ini"),
-            elapsed_time_seconds=0.0,
-        )
-        report_path = tmp_path_factory.mktemp("schedule_report") / "report.html"
-        HtmlReportWriter(str(report_path)).write(report)
-        print(f"Schedule report: {report_path}")
-    return _solve_cache[key]
+
+@pytest.fixture(scope="session")
+def solved_odd_season(tmp_path_factory) -> Solved:
+    return solve_and_report(CASE_BY_ID["conferences-odd-season"], tmp_path_factory)
+
+
+@pytest.fixture(scope="session")
+def solved_no_rotation(tmp_path_factory) -> Solved:
+    return solve_and_report(CASE_BY_ID["conferences-no-rotation"], tmp_path_factory)

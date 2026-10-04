@@ -22,18 +22,6 @@ class Division:
     expected_size: int
 
 
-AFC = Conference("AFC")
-NFC = Conference("NFC")
-AFC_EAST = Division("AFC_EAST", AFC, 4)
-AFC_WEST = Division("AFC_WEST", AFC, 5)
-NFC_EAST = Division("NFC_EAST", NFC, 4)
-NFC_WEST = Division("NFC_WEST", NFC, 5)
-
-# The PNFL's divisions in canonical order, keyed by their [DivisionStandings] names.
-PNFL_DIVISIONS: tuple[Division, ...] = (AFC_EAST, AFC_WEST, NFC_EAST, NFC_WEST)
-PNFL_DIVISIONS_BY_NAME: dict[str, Division] = {d.name: d for d in PNFL_DIVISIONS}
-
-
 @dataclass(frozen=True)
 class Team:
     metro: str
@@ -86,79 +74,60 @@ def ordered_teams(teams: Sequence[Team]) -> list[Team]:
     return sorted(teams, key=lambda t: (t.conference.name, _division_name(t), t.metro))
 
 
-def build_teams(divisions: Mapping[str, Sequence[str]]) -> tuple[Team, ...]:
-    """Build the PNFL teams tuple from division-keyed metro lists.
+def _clean(metros: Sequence[str]) -> tuple[str, ...]:
+    return tuple(m.strip() for m in metros if m.strip())
 
-    Validates that all four divisions are present, that each has its expected
-    size, and that no metro is duplicated. Teams are returned in canonical order
-    (division, then metro); the input line order (a division's finish) is kept
-    separately in `division_standings`.
+
+def build_teams(
+    standings: Mapping[str, Sequence[str]], *, divisions: bool
+) -> tuple[Team, ...]:
+    """Build the teams tuple from standings-keyed metro lists.
+
+    With `divisions`, each key is `<CONFERENCE>_<DIVISION>` (split on the first
+    underscore) and the division's size is its line count; without, each key is
+    a conference name. Exactly two conferences of nine, no metro twice. Teams are
+    returned in canonical order (conference, division, metro); the input line
+    order (a finish) is kept separately in `division_standings`.
     """
-    by_division: dict[Division, Sequence[str]] = {}
-    for key, metros in divisions.items():
-        division = PNFL_DIVISIONS_BY_NAME.get(key)
-        if division is None:
-            valid = ", ".join(d.name for d in PNFL_DIVISIONS)
-            raise ValueError(f"Unknown division key {key!r}; expected one of {valid}")
-        by_division[division] = metros
-
-    missing = [d.name for d in PNFL_DIVISIONS if d.name not in divisions]
-    if missing:
-        raise ValueError(f"Missing divisions: {missing}")
-
+    conferences: dict[str, Conference] = {}
     teams: list[Team] = []
     seen_metros: set[str] = set()
-    for division in PNFL_DIVISIONS:
-        metros = tuple(sorted(m.strip() for m in by_division[division] if m.strip()))
-        if len(metros) != division.expected_size:
-            raise ValueError(
-                f"{division.name} must list exactly {division.expected_size} teams; "
-                f"got {len(metros)}"
+    for key, raw in standings.items():
+        metros = _clean(raw)
+        if not metros:
+            raise ValueError(f"{key} lists no teams")
+        if divisions:
+            conference_name, sep, division_name = key.partition("_")
+            if not sep or not conference_name or not division_name:
+                raise ValueError(
+                    f"Division key {key!r} must be <CONFERENCE>_<DIVISION>"
+                )
+            conference = conferences.setdefault(
+                conference_name, Conference(conference_name)
             )
+            division: Division | None = Division(key, conference, len(metros))
+        else:
+            conference = conferences.setdefault(key, Conference(key))
+            division = None
         for metro in metros:
             if metro in seen_metros:
-                raise ValueError(f"Duplicate team in divisions config: {metro}")
-            teams.append(
-                Team(metro=metro, conference=division.conference, division=division)
-            )
+                raise ValueError(f"Duplicate team in standings: {metro}")
             seen_metros.add(metro)
+            teams.append(Team(metro=metro, conference=conference, division=division))
 
-    expected_teams = sum(d.expected_size for d in PNFL_DIVISIONS)
-    if len(teams) != expected_teams:
-        raise ValueError(
-            f"Expected exactly {expected_teams} teams across all divisions, got "
-            f"{len(teams)}"
-        )
-    return tuple(teams)
-
-
-def build_conference_teams(
-    conferences: Mapping[str, Sequence[str]],
-) -> tuple[Team, ...]:
-    """Build a division-less teams tuple from conference-keyed metro lists: exactly
-    two conferences of nine, no metro twice. Canonical order: conference name,
-    then metro."""
     if len(conferences) != CONFERENCES_PER_LEAGUE:
         raise ValueError(
             f"Expected exactly {CONFERENCES_PER_LEAGUE} conferences, got "
             f"{len(conferences)}: {sorted(conferences)}"
         )
-    teams: list[Team] = []
-    seen_metros: set[str] = set()
-    for name in sorted(conferences):
-        conference = Conference(name)
-        metros = tuple(sorted(m.strip() for m in conferences[name] if m.strip()))
-        if len(metros) != TEAMS_PER_CONFERENCE:
+    for conference in conferences.values():
+        size = sum(1 for team in teams if team.conference == conference)
+        if size != TEAMS_PER_CONFERENCE:
             raise ValueError(
-                f"{name} must list exactly {TEAMS_PER_CONFERENCE} teams; "
-                f"got {len(metros)}"
+                f"{conference.name} must have exactly {TEAMS_PER_CONFERENCE} teams; "
+                f"got {size}"
             )
-        for metro in metros:
-            if metro in seen_metros:
-                raise ValueError(f"Duplicate team in conferences config: {metro}")
-            teams.append(Team(metro=metro, conference=conference))
-            seen_metros.add(metro)
-    return tuple(teams)
+    return tuple(ordered_teams(teams))
 
 
 def team_by_metro(teams: Sequence[Team]) -> dict[str, Team]:
@@ -227,36 +196,22 @@ class League:
 
 
 def build_league(
-    division_standings: Mapping[str, Sequence[str]],  # "AFC_EAST" -> finish order
+    standings: Mapping[str, Sequence[str]],  # key -> finish order
     overall_ranking: Sequence[str],  # all 18 metros, best to worst
+    *,
+    divisions: bool,
 ) -> League:
-    """Build a PNFL-style `League`: `[DivisionStandings]` defines membership and
-    each division's finish order; `[OverallStandings]` gives the 1-18 order."""
-    teams = build_teams(division_standings)
-    by_division = {
-        PNFL_DIVISIONS_BY_NAME[key]: tuple(
-            lookup_team(teams, metro) for metro in metros
-        )
-        for key, metros in division_standings.items()
-    }
-    return _finish_league(teams, overall_ranking, by_division)
-
-
-def build_conference_league(
-    conference_standings: Mapping[str, Sequence[str]],  # "WESTERN" -> finish order
-    overall_ranking: Sequence[str],
-) -> League:
-    """Build a division-less `League`: `[ConferenceStandings]` defines the two
-    conferences; `[OverallStandings]` gives the 1-18 order."""
-    teams = build_conference_teams(conference_standings)
-    return _finish_league(teams, overall_ranking, {})
-
-
-def _finish_league(
-    teams: tuple[Team, ...],
-    overall_ranking: Sequence[str],
-    division_standings: Mapping[Division, tuple[Team, ...]],
-) -> League:
+    """Build a `League`: the standings section (`[DivisionStandings]` or
+    `[ConferenceStandings]`) defines membership and each group's finish order;
+    `[OverallStandings]` gives the 1-18 order."""
+    teams = build_teams(standings, divisions=divisions)
+    division_standings: dict[Division, tuple[Team, ...]] = {}
+    if divisions:
+        by_name = {t.division.name: t.division for t in teams if t.division}
+        division_standings = {
+            by_name[key]: tuple(lookup_team(teams, metro) for metro in _clean(metros))
+            for key, metros in standings.items()
+        }
     overall = tuple(lookup_team(teams, metro) for metro in overall_ranking)
     _validate_overall(overall, teams)
     conferences = tuple(sorted({t.conference for t in teams}, key=lambda c: c.name))

@@ -14,18 +14,15 @@ from athc.scheduler.domain.league import (
     League,
     RivalryPair,
     Team,
-    build_conference_league,
     build_league,
     lookup_team,
 )
 
 StrPath = str | PathLike[str]
 
-LEAGUE_FILE = "league.ini"  # actual file is "<season>.league.ini"
-SCHEDULER_RULES_FILE = "PNFL.scheduler.toml"  # in the config dir's rules/ folder
-DEFAULT_WEEKS = 16  # regular-season weeks (the PNFL)
+DEFAULT_WEEKS = 16  # regular-season weeks when the rules file sets none
 
-# Scheduler tunables; overridable in PNFL.scheduler.toml (missing -> these).
+# Scheduler tunables; overridable in rules/<league>.scheduler.toml (missing -> these).
 # Phase-2 runs multithreaded (interleave_search) and stops on deterministic
 # time, not wall-clock seconds; phase-1 stays single-threaded, wall-clock.
 DEFAULT_TIME_LIMIT = 300.0  # phase-2 (week-placement) solve, deterministic time
@@ -116,7 +113,7 @@ class Phase2Config:
     max_close_rematches: int = 3
     # Soft objective: penalize each metric outside its NFL-typical band [lo, hi],
     # weighted by rarity (1/scaled-SD). Bands are the NFL per-season spread scaled
-    # to PNFL (teams x18/32, rematches x26/48). The hard caps above stay as
+    # to an 18-team league (teams x18/32, rematches x26/48). The hard caps above stay as
     # backstops. See docs/design/research/cpsat-rule-patterns.md.
     soft_home_streak_lo: int = 5
     soft_home_streak_hi: int = 7
@@ -164,26 +161,24 @@ class SchedulerConfig:
     rivalries: RivalriesConfig = field(default_factory=RivalriesConfig)
 
 
-def scheduler_rules_path() -> Path:
-    """The scheduler tunables file (may not exist; values then default).
+def scheduler_rules_path(league: str) -> Path:
+    """The league's scheduler tunables file, `rules/<league>.scheduler.toml` in
+    the config dir (may not exist; values then default).
 
     Set `ATHC_CONFIG_DIR` to override the config dir.
     """
-    return config_dir() / "rules" / SCHEDULER_RULES_FILE
+    return config_dir() / "rules" / f"{league}.scheduler.toml"
 
 
-def load_scheduler_config(path: StrPath | None = None) -> SchedulerConfig:
-    """Read scheduler tunables from `rules/PNFL.scheduler.toml` (or `path`),
-    defaulting when the default file or any key is absent. An explicit `path`
-    must exist. Invalid TOML or a bad value errors."""
-    if path is None:
-        resolved = scheduler_rules_path()
-        if not resolved.is_file():
-            return SchedulerConfig()
-    else:
-        resolved = Path(path)
-        if not resolved.is_file():
+def load_scheduler_config(path: StrPath, *, required: bool = True) -> SchedulerConfig:
+    """Read scheduler tunables from `path`, defaulting any absent key. A missing
+    file errors when `required`, else gives every default (the league's rules
+    file is optional). Invalid TOML or a bad value errors."""
+    resolved = Path(path)
+    if not resolved.is_file():
+        if required:
             raise ConfigError(f"Config file not found: '{resolved}'.")
+        return SchedulerConfig()
     try:
         data = tomllib.loads(resolved.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as error:
@@ -217,7 +212,8 @@ CONFERENCE_SECTION = "ConferenceStandings"
 
 def load_league(path: StrPath) -> League:
     """Read a league from `[OverallStandings]` (overall 1-18 `Order`) plus exactly
-    one of `[DivisionStandings]` (per-division teams in finish order -- the PNFL)
+    one of `[DivisionStandings]` (per-division teams in finish order -- a league
+    with divisions)
     or `[ConferenceStandings]` (per-conference teams in finish order -- a league
     without divisions). Per-conference 1-9 ranks derive from the overall order.
     """
@@ -237,30 +233,20 @@ def load_league(path: StrPath) -> League:
     section = DIVISION_SECTION if has_divisions else CONFERENCE_SECTION
     standings = {key: _parse_multiline(cp, section, key) for key in cp.options(section)}
     try:
-        if has_divisions:
-            return build_league(standings, overall_ranking=overall)
-        return build_conference_league(standings, overall_ranking=overall)
+        return build_league(standings, overall, divisions=has_divisions)
     except ValueError as error:
         raise ConfigError(
             f"Config file '{resolved}' has invalid league data: {error}"
         ) from error
 
 
-def find_config_path() -> Path:
-    """Scheduler config path, for report provenance (may not exist)."""
-    return scheduler_rules_path()
-
-
-def find_league_path(season: int) -> Path:
-    """The `<season>.league.ini` file in the config dir; ConfigError if missing."""
-    return _require_season_file(season, LEAGUE_FILE, "league")
-
-
-def _require_season_file(season: int, suffix: str, label: str) -> Path:
-    path = config_dir() / f"{season}.{suffix}"
+def find_league_path(league: str, season: int) -> Path:
+    """The `<league>.<season>.ini` standings file in the config dir; ConfigError
+    if missing."""
+    path = config_dir() / f"{league}.{season}.ini"
     if not path.is_file():
         raise ConfigError(
-            f"No {label} file for season {season}. Expected:\n  {path}\n"
+            f"No standings file for {league} season {season}. Expected:\n  {path}\n"
             f"Run 'athc config path' to find the config dir, then add the file."
         )
     return path

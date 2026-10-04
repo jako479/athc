@@ -1,1 +1,1 @@
-"""Core PNFL domain models and data."""
+"""Core scheduler domain models."""

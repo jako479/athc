@@ -1,0 +1,120 @@
+Week 1
+Arkansas#Washington
+Boston College#Oregon
+Clemson#Oklahoma
+Georgia#Colorado
+LSU#Notre Dame
+Miami#Michigan
+Ohio State#Tennessee
+Texas#UCLA
+USC#Penn State
+Week 2
+Colorado#Arkansas
+LSU#USC
+Notre Dame#Texas
+Ohio State#Boston College
+Oklahoma#Miami
+Oregon#Clemson
+Penn State#Michigan
+Tennessee#Washington
+UCLA#Georgia
+Week 3
+Arkansas#UCLA
+Boston College#Oklahoma
+Colorado#Clemson
+Georgia#USC
+Michigan#LSU
+Oregon#Miami
+Tennessee#Notre Dame
+Texas#Ohio State
+Washington#Penn State
+Week 4
+Arkansas#Texas
+Boston College#Clemson
+Colorado#Washington
+LSU#Penn State
+Miami#Georgia
+Michigan#UCLA
+Oklahoma#Ohio State
+Oregon#Notre Dame
+USC#Tennessee
+Week 5
+Arkansas#Boston College
+Clemson#Tennessee
+Miami#LSU
+Notre Dame#Michigan
+Ohio State#Colorado
+Oklahoma#UCLA
+Penn State#Oregon
+Texas#Georgia
+USC#Washington
+Week 6
+Boston College#Texas
+Georgia#Arkansas
+Miami#Colorado
+Ohio State#USC
+Oregon#Oklahoma
+Penn State#Clemson
+Tennessee#LSU
+UCLA#Notre Dame
+Washington#Michigan
+Week 7
+Clemson#Arkansas
+Colorado#USC
+Georgia#Penn State
+Michigan#Oregon
+Notre Dame#Oklahoma
+Tennessee#Boston College
+Texas#Miami
+UCLA#Ohio State
+Washington#LSU
+Week 8
+Arkansas#Miami
+Clemson#Georgia
+Colorado#Michigan
+LSU#Texas
+Ohio State#Oregon
+Oklahoma#Washington
+Penn State#Tennessee
+UCLA#Boston College
+USC#Notre Dame
+Week 9
+Boston College#LSU
+Miami#Penn State
+Michigan#Georgia
+Notre Dame#Ohio State
+Oklahoma#USC
+Oregon#Colorado
+Tennessee#Arkansas
+Texas#Clemson
+Washington#UCLA
+Week 10
+Boston College#Georgia
+Colorado#Oklahoma
+LSU#Clemson
+Notre Dame#Arkansas
+Ohio State#Washington
+Penn State#Texas
+Tennessee#Miami
+UCLA#Oregon
+USC#Michigan
+Week 11
+Arkansas#Penn State
+Clemson#Ohio State
+Georgia#LSU
+Miami#Boston College
+Michigan#Oklahoma
+Oregon#USC
+Texas#Tennessee
+UCLA#Colorado
+Washington#Notre Dame
+Week 12
+Clemson#Miami
+Georgia#Tennessee
+LSU#Arkansas
+Michigan#Ohio State
+Notre Dame#Colorado
+Oklahoma#Texas
+Penn State#Boston College
+USC#UCLA
+Washington#Oregon

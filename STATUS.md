@@ -1,6 +1,6 @@
 # Status
 
-Updated 2026-09-21. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-04. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -169,13 +169,18 @@ Open: `check` folds into one `athc check-ppp` · revisit `edit`/`copy` options.
 ## scheduler — `generate-schedule`
 
 Working. Docs: [README](docs/scheduler/README.md) ·
-[phase 1](docs/scheduler/phase-1-matchups-fixed-cpsat.md) ·
+[phase 1](docs/scheduler/phase-1-matchups.md) ·
 [phase 2](docs/scheduler/phase-2-schedule.md)
 
+- League-agnostic: `--league` picks the league; its standings are
+  `<league>.<season>.ini` and its rules `rules\<league>.scheduler.toml`.
+  Conferences and divisions come from the standings file, the same-place games
+  from the divisions, and the writers take the league name. No league or
+  division name is left in scheduler code or tests; one validator and one test
+  suite run every league. The PCFL files ship in `dev/` and `release/`.
 - Two league formats: the PNFL (divisions, 16 weeks) and the PCFL (two
   conferences of nine, 12 weeks, rivalry week). One matchup builder and one
-  schedule builder; PNFL-only rules are toggles. The PCFL files are under
-  `dev/leagues/PCFL/`; command-line league selection waits on the config rework.
+  schedule builder; PNFL-only rules are toggles.
 - Rules overhauled from NFL data: hard rules, league-wide anti-pileup caps,
   and a soft objective with NFL-typical bands so seasons vary.
 - Schedulers A, B and D removed; there is just the scheduler, no

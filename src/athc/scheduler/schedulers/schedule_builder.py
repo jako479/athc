@@ -1,5 +1,6 @@
 """
-The rules below are the PNFL's. A league without divisions gets only the
+The rules below are the NFL-pattern rules of a league with divisions. A league
+without divisions gets only the
 structural rules and the toggled home/away rules (see
 docs/scheduler/phase-2-schedule.md).
 
@@ -24,7 +25,7 @@ Divisional scheduling requirements:
 - At most 2 divisional opponents may be non-interleaved between a team's 2
   meetings with that rival.
 - Every team must play at least 1 divisional game in the final 2 weeks.
-- Week 16 must contain exactly 8 divisional games.
+- The final week holds as many divisional games as one week can.
 
 League-wide caps (a per-team rule shouldn't pile up across all teams at once):
 - At most 9 teams with a 3-game home streak; 3 with a 3-game away streak.
@@ -44,20 +45,15 @@ Soft objective (prefer NFL-typical schedules; caps above stay as backstops):
 
 Conference scheduling requirements:
 - Each team plays every same-conference opponent outside its division exactly once.
-- Conference home balance:
-  - 5-team division teams host exactly 2 of 4.
-  - In each 4-team division, the 5 conference games split 2, 2, 3, 3 across the 4 teams.
+- Conference home balance: each team hosts half its conference games (the
+  odd game either way).
 
 Non-conference scheduling requirements:
 - After divisional and same-conference games are assigned, the remaining schedule slots
   are
   non-conference games.
-- 5-team division teams play 4 non-conference games.
-- 4-team division teams play 5 non-conference games.
-- Non-conference home balance:
-  - 5-team division teams host exactly 2 of 4.
-  - In each 4-team division, the 5 non-conference games split 2, 2, 3, 3 across the 4
-    teams.
+- Each team's count is its weeks minus its structural games.
+- Non-conference home balance: each team hosts half its non-conference games.
 
 Rule provenance (NFL policy vs. measured NFL schedule patterns):
 docs/design/research/nfl-schedules.md.
@@ -238,7 +234,7 @@ class ScheduleBuilder:
         length: int,
     ) -> cp_model.LinearExprT:
         # Chained addition (not sum()) keeps the expression shape the pinned
-        # PNFL model was built with.
+        # divisional model was built with.
         expr: cp_model.LinearExprT = var[team, start]
         for k in range(1, length):
             expr = expr + var[team, start + k]
@@ -397,7 +393,7 @@ class ScheduleBuilder:
         self, team_i: Team, opponents: Sequence[Team], count: int
     ) -> None:
         # One `==` when the half is exact, else `>=` then `<=`: the shapes the
-        # pinned PNFL model was built with.
+        # pinned divisional model was built with.
         home_games = sum(
             self.x[team_i, team_j, w] for team_j in opponents for w in self.weeks
         )
@@ -440,10 +436,10 @@ class ScheduleBuilder:
                 opens_with_two_div >= self.d[team_i, 0] + self.d[team_i, 1] - 1
             )
             opening_back_to_back.append(opens_with_two_div)
-            if team_i in self.four_team_set:
-                four_team_openers.append(opens_with_two_div)
-            else:
+            if team_i in self.five_team_set:
                 five_team_openers.append(opens_with_two_div)
+            else:
+                four_team_openers.append(opens_with_two_div)
 
         self.model.add(
             sum(opening_back_to_back) <= self.amounts.max_teams_divisional_weeks_1_and_2

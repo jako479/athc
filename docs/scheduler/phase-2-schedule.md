@@ -23,16 +23,15 @@ Phase 2 takes the fixed inventory from phase 1 (`weeks` × 9 pairings) and uses 
 | No cap + 1 straight home or away *conference* games, counted along the conference games only | `max_consecutive_conference_home_or_away` (0 = off) |
 | Rivalry week: every `[rivalries]` pair meets in the last week; `rotate_home_by_season` makes the first-listed team host in even seasons and the second in odd | `[rivalries]` present |
 
-The PCFL uses the first three rows plus the last three; its rules file turns the three `require_*` toggles off.
+A league without divisions uses the first three rows plus the last three; its rules file turns the three `require_*` toggles off.
 
 ## Constraints
 
-The numeric amounts below come from `[phase2]` in `rules/PNFL.scheduler.toml` (defaults shown); the rules themselves, and league/conference sizes, are fixed.
+The numeric amounts below come from `[phase2]` in `rules/<league>.scheduler.toml` (defaults shown); the rules themselves, and league/conference sizes, are fixed.
 
 Structure
 - Each team plays exactly 1 game per week and hosts `weeks / 2`.
 - Each team pair is scheduled exactly as phase 1 selected it (0, 1, or 2 meetings).
-- No pair of teams meets in back-to-back weeks.
 
 Home / away
 - No 4 straight home or away games.
@@ -46,6 +45,7 @@ Home balance
 - Non-conference home games: same split (5-team host 2; 4-team host 2–3).
 
 Divisional sequencing
+- No pair of teams meets in back-to-back weeks.
 - At most 3 straight divisional games (never 4).
 - At most 4 teams open weeks 1–2 with divisional games in both — of which ≤1 is a 4-team-division team and ≤2 are 5-team-division teams.
 - No 3 straight divisional games to start or end the season.

@@ -23,7 +23,7 @@ from athc.cli.config import config as config_group
 from athc.cli.config.edit import edit
 from athc.cli.config.path import path
 from athc.cli.config.reveal import reveal
-from athc.config import LeagueError, load_league, resolve_path
+from athc.config import LeagueError, load_league, resolve_league, resolve_path
 from athc.gameplan import config as gameplan_config
 from athc.pdbtoexcel import config as pdbtoexcel_config
 from athc.profile import config as profile_config
@@ -71,6 +71,39 @@ def test_env_beats_default_league(
     )
     monkeypatch.setenv("ATHC_LEAGUE", "ENV")
     assert load_league()["k"] == "env"
+
+
+# ── resolve_league: the name alone, same priority ──
+
+
+def test_resolve_league_returns_the_explicit_name(write_config: WriteConfig) -> None:
+    write_config("[league.PNFL]\nplay_path = D:/p\n")
+    assert resolve_league("PNFL") == "PNFL"
+
+
+def test_resolve_league_falls_back_to_env_then_default(
+    write_config: WriteConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    write_config("[athc]\ndefault_league = DEF\n[league.DEF]\n[league.ENV]\n")
+    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
+    assert resolve_league() == "DEF"
+    monkeypatch.setenv("ATHC_LEAGUE", "ENV")
+    assert resolve_league() == "ENV"
+
+
+def test_resolve_league_errors_when_none_resolvable(
+    write_config: WriteConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    write_config("[league.PNFL]\n")
+    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
+    with pytest.raises(LeagueError, match="no league selected"):
+        resolve_league()
+
+
+def test_resolve_league_errors_on_unknown_name(write_config: WriteConfig) -> None:
+    write_config("[league.PNFL]\n")
+    with pytest.raises(LeagueError, match="PCFL"):
+        resolve_league("PCFL")
 
 
 # ── errors ──
@@ -162,6 +195,12 @@ def test_release_league_section_loads() -> None:
     league = load_league()  # [athc] default_league -> [league.PNFL]
     assert league["play_path"]
     assert resolve_path(league["playpool_rules"]).is_file()
+
+
+@pytest.mark.usefixtures("release_config_dir")
+@pytest.mark.parametrize("name", ["PNFL", "PCFL"])
+def test_release_every_league_section_has_a_play_path(name: str) -> None:
+    assert load_league(name)["play_path"]
 
 
 @pytest.mark.usefixtures("release_config_dir")

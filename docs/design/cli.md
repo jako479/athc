@@ -154,7 +154,7 @@ Production users never set the var; the default `%LOCALAPPDATA%\athc` wins.
 
 ## Cross-cutting options: `--league`
 
-When a tool operates on league-specific data (gameplan, profile, playcatalog), it accepts `--league NAME`. This option lives on the command (or group) that needs it, **not** at the umbrella level. Non-league tools (generate-schedule, autocontinue) never see the flag.
+When a tool operates on league-specific data (gameplan, profile, generate-schedule), it accepts `--league NAME`. This option lives on the command (or group) that needs it, **not** at the umbrella level. Non-league tools (autocontinue, config) never see the flag.
 
 `-v/--verbose` is the one option that *does* sit on the root group: it applies to every command without exception, and the handler it configures is process-wide ([logging.md](logging.md#handler-setup)).
 

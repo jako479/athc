@@ -398,17 +398,17 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`;
 
 # `athc generate-schedule`
 
-In [test_generate_schedule.py](test_generate_schedule.py). Slow (full solve) → `pytest -m slow`; not run by default. Installs committed, test-owned inputs into the config dir — `data/league.ini` as `<season>.league.ini` and the frozen `data/PNFL.scheduler.toml` — then runs the scheduler end-to-end via the CLI at a fixed seed (no `--time-limit`; the rules file drives the solve), so the golden rides on explicit committed config, independent of in-code defaults and the shipped release rules. **Golden regression**: validates the produced schedule against every rule, cross-checks that the `.html` schedule encodes the same games as the `.txt`, and recomputes the report's ranks/SOS (`schedule_validation.py`); then asserts the three output files (schedule `.txt`/`.html`, report `.html`) byte-match the goldens in `expected/` (report's run-info fields normalized). Depends on the fixed `solver_workers` reproducibility contract. Regenerate goldens with `python -m tests.integration.test_generate_schedule --bless`.
+In [test_generate_schedule.py](test_generate_schedule.py). Slow (a full solve per league) → `pytest -m slow`; not run by default. One test parametrized over two test leagues — `divisions` (2026) and `conferences` (2029). For each it installs committed, test-owned inputs into the config dir — `data/<league>.<season>.ini`, the frozen `data/<league>.scheduler.toml`, an `athc.ini` with the league section — then runs the scheduler end-to-end via the CLI with `--league` at a fixed seed (no `--time-limit`; the rules file drives the solve). **Golden regression**: validates the produced schedule against every rule that applies to that league (`schedule_validation.py`, the one validator), cross-checks that the `.html` schedule encodes the same games as the `.txt`, recomputes the report's ranks/SOS, then asserts the three output files byte-match the league's goldens in `expected/` (`schedule_<season>.*`; report run-info fields normalized). Depends on the fixed `solver_workers` reproducibility contract. Regenerate both golden sets with `python -m tests.integration.test_generate_schedule --bless`.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Schedule follows every rule + matches golden | `data/league.ini`; `--season --seed` | exit 0; all rules pass; 3 files byte-equal to `expected/` goldens | `test_generate_schedule_matches_golden` | ☑ |
+| Schedule follows every rule + matches golden, per league | `data/<league>.<season>.ini`; `--league --season --seed` | exit 0; all rules pass; 3 files byte-equal to that league's `expected/` goldens | `test_generate_schedule_matches_golden[divisions]` / `[conferences]` | ☑ |
 
 ---
 
 # `athc.config` — league resolution (shared)
 
-In [test_config.py](test_config.py). Direct tests of `load_league()`, the shared resolver every `--league` tool calls. Reads an isolated `athc.ini` (the `config_dir` fixture) → integration tier, not unit. Convention: `[league.NAME]`; bare sections (`[athc]`, `[gameplan]`) are not leagues. `gameplan` / `profile` also exercise resolution through their CLIs.
+In [test_config.py](test_config.py). Direct tests of `load_league()` and `resolve_league()` (the name alone, same priority — the scheduler uses it), the shared resolver every `--league` tool calls. Reads an isolated `athc.ini` (the `config_dir` fixture) → integration tier, not unit. Convention: `[league.NAME]`; bare sections (`[athc]`, `[gameplan]`) are not leagues. `gameplan` / `profile` also exercise resolution through their CLIs.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -420,6 +420,7 @@ In [test_config.py](test_config.py). Direct tests of `load_league()`, the shared
 | Unknown league name | ask missing | `LeagueError` names `[league.PCFL]` | `test_unknown_league_errors` | ☑ |
 | Misspelled prefix `[leagu.AFCL]` | typo'd section | no parse error; inert — unlisted, selecting it errors | `test_misspelled_prefix_section_is_inert` | ☑ |
 | `[DEFAULT]` cascade + `%(key)s` | DEFAULT + league | play_path + roster_path interpolated | `test_default_cascade_and_interpolation` | ☑ |
+| `resolve_league()` returns the name | arg / env / default; none; unknown | name; `LeagueError` | `test_resolve_league_*` | ☑ |
 
 ## shipped `release/athc.ini`
 
@@ -428,6 +429,7 @@ In [test_config.py](test_config.py). Direct tests of `load_league()`, the shared
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | `[athc]` + `[league.PNFL]` via `load_league()` | release/ | play_path set; playpool_rules is a file | `test_release_league_section_loads` | ☑ |
+| Every `[league.*]` section (PNFL, PCFL) | release/ | play_path set | `test_release_every_league_section_has_a_play_path` | ☑ |
 | `[autocontinue]` | release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
 | `[gameplan]` + league | release/ | loads; playpool rules and rule files exist | `test_release_gameplan_config_loads` | ☑ |
 | `[profile]` | release/ | loads; rule files exist | `test_release_profile_config_loads` | ☑ |

@@ -82,11 +82,11 @@ The keys above illustrate the taxonomy and cascade; the shipped key set is `rele
 
 Rule-file settings (`[gameplan] rule_files`, `[profile] rule_files`, `[convert-pdb] playpool_rules`, league `playpool_rules`) accept **config-relative** paths: a relative value resolves against the config dir — where `athc.ini` lives — via [`athc.config.resolve_path`](../../src/athc/config.py); an absolute value is used unchanged. So `rule_files = rules\PNFL.gameplan.toml` points at the bundled `rules\` set and works **unchanged in dev and after install** — the same `athc.ini` serves both, since the config dir differs but the layout is identical.
 
-This is the mainstream config idiom (ruff, mypy resolve config paths relative to the config file, not the CWD). The exception, also matching ruff: paths passed on the CLI (`--rules`, `--playpool-rules`, `--play-path`) stay CWD-relative — they don't go through `resolve_path`. The scheduler's `rules\PNFL.scheduler.toml` is always read from the config dir directly and isn't listed in `athc.ini`.
+This is the mainstream config idiom (ruff, mypy resolve config paths relative to the config file, not the CWD). The exception, also matching ruff: paths passed on the CLI (`--rules`, `--playpool-rules`, `--play-path`) stay CWD-relative — they don't go through `resolve_path`. The scheduler's `rules\<league>.scheduler.toml` and `<league>.<season>.ini` are always read from the config dir directly and aren't listed in `athc.ini`.
 
 ## Multi-league selection
 
-Tools that operate on league-specific data take a `--league NAME` option on whichever node (group or leaf) actually needs it. **Not** a global `athc --league` flag — keeping it scoped means non-league tools (generate-schedule, autocontinue) don't see an irrelevant option.
+Tools that operate on league-specific data take a `--league NAME` option on whichever node (group or leaf) actually needs it. **Not** a global `athc --league` flag — keeping it scoped means non-league tools (autocontinue, config) don't see an irrelevant option.
 
 A shared decorator keeps the flag consistent:
 

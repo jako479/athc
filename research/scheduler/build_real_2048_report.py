@@ -25,7 +25,7 @@ from athc.scheduler.writers.report import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-LEAGUE_PATH = REPO_ROOT / "release" / "2048.league.ini"
+LEAGUE_PATH = REPO_ROOT / "release" / "PNFL.2048.ini"
 OUT_PATH = REPO_ROOT / "research" / "scheduler" / "reports" / "schedule_2048_real.html"
 SOURCE_URL = "https://pnfl.biz/pnflstats/PNFL_schedules.htm"
 

@@ -45,17 +45,19 @@ class LeagueError(ValueError):
     """Raised when no league can be resolved for a league-specific tool."""
 
 
-def load_league(league: str | None = None) -> dict[str, str]:
-    """Resolve the league and return its config section (with `%(key)s` resolved).
-
-    Reads `config_dir()/athc.ini` (set `ATHC_CONFIG_DIR` to override). Priority:
-    `league` arg → `ATHC_LEAGUE` env → `[athc] default_league`. Raises LeagueError
-    if none resolves or the named league has no section.
-    """
+def _read_athc_ini() -> tuple[Path, configparser.ConfigParser]:
     path = config_dir() / CONFIG_FILE
     cp = configparser.ConfigParser()  # BasicInterpolation: %(key)s works
     if path.is_file():
         cp.read(path, encoding="utf-8")
+    return path, cp
+
+
+def resolve_league(league: str | None = None) -> str:
+    """Resolve the league name: `league` arg → `ATHC_LEAGUE` env → `[athc]
+    default_league`. Raises LeagueError if none resolves or the named league has
+    no `[league.<name>]` section in `config_dir()/athc.ini`."""
+    path, cp = _read_athc_ini()
     name = (
         league
         or os.environ.get("ATHC_LEAGUE")
@@ -70,7 +72,14 @@ def load_league(league: str | None = None) -> dict[str, str]:
             "no league selected; use --league, ATHC_LEAGUE, or "
             f"[athc] default_league.{hint}"
         )
-    section = f"league.{name}"
-    if not cp.has_section(section):
-        raise LeagueError(f"league '{name}' has no [{section}] section in {path}")
-    return dict(cp[section])
+    if not cp.has_section(f"league.{name}"):
+        raise LeagueError(f"league '{name}' has no [league.{name}] section in {path}")
+    return name
+
+
+def load_league(league: str | None = None) -> dict[str, str]:
+    """Resolve the league (see `resolve_league`) and return its config section
+    (with `%(key)s` resolved)."""
+    name = resolve_league(league)
+    _, cp = _read_athc_ini()
+    return dict(cp[f"league.{name}"])

@@ -74,7 +74,7 @@ class HtmlScheduleWriter:
     """Write a nav-rich HTML schedule (week-by-week + team-by-team) to `path`."""
 
     path: StrPath
-    league_name: str = "PNFL"
+    league_name: str
     season_label: str | None = None
 
     def write(self, schedule: Schedule) -> None:

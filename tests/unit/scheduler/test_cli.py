@@ -1,7 +1,7 @@
 """Tests for `athc generate-schedule` argument handling and config errors.
 
 Config is resolved from `config_dir()` (autouse fixture). The CLI requires
-`<season>.league.ini` there. The real solve runs only in the slow fixtures;
+`<league>.<season>.ini` there. The real solve runs only in the slow fixtures;
 here `run_generate` is stubbed where needed.
 """
 
@@ -15,13 +15,21 @@ import athc.cli.generate_schedule as cli_module
 import athc.scheduler.main as main_module
 from athc.cli.generate_schedule import generate_schedule
 from athc.scheduler.config import ConfigError
+from athc.scheduler.schedulers.errors import SchedulerError
 
 from .test_config import LEAGUE_MISSING_DIVISION_STANDINGS, VALID_LEAGUE
 
 
+@pytest.fixture(autouse=True)
+def league_config(write_config, monkeypatch) -> None:
+    """A configured default league, so tests without --league resolve one."""
+    write_config("[athc]\ndefault_league = divisions\n\n[league.divisions]\n")
+    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
+
+
 def _write_season_files(config_dir: Path, season: int) -> None:
     """Dummy season file so resolution succeeds (content unused when stubbed)."""
-    (config_dir / f"{season}.league.ini").write_text("x", encoding="utf-8")
+    (config_dir / f"divisions.{season}.ini").write_text("x", encoding="utf-8")
 
 
 def test_requires_season(runner) -> None:
@@ -44,11 +52,11 @@ def test_no_worker_count_override(runner) -> None:
 
 
 def test_errors_when_league_file_missing(runner, caplog) -> None:
-    # Empty config_dir -> no <season>.league.ini -> clear error, exit 1.
+    # No divisions.2026.ini in the config dir -> clear error naming it, exit 1.
     with caplog.at_level("ERROR"):
         result = runner.invoke(generate_schedule, ["--season", "2026"])
     assert result.exit_code == 1
-    assert any("league" in r.getMessage() for r in caplog.records)
+    assert any("divisions.2026.ini" in r.getMessage() for r in caplog.records)
 
 
 def test_errors_on_oserror(runner, monkeypatch, caplog, config_dir: Path) -> None:
@@ -69,7 +77,7 @@ def test_errors_when_dependency_missing(
     runner, monkeypatch, caplog, config_dir: Path
 ) -> None:
     # Missing solver dep -> exit 1, message names the module + the extra to install.
-    (config_dir / "2048.league.ini").write_text("x", encoding="utf-8")
+    _write_season_files(config_dir, 2048)
 
     def boom(**_: object) -> None:
         raise ModuleNotFoundError("No module named 'ortools'", name="ortools")
@@ -79,6 +87,22 @@ def test_errors_when_dependency_missing(
         result = runner.invoke(generate_schedule, ["--season", "2048"])
     assert result.exit_code == 1
     assert any("ortools" in r.getMessage() for r in caplog.records)
+
+
+def test_errors_when_no_feasible_schedule(
+    runner, monkeypatch, caplog, config_dir: Path
+) -> None:
+    # A solver SchedulerError is a clean one-line exit 1, like a config error.
+    _write_season_files(config_dir, 2048)
+
+    def boom(**_: object) -> None:
+        raise SchedulerError("CP-SAT returned status INFEASIBLE - no feasible schedule")
+
+    monkeypatch.setattr(cli_module, "run_generate", boom)
+    with caplog.at_level("ERROR"):
+        result = runner.invoke(generate_schedule, ["--season", "2048"])
+    assert result.exit_code == 1
+    assert any("no feasible schedule" in r.getMessage() for r in caplog.records)
 
 
 class _ReachedSolver(Exception):
@@ -99,6 +123,7 @@ def _stub_solver(monkeypatch) -> None:
 
 def _run_main(league_path: Path, tmp_path: Path) -> None:
     main_module.generate_schedule(
+        league="divisions",
         season=2048,
         config_path=tmp_path / "rules.toml",
         league_path=league_path,
@@ -129,7 +154,7 @@ def test_cli_errors_without_division_standings(
     runner, caplog, config_dir: Path
 ) -> None:
     # End to end through the CLI: clean exit 1, message names the section.
-    (config_dir / "2048.league.ini").write_text(
+    (config_dir / "divisions.2048.ini").write_text(
         LEAGUE_MISSING_DIVISION_STANDINGS, encoding="utf-8"
     )
     with caplog.at_level("ERROR"):
@@ -138,15 +163,43 @@ def test_cli_errors_without_division_standings(
     assert any("DivisionStandings" in r.getMessage() for r in caplog.records)
 
 
-def test_season_resolves_files_and_outputs_to_cwd(
-    runner, monkeypatch, config_dir: Path, tmp_path: Path
+def test_league_and_season_resolve_files_and_output_to_cwd(
+    runner, monkeypatch, config_dir: Path, tmp_path: Path, write_config
 ) -> None:
-    # --season resolves the league file; output_dir is the current directory.
+    # --league names the league; --season picks its file; output_dir is cwd.
+    write_config("[league.divisions]\n")
     _write_season_files(config_dir, 2048)
     captured: dict[str, object] = {}
     monkeypatch.setattr(cli_module, "run_generate", lambda **kw: captured.update(kw))
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(generate_schedule, ["--season", "2048"])
-    assert result.exit_code == 0
-    assert captured["league_path"] == config_dir / "2048.league.ini"
+    result = runner.invoke(
+        generate_schedule, ["--league", "divisions", "--season", "2048"]
+    )
+    assert result.exit_code == 0, result.output
+    assert captured["league"] == "divisions"
+    assert captured["league_path"] == config_dir / "divisions.2048.ini"
+    assert captured["config_path"] == config_dir / "rules" / "divisions.scheduler.toml"
     assert captured["output_dir"] == Path.cwd()  # output goes to the current dir
+
+
+def test_errors_when_league_has_no_section(runner, caplog, config_dir: Path) -> None:
+    # --league names a league athc.ini does not define -> exit 1 naming the section.
+    _write_season_files(config_dir, 2048)
+    with caplog.at_level("ERROR"):
+        result = runner.invoke(
+            generate_schedule, ["--league", "nope", "--season", "2048"]
+        )
+    assert result.exit_code == 1
+    assert any("[league.nope]" in r.getMessage() for r in caplog.records)
+
+
+def test_errors_when_no_league_is_configured(
+    runner, caplog, config_dir: Path, write_config
+) -> None:
+    # No --league, no ATHC_LEAGUE, no [athc] default_league -> exit 1.
+    write_config("[league.divisions]\n")
+    _write_season_files(config_dir, 2048)
+    with caplog.at_level("ERROR"):
+        result = runner.invoke(generate_schedule, ["--season", "2048"])
+    assert result.exit_code == 1
+    assert any("no league selected" in r.getMessage() for r in caplog.records)

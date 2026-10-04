@@ -1,52 +1,39 @@
 # scheduler — Test Matrix: Phase 2 (Schedule Placement)
 
-Cases for `schedule_builder.py`, derived from the code then reconciled with the suite. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). Design: [phase-2-schedule.md](../../../docs/scheduler/phase-2-schedule.md).
+Cases for `schedule_builder.py`. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). Design: [phase-2-schedule.md](../../../docs/scheduler/phase-2-schedule.md).
 
-One row per behavior. Status: ☑ covered · ☐ no test yet. Solver-backed cases are `slow` (`pytest -m slow`).
+Two layers. Model wiring in `test_schedule_builder.py` (fast, no solve). Every rule on a solved schedule in `test_schedule_rules.py`, through the one validator (`tests/integration/schedule_validation.py`), for every league case: two divisional standings variants, the conference league in an even season, an odd season, and with rotation off. Solved cases are `slow` (`pytest -m slow`). Status: ☑ covered · ☐ no test yet.
 
-These rules are also re-validated end-to-end by `test_schedule_structure.py` / `test_schedule_rules.py` in the `fixed_cpsat/` folder.
+### Solved schedules — the validator (every case)
+| Rule group | Applies when | Status |
+|---|---|---|
+| Structure: `weeks × 9` games, 9 a week, one game per team per week, `weeks / 2` home, no self play | always | ☑ |
+| Inventory: divisional pairs twice (split home/away), conference pairs once, non-conference ≤ once, counts from the league | always | ☑ |
+| Hosting: half the conference games, half the non-conference games (odd game either way) | always | ☑ |
+| Max consecutive home/away (`max_consecutive_home_or_away`) | always | ☑ |
+| 2–4 home in every 6 weeks | `require_home_balance_per_six_weeks` | ☑ |
+| First / last 3 weeks mix home and away | `require_mixed_home_away_at_season_ends` | ☑ |
+| ≤ N three-game home/away streaks per team; league caps on streak teams | `require_home_away_streak_caps` | ☑ |
+| Opening weeks all non-conference | `opening_nonconference_weeks` > 0 | ☑ |
+| Conference-sequence streak cap | `max_consecutive_conference_home_or_away` > 0 | ☑ |
+| Rivalry week is exactly the pairs; host by season parity | `[rivalries]`; `rotate_home_by_season` | ☑ |
+| No back-to-back rematch | divisions | ☑ |
+| Divisional streaks, start/end, density and front-load by division size, non-interleaved cap, opening-pair caps | divisions | ☑ |
+| League caps: divisional streak teams, bunched rivals, close rematches | divisions | ☑ |
+| Final week all-divisional; a divisional game in the last two weeks | divisions + toggles | ☑ |
 
-### Normal
+Tests: `test_solved_schedule_obeys_every_rule`, `test_solved_schedule_realizes_the_phase_one_inventory`, `test_even_season_first_listed_rival_hosts`, `test_odd_season_second_listed_rival_hosts`, `test_rotation_off_still_plays_rivalries_in_the_final_week`.
+
+### Model wiring (`test_schedule_builder.py`)
 | Case | Expected | Test | Status |
 |---|---|---|---|
-| One game per team per week | 16 games/team, one per week | `test_each_team_plays_exactly_one_game_each_week` | ☑ |
-| Host exactly 8 | 8 home / 8 away | `test_each_team_hosts_exactly_eight_games` | ☑ |
-| Total games | 144 (16 × 9) | `test_game_count`, `test_each_week_has_nine_games` | ☑ |
-| Realizes phase-1 inventory | each pair 0/1/2× as selected | `test_two_phase_schedule_matches_phase_one_inventory` | ☑ |
-| No team plays itself | — | `test_no_team_plays_itself` | ☑ |
-| Divisional home split | each team hosts the rival once | `test_each_divisional_pair_is_split_one_home_one_away` | ☑ |
-| Same-conf cross-division once | appears once | `test_same_conference_cross_division_pairs_appear_once` | ☑ |
-| Conference home balance (fixed, not configurable) | 5-team host 2; 4-team 2,2,3,3 | `test_five_team_divisions_split_conference_home_games_evenly`, `test_four_team_divisions_split_conference_home_games_2_2_3_3` | ☑ |
-| Non-conference home balance (fixed, not configurable) | 5-team host 2; 4-team 2,2,3,3 | `test_five_team_divisions_have_two_nonconference_home_games`, `test_four_team_divisions_split_nonconference_home_games_2_2_3_3` | ☑ |
-| Non-conference counts | match division size | `test_nonconference_game_counts_match_division_size` | ☑ |
-| Divisional front-load caps | 5-team ≤3/5wk, ≤4/6wk, ≤5/8wk, ≤6/10wk; 4-team ≤2/4wk, ≤3/8wk, ≤4/10wk | `test_divisional_front_load_caps` | ☑ |
-| Final week divisional | exactly 8 (toggle on) | `test_week_16_has_exactly_eight_divisional_games` | ☑ |
-| Deterministic by seed | reproducible schedule | `test_schedule_is_deterministic_for_a_seed` | ☑ |
-
-### Edge
-| Case | Expected | Test | Status |
-|---|---|---|---|
-| No 4 straight home/away | every 4-week window mixed | `test_no_four_consecutive_home_or_away_games` | ☑ |
-| 6-week home window | 2–4 home | `test_max_four_home_or_away_games_in_any_six_game_span` | ☑ |
-| First/last 3 weeks | 1–2 home | `test_no_three_game_home_or_away_streak_to_start_or_end` | ☑ |
-| ≤1 total 3-game home/away streak | per team | `test_max_one_total_home_or_away_three_game_streak` | ☑ |
-| ≤3 straight divisional (never 4) | per team | `test_no_four_consecutive_divisional_games` | ☑ |
-| Open weeks 1–2 divisional | ≤4 teams; ≤1 four-team, ≤2 five-team | `test_at_most_four_teams_open_with_back_to_back_divisional_games`, `test_at_most_one_four_team_opens_with_divisional_pair`, `test_at_most_two_five_team_open_with_divisional_pair` | ☑ |
-| No 3 straight divisional at start/end | per team | `test_no_three_consecutive_divisional_games_to_start_or_end` | ☑ |
-| ≤1 total 3-game divisional streak | per team | `test_max_one_total_three_game_divisional_streak` | ☑ |
-| Divisional density | 5-team ≤6/9 (forces ≤7/10); 4-team ≤4/7 | `test_divisional_density_windows` | ☑ |
-| ≤2 non-interleaved divisional opponents | per team | `test_at_most_two_divisional_opponents_are_non_interleaved` | ☑ |
-| ≥1 divisional in last 2 weeks | per team | `test_each_team_has_divisional_game_in_last_two_weeks` | ☑ |
-| No back-to-back pair meetings | — | `test_no_pair_of_teams_plays_in_back_to_back_weeks` | ☑ |
-| League caps: 3-game streaks | ≤9 home, ≤3 away, ≤6 divisional teams | `test_league_caps_on_three_game_streaks` | ☑ |
-| League cap: bunched rivals | ≤2 teams with 2 non-interleaved | `test_league_cap_on_teams_with_two_bunched_rivals` | ☑ |
-| League cap: close rematches | ≤3 within a 3-week span | `test_league_cap_on_close_rematches` | ☑ |
-| Soft objective wired | model minimizes 8 metrics (16 slack terms) | `test_soft_objective_is_added_to_the_model` | ☑ |
+| Soft objective wired | 8 metrics, 16 slack terms | `test_soft_objective_is_added_to_the_model` | ☑ |
+| Reproducible parallel search | fixed workers, interleave, deterministic time | `test_solver_is_configured_for_reproducible_parallel_search` | ☑ |
 | Rule gating (no divisions) | no `d_`/streak/objective parts; toggles add only when on; window follows the cap | `test_league_without_divisions_has_no_divisional_model_parts`, `test_home_away_toggles_add_constraints_only_when_on`, `test_streak_caps_on_without_divisions_is_allowed`, `test_max_consecutive_window_follows_the_cap` | ☑ |
 | Opening non-conference weeks | one constraint per team-week | `test_opening_nonconference_weeks_add_one_constraint_per_team_week` | ☑ |
 | Conference-sequence cap | two constraints per window | `test_conference_streak_cap_adds_two_constraints_per_window` | ☑ |
 | Rivalry week | one constraint per pair; host pinned by parity; season required | `test_rivalry_week_adds_one_constraint_per_pair`, `test_rivalry_rotation_pins_the_host_by_season_parity`, `test_rivalry_rotation_needs_a_season` | ☑ |
-| PNFL model pinned | phase-1 and phase-2 proto hashes unchanged | `test_pnfl_phase_models_are_unchanged` | ☑ |
+| Models pinned per league | phase-1 and phase-2 proto hashes unchanged | `test_phase_models_are_unchanged` (`test_model_checksum.py`) | ☑ |
 
 ### Error
 | Case | Expected | Test | Status |

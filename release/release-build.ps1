@@ -50,8 +50,8 @@ foreach ($name in "athc.ini", "install.bat") {
     Copy-Item (Join-Path $scriptRoot $name) $staging
 }
 
-# Stage season config files: <season>.league.ini.
-foreach ($pattern in "*.league.ini") {
+# Stage the standings files: <league>.<season>.ini.
+foreach ($pattern in "*.*.ini") {
     Get-ChildItem -Path $scriptRoot -Filter $pattern | ForEach-Object {
         Write-Host "  Staging: $($_.Name)"
         Copy-Item $_.FullName $staging

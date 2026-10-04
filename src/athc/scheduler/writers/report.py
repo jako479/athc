@@ -181,6 +181,7 @@ class HtmlReportWriter:
     """Render a `ScheduleReport` as a sortable HTML table to `path`."""
 
     path: StrPath
+    league_name: str
 
     def write(self, report: ScheduleReport) -> None:
         Path(self.path).write_text(self.render(report), encoding="utf-8")
@@ -206,14 +207,15 @@ class HtmlReportWriter:
         body_rows = "".join(
             self._row(index, team) for index, team in enumerate(report.teams)
         )
+        title = escape(f"{self.league_name} Schedule Report")
         return "\n".join(
             [
                 "<!DOCTYPE html>",
                 "<html><head><meta charset='utf-8'>",
-                "<title>PNFL Schedule Report</title>",
+                f"<title>{title}</title>",
                 _STYLE,
                 "</head><body>",
-                "<h1>PNFL Schedule Report</h1>",
+                f"<h1>{title}</h1>",
                 info_html,
                 f"<table><thead><tr>{header_cells}</tr></thead>",
                 f"<tbody>{body_rows}</tbody></table>",

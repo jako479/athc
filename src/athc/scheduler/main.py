@@ -28,6 +28,7 @@ StrPath = str | PathLike[str]
 
 def generate_schedule(
     *,
+    league: str,
     season: int,
     config_path: StrPath,
     league_path: StrPath,
@@ -36,24 +37,24 @@ def generate_schedule(
     time_limit: int | None,
     command_line: str,
 ) -> SchedulerResult:
-    """Solve the season schedule and write outputs to `output_dir`.
+    """Solve `league`'s season schedule and write outputs to `output_dir`.
 
     Writes a `.txt` and `.html` schedule plus an `.html` report, all named
-    `schedule_<season>_<YYYYMMDD_HHMM>` (the report adds a `_report` suffix).
-    Returns the solver result.
+    `schedule_<season>_<YYYYMMDD_HHMM>` (the report adds a `_report` suffix);
+    the league name titles the HTML files. Returns the solver result.
     """
-    scheduler_config = load_scheduler_config()  # config_path = report provenance
+    scheduler_config = load_scheduler_config(config_path, required=False)
     if time_limit is not None:  # CLI --time-limit overrides the configured value
         scheduler_config = replace(
             scheduler_config,
             solver=replace(scheduler_config.solver, time_limit=time_limit),
         )
-    league = load_league(league_path)  # either standings section
+    structure = load_league(league_path)  # either standings section
 
     logger.info("Generating the %d schedule", season)
     started = time.perf_counter()
     result = get_scheduler()(
-        league=league,
+        league=structure,
         seed=seed,
         scheduler_config=scheduler_config,
         season=season,
@@ -65,20 +66,20 @@ def generate_schedule(
     report_path = base.with_name(f"{base.name}_report.html")
 
     TxtScheduleWriter(base.with_suffix(".txt")).write(result.schedule)
-    HtmlScheduleWriter(base.with_suffix(".html"), season_label=str(season)).write(
-        result.schedule
-    )
+    HtmlScheduleWriter(
+        base.with_suffix(".html"), league_name=league, season_label=str(season)
+    ).write(result.schedule)
     report = build_schedule_report(
         schedule=result.schedule,
         matchup_plan=result.matchup_plan,
-        league=league,
+        league=structure,
         seed=seed,
         config_path=config_path,
         elapsed_time_seconds=elapsed,
         command_line=command_line,
         difficulty_spread=scheduler_config.difficulty.spread,
     )
-    HtmlReportWriter(report_path).write(report)
+    HtmlReportWriter(report_path, league_name=league).write(report)
     logger.info(
         "Generated %d games -> %s.{txt,html}; report -> %s (seed %d)",
         len(result.schedule.games),

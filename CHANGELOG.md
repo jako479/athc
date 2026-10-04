@@ -71,6 +71,7 @@
 
 ## scheduler
 
+- league-agnostic: `--league` on `generate-schedule`; standings are `<league>.<season>.ini` and rules `rules\<league>.scheduler.toml`; conferences, divisions and same-place games come from the standings file; a solver failure exits 1; the PCFL ships in `dev/` and `release/`; one test suite for every league
 - second league format: a league without divisions (`[ConferenceStandings]`), `[league] weeks`, opening non-conference weeks, a conference-sequence streak cap, rivalry week with home rotation by season; PCFL 2029 data files
 - corrected the phase-2 solver worker count in the design doc
 - removed references to the dropped A, B, C and D schedulers from the league.ini files and release docs

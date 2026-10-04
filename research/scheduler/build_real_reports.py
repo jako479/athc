@@ -138,7 +138,7 @@ def render(report, info_lines: tuple[tuple[str, str], ...], out_path: Path) -> s
 
 
 def build(season: int) -> None:
-    league = load_league(REPO_ROOT / "release" / f"{season}.league.ini")
+    league = load_league(REPO_ROOT / "release" / f"PNFL.{season}.ini")
     games = parse_games(league.teams, SCHEDULES[season])
     schedule = Schedule(games=tuple(games))
     validate(schedule, league.teams)

@@ -1,0 +1,55 @@
+# Frozen scheduler rules for the conference test league (the generate-schedule golden and
+# model-checksum tests). Test-owned; mirrors the shipped conference-league rules except
+# spread. Installed to the config dir's
+# rules\ folder for the test run. A missing key falls back to the built-in default
+# (the divisional league's), so every rule this league does differently is set here.
+
+schema_version = 1
+
+[league]
+weeks = 12               # regular-season weeks (even): 8 conference + 4 non-conference games
+
+[difficulty]
+# Nothing is fixed by standings (no divisions): the solver picks every
+# non-conference game, tilting each team's average opponent conference rank
+# (1-9) by spread. 0.0 = flat: every team's opponents average near rank 5.
+# 2.5 = max: #1's opponents average near 3.0. Linear between.
+spread = 2.5  # 2.5, not the flat 0.0: proving the flat line optimal takes ~30 s; the checksum test runs in the fast suite
+
+[solver]
+time_limit = 300.0       # max deterministic time for the week-placement (phase-2) solve
+phase1_time_limit = 180.0 # max seconds for the matchup (phase-1) solve
+solver_workers = 8       # keep fixed everywhere: the schedule changes with the worker count
+
+[phase2]
+# Fixed policy rules (always enforced, no setting):
+# - Every conference team once: 4 home / 4 away.
+# - Non-conference: 2 home / 2 away.
+# - A 9-team conference cannot pair up, so each week after the opening weeks
+#   holds one cross-conference game between the two idle teams (each team's
+#   fourth non-conference game).
+
+max_consecutive_home_or_away = 3
+max_consecutive_conference_home_or_away = 2  # along the sequence of conference games
+opening_nonconference_weeks = 3              # weeks 1-3 are all non-conference
+
+# NFL-pattern home/away rules, off for this league
+require_home_balance_per_six_weeks = false
+require_home_away_streak_caps = false
+require_mixed_home_away_at_season_ends = false
+
+[rivalries]
+# The final week is rivalry week: every team plays its rival. Eight pairs are
+# within a conference; one crosses (each conference's leftover team).
+rotate_home_by_season = true   # first-listed hosts in even seasons, second in odd
+pairs = [
+    ["Michigan", "Ohio State"],
+    ["USC", "UCLA"],
+    ["Washington", "Oregon"],
+    ["Notre Dame", "Colorado"],
+    ["Oklahoma", "Texas"],
+    ["LSU", "Arkansas"],
+    ["Georgia", "Tennessee"],
+    ["Clemson", "Miami"],
+    ["Penn State", "Boston College"],
+]

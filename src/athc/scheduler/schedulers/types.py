@@ -30,11 +30,11 @@ class SchedulerResult:
 SchedulerFunc = Callable[..., SchedulerResult]
 
 # --- The scheduler -----------------------------------------------------------
-# There is one scheduler: fixed-place + CP-SAT. It fixes two non-conference
-# games per team by division standings (5ths play each other), then one CP-SAT
-# solve picks the rest along the difficulty line (spread); phase 2 (week
-# placement) follows. Algorithm: docs/scheduler/phase-1-matchups-fixed-cpsat.md.
-SCHEDULER_DESCRIPTION = "fixed-place + CP-SAT"
+# There is one scheduler: two-phase CP-SAT. Phase 1 fixes the same-place pairs
+# and any cross-conference rivalry, then one CP-SAT solve picks the rest along
+# the difficulty line (spread); phase 2 (week placement) follows. Algorithm:
+# docs/scheduler/phase-1-matchups.md.
+SCHEDULER_DESCRIPTION = "two-phase CP-SAT"
 
 
 def get_scheduler() -> SchedulerFunc:
@@ -44,6 +44,6 @@ def get_scheduler() -> SchedulerFunc:
     `SchedulerResult` defined above, so an eager module-level import would
     form a cycle.
     """
-    from athc.scheduler.schedulers.fixed_cpsat_scheduler import generate_schedule
+    from athc.scheduler.schedulers.scheduler import generate_schedule
 
     return generate_schedule
