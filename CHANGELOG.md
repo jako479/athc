@@ -78,6 +78,7 @@ high-level change completed alongside it gets its own line.
 
 ## scheduler
 
+- `solver_workers = "auto"` (the new default) uses the CPU's fast threads minus 2; the report shows the CPU and thread count
 - phase 1 runs multithreaded like phase 2; `phase1_time_limit` is now deterministic time (default 120)
 - league-agnostic: `--league` picks the league; conferences, divisions and same-place games come from the standings file; a solver failure exits 1; the PCFL ships in `dev/` and `release/`; one test suite for every league
 - second league format: a league without divisions (`[ConferenceStandings]`), `[league] weeks`, opening non-conference weeks, a conference-sequence streak cap, rivalry week with home rotation by season; PCFL 2029 data files

@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from os import PathLike
 from pathlib import Path
-from typing import Any
+from typing import Any, Final, Literal
 
 from athc.config import RULES_DIR, STANDINGS_DIR, league_dir
 from athc.scheduler.domain.league import (
@@ -30,15 +30,15 @@ DEFAULT_TIME_LIMIT = 300.0  # phase-2 (week-placement) solve, deterministic time
 DEFAULT_PHASE1_TIME_LIMIT = 120.0  # phase-1 (matchup) solve, deterministic time
 DEFAULT_DIFFICULTY_SPREAD = 2.5  # difficulty tilt on the 1-9 conference scale
 
-# Parallel search width for both phases. CP-SAT interleave search is
+# Parallel search width for both phases: a worker count, or "auto" for this
+# machine's fast threads minus two (see cpu.py). CP-SAT interleave search is
 # reproducible only at a FIXED worker count -- the result changes with the count
-# -- so this is a pinned setting (not os.cpu_count(), not CLI-overridable). The
-# same seed gives the same matchups and schedule only when everyone uses the
-# same value, so treat it as a stable contract: changing it re-rolls every
-# seed's matchups and schedule. Default 8 is a balance -- enough parallelism to
-# be fast, low enough to not heavily oversubscribe smaller (e.g. 4-core)
-# machines; higher can be faster on many-core CPUs but is not required.
-DEFAULT_SOLVER_WORKERS = 8
+# -- so the same seed gives the same matchups and schedule only at the same
+# count. "auto" therefore varies by machine; the report shows the count used,
+# and setting that number reproduces the schedule anywhere. Not CLI-overridable.
+AUTO_WORKERS: Final = "auto"
+type SolverWorkers = int | Literal["auto"]
+DEFAULT_SOLVER_WORKERS: SolverWorkers = AUTO_WORKERS
 
 
 class ConfigError(Exception):
@@ -64,7 +64,7 @@ class DifficultyConfig:
 class SolverConfig:
     time_limit: float = DEFAULT_TIME_LIMIT
     phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT
-    solver_workers: int = DEFAULT_SOLVER_WORKERS
+    solver_workers: SolverWorkers = DEFAULT_SOLVER_WORKERS
 
 
 @dataclass(frozen=True)
@@ -196,9 +196,7 @@ def load_scheduler_config(path: StrPath, *, required: bool = True) -> SchedulerC
             phase1_time_limit=_number(
                 solver, "phase1_time_limit", DEFAULT_PHASE1_TIME_LIMIT, resolved
             ),
-            solver_workers=_int(
-                solver, "solver_workers", DEFAULT_SOLVER_WORKERS, resolved
-            ),
+            solver_workers=_workers(solver, "solver_workers", resolved),
         ),
         phase2=_phase2(data.get("phase2", {}), resolved),
         rivalries=_rivalries(data.get("rivalries"), resolved),
@@ -275,6 +273,20 @@ def _int(section: Mapping[str, Any], key: str, default: int, path: Path) -> int:
     value = section[key]
     if isinstance(value, bool) or not isinstance(value, int):
         raise ConfigError(f"Config file '{path}': '{key}' must be an integer.")
+    return value
+
+
+def _workers(section: Mapping[str, Any], key: str, path: Path) -> SolverWorkers:
+    if key not in section:
+        return DEFAULT_SOLVER_WORKERS
+    value = section[key]
+    if value == AUTO_WORKERS:
+        return AUTO_WORKERS
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ConfigError(
+            f"Config file '{path}': '{key}' must be a positive integer or "
+            f'"{AUTO_WORKERS}".'
+        )
     return value
 
 

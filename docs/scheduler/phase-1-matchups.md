@@ -20,7 +20,7 @@ Each team's non-conference count is `weeks` minus its structural games (a 4-team
 
    `target(rank) = 5 + spread × (rank − 5) / 4`
 
-   `spread` (rules toml, default 2.5): 0 = flat, 2.5 = max useful tilt. The target is soft (minimax on the worst miss, then total); worst observed miss across the test leagues is 0.75 ranks. Each team also draws ≥1 top-half and ≥1 bottom-half opponent. The solve runs like phase 2's — multithreaded across `solver_workers`, stopping on `phase1_time_limit` in deterministic time — so it is reproducible per seed (at a fixed worker count); when several matchup sets tie at the optimum, the seed picks one.
+   `spread` (rules toml, default 2.5): 0 = flat, 2.5 = max useful tilt. The target is soft (minimax on the worst miss, then total); worst observed miss across the test leagues is 0.75 ranks. Each team also draws ≥1 top-half and ≥1 bottom-half opponent. The solve runs like phase 2's — multithreaded across `solver_workers` (a number, or `"auto"` = fast threads minus 2), stopping on `phase1_time_limit` in deterministic time — so it is reproducible per seed (at the same worker count); when several matchup sets tie at the optimum, the seed picks one.
 
 ## Validation
 

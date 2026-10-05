@@ -200,6 +200,33 @@ def test_load_scheduler_config_errors_on_non_integer_workers(config_dir: Path) -
         _load()
 
 
+def test_solver_workers_defaults_to_auto(config_dir: Path) -> None:
+    _league_folder(config_dir)  # no rules file: every default
+    assert _load().solver.solver_workers == "auto"
+
+
+def test_solver_workers_accepts_auto(config_dir: Path) -> None:
+    _write_scheduler_toml(config_dir, '[solver]\nsolver_workers = "auto"\n')
+    assert _load().solver.solver_workers == "auto"
+
+
+def test_solver_workers_accepts_one(config_dir: Path) -> None:
+    _write_scheduler_toml(config_dir, "[solver]\nsolver_workers = 1\n")
+    assert _load().solver.solver_workers == 1
+
+
+def test_solver_workers_rejects_zero(config_dir: Path) -> None:
+    _write_scheduler_toml(config_dir, "[solver]\nsolver_workers = 0\n")
+    with pytest.raises(ConfigError, match="solver_workers"):
+        _load()
+
+
+def test_solver_workers_rejects_other_text(config_dir: Path) -> None:
+    _write_scheduler_toml(config_dir, '[solver]\nsolver_workers = "Auto"\n')
+    with pytest.raises(ConfigError, match="solver_workers"):
+        _load()
+
+
 def test_load_scheduler_config_errors_on_invalid_spread(config_dir: Path) -> None:
     _write_scheduler_toml(config_dir, '[difficulty]\nspread = "steep"\n')
     with pytest.raises(ConfigError):

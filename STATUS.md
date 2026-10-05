@@ -225,6 +225,10 @@ Working. Docs: [README](docs/scheduler/README.md) ·
 [phase 1](docs/scheduler/phase-1-matchups.md) ·
 [phase 2](docs/scheduler/phase-2-schedule.md)
 
+- `solver_workers = "auto"` is the default: the CPU's fast threads (P-cores
+  on Intel hybrid CPUs) minus 2. A benchmark on an i5-14600KF found 8-12
+  threads fastest and 18-24 slower. The report shows the CPU, thread count and
+  seed, so a schedule can be reproduced on another machine.
 - League-agnostic: `athc --league NAME` picks the league; its standings are
   `standings\<season>.league.ini` and its rules `rules\scheduler.toml` in the
   league folder. Conferences and divisions come from the standings file, the
@@ -275,8 +279,8 @@ construction, never pruned · then the quirk budget in
   and whether the two tools keep their other subcommands.
 - **Compatibility rules live in the rules file, not the code.** They are league
   rules like any other, so a league enables each direction itself.
-- **`solver_workers = 8` is a reproducibility contract.** Change it and every
-  seed re-rolls, so it is config-only.
+- **`solver_workers` defaults to `"auto"`.** A seed reproduces only at the same
+  thread count, so the report shows the count and it stays config-only.
 - **The config command is `reveal`, not `explorer`.** It opens the config dir
   in Explorer, but the name should not promise Windows.
 - **A bundled `.exe` still needs a real config folder.** Whatever ships can

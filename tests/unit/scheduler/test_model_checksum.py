@@ -65,6 +65,7 @@ def test_phase_models_are_unchanged(
         rivalries=rivalries,
         spread=config.difficulty.spread,
         phase1_time_limit=config.solver.phase1_time_limit,
+        workers=config.solver.solver_workers,  # the frozen count, not "auto"
         seed=0,
     )
     fixed = builder._same_place_pairs() | builder._rivalry_pairs()

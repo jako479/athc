@@ -6,7 +6,7 @@ Phase 2 takes the fixed inventory from phase 1 (`weeks` × 9 pairings) and uses 
 
 - Decision var `x[home, away, week]` (bool) per ordered team pair and week. Helper bools: `h[team, week]` (home that week), `d[team, week]` (divisional game that week).
 - Output: a `Schedule` of `weeks` × 9 games.
-- Solve: seeded + randomized interleaved search across `solver_workers` workers (default 8), stopping on deterministic time — not wall-clock — so results are machine-speed independent. Reproducible only for a fixed seed *and* a fixed worker count. No feasible solution (or timeout) errors.
+- Solve: seeded + randomized interleaved search across `solver_workers` workers (default `"auto"` = this CPU's fast threads minus 2), stopping on deterministic time — not wall-clock — so results are machine-speed independent. Reproducible only for the same seed *and* the same worker count; the report shows both. No feasible solution (or timeout) errors.
 
 ## Which rules apply
 

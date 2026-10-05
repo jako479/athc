@@ -14,9 +14,10 @@ from dataclasses import replace
 
 import pytest
 
+from athc.scheduler import cpu
 from athc.scheduler.config import DEFAULT_SOLVER_WORKERS, resolve_rivalries
 from athc.scheduler.domain.league import League, Team, build_league
-from athc.scheduler.domain.schedule import GAMES_PER_WEEK
+from athc.scheduler.domain.schedule import GAMES_PER_WEEK, Schedule
 from athc.scheduler.schedulers import matchup_builder, scheduler
 from athc.scheduler.schedulers.matchup_builder import MatchupBuilder, difficulty_target
 from athc.scheduler.schedulers.types import (
@@ -202,6 +203,32 @@ def test_scheduler_runs_phase_1_with_the_configured_solver_workers(
             case.league, seed=5, scheduler_config=config, season=case.season
         )
     assert calls == [(5, 77.0, 3)]
+
+
+def test_scheduler_resolves_auto_workers_once_and_returns_the_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # "auto" becomes one fixed count for both phases, returned with the result
+    # so the report can show it.
+    calls = _spy_on_solver(monkeypatch)
+    monkeypatch.setattr(cpu, "fast_thread_count", lambda: 12)
+    phase2_workers: list[object] = []
+
+    def fake_phase2(self: object, **kwargs: object) -> Schedule:
+        phase2_workers.append(kwargs["workers"])
+        return Schedule(games=())
+
+    monkeypatch.setattr(scheduler.ScheduleBuilder, "build_schedule", fake_phase2)
+    case = MATCHUP_CASES[0]
+    config = replace(
+        case.config, solver=replace(case.config.solver, solver_workers="auto")
+    )
+    result = scheduler.generate_schedule(
+        case.league, seed=5, scheduler_config=config, season=case.season
+    )
+    assert [workers for _, _, workers in calls] == [10]
+    assert phase2_workers == [10]
+    assert result.workers == 10
 
 
 @pytest.mark.parametrize(

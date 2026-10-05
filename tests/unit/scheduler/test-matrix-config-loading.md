@@ -11,6 +11,7 @@ In `test_config.py` and `test_cli.py`. The test league is named `divisions`. Sta
 | No file | all defaults | `test_load_scheduler_config_defaults_when_no_file` | ☑ |
 | Missing keys | per-key defaults | `test_load_scheduler_config_defaults_when_keys_missing` | ☑ |
 | Bad value / TOML / unknown key | `ConfigError` | `test_load_scheduler_config_errors_*`, `test_load_scheduler_config_rejects_*` | ☑ |
+| `solver_workers` | default and `"auto"` → `"auto"`; 1 accepted; 0 and other text rejected | `test_solver_workers_*` | ☑ |
 | `[phase2]`, `[league]`, `[rivalries]` | parsed; defaults; 0 off, -1 error; bad shapes error | `test_load_scheduler_config_reads_*`, `test_zero_is_off_and_negative_is_rejected` | ☑ |
 | Explicit path missing | `ConfigError`; `required=False` → defaults; present → read | `test_load_scheduler_config_explicit_path_must_exist`, `test_load_scheduler_config_optional_path_*` | ☑ |
 | `check_weeks` / `check_opening_weeks` / `resolve_rivalries` | both sides of each limit | `test_check_weeks_*`, `test_check_opening_weeks_*`, `test_resolve_rivalries_*` | ☑ |

@@ -6,6 +6,8 @@ the rendering tests need no solver.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from athc.scheduler.writers.report import (
     HtmlReportWriter,
     ScheduleReport,
@@ -56,6 +58,14 @@ def test_html_report_title_carries_the_league_name() -> None:
     html = HtmlReportWriter("unused", league_name="Test").render(_sample_report())
     assert "<title>Test Schedule Report</title>" in html
     assert "<h1>Test Schedule Report</h1>" in html
+
+
+def test_html_report_shows_cpu_threads_and_seed() -> None:
+    report = replace(_sample_report(), cpu="Intel(R) Core(TM) i5-14600KF", threads=10)
+    html = HtmlReportWriter("unused", league_name="Test").render(report)
+    assert "<b>Seed:</b> 7</p>" in html
+    assert "<b>CPU:</b> Intel(R) Core(TM) i5-14600KF</p>" in html
+    assert "<b>Threads:</b> 10</p>" in html
 
 
 def test_html_report_shows_difficulty_knob() -> None:

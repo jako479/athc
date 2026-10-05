@@ -9,6 +9,7 @@ src/athc/scheduler/                 # subsystem source
 ├── __init__.py
 ├── main.py                         # generate_schedule() orchestration
 ├── config.py                       # SchedulerConfig, load_scheduler_config(), load_league(), file resolution
+├── cpu.py                          # this CPU's name and fast threads (Windows), for solver_workers = "auto"
 ├── domain/
 │   ├── league.py                   # League, Conference, Division, Team; build_league()
 │   └── schedule.py                 # Schedule, Game
@@ -17,7 +18,7 @@ src/athc/scheduler/                 # subsystem source
 │   ├── matchup_builder.py          # phase 1: MatchupBuilder (structure, same-place pairs, rivalries, CP-SAT line)
 │   ├── schedule_builder.py         # phase 2: ScheduleBuilder (CP-SAT week placement)
 │   ├── types.py                    # MatchupPlan, SchedulerResult, get_scheduler
-│   ├── utils.py                    # make_solver: the CP-SAT solver setup both phases share
+│   ├── utils.py                    # make_solver, resolve_workers: the CP-SAT solver setup both phases share
 │   └── errors.py                   # SchedulerError
 └── writers/
     ├── writer.py                   # ScheduleWriter protocol + factory
@@ -69,7 +70,7 @@ Two-phase CP-SAT. Phase 1 ([phase-1-matchups.md](phase-1-matchups.md)) builds th
 
 Both phases run CP-SAT the same way, through one shared setup (`make_solver`): **interleave search** — parallel but reproducible. Two rules make a seed's matchups and schedule identical across runs and machines:
 
-- **Fixed worker count.** Interleave results change with the number of workers, so both phases use the pinned `solver_workers` setting (default 8), not the machine's core count, and it is not CLI-overridable.
+- **Same worker count.** Interleave results change with the number of workers, so both phases run one count from `solver_workers`: a number, or `"auto"` (the default) = this CPU's fast threads minus 2 — the threads on its highest-efficiency-class cores (the P-cores on Intel hybrid CPUs, every core on most AMD CPUs), from Windows' `GetLogicalProcessorInformationEx`. `"auto"` varies by machine, so the report shows the CPU and thread count; setting that number reproduces a seed anywhere. Not CLI-overridable.
 - **Deterministic-time budget.** Each solve stops on its own limit — `phase1_time_limit` (default 120) for phase 1, `time_limit` (default 300) for phase 2 — measured in CP-SAT *deterministic time*, so a slow or fast machine reaches the same stopping point.
 
 Also required: the model is built in canonical team order (never Python `set` iteration order). The model checksum test and the golden regression test guard both.
@@ -78,7 +79,7 @@ Also required: the model is built in canonical team order (never Python `set` it
 
 One suite in `tests/unit/scheduler/`, parametrized over every league case (two divisional standings variants, the conference league in an even season, an odd season, and with rotation off):
 
-- `test_matchups` (phase 1; matrix in [test-matrix-phase-1-matchups.md](../../tests/unit/scheduler/test-matrix-phase-1-matchups.md)), `test_schedule_builder` (phase-2 model wiring), `test_utils` (the shared solver setup) and `test_schedule_rules` (every rule on a solved schedule, through the shared validator; matrix in [test-matrix-phase-2-schedule.md](../../tests/unit/scheduler/test-matrix-phase-2-schedule.md)).
+- `test_matchups` (phase 1; matrix in [test-matrix-phase-1-matchups.md](../../tests/unit/scheduler/test-matrix-phase-1-matchups.md)), `test_schedule_builder` (phase-2 model wiring), `test_utils` (the shared solver setup), `test_cpu` (fast-thread count and CPU name) and `test_schedule_rules` (every rule on a solved schedule, through the shared validator; matrix in [test-matrix-phase-2-schedule.md](../../tests/unit/scheduler/test-matrix-phase-2-schedule.md)).
 - `test_cli` / `test_config` (CLI, file resolution, standings and rules loading, every shipped `dev/` and `release/` file; matrix in [test-matrix-config-loading.md](../../tests/unit/scheduler/test-matrix-config-loading.md)), `test_league` (domain), `test_report` (matrix in [test-matrix-report.md](../../tests/unit/scheduler/test-matrix-report.md)), `test_writers`.
 - `test_model_checksum` pins both CP-SAT models per league; re-pin only with that league's goldens.
 

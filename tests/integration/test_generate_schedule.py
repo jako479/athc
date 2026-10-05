@@ -66,7 +66,7 @@ CASES = (GoldenCase("divisions", 2026), GoldenCase("conferences", 2029))
 # Report fields that vary run-to-run / machine-to-machine; normalized before
 # any golden comparison. Everything else in the report is schedule-derived and
 # stable for a fixed seed.
-_VOLATILE_REPORT_LABELS = ("Command line", "Config path", "Elapsed (s)")
+_VOLATILE_REPORT_LABELS = ("CPU", "Command line", "Config path", "Elapsed (s)")
 
 
 def _normalize_report(html: str) -> str:

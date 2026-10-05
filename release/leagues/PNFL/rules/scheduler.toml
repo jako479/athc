@@ -21,11 +21,11 @@ spread = 2.5
 [solver]
 time_limit = 600.0        # max deterministic time for the week-placement (phase-2) solve (multithreaded; not wall-clock seconds)
 phase1_time_limit = 120.0 # max deterministic time for the matchup (phase-1) solve (multithreaded; not wall-clock seconds)
-# Parallel search width for both phases. The same seed gives the same matchups
-# and schedule ONLY when this value matches everywhere -- they change with the
-# worker count -- so keep it fixed; changing it re-rolls every seed. 8 is a balance:
-# fast, without heavily oversubscribing smaller (e.g. 4-core) machines.
-solver_workers = 8
+# Parallel search width for both phases: a number, or "auto" = this machine's
+# fast threads (P-cores on Intel hybrid CPUs) minus 2. The same seed gives the
+# same matchups and schedule ONLY at the same count; the report shows the count
+# used, so set that number to reproduce a schedule on another machine.
+solver_workers = "auto"
 
 [phase2]
 # Week-placement rule amounts and toggles (defaults shown). The rules

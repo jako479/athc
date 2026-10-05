@@ -13,6 +13,7 @@ from athc.scheduler.config import (
     load_league,
     load_scheduler_config,
 )
+from athc.scheduler.cpu import cpu_name
 from athc.scheduler.schedulers.types import (
     SchedulerResult,
     get_scheduler,
@@ -78,6 +79,8 @@ def generate_schedule(
         elapsed_time_seconds=elapsed,
         command_line=command_line,
         difficulty_spread=scheduler_config.difficulty.spread,
+        cpu=cpu_name(),
+        threads=result.workers,
     )
     HtmlReportWriter(report_path, league_name=league).write(report)
     logger.info(

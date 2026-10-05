@@ -38,6 +38,8 @@ class ScheduleReport:
     teams: tuple[TeamScheduleReport, ...]
     command_line: str | None = None
     difficulty_spread: float = DEFAULT_DIFFICULTY_SPREAD
+    cpu: str | None = None
+    threads: int | None = None  # solver threads; with the seed, reproduces it
 
 
 def _opponents(schedule: Schedule, team: Team) -> list[Team]:
@@ -71,6 +73,8 @@ def build_schedule_report(
     elapsed_time_seconds: float,
     command_line: str | None = None,
     difficulty_spread: float = DEFAULT_DIFFICULTY_SPREAD,
+    cpu: str | None = None,
+    threads: int | None = None,
 ) -> ScheduleReport:
     """Compute per-team schedule-strength rows and return a structured report."""
     conf_rank = {team: league.rankings.rank_of(team) for team in league.teams}
@@ -118,6 +122,8 @@ def build_schedule_report(
         elapsed_time_seconds=elapsed_time_seconds,
         teams=tuple(rows),
         difficulty_spread=difficulty_spread,
+        cpu=cpu,
+        threads=threads,
     )
 
 
@@ -193,6 +199,8 @@ class HtmlReportWriter:
         ]
         info_rows += [
             ("Seed", str(report.seed)),
+            ("CPU", report.cpu or "-"),
+            ("Threads", "-" if report.threads is None else str(report.threads)),
             ("Command line", report.command_line or "-"),
             ("Config path", report.config_path or "-"),
             ("Elapsed (s)", f"{report.elapsed_time_seconds:.3f}"),

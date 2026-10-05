@@ -25,6 +25,7 @@ class MatchupPlan:
 class SchedulerResult:
     schedule: Schedule
     matchup_plan: MatchupPlan
+    workers: int  # solver threads both phases ran ("auto" resolved)
 
 
 SchedulerFunc = Callable[..., SchedulerResult]

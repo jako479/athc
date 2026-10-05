@@ -29,6 +29,8 @@ Tests: `test_solved_schedule_obeys_every_rule`, `test_solved_schedule_realizes_t
 |---|---|---|---|
 | Soft objective wired | 8 metrics, 16 slack terms | `test_soft_objective_is_added_to_the_model` | ☑ |
 | Reproducible parallel search | fixed workers, interleave, deterministic time (the solver setup shared with phase 1, in `test_utils.py`) | `test_solver_is_configured_for_reproducible_parallel_search` | ☑ |
+| Worker count resolved | `"auto"` → fast threads minus 2; a number as given (`test_utils.py`) | `test_auto_workers_resolve_to_this_machines_fast_threads_minus_two`, `test_a_fixed_worker_count_is_used_as_given` | ☑ |
+| Fast threads (`test_cpu.py`) | hybrid → P-core threads only; uniform → every thread; minus 2, never below 1; this machine's count and CPU name | `test_cpu.py` | ☑ |
 | Rule gating (no divisions) | no `d_`/streak/objective parts; toggles add only when on; window follows the cap | `test_league_without_divisions_has_no_divisional_model_parts`, `test_home_away_toggles_add_constraints_only_when_on`, `test_streak_caps_on_without_divisions_is_allowed`, `test_max_consecutive_window_follows_the_cap` | ☑ |
 | Opening non-conference weeks | one constraint per team-week | `test_opening_nonconference_weeks_add_one_constraint_per_team_week` | ☑ |
 | Conference-sequence cap | two constraints per window | `test_conference_streak_cap_adds_two_constraints_per_window` | ☑ |

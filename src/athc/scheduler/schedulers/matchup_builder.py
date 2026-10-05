@@ -21,6 +21,7 @@ from athc.scheduler.config import (
     DEFAULT_PHASE1_TIME_LIMIT,
     DEFAULT_SOLVER_WORKERS,
     DEFAULT_WEEKS,
+    SolverWorkers,
 )
 from athc.scheduler.domain.league import (
     TEAMS_PER_CONFERENCE,
@@ -193,7 +194,7 @@ class _NonConferenceModel:
         self,
         seed: int = 0,
         time_limit: float = DEFAULT_PHASE1_TIME_LIMIT,
-        workers: int = DEFAULT_SOLVER_WORKERS,
+        workers: SolverWorkers = DEFAULT_SOLVER_WORKERS,
     ) -> set[Matchup]:
         # The seed picks among equally-optimal matchup sets.
         solver = make_solver(seed=seed, time_limit=time_limit, workers=workers)
@@ -220,7 +221,7 @@ class MatchupBuilder:
         rivalries: Sequence[RivalryPair] = (),
         spread: float = DEFAULT_DIFFICULTY_SPREAD,
         phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT,
-        workers: int = DEFAULT_SOLVER_WORKERS,
+        workers: SolverWorkers = DEFAULT_SOLVER_WORKERS,
         seed: int = 0,
     ) -> None:
         self.league = league
@@ -230,7 +231,7 @@ class MatchupBuilder:
         self.rivalries = tuple(rivalries)
         self.spread = spread
         self.phase1_time_limit = phase1_time_limit
-        self.workers = workers
+        self.workers: SolverWorkers = workers
         self.seed = seed
 
         self.conf_rank = {team: league.rankings.rank_of(team) for team in self.teams}

@@ -72,6 +72,7 @@ from athc.scheduler.config import (
     DEFAULT_WEEKS,
     ConfigError,
     Phase2Config,
+    SolverWorkers,
 )
 from athc.scheduler.domain.league import League, RivalryPair, Team
 from athc.scheduler.domain.schedule import Game, Schedule
@@ -899,7 +900,7 @@ class ScheduleBuilder:
         self,
         seed: int = 0,
         time_limit: float = DEFAULT_TIME_LIMIT,
-        workers: int = DEFAULT_SOLVER_WORKERS,
+        workers: SolverWorkers = DEFAULT_SOLVER_WORKERS,
     ) -> Schedule:
         solver = make_solver(seed=seed, time_limit=time_limit, workers=workers)
         status = solver.solve(self.model)
@@ -921,7 +922,7 @@ class ScheduleBuilder:
         matchups: Matchups,
         seed: int = 0,
         time_limit: float = DEFAULT_TIME_LIMIT,
-        workers: int = DEFAULT_SOLVER_WORKERS,
+        workers: SolverWorkers = DEFAULT_SOLVER_WORKERS,
     ) -> Schedule:
         self._populate_model(matchups=matchups)
         return self._solve_model(seed=seed, time_limit=time_limit, workers=workers)

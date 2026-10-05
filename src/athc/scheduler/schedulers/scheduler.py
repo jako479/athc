@@ -25,6 +25,7 @@ from athc.scheduler.schedulers.errors import SchedulerError
 from athc.scheduler.schedulers.matchup_builder import MatchupBuilder
 from athc.scheduler.schedulers.schedule_builder import ScheduleBuilder
 from athc.scheduler.schedulers.types import SchedulerResult
+from athc.scheduler.schedulers.utils import resolve_workers
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,9 @@ def generate_schedule(
     check_weeks(league, weeks)
     check_opening_weeks(league, weeks, config.phase2.opening_nonconference_weeks)
     rivalries = resolve_rivalries(league, config.rivalries)
+    # "auto" becomes one count up front, so both phases run the same width and
+    # the report can show it.
+    workers = resolve_workers(config.solver.solver_workers)
 
     logger.info("Phase 1: selecting matchups")
     matchup_plan = MatchupBuilder(
@@ -50,7 +54,7 @@ def generate_schedule(
         rivalries=rivalries,
         spread=config.difficulty.spread,
         phase1_time_limit=config.solver.phase1_time_limit,
-        workers=config.solver.solver_workers,
+        workers=workers,
         seed=seed,
     ).build_matchup_plan()
 
@@ -71,6 +75,8 @@ def generate_schedule(
         matchups=matchup_plan.matchups,
         seed=seed,
         time_limit=config.solver.time_limit,
-        workers=config.solver.solver_workers,
+        workers=workers,
     )
-    return SchedulerResult(schedule=schedule, matchup_plan=matchup_plan)
+    return SchedulerResult(
+        schedule=schedule, matchup_plan=matchup_plan, workers=workers
+    )
