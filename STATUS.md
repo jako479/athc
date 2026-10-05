@@ -48,8 +48,8 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   option, like `aws --profile`), and `ATHC_LEAGUE` sits between the two.
 - Rule layering stays: a `gameplan_rules` / `profile_rules` list in
   `league.ini` replaces the fixed file.
-- convert-pdb's default playpool rules live next to `athc.ini`; a league's
-  own file overrides them.
+- Rule files live only in league folders; there is no shared default
+  `playpool.toml` next to `athc.ini`.
 - The installer ships the tree below; `league.ini` and standings survive a
   reinstall, rule files are replaced.
 - Unreadable config files, blank or unknown league names and a missing league
@@ -61,7 +61,6 @@ Config tree, identical in `dev\`, `release\` and the installed
 
 ```
 athc.ini                      [athc] league, [autocontinue], [convert-pdb]
-playpool.toml                 convert-pdb default rules
 leagues\
   PNFL\
     league.ini                [league] play_path (dev also db_path)
@@ -177,10 +176,10 @@ Working. Extracts a WinLogStats database into an Excel workbook. Docs:
 [README](docs/pdbtoexcel/README.md) ·
 [ARCHITECTURE](docs/pdbtoexcel/ARCHITECTURE.md)
 
-- The play pool comes from the league folder; playpool rules fall back from
-  `--playpool-rules` to the league's `rules\playpool.toml` to the default
-  `playpool.toml` next to `athc.ini`. The four workbook options stay in
-  `[convert-pdb]`.
+- The play pool comes from the league folder; playpool rules are
+  `--playpool-rules`, else the league's `rules\playpool.toml`, and
+  `--play-path` alone still reads the league's rules. The four workbook options
+  stay in `[convert-pdb]`.
 
 Note: a standalone port for testers lives outside this repo at
 `E:\PNFL\__My Projects\PdbToExcel_2.0`; re-sync it by hand when this package

@@ -210,8 +210,7 @@ athc --league NAME <command>.
    (total-stats team, percentage columns, per-category worksheets, sacks
    excluded from pass attempts) live in athc.ini under [convert-pdb]. Play
    tags (QB draw, rollout, timed pass) come from playpool rules:
-   --playpool-rules, else the league's rules\playpool.toml, else the default
-   playpool.toml next to athc.ini.
+   --playpool-rules, else the league's rules\playpool.toml.
 
    Show help:
       athc convert-pdb --help

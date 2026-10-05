@@ -385,7 +385,7 @@ In [test_autocontinue.py](test_autocontinue.py). Config-driven (`athc.ini [autoc
 
 # `athc convert-pdb`
 
-In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`; `--play-path` is an (often empty) `tmp_path`, so the workbook builds with populated Tendencies and empty play sheets — full workbook content is covered by `tests/unit/pdbtoexcel/test_workbook_creation.py`. Output read back with openpyxl. Exit 0 ok / 1 input or I/O error / 2 usage.
+In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`; `--play-path` is an (often empty) `tmp_path` with a selected league that has no rules (`--play-path` alone still reads the league), so the workbook builds with populated Tendencies and empty play sheets — full workbook content is covered by `tests/unit/pdbtoexcel/test_workbook_creation.py`. Output read back with openpyxl. Exit 0 ok / 1 input or I/O error / 2 usage.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -475,7 +475,7 @@ In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.i
 | `[autocontinue]` | release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
 | gameplan | release/ | loads; playpool rules and rule files exist | `test_release_gameplan_config_loads` | ☑ |
 | profile | release/ | loads; rule files exist | `test_release_profile_config_loads` | ☑ |
-| convert-pdb | release/ | loads; playpool rules exist | `test_release_convert_pdb_config_loads` | ☑ |
+| convert-pdb | release/ | loads; playpool rules exist; `--play-path` alone gets the league's file | `test_release_convert_pdb_config_loads` | ☑ |
 | scheduler | release/ | each league's tunables load; PNFL 2048 and PCFL 2029 standings exist | `test_release_scheduler_files_load` `[P]` | ☑ |
 | `dev/` mirrors `release/` | both | same fixed files present for PNFL and PCFL | `test_dev_mirrors_release_layout` | ☑ |
 

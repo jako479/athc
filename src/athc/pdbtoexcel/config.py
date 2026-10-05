@@ -1,13 +1,11 @@
 """convert-pdb config: the workbook options from `[convert-pdb]` in `athc.ini`
 (app-wide, not league data), `play_path` and `rules\\playpool.toml` from the
-league folder, the default `playpool.toml` next to `athc.ini`, plus the default
-category order.
+league folder, plus the default category order.
 
 `play_path` / `playpool_rules` locate the play pool used to classify and (optionally)
 tag plays. Playpool rules resolve as `--playpool-rules`, else the league's
-`rules\\playpool.toml`, else the shipped default next to `athc.ini` (the PNFL
-filters), else none. Category order — the row sort order and the Options sheet —
-defaults to the game's own category vocabulary.
+`rules\\playpool.toml`, else none. Category order — the row sort order and the
+Options sheet — defaults to the game's own category vocabulary.
 """
 
 from __future__ import annotations
@@ -16,14 +14,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from athc.config import ConfigFileError, config_dir, load_league_config
+from athc.config import ConfigFileError, load_league_config
 from athc.config import load_config as load_athc_config
 from athc.fbpro98_play import DefensiveCategory, OffensiveCategory
 from athc.pdbtoexcel.pdb import PLAY_DATA
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 PLAYPOOL_RULES_FILE = "playpool.toml"  # in a league's rules\ folder
-DEFAULT_PLAYPOOL_RULES_FILE = "playpool.toml"  # next to athc.ini
 SECTION = "convert-pdb"
 
 # The configparser boolean spellings (case-insensitive).
@@ -72,20 +69,19 @@ def load_config(
     """Locate the play pool and read the workbook options.
 
     `play_path` / `playpool_rules` (CLI overrides, kept CWD-relative) win;
-    otherwise both come from the league folder, resolved only when `play_path`
-    is not given (LeagueError when it can't be). A league folder without
-    `play_path` yields "" and the caller reports it; playpool rules fall back to
-    the default `playpool.toml` next to `athc.ini`, then None. The workbook
-    options come from `[convert-pdb]` in `athc.ini` and need no league; a
-    missing key keeps its default, a non-boolean value is a ConfigFileError."""
-    if play_path is None:
+    otherwise each comes from the league folder, resolved while either is
+    missing (LeagueError when it can't be), so `play_path` alone keeps the
+    league's playpool rules. A league folder without `play_path` yields "" and
+    the caller reports it; one without `rules\\playpool.toml` yields None. The
+    workbook options come from `[convert-pdb]` in `athc.ini` and need no league;
+    a missing key keeps its default, a non-boolean value is a ConfigFileError."""
+    if play_path is None or playpool_rules is None:
         cfg = load_league_config(league)
-        resolved = cfg.path("play_path")
-        play_path = str(resolved) if resolved else ""
+        if play_path is None:
+            resolved = cfg.path("play_path")
+            play_path = str(resolved) if resolved else ""
         if playpool_rules is None:
             playpool_rules = cfg.rules_file(PLAYPOOL_RULES_FILE)
-    if playpool_rules is None:
-        playpool_rules = default_playpool_rules()
     raw = load_athc_config().get(SECTION, {})
     return Config(
         play_path=play_path,
@@ -97,12 +93,6 @@ def load_config(
             raw, "exclude_sacks_from_pass_attempts", True
         ),
     )
-
-
-def default_playpool_rules() -> Path | None:
-    """The shipped `playpool.toml` next to `athc.ini`, or None when absent."""
-    candidate = config_dir() / DEFAULT_PLAYPOOL_RULES_FILE
-    return candidate if candidate.is_file() else None
 
 
 def _bool(raw: Mapping[str, str], key: str, default: bool) -> bool:

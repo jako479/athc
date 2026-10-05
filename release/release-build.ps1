@@ -45,7 +45,7 @@ Write-Host "  Staging wheel: $($wheel.Name)"
 Copy-Item $wheel.FullName $staging
 
 # Stage root-level end-user files.
-foreach ($name in "athc.ini", "playpool.toml", "install.bat") {
+foreach ($name in "athc.ini", "install.bat") {
     Write-Host "  Staging: $name"
     Copy-Item (Join-Path $scriptRoot $name) $staging
 }

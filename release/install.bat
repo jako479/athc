@@ -26,9 +26,8 @@ REM Make sure uv's tool directory is on PATH (no-op if already there).
 uv tool update-shell
 
 REM Deploy files to the athc config folder.
-REM   - docs\, playpool.toml (convert-pdb's default play-pool rules) and each
-REM     league's rules\ are shipped reference material -> always overwrite (no
-REM     guard). Users copy a rule file before editing their own.
+REM   - docs\ and each league's rules\ are shipped reference material -> always
+REM     overwrite (no guard). Users copy a rule file before editing their own.
 REM   - athc.ini, each league's league.ini and standings\ are user-owned ->
 REM     guarded with 'if not exist' so edits survive a reinstall. New tool
 REM     sections take effect via in-code defaults; the freshly-extracted athc.ini
@@ -38,7 +37,6 @@ if not exist "%DEST%" mkdir "%DEST%"
 if not exist "%DEST%\docs" mkdir "%DEST%\docs"
 
 copy /Y "docs\*.txt" "%DEST%\docs\" >NUL
-copy /Y "playpool.toml" "%DEST%\playpool.toml" >NUL
 if not exist "%DEST%\athc.ini" copy /Y "athc.ini" "%DEST%\athc.ini" >NUL
 
 for /D %%L in (leagues\*) do (

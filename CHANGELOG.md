@@ -60,6 +60,7 @@ high-level change completed alongside it gets its own line.
 
 ## pdbtoexcel
 
+- playpool rules come only from the league's `rules\playpool.toml`; the shared default `playpool.toml` is gone
 - rules paths resolve against the config dir; cleanup
 - added the `convert-pdb` command, backed by the pdbtoexcel package
 

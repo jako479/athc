@@ -451,10 +451,9 @@ def test_release_convert_pdb_config_loads() -> None:
 
     cfg = pdbtoexcel_config.load_config()
     assert cfg.playpool_rules is not None and cfg.playpool_rules.is_file()
-    # --play-path alone skips the league: the shipped default next to athc.ini.
-    default = pdbtoexcel_config.load_config(play_path="D:/plays").playpool_rules
-    assert default == RELEASE / "playpool.toml"
-    assert default is not None and default.is_file()
+    # --play-path alone still reads the league's rules\playpool.toml.
+    rules = pdbtoexcel_config.load_config(play_path="D:/plays").playpool_rules
+    assert rules == RELEASE / "leagues" / "PNFL" / "rules" / "playpool.toml"
     # The shipped [convert-pdb] section spells out the defaults.
     assert cfg.calculate_total_stats is True
     assert cfg.calculate_percentages is True
@@ -479,7 +478,6 @@ def test_dev_mirrors_release_layout() -> None:
     dev = RELEASE.parent / "dev"
     for rel in (
         "athc.ini",
-        "playpool.toml",
         "leagues/PNFL/league.ini",
         "leagues/PNFL/rules/gameplan.toml",
         "leagues/PNFL/rules/profile.toml",

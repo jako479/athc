@@ -34,9 +34,8 @@ play_path = E:\SIERRA\FbPro98\PNFL
 `play_path` (the `.ply` pool, required) plus the optional `rules\playpool.toml`
 of filename filters that tag plays (QB draws, screens, defensive fronts).
 Playpool rules resolve as `--playpool-rules`, else the league's
-`rules\playpool.toml`, else the default `playpool.toml` next to `athc.ini`
-(shipped: the PNFL filters), else none. `--play-path` skips the league, so it
-uses the default file unless `--playpool-rules` is given. The workbook
+`rules\playpool.toml`, else none; `--play-path` alone still reads the league's
+rules. The workbook
 options are app-wide settings in `[convert-pdb]` in `athc.ini`
 (`calculate_total_stats`, `calculate_percentages`,
 `include_category_worksheets`, `exclude_sacks_from_pass_attempts`);

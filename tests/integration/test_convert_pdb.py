@@ -22,6 +22,14 @@ PDB = DATA / "2045-2047.pdb"
 MakeLeague = Callable[..., Path]
 
 
+@pytest.fixture
+def league(make_league: MakeLeague, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A selected league with no rules: `--play-path` still reads the league for
+    its `rules\\playpool.toml`."""
+    monkeypatch.setenv("ATHC_LEAGUE", "PNFL")
+    return make_league("PNFL")
+
+
 # ── extension / usage validation (exit 2) ─────────────────────────────────────
 
 
@@ -62,6 +70,7 @@ def test_missing_pdb_exit_1(
     assert "file not found" in caplog.text
 
 
+@pytest.mark.usefixtures("league")
 def test_play_path_not_a_directory_exit_1(
     runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -76,6 +85,7 @@ def test_play_path_not_a_directory_exit_1(
     assert "play path is not a directory" in caplog.text
 
 
+@pytest.mark.usefixtures("league")
 def test_invalid_pdb_content_exit_1(
     runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -92,6 +102,7 @@ def test_invalid_pdb_content_exit_1(
 # ── end-to-end (exit 0) ───────────────────────────────────────────────────────
 
 
+@pytest.mark.usefixtures("league")
 def test_produces_xlsx_with_sheets(runner, tmp_path: Path) -> None:
     out = tmp_path / "out.xlsx"
     result = runner.invoke(
@@ -107,6 +118,7 @@ def test_produces_xlsx_with_sheets(runner, tmp_path: Path) -> None:
     assert len(list(wb["Tendencies"].iter_rows(values_only=True))) == 1 + 23 * 16
 
 
+@pytest.mark.usefixtures("league")
 def test_produces_xlsm(runner, tmp_path: Path) -> None:
     out = tmp_path / "out.xlsm"
     result = runner.invoke(
@@ -116,6 +128,7 @@ def test_produces_xlsm(runner, tmp_path: Path) -> None:
     assert out.is_file()
 
 
+@pytest.mark.usefixtures("league")
 @pytest.mark.parametrize("flag", ["--skip-calcs", "--skip-totals"])
 def test_skip_flags(runner, tmp_path: Path, flag: str) -> None:
     out = tmp_path / "out.xlsx"
@@ -128,14 +141,19 @@ def test_skip_flags(runner, tmp_path: Path, flag: str) -> None:
 # ── packaging check (real subprocess) ─────────────────────────────────────────
 
 
-def test_entry_point_subprocess(tmp_path: Path) -> None:
-    env = {**os.environ, "ATHC_CONFIG_DIR": str(tmp_path)}
+def test_entry_point_subprocess(
+    make_league: MakeLeague, config_dir: Path, tmp_path: Path
+) -> None:
+    make_league("PNFL")
+    env = {**os.environ, "ATHC_CONFIG_DIR": str(config_dir)}
     out = tmp_path / "out.xlsx"
     result = subprocess.run(
         [
             sys.executable,
             "-m",
             "athc",
+            "--league",
+            "PNFL",
             "convert-pdb",
             str(PDB),
             str(out),
@@ -160,10 +178,12 @@ def test_config_play_path_from_league_folder(make_league: MakeLeague) -> None:
     assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
 
 
-def test_config_play_path_override_needs_no_league(config_dir: Path) -> None:
-    cfg = pdbtoexcel_config.load_config(play_path="D:/plays")
+def test_config_both_overrides_need_no_league() -> None:
+    cfg = pdbtoexcel_config.load_config(
+        play_path="D:/plays", playpool_rules=Path("E:/r.toml")
+    )
     assert cfg.play_path == "D:/plays"
-    assert cfg.playpool_rules is None  # isolated config dir: no default file either
+    assert cfg.playpool_rules == Path("E:/r.toml")
 
 
 def test_config_missing_play_path_is_empty(make_league: MakeLeague) -> None:

@@ -23,14 +23,14 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 | Defaults (league folder, no league.ini) | folder | play_path ""; options True; rules None | `test_load_config_defaults` | ☑ |
 | From the league folder | `league.ini` + `rules/playpool.toml` | play_path / playpool_rules resolved | `test_load_config_from_league_folder` | ☑ |
 | CLI overrides win | folder | `--play-path` / `--playpool-rules` win | `test_load_config_cli_overrides_win` | ☑ |
-| Default rules when the league has none | `<config dir>/playpool.toml`, no league file | the default file | `test_default_playpool_rules_when_league_has_none` | ☑ |
-| League rules override the default | both files | league file | `test_league_playpool_rules_override_default` | ☑ |
-| `--play-path` alone uses the default | no league read | the default file | `test_play_path_override_uses_default_rules` | ☑ |
-| `--playpool-rules` wins | both files + CLI | CLI path | `test_cli_playpool_rules_wins` | ☑ |
+| `playpool.toml` next to athc.ini ignored | `<config dir>/playpool.toml`, no league file | `None` | `test_playpool_toml_next_to_athc_ini_is_ignored` | ☑ |
+| `--play-path` alone reads league rules | folder + `rules/playpool.toml` | league file | `test_play_path_override_reads_league_rules` | ☑ |
+| `--play-path` alone needs a league | no league selected | `LeagueError` | `test_play_path_override_needs_a_league` | ☑ |
+| `--playpool-rules` wins | league file + CLI | CLI path | `test_cli_playpool_rules_wins` | ☑ |
 | No rules anywhere | folder only | `None` | `test_no_playpool_rules_anywhere_is_none` | ☑ |
 | Workbook options from `[convert-pdb]` | athc.ini + folder | all four flipped | `test_load_config_reads_workbook_options` | ☑ |
 | Workbook options without the section | folder | True / True / False / True | `test_workbook_options_default_without_section` | ☑ |
-| Workbook options need no league | athc.ini + `--play-path` | flipped values, no league read | `test_workbook_options_need_no_league` | ☑ |
+| Workbook options need no league | athc.ini + `--play-path` + `--playpool-rules` | flipped values, no league read | `test_workbook_options_need_no_league` | ☑ |
 | configparser booleans accepted | `1/yes/true/on`, `0/no/false/off`, any case | parsed | `test_workbook_option_accepts_configparser_booleans` `[P]` | ☑ |
 | Other boolean spelling | `maybe` | `ConfigFileError` names the key | `test_workbook_option_rejects_other_values` | ☑ |
 

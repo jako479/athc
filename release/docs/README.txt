@@ -88,9 +88,7 @@ That folder will contain:
 
    athc.ini             your settings (edit to customize; the file
                         documents every setting inline)
-   playpool.toml        default play-pool rules for convert-pdb (a league's
-                        rules\playpool.toml overrides)
-   docs\                this README plus per-command references
+   docs\               this README plus per-command references
    leagues\PNFL\        the PNFL league:
       league.ini           your plays folder (play_path)
       rules\               gameplan.toml, profile.toml, playpool.toml,
@@ -109,7 +107,6 @@ What survives reinstalls:
    leagues\*\league.ini YES -- preserved
    leagues\*\standings\ YES -- preserved (files are only added, never replaced)
    docs\                overwritten every install
-   playpool.toml        overwritten every install
    leagues\*\rules\     overwritten every install (copy a file before editing
                         your own league's rules)
 

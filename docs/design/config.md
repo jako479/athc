@@ -45,7 +45,6 @@ One folder per league under the config dir; `athc.ini` holds only app-wide setti
 
 ```
 athc.ini                      app-wide settings + the selected league
-playpool.toml                 default play-pool rules for convert-pdb (a league's rules\playpool.toml overrides)
 leagues\
   PNFL\
     league.ini                per-league settings ([league] play_path, …)
@@ -84,7 +83,7 @@ Log level is not a setting — it is set by `-v/--verbose` ([logging.md](logging
 
 ## Rule files
 
-Each tool reads its one fixed file under the league's `rules\`. An optional multi-line list in `league.ini` (`gameplan_rules`, `profile_rules`) replaces it with an ordered set, later files overriding earlier ones. CLI `--rules` still wins and stays CWD-relative, as do `--play-path` and `--playpool-rules` (the ruff idiom: config paths resolve against the config file, CLI paths against the CWD). convert-pdb's playpool rules also have a shipped default next to `athc.ini` (`playpool.toml`): a league's `rules\playpool.toml` overrides it, `--playpool-rules` overrides both.
+Each tool reads its one fixed file under the league's `rules\`. An optional multi-line list in `league.ini` (`gameplan_rules`, `profile_rules`) replaces it with an ordered set, later files overriding earlier ones. CLI `--rules` still wins and stays CWD-relative, as do `--play-path` and `--playpool-rules` (the ruff idiom: config paths resolve against the config file, CLI paths against the CWD). Rule files are league data only; there is no shared default outside the league folders.
 
 ## Multi-league selection
 
