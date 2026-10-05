@@ -1,6 +1,6 @@
 """`athc profile diff` — show differences between two .prf profiles.
 
-Default report goes to stdout. `--output FILE` writes it instead, format inferred
+Default report goes to stdout. `--output file` writes it instead, format inferred
 from the extension: `.txt` (the stdout text) or `.csv` (one row per change).
 """
 
@@ -13,6 +13,7 @@ from pathlib import Path
 
 import click
 
+from athc.cli import CONTEXT_SETTINGS
 from athc.cli.profile import profile
 from athc.fbpro98_profile import (
     InvalidProfileError,
@@ -29,17 +30,17 @@ logger = logging.getLogger(__name__)
 _OUTPUT_FORMATS = ("csv", "txt")
 
 
-@profile.command(name="diff")
-@click.argument("a", metavar="A.prf", type=click.Path(path_type=Path))
-@click.argument("b", metavar="B.prf", type=click.Path(path_type=Path))
+@profile.command(name="diff", context_settings=CONTEXT_SETTINGS)
+@click.argument("a", metavar="file1", type=click.Path(path_type=Path))
+@click.argument("b", metavar="file2", type=click.Path(path_type=Path))
 @click.option(
     "-o",
     "--output",
     type=click.Path(path_type=Path),
     default=None,
-    metavar="FILE",
+    metavar="file",
     help=(
-        "Write the report to FILE instead of stdout; "
+        "Write the report to file instead of stdout; "
         "format from the extension (.txt or .csv)."
     ),
 )

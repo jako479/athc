@@ -9,12 +9,12 @@ league rules, and check that the two fit together. Meant to replace
 ```bash
 athc check-ppp OFF.prf OFF.pln
 athc check-ppp OFF.prf
-athc check-ppp OFF.pln
+athc check-ppp OFF.pln --league PCFL
 ```
 
 Pass one profile, one gameplan, or both, in either order; the extension tells
-them apart. There are no options: the rules come from the current league
-(`[athc] league` in `athc.ini`, `ATHC_LEAGUE`, or `athc --league NAME`).
+them apart. The only option is `--league name`: the rules come from that
+league, or from `[athc] league` in `athc.ini`.
 
 ## What it checks
 

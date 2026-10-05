@@ -29,17 +29,18 @@ from tests.integration.conftest import (
 
 RULES = load_rules([str(GP_RULES)])
 POOL = read_play_pool(str(PLAYS), rules=load_pool_rules(str(POOL_RULES)))
-# Flags that skip league resolution (play-path + playpool-rules + rules).
-FLAGS = [
-    "--play-path",
-    str(PLAYS),
-    "--playpool-rules",
-    str(POOL_RULES),
-    "--rules",
-    str(GP_RULES),
-]
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
+
+
+@pytest.fixture
+def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
+    """The selected league: the test pool, its playpool rules and gameplan rules."""
+    folder = make_league("PNFL", f"[league]\nplay_path = {PLAYS}\n")
+    shutil.copy(GP_RULES, folder / "rules" / "gameplan.toml")
+    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
+    write_config("[athc]\nleague = PNFL\n")
+    return folder
 
 
 # ── collect_files ─────────────────────────────────────────────────────────────
@@ -165,65 +166,82 @@ def test_cli_requires_path(runner) -> None:
     assert runner.invoke(check, []).exit_code == 2
 
 
+@pytest.mark.parametrize("option", ["--play-path", "--playpool-rules", "--rules"])
+def test_cli_removed_options_are_rejected(runner, option: str) -> None:
+    result = runner.invoke(check, [str(GP_OFFENSE), option, "x"])
+    assert result.exit_code == 2
+    assert "No such option" in result.output
+
+
+@pytest.mark.usefixtures("league")
 def test_cli_violations_exit_1(runner) -> None:
-    result = runner.invoke(check, [str(GP_OFFENSE), *FLAGS])
+    result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 1
     assert "violation(s)" in result.output and "1 file(s) checked" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_multiple_files(runner) -> None:
-    result = runner.invoke(check, [str(GP_OFFENSE), str(GP_DEFENSE), *FLAGS])
+    result = runner.invoke(check, [str(GP_OFFENSE), str(GP_DEFENSE)])
     assert result.exit_code == 1
     assert "2 file(s) checked" in result.output and "across 2 file(s)" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_directory(runner, tmp_path: Path) -> None:
-    shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
-    shutil.copy2(GP_DEFENSE, tmp_path / "def.pln")
-    result = runner.invoke(check, [str(tmp_path), *FLAGS])
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    shutil.copy2(GP_OFFENSE, plans / "off.pln")
+    shutil.copy2(GP_DEFENSE, plans / "def.pln")
+    result = runner.invoke(check, [str(plans)])
     assert result.exit_code == 1
     assert "2 file(s) checked" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_recursive(runner, tmp_path: Path) -> None:
-    sub = tmp_path / "sub"
-    sub.mkdir()
+    sub = tmp_path / "plans" / "sub"
+    sub.mkdir(parents=True)
     shutil.copy2(GP_OFFENSE, sub / "off.pln")
-    result = runner.invoke(check, [str(tmp_path), "-r", *FLAGS])
+    result = runner.invoke(check, [str(tmp_path / "plans"), "-r"])
     assert result.exit_code == 1
     assert "1 file(s) checked" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_clean_exit_0(runner, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "athc.cli.gameplan.check.validate_gameplan", lambda gp, rules, pool: ()
     )
-    result = runner.invoke(check, [str(GP_OFFENSE), *FLAGS])
+    result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 0
     assert "OK" in result.output and "0 violation(s) across 0 file(s)" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_missing_path(runner, caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(check, [str(PLAYS / "nope.pln"), *FLAGS])
+        result = runner.invoke(check, [str(PLAYS / "nope.pln")])
     assert result.exit_code == 2
     assert "does not exist" in caplog.text
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_malformed_pln(runner, tmp_path: Path) -> None:
     bad = tmp_path / "broken.pln"
     bad.write_bytes(b"\x00\x01\x02")
-    result = runner.invoke(check, [str(bad), *FLAGS])
+    result = runner.invoke(check, [str(bad)])
     assert result.exit_code == 2
     assert "ERROR" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_continues_past_bad(runner, tmp_path: Path) -> None:
     bad = tmp_path / "broken.pln"
     bad.write_bytes(b"\x00\x01\x02")
     good = tmp_path / "good.pln"
     shutil.copy2(GP_OFFENSE, good)
-    result = runner.invoke(check, [str(bad), str(good), *FLAGS])
+    result = runner.invoke(check, [str(bad), str(good)])
     assert result.exit_code == 2
     assert f"{bad}: ERROR" in result.output and f"{good}:" in result.output
     assert "2 file(s) checked" in result.output
@@ -233,62 +251,26 @@ def test_cli_continues_past_bad(runner, tmp_path: Path) -> None:
 
 
 def test_cli_missing_play_path(
-    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    runner, league: Path, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
+    (league / "league.ini").write_text(
+        f"[league]\nplay_path = {tmp_path / 'nope'}\n", encoding="utf-8"
+    )
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(
-            check,
-            [
-                str(GP_OFFENSE),
-                "--play-path",
-                str(tmp_path / "nope"),
-                "--playpool-rules",
-                str(POOL_RULES),
-                "--rules",
-                str(GP_RULES),
-            ],
-        )
+        result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 2
     assert "not a directory" in caplog.text
 
 
 def test_cli_bad_playpool_rules(
-    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    runner, league: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    bad = tmp_path / "bad.toml"
-    bad.write_text("not = valid = toml", encoding="utf-8")
+    (league / "rules" / "playpool.toml").write_text(
+        "not = valid = toml", encoding="utf-8"
+    )
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(
-            check,
-            [
-                str(GP_OFFENSE),
-                "--play-path",
-                str(PLAYS),
-                "--playpool-rules",
-                str(bad),
-                "--rules",
-                str(GP_RULES),
-            ],
-        )
+        result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 2
-
-
-def test_cli_no_rules_needs_a_league(runner, caplog: pytest.LogCaptureFixture) -> None:
-    # --play-path and --playpool-rules given, --rules not: the rules come from
-    # the league folder, so with no league configured that is the error.
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(
-            check,
-            [
-                str(GP_OFFENSE),
-                "--play-path",
-                str(PLAYS),
-                "--playpool-rules",
-                str(POOL_RULES),
-            ],
-        )
-    assert result.exit_code == 2
-    assert "no league selected" in caplog.text
 
 
 def test_cli_no_rules_in_league_folder(
@@ -296,36 +278,26 @@ def test_cli_no_rules_in_league_folder(
 ) -> None:
     make_league("PNFL", f"[league]\nplay_path = {PLAYS}\n")
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(check, [str(GP_OFFENSE)], obj={"league": "PNFL"})
+        result = runner.invoke(check, [str(GP_OFFENSE), "--league", "PNFL"])
     assert result.exit_code == 2
     assert "no rules configured" in caplog.text
     assert "rules\\gameplan.toml" in caplog.text
 
 
 def test_cli_bad_rules_toml(
-    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    runner, league: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    bad = tmp_path / "bad.toml"
-    bad.write_text("not = valid = toml", encoding="utf-8")
+    (league / "rules" / "gameplan.toml").write_text(
+        "not = valid = toml", encoding="utf-8"
+    )
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(
-            check,
-            [
-                str(GP_OFFENSE),
-                "--play-path",
-                str(PLAYS),
-                "--playpool-rules",
-                str(POOL_RULES),
-                "--rules",
-                str(bad),
-            ],
-        )
+        result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 2
     assert "TOML parse error" in caplog.text
 
 
 def test_cli_no_league(runner, caplog: pytest.LogCaptureFixture) -> None:
-    """No path overrides and no config -> the league can't be resolved."""
+    """No config -> the league can't be resolved."""
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 2
@@ -356,7 +328,7 @@ def test_cli_gameplan_rules_list_layers_in_order(
     )
     shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
     (folder / "rules" / "overlay.toml").write_text("", encoding="utf-8")
-    result = runner.invoke(check, [str(GP_OFFENSE)], obj={"league": "PNFL"})
+    result = runner.invoke(check, [str(GP_OFFENSE), "--league", "PNFL"])
     assert result.exit_code == 1
     assert "violation(s)" in result.output
 
@@ -369,7 +341,7 @@ def test_cli_missing_listed_rules_file_is_reported(
         f"[league]\nplay_path = {PLAYS}\ngameplan_rules =\n    rules\\gone.toml\n",
     )
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(check, [str(GP_OFFENSE)], obj={"league": "PNFL"})
+        result = runner.invoke(check, [str(GP_OFFENSE), "--league", "PNFL"])
     assert result.exit_code == 2
     assert "gone.toml" in caplog.text
 
@@ -377,8 +349,8 @@ def test_cli_missing_listed_rules_file_is_reported(
 def test_load_config_play_path_alone_reads_league_playpool_rules(
     tmp_path: Path, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
-    """`--play-path` overrides only `play_path`; the playpool rules still come from
-    the league folder."""
+    """A `play_path` override replaces only `play_path`; the playpool rules still
+    come from the league folder."""
     folder = make_league("PNFL", f"[league]\nplay_path = {tmp_path / 'league-pool'}\n")
     shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
     write_config("[athc]\nleague = PNFL\n")
@@ -387,41 +359,23 @@ def test_load_config_play_path_alone_reads_league_playpool_rules(
     assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
 
 
-def test_cli_play_path_alone_keeps_league_playpool_rules(
-    runner, make_league: MakeLeague, write_config: WriteConfig
-) -> None:
-    """`--play-path` alone still reads the league's playpool rules, so the
-    filename-derived caps (timed, rollout, QB draw) are checked."""
-    folder = make_league("PNFL", f"[league]\nplay_path = {PLAYS}\n")
-    shutil.copy(GP_RULES, folder / "rules" / "gameplan.toml")
-    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
-    write_config("[athc]\nleague = PNFL\n")
-    result = runner.invoke(check, [str(GP_OFFENSE), "--play-path", str(PLAYS)])
+@pytest.mark.usefixtures("league")
+def test_cli_league_playpool_rules_apply(runner) -> None:
+    """The league's playpool rules are read, so the filename-derived caps (timed,
+    rollout, QB draw) are checked."""
+    result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 1
     assert "timed passes" in result.output
-
-
-def test_cli_play_path_alone_needs_league(
-    runner, caplog: pytest.LogCaptureFixture
-) -> None:
-    """`--play-path` without `--playpool-rules` still needs the league; with no
-    config that is an error, not a silent skip of the playpool rules."""
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(
-            check,
-            [str(GP_OFFENSE), "--play-path", str(PLAYS), "--rules", str(GP_RULES)],
-        )
-    assert result.exit_code == 2
-    assert "league" in caplog.text.lower()
 
 
 # ── packaging check (real subprocess) ─────────────────────────────────────────
 
 
-def test_entry_point_subprocess(tmp_path: Path) -> None:
-    env = {**os.environ, "ATHC_CONFIG_DIR": str(tmp_path)}
+@pytest.mark.usefixtures("league")
+def test_entry_point_subprocess(config_dir: Path) -> None:
+    env = {**os.environ, "ATHC_CONFIG_DIR": str(config_dir)}
     result = subprocess.run(
-        [sys.executable, "-m", "athc", "gameplan", "check", str(GP_OFFENSE), *FLAGS],
+        [sys.executable, "-m", "athc", "gameplan", "check", str(GP_OFFENSE)],
         capture_output=True,
         text=True,
         env=env,

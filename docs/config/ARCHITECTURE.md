@@ -1,6 +1,6 @@
 # config — Architecture
 
-The `athc config` command group: three thin commands that locate and open the settings file. No domain logic — it operates on `athc.ini` itself.
+The `athc config` command group: four thin commands that locate, open, or set a value in the settings file. No domain logic — it operates on `athc.ini` itself.
 
 ## Layout
 
@@ -8,8 +8,9 @@ The `athc config` command group: three thin commands that locate and open the se
 src/athc/cli/config/
 ├── __init__.py     # defines the `config` group
 ├── path.py         # print config_file()
-├── edit.py         # open athc.ini in an editor
-└── reveal.py       # reveal athc.ini in the file manager
+├── edit.py         # open athc.ini in its default app
+├── reveal.py       # reveal athc.ini in the file manager
+└── set.py          # write one [athc] key, keeping comments
 
 src/athc/config.py  # config_dir() + config_file() helpers (shared base module)
 ```
@@ -17,7 +18,7 @@ src/athc/config.py  # config_dir() + config_file() helpers (shared base module)
 ## How it works
 
 - `path` → `click.echo(config_file())`.
-- `edit` → create `athc.ini` if missing, then `click.edit(filename=…)` when `$VISUAL`/`$EDITOR` is set, else `click.launch(path)` (the file's associated app — Notepad by default on Windows).
+- `edit` → create `athc.ini` if missing, then `click.launch(path)` (the file's default app on Windows).
 - `reveal` → `click.launch(<athc.ini>, locate=True)` (selects the file), or `click.launch(config_dir())` if it's absent — opens Explorer on Windows.
 
 ## Exit codes

@@ -21,7 +21,7 @@ class Config:
 def load_config(
     league: str | None = None, *, rule_files: Sequence[Path] | None = None
 ) -> Config:
-    """Rule files for `profile check`: the CLI `--rules` list wins; else the
+    """Rule files for `profile check`: the `rule_files` override wins; else the
     league folder's `profile_rules` list or fixed `rules\\profile.toml` (missing
     -> no rules). LeagueError when no league can be resolved."""
     if rule_files is not None:

@@ -33,6 +33,15 @@ WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
 
 
+@pytest.fixture
+def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
+    """The selected league, with the test rules as its rules/profile.toml."""
+    folder = make_league("PNFL")
+    shutil.copy(RULES_TOML, folder / "rules" / "profile.toml")
+    write_config("[athc]\nleague = PNFL\n")
+    return folder
+
+
 # ── collect_files ─────────────────────────────────────────────────────────────
 
 
@@ -178,40 +187,51 @@ def test_cli_requires_path(runner) -> None:
     assert runner.invoke(check, []).exit_code == 2
 
 
-def test_cli_violations_exit_1(runner) -> None:
+def test_cli_rules_option_removed(runner) -> None:
     result = runner.invoke(check, [str(OFF1), "--rules", str(RULES_TOML)])
+    assert result.exit_code == 2
+    assert "No such option" in result.output
+
+
+@pytest.mark.usefixtures("league")
+def test_cli_violations_exit_1(runner) -> None:
+    result = runner.invoke(check, [str(OFF1)])
     assert result.exit_code == 1
     assert "violation(s)" in result.output and "1 file(s) checked" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_multiple_files(runner) -> None:
-    result = runner.invoke(check, [str(OFF1), str(DEF1), "--rules", str(RULES_TOML)])
+    result = runner.invoke(check, [str(OFF1), str(DEF1)])
     assert result.exit_code == 1
     assert "2 file(s) checked" in result.output and "across 2 file(s)" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_directory(runner, tmp_path: Path) -> None:
     shutil.copy2(OFF1, tmp_path / "off.prf")
     shutil.copy2(DEF1, tmp_path / "def.prf")
-    result = runner.invoke(check, [str(tmp_path), "--rules", str(RULES_TOML)])
+    result = runner.invoke(check, [str(tmp_path)])
     assert result.exit_code == 1
     assert "2 file(s) checked" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_recursive(runner, tmp_path: Path) -> None:
     sub = tmp_path / "sub"
     sub.mkdir()
     shutil.copy2(OFF1, sub / "off.prf")
-    result = runner.invoke(check, [str(tmp_path), "-r", "--rules", str(RULES_TOML)])
+    result = runner.invoke(check, [str(tmp_path), "-r"])
     assert result.exit_code == 1
     assert "1 file(s) checked" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_clean_exit_0(runner, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "athc.cli.profile.check.validate_profile", lambda prof, rules: ()
     )
-    result = runner.invoke(check, [str(OFF1), "--rules", str(RULES_TOML)])
+    result = runner.invoke(check, [str(OFF1)])
     assert result.exit_code == 0
     assert "OK" in result.output and "0 violation(s) across 0 file(s)" in result.output
 
@@ -223,20 +243,22 @@ def test_cli_missing_path(runner, caplog: pytest.LogCaptureFixture) -> None:
     assert "does not exist" in caplog.text
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_malformed_prf(runner, tmp_path: Path) -> None:
     bad = tmp_path / "broken.prf"
     bad.write_bytes(b"\x00\x01\x02")
-    result = runner.invoke(check, [str(bad), "--rules", str(RULES_TOML)])
+    result = runner.invoke(check, [str(bad)])
     assert result.exit_code == 2
     assert "ERROR" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_continues_past_bad(runner, tmp_path: Path) -> None:
     bad = tmp_path / "broken.prf"
     bad.write_bytes(b"\x00\x01\x02")
     good = tmp_path / "good.prf"
     shutil.copy2(OFF1, good)
-    result = runner.invoke(check, [str(bad), str(good), "--rules", str(RULES_TOML)])
+    result = runner.invoke(check, [str(bad), str(good)])
     assert result.exit_code == 2
     assert f"{bad}: ERROR" in result.output and f"{good}:" in result.output
     assert "2 file(s) checked" in result.output
@@ -257,7 +279,7 @@ def test_cli_no_rules_in_league_folder(
 ) -> None:
     make_league("PNFL")
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(check, [str(OFF1)], obj={"league": "PNFL"})
+        result = runner.invoke(check, [str(OFF1), "--league", "PNFL"])
     assert result.exit_code == 2
     assert "no rules configured" in caplog.text
     assert "rules\\profile.toml" in caplog.text
@@ -276,7 +298,7 @@ def test_cli_league_flag_picks_folder(runner, make_league: MakeLeague) -> None:
     make_league("PNFL")  # no rules -> would fail
     other = make_league("PCFL")
     shutil.copy(RULES_TOML, other / "rules" / "profile.toml")
-    assert runner.invoke(check, [str(OFF1)], obj={"league": "PCFL"}).exit_code == 1
+    assert runner.invoke(check, [str(OFF1), "--league", "PCFL"]).exit_code == 1
 
 
 def test_cli_profile_rules_list_relative_to_league_folder(
@@ -284,57 +306,41 @@ def test_cli_profile_rules_list_relative_to_league_folder(
 ) -> None:
     folder = make_league("PNFL", "[league]\nprofile_rules =\n    rules\\mine.toml\n")
     shutil.copy(RULES_TOML, folder / "rules" / "mine.toml")
-    assert runner.invoke(check, [str(OFF1)], obj={"league": "PNFL"}).exit_code == 1
+    assert runner.invoke(check, [str(OFF1), "--league", "PNFL"]).exit_code == 1
 
 
-def test_cli_rules_override_league(
-    runner, make_league: MakeLeague, caplog: pytest.LogCaptureFixture
-) -> None:
-    make_league("PNFL", "[league]\nprofile_rules =\n    bogus.toml\n")
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(
-            check, [str(OFF1), "--rules", str(RULES_TOML)], obj={"league": "PNFL"}
-        )
-    assert result.exit_code == 1
-    assert "bogus.toml" not in caplog.text
-
-
-def test_cli_rules_layering(runner, tmp_path: Path) -> None:
-    overlay = tmp_path / "overlay.toml"
-    overlay.write_text("min_categories = 3\n", encoding="utf-8")
-    result = runner.invoke(
-        check, [str(OFF1), "--rules", str(RULES_TOML), "--rules", str(overlay)]
+def test_cli_rules_layering(runner, make_league: MakeLeague) -> None:
+    # A profile_rules list layers files in order; the overlay is read last.
+    folder = make_league(
+        "PNFL",
+        "[league]\nprofile_rules =\n    rules\\base.toml\n    rules\\overlay.toml\n",
     )
-    assert result.exit_code == 1
+    shutil.copy(RULES_TOML, folder / "rules" / "base.toml")
+    (folder / "rules" / "overlay.toml").write_text(
+        "min_categories = 3\n", encoding="utf-8"
+    )
+    assert runner.invoke(check, [str(OFF1), "--league", "PNFL"]).exit_code == 1
 
 
 def test_cli_bad_rules_toml(
-    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    runner, league: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    bad = tmp_path / "bad.toml"
-    bad.write_text("not = valid = toml", encoding="utf-8")
+    (league / "rules" / "profile.toml").write_text(
+        "not = valid = toml", encoding="utf-8"
+    )
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(check, [str(OFF1), "--rules", str(bad)])
+        result = runner.invoke(check, [str(OFF1)])
     assert result.exit_code == 2
     assert "TOML parse error" in caplog.text
 
 
-@pytest.mark.parametrize("via", ["ini", "cli"])
 def test_cli_missing_rules(
-    runner,
-    make_league: MakeLeague,
-    tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
-    via: str,
+    runner, make_league: MakeLeague, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     missing = tmp_path / "no-such-rules.toml"
-    if via == "ini":
-        make_league("PNFL", f"[league]\nprofile_rules =\n    {missing}\n")
-        args, obj = [str(OFF1)], {"league": "PNFL"}
-    else:
-        args, obj = [str(OFF1), "--rules", str(missing)], None
+    make_league("PNFL", f"[league]\nprofile_rules =\n    {missing}\n")
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(check, args, obj=obj)
+        result = runner.invoke(check, [str(OFF1), "--league", "PNFL"])
     assert result.exit_code == 2
     assert str(missing) in caplog.text
 
@@ -442,134 +448,109 @@ def test_check_file_gameplan_matches_golden(
 # ── --gameplan compatibility (command) ────────────────────────────────────────
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_gameplan_offense_exit_1(runner) -> None:
-    result = runner.invoke(
-        check, [str(OFF1), "--rules", str(RULES_TOML), "--gameplan", str(GP_OFFENSE)]
-    )
+    result = runner.invoke(check, [str(OFF1), "--gameplan", str(GP_OFFENSE)])
     assert result.exit_code == 1
     assert "gameplan issue(s)" in result.output
     assert "gameplan: play category GLR (0x00)" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_gameplan_defense_exit_1(runner) -> None:
-    result = runner.invoke(
-        check, [str(DEF1), "--rules", str(RULES_TOML), "--gameplan", str(GP_DEFENSE)]
-    )
+    result = runner.invoke(check, [str(DEF1), "--gameplan", str(GP_DEFENSE)])
     assert result.exit_code == 1
     assert "special-teams category Field Goal/PAT" in result.output
 
 
 def test_cli_gameplan_clean_exit_0(
-    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    runner, league: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
         "athc.cli.profile.check.gameplan_extra_categories", lambda prof, gp: ()
     )
-    empty = tmp_path / "empty.toml"
-    empty.write_text(COMPAT_TOML, encoding="utf-8")
+    (league / "rules" / "profile.toml").write_text(COMPAT_TOML, encoding="utf-8")
     result = runner.invoke(
-        check,
-        [str(COMPAT_DEF_CLEAN), "--rules", str(empty), "--gameplan", str(GP_DEFENSE)],
+        check, [str(COMPAT_DEF_CLEAN), "--gameplan", str(GP_DEFENSE)]
     )
     assert result.exit_code == 0
     assert "gameplan compatible" in result.output
 
 
-def test_cli_gameplan_reverse_exit_1(runner, tmp_path: Path) -> None:
+def test_cli_gameplan_reverse_exit_1(runner, league: Path) -> None:
     """Gameplan categories the profile never uses fail the check on their own:
     a forward-compatible profile still exits 1."""
-    empty = tmp_path / "empty.toml"
-    empty.write_text(COMPAT_TOML, encoding="utf-8")
+    (league / "rules" / "profile.toml").write_text(COMPAT_TOML, encoding="utf-8")
     result = runner.invoke(
-        check,
-        [str(COMPAT_DEF_CLEAN), "--rules", str(empty), "--gameplan", str(GP_DEFENSE)],
+        check, [str(COMPAT_DEF_CLEAN), "--gameplan", str(GP_DEFENSE)]
     )
     assert result.exit_code == 1
     assert "gameplan issue(s)" in result.output
     assert "gameplan: gameplan play category Goal Line Run" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_gameplan_side_mismatch_exit_2(runner) -> None:
-    result = runner.invoke(
-        check, [str(OFF1), "--rules", str(RULES_TOML), "--gameplan", str(GP_DEFENSE)]
-    )
+    result = runner.invoke(check, [str(OFF1), "--gameplan", str(GP_DEFENSE)])
     assert result.exit_code == 2
     assert "profile is offense but gameplan is defense" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_gameplan_mixed_sides_continues(runner) -> None:
     """One gameplan, two profiles: the matching side is checked, the other is a
     per-file side-mismatch error; the run continues and exits 2."""
-    result = runner.invoke(
-        check,
-        [
-            str(OFF1),
-            str(DEF1),
-            "--rules",
-            str(RULES_TOML),
-            "--gameplan",
-            str(GP_OFFENSE),
-        ],
-    )
+    result = runner.invoke(check, [str(OFF1), str(DEF1), "--gameplan", str(GP_OFFENSE)])
     assert result.exit_code == 2
     assert "gameplan issue(s)" in result.output  # OFF1 checked
     assert "profile is defense but gameplan is offense" in result.output  # DEF1
     assert "2 file(s) checked" in result.output
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_gameplan_missing_file_exit_2(
     runner, caplog: pytest.LogCaptureFixture
 ) -> None:
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(
             check,
-            [str(OFF1), "--rules", str(RULES_TOML), "--gameplan", str(DATA / "no.pln")],
+            [str(OFF1), "--gameplan", str(DATA / "no.pln")],
         )
     assert result.exit_code == 2
     assert "no.pln" in caplog.text
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_gameplan_bad_extension_exit_2(
     runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     bad = tmp_path / "plan.txt"
     bad.write_bytes(b"\x00")
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(
-            check, [str(OFF1), "--rules", str(RULES_TOML), "--gameplan", str(bad)]
-        )
+        result = runner.invoke(check, [str(OFF1), "--gameplan", str(bad)])
     assert result.exit_code == 2
     assert "not a .pln file" in caplog.text
 
 
+@pytest.mark.usefixtures("league")
 def test_cli_gameplan_malformed_exit_2(
     runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     bad = tmp_path / "broken.pln"
     bad.write_bytes(b"\x00\x01\x02")
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(
-            check, [str(OFF1), "--rules", str(RULES_TOML), "--gameplan", str(bad)]
-        )
+        result = runner.invoke(check, [str(OFF1), "--gameplan", str(bad)])
     assert result.exit_code == 2
 
 
 # ── packaging check (real subprocess) ─────────────────────────────────────────
 
 
-def test_entry_point_subprocess(tmp_path: Path) -> None:
-    env = {**os.environ, "ATHC_CONFIG_DIR": str(tmp_path)}
+@pytest.mark.usefixtures("league")
+def test_entry_point_subprocess(config_dir: Path) -> None:
+    env = {**os.environ, "ATHC_CONFIG_DIR": str(config_dir)}
     result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "athc",
-            "profile",
-            "check",
-            str(OFF1),
-            "--rules",
-            str(RULES_TOML),
-        ],
+        [sys.executable, "-m", "athc", "profile", "check", str(OFF1)],
         capture_output=True,
         text=True,
         env=env,

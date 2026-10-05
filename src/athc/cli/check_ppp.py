@@ -13,7 +13,7 @@ from pathlib import Path
 
 import click
 
-from athc.cli import selected_league
+from athc.cli import CONTEXT_SETTINGS, AthcCommand, league_option
 from athc.cli.gameplan._common import build_pool
 from athc.config import ConfigFileError, LeagueError
 from athc.fbpro98_gameplan import GamePlan, InvalidGamePlanError, read_gameplan
@@ -44,11 +44,14 @@ PROG = "athc check-ppp"
 logger = logging.getLogger(__name__)
 
 
-@click.command(name="check-ppp")
-@click.argument("first", metavar="FILE")
-@click.argument("second", metavar="[FILE]", required=False)
+@click.command(name="check-ppp", cls=AthcCommand, context_settings=CONTEXT_SETTINGS)
+@click.argument("first", metavar="file")
+@click.argument("second", metavar="[file]", required=False)
+@league_option
 @click.pass_context
-def check_ppp(ctx: click.Context, first: str, second: str | None) -> None:
+def check_ppp(
+    ctx: click.Context, first: str, second: str | None, league: str | None
+) -> None:
     """Validate a .prf profile and/or a .pln gameplan against the league rules.
 
     Pass one profile, one gameplan, or both, in either order; the extension
@@ -58,7 +61,6 @@ def check_ppp(ctx: click.Context, first: str, second: str | None) -> None:
     the profile never uses are listed as info only.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    league = selected_league(ctx)
 
     profile_path, gameplan_path, input_errors = sort_inputs(
         [first] if second is None else [first, second]
@@ -117,7 +119,7 @@ def check_ppp(ctx: click.Context, first: str, second: str | None) -> None:
 
 
 def sort_inputs(paths: Sequence[str]) -> tuple[Path | None, Path | None, list[str]]:
-    """Split the FILE arguments by extension into `(profile, gameplan, errors)`.
+    """Split the file arguments by extension into `(profile, gameplan, errors)`.
 
     A missing path, a non-file, another extension, or a second file of a kind
     is an error; the files that pass are still checked.
@@ -161,7 +163,7 @@ def load_gameplan_setup(
     """The league's gameplan rules and play pool; None (already logged) when
     either can't load."""
     try:
-        config = load_gameplan_config(league, play_path_option=None)
+        config = load_gameplan_config(league)
     except ValueError as error:  # league, athc.ini and play_path errors alike
         _log_once(error, logged)
         return None

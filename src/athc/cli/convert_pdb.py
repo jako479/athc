@@ -8,7 +8,7 @@ from pathlib import Path
 import click
 from xlsxwriter.exceptions import XlsxWriterException
 
-from athc.cli import selected_league
+from athc.cli import CONTEXT_SETTINGS, AthcCommand, league_option
 from athc.pdbtoexcel.main import convert_pdb as run_conversion
 
 PROG = "athc convert-pdb"
@@ -32,14 +32,23 @@ def _ext(*extensions: str):
     return callback
 
 
-@click.command(name="convert-pdb")
-@click.argument("pdbfile", type=click.Path(path_type=Path), callback=_ext(".pdb"))
+@click.command(name="convert-pdb", cls=AthcCommand, context_settings=CONTEXT_SETTINGS)
 @click.argument(
-    "outputfile", type=click.Path(path_type=Path), callback=_ext(".xlsx", ".xlsm")
+    "pdbfile",
+    metavar="pdb_file",
+    type=click.Path(path_type=Path),
+    callback=_ext(".pdb"),
+)
+@click.argument(
+    "outputfile",
+    metavar="output_file",
+    type=click.Path(path_type=Path),
+    callback=_ext(".xlsx", ".xlsm"),
 )
 @click.option(
     "-o",
     "--pln-off",
+    metavar="pln_file",
     type=click.Path(path_type=Path),
     callback=_ext(".pln"),
     help="Offensive game plan (.pln).",
@@ -47,6 +56,7 @@ def _ext(*extensions: str):
 @click.option(
     "-o2",
     "--pln-off-2",
+    metavar="pln_file",
     type=click.Path(path_type=Path),
     callback=_ext(".pln"),
     help="Second offensive game plan (.pln).",
@@ -54,6 +64,7 @@ def _ext(*extensions: str):
 @click.option(
     "-d",
     "--pln-def",
+    metavar="pln_file",
     type=click.Path(path_type=Path),
     callback=_ext(".pln"),
     help="Defensive game plan (.pln).",
@@ -61,28 +72,17 @@ def _ext(*extensions: str):
 @click.option(
     "-d2",
     "--pln-def-2",
+    metavar="pln_file",
     type=click.Path(path_type=Path),
     callback=_ext(".pln"),
     help="Second defensive game plan (.pln).",
-)
-@click.option(
-    "--play-path",
-    type=click.Path(path_type=Path),
-    help="Play-files directory (overrides the league's play_path).",
-)
-@click.option(
-    "--playpool-rules",
-    type=click.Path(path_type=Path),
-    callback=_ext(".toml"),
-    help="Playpool rules TOML for play tags (overrides the league's "
-    "rules\\playpool.toml).",
 )
 @click.option(
     "--skip-calcs",
     is_flag=True,
     help="Omit the extra calculation (percentage) columns.",
 )
-@click.option("--skip-totals", is_flag=True, help="Omit the Total Stats team.")
+@league_option
 @click.pass_context
 def convert_pdb(
     ctx: click.Context,
@@ -92,28 +92,18 @@ def convert_pdb(
     pln_off_2: Path | None,
     pln_def: Path | None,
     pln_def_2: Path | None,
-    play_path: Path | None,
-    playpool_rules: Path | None,
     skip_calcs: bool,
-    skip_totals: bool,
+    league: str | None,
 ) -> None:
     """Create an Excel workbook from a WinLogStats PDB and optional game plans.
 
-    PDBFILE is a `.pdb`; OUTPUTFILE is `.xlsx` or `.xlsm` (`.xlsm` embeds sorting
+    pdb_file is a `.pdb`; output_file is `.xlsx` or `.xlsm` (`.xlsm` embeds sorting
     macros). Cross-reference up to two offensive (`-o`/`-o2`) and two defensive
     (`-d`/`-d2`) Front Page Sports Football Pro '98 game plans.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    league = selected_league(ctx)
 
-    for path in (
-        pdbfile,
-        pln_off,
-        pln_off_2,
-        pln_def,
-        pln_def_2,
-        playpool_rules,
-    ):
+    for path in (pdbfile, pln_off, pln_off_2, pln_def, pln_def_2):
         if path is not None and not path.is_file():
             logger.error("%s: %s: file not found", PROG, path)
             ctx.exit(1)
@@ -127,10 +117,7 @@ def convert_pdb(
             pln_offense_2=str(pln_off_2) if pln_off_2 else None,
             pln_defense=str(pln_def) if pln_def else None,
             pln_defense_2=str(pln_def_2) if pln_def_2 else None,
-            play_path_override=str(play_path) if play_path else None,
-            playpool_rules_override=playpool_rules,
             skip_calcs=skip_calcs,
-            skip_totals=skip_totals,
         )
     except (OSError, ValueError, XlsxWriterException) as error:
         # ValueError covers InvalidPDBError / LeagueError / ConfigFileError /

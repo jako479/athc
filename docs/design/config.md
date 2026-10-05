@@ -23,7 +23,7 @@ If load-site validation becomes a real pain (user typos `Defualt_League`), the p
 The `athc config` group locates and opens the settings file so users don't hunt for the hidden `%LOCALAPPDATA%` path:
 
 - `athc config path` — print the full path to `athc.ini`.
-- `athc config edit` — open `athc.ini` in an editor (created if missing); `$VISUAL`/`$EDITOR` if set, else the OS-associated app (Notepad by default).
+- `athc config edit` — open `athc.ini` in its default app (created if missing).
 - `athc config reveal` — reveal `athc.ini` in the file manager (Explorer), or its folder if absent.
 
 Thin wrappers over `click.edit` / `click.launch`; no `[config]` section (the group operates on the file, it reads no settings).
@@ -69,7 +69,6 @@ delay_before_continue = 1.0
 hot_corner = true
 
 [convert-pdb]
-calculate_total_stats = true
 calculate_percentages = true
 include_category_worksheets = false
 exclude_sacks_from_pass_attempts = true
@@ -79,22 +78,21 @@ exclude_sacks_from_pass_attempts = true
 
 An unreadable `athc.ini` or `league.ini` raises `ConfigFileError`; a missing or unknown league raises `LeagueError`.
 
-Log level is not a setting — it is set by `-v/--verbose` ([logging.md](logging.md#handler-setup)), not by config.
+Log level is not a setting ([logging.md](logging.md#handler-setup)).
 
 ## Rule files
 
-Each tool reads its one fixed file under the league's `rules\`. An optional multi-line list in `league.ini` (`gameplan_rules`, `profile_rules`) replaces it with an ordered set, later files overriding earlier ones. CLI `--rules` still wins and stays CWD-relative, as do `--play-path` and `--playpool-rules` (the ruff idiom: config paths resolve against the config file, CLI paths against the CWD). Rule files are league data only; there is no shared default outside the league folders.
+Each tool reads its one fixed file under the league's `rules\`. An optional multi-line list in `league.ini` (`gameplan_rules`, `profile_rules`) replaces it with an ordered set, later files overriding earlier ones. No command-line option overrides the league's rules or play pool. Rule files are league data only; there is no shared default outside the league folders.
 
 ## Multi-league selection
 
-`--league NAME` is one option on the root command (`athc --league NAME <command>`). League-aware commands (`gameplan check` / `replace-play` / `set-normals` / `set-specials`, `profile check`, `check-ppp`, `convert-pdb`, `generate-schedule`) read it through `selected_league(ctx)`; non-league tools ignore it. The option and helper are in [cli.md](cli.md#cross-cutting-options---league). A league is resolved only when a value is still needed after the CLI overrides.
+`--league name` is an option on each league-aware command (`gameplan check` / `replace-play` / `set-normals` / `set-specials`, `profile check`, `check-ppp`, `convert-pdb`, `generate-schedule`), placed after the command name: `athc profile check OFF1.prf --league PCFL`. Other commands don't have it. The shared option is in [cli.md](cli.md#cross-cutting-options---league).
 
 **Selection priority** (highest wins):
 
 1. `--league NAME` (one run, never persisted).
-2. `ATHC_LEAGUE` environment variable.
-3. `[athc] league`.
-4. Error naming `athc config set league` and listing the folders under `leagues\`.
+2. `[athc] league`.
+3. Error naming `athc config set league` and listing the folders under `leagues\`.
 
 ## Per-tool config code
 

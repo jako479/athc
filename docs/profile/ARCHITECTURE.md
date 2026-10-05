@@ -20,7 +20,7 @@ src/athc/profile/          # tool logic (no Click)
 
 src/athc/cli/profile/      # Click wiring
 ├── __init__.py    # `profile` group
-├── _common.py     # collect_files, make_backup, resolve_rules
+├── _common.py     # collect_files, resolve_rules
 ├── check.py       # `athc profile check`
 ├── diff.py        # `athc profile diff` (+ render / render_csv)
 └── copy.py        # `athc profile copy`
@@ -52,10 +52,9 @@ Loading reports every problem at once (`RulesFileError.errors`); any error abort
 
 `leagues\<NAME>\rules\profile.toml`, or a `profile_rules` list in the league's
 `league.ini` (one path per line); the league comes from `--league` /
-`ATHC_LEAGUE` / `[athc] league` (config found via `ATHC_CONFIG_DIR` / the default
-config dir; no `--config` flag). `check` accepts a repeatable `--rules` to
-override. No rules configured ⇒ `check` logs an error and exits 2 (nothing to
-validate). See [../design/config.md](../design/config.md).
+`[athc] league` (config found via `ATHC_CONFIG_DIR` / the default
+config dir; no `--config` flag). `check` has no rules override. No rules
+configured ⇒ `check` logs an error and exits 2 (nothing to validate). See [../design/config.md](../design/config.md).
 
 ## Check
 
@@ -81,24 +80,21 @@ gameplan is a per-file error (exit 2).
 
 ## Diff
 
-`athc profile diff A.prf B.prf [-o FILE]` — reads both (no rules), refuses a
+`athc profile diff file1 file2 [-o file]` — reads both (no rules), refuses a
 cross-side compare (exit 2), then `diff_profiles` builds a `ProfileDiff` by
 aligning the fixed records (2520 situations, 60 PAT, 8 subs, FG, audibles) and
 keeping only changes. The model (`diff.py`) is separate from rendering (`cli`):
 stdout prints `[profile]`/`[situations]`/`[pat]` sections, one dense line per
-change; `--output FILE` writes `.txt` (same text) or `.csv` (one row per change),
+change; `--output file` writes `.txt` (same text) or `.csv` (one row per change),
 format from the extension (unknown → exit 2). Exit 0 identical / 1 differs / 2 I/O.
 
 ## Copy
 
-`athc profile copy SRC.prf TARGET <flags> [-r] [--no-backup]` — copies selected
-fields from SRC into one or many targets (`ProfileWriter.apply` → updated
-`Profile`, written via `write_profile`). TARGET resolves to a file, directory, or
+`athc profile copy source target <flags> [-r]` — copies selected
+fields from `source` into one or many targets (`ProfileWriter.apply` → updated
+`Profile`, written via `write_profile`). `target` resolves to a file, directory, or
 tree (`-r`); files of the wrong side are skipped by file-size parity (offense
-even, defense odd), and SRC is never overwritten. A timestamped `.bak` is made
-before each write unless `--no-backup`, named `<file>.<YYYY-MM-DD-HHMM>.bak`;
-backups accumulate, but two edits of one file in the same minute reuse one name,
-so the second silently overwrites the first. Flags (≥1 required, combinable):
+even, defense odd), and `source` is never overwritten. No backup is made. Flags (≥1 required, combinable):
 `--stop-clock`, `--sub-percent`, `--field-goal-range`, `--fourth-down`,
 `--goal-line`; the last two copy whole situations (stop-clock + weights).
 Copy does not validate (use `check`). Exit 0 ok / 1 a target failed / 2 couldn't run.

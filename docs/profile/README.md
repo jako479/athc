@@ -49,8 +49,8 @@ athc profile diff A.prf B.prf
 athc profile diff A.prf B.prf -o changes.csv
 ```
 
-Shows what changed from A to B (same side only) — situations, PAT, substitutions,
-field-goal range, audibles. `-o FILE` writes a `.txt` or `.csv` report instead of
+Shows what changed from `file1` to `file2` (same side only) — situations, PAT, substitutions,
+field-goal range, audibles. `-o file` writes a `.txt` or `.csv` report instead of
 stdout. Exit 0 (identical), 1 (differs), or 2 (I/O error or side mismatch). No
 rules needed.
 
@@ -58,20 +58,19 @@ rules needed.
 
 ```bash
 athc profile copy SRC.prf DST.prf --stop-clock --goal-line
-athc profile copy SRC.prf profiles\ --sub-percent -r --no-backup
+athc profile copy SRC.prf profiles\ --sub-percent -r
 ```
 
-Copies selected fields from SRC into one or more targets (a `.prf` file, a
+Copies selected fields from `source` into one or more targets (a `.prf` file, a
 directory, or the tree with `-r`). Pick at least one: `--stop-clock`,
 `--sub-percent`, `--field-goal-range`, `--fourth-down`, `--goal-line`. Wrong-side
-targets are skipped; a timestamped `.bak` is made before each write unless
-`--no-backup`. Exit 0 (ok), 1 (a target failed), or 2 (usage or unreadable source). No rules needed —
+targets are skipped; no backup is made. Exit 0 (ok), 1 (a target failed), or 2 (usage or unreadable source). No rules needed —
 validate afterward with `check`.
 
 ## Rules
 
 Rules are **not** built in — they are the league folder's `rules\profile.toml`
-(`leagues\<NAME>\` under the config dir, picked by `--league` / `ATHC_LEAGUE` /
+(`leagues\<NAME>\` under the config dir, picked by `--league` /
 `[athc] league`). To layer several files, list them in `league.ini`:
 
 ```ini
@@ -81,8 +80,7 @@ profile_rules =
     rules\house-rules.toml
 ```
 
-Later files layer over earlier. Override with `--rules <path>` (repeatable), or
-point `ATHC_CONFIG_DIR` at a different config folder. With no rules configured,
+Later files layer over earlier. With no rules configured,
 `check` reports an error and exits 2. The shipped rule set is
 [`release/leagues/PNFL/rules/profile.toml`](../../release/leagues/PNFL/rules/profile.toml),
 and its comments explain every key.

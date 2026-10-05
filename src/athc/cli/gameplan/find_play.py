@@ -8,6 +8,7 @@ from pathlib import Path
 
 import click
 
+from athc.cli import CONTEXT_SETTINGS
 from athc.cli.gameplan import gameplan
 from athc.cli.gameplan._common import collect_files, find_in_gameplan, is_glob
 from athc.fbpro98_gameplan import InvalidGamePlanError, PlayRef, read_gameplan
@@ -51,19 +52,19 @@ def format_hit_line(
     return f"{path}: {'; '.join(parts)}"
 
 
-@gameplan.command(name="find-play")
-@click.argument("args", nargs=-1, required=True, metavar="PLAY... PATH")
+@gameplan.command(name="find-play", context_settings=CONTEXT_SETTINGS)
+@click.argument("args", nargs=-1, required=True, metavar="play... path")
 @click.option(
     "-r",
     "--recursive",
     is_flag=True,
-    help="Recurse into subdirectories when PATH is a directory.",
+    help="Recurse into subdirectories when path is a directory.",
 )
 @click.pass_context
 def find_play(ctx: click.Context, args: tuple[str, ...], recursive: bool) -> None:
     """Find one or more plays by name across .pln files (normal + custom-special slots).
 
-    PLAY... are one or more case-insensitive names; PATH is a .pln file or a directory
+    play... are one or more case-insensitive names; path is a .pln file or a directory
     (top level, or the whole tree with -r), never a wildcard. Hits show the slot(s);
     special hits also
     show the game category. Each file missing a play prints 'not found'.
@@ -71,11 +72,11 @@ def find_play(ctx: click.Context, args: tuple[str, ...], recursive: bool) -> Non
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     if len(args) < 2:
-        raise click.UsageError("need one or more PLAY names followed by a PATH")
+        raise click.UsageError("need one or more play names followed by a path")
     *play_names, path = args
     if is_glob(path):
         raise click.UsageError(
-            "PATH must be a .pln file or a directory; wildcards are not supported"
+            "path must be a .pln file or a directory; wildcards are not supported"
         )
 
     files, path_errors = collect_files([path], suffix=".pln", recursive=recursive)
@@ -116,4 +117,5 @@ def find_play(ctx: click.Context, args: tuple[str, ...], recursive: bool) -> Non
 
     if io_errors or path_errors:
         ctx.exit(2)
-    ctx.exit(0 if all(c > 0 for c in files_hit_per_play.values()) else 1)
+    # Like grep: success when any play was found anywhere.
+    ctx.exit(0 if any(c > 0 for c in files_hit_per_play.values()) else 1)

@@ -21,13 +21,12 @@ from .test_config import LEAGUE, LEAGUE_MISSING_DIVISION_STANDINGS, VALID_LEAGUE
 
 
 @pytest.fixture(autouse=True)
-def league_config(config_dir: Path, write_config, monkeypatch) -> None:
+def league_config(config_dir: Path, write_config) -> None:
     """A configured league with its folder, so tests without --league resolve one."""
     folder = config_dir / "leagues" / LEAGUE
     (folder / "rules").mkdir(parents=True)
     (folder / "standings").mkdir()
     write_config(f"[athc]\nleague = {LEAGUE}\n")
-    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
 
 
 def _standings_path(config_dir: Path, season: int) -> Path:
@@ -183,9 +182,7 @@ def test_league_and_season_resolve_files_and_output_to_cwd(
     captured: dict[str, object] = {}
     monkeypatch.setattr(cli_module, "run_generate", lambda **kw: captured.update(kw))
     monkeypatch.chdir(tmp_path)
-    result = runner.invoke(
-        generate_schedule, ["--season", "2048"], obj={"league": LEAGUE}
-    )
+    result = runner.invoke(generate_schedule, ["--season", "2048", "--league", LEAGUE])
     assert result.exit_code == 0, result.output
     folder = config_dir / "leagues" / LEAGUE
     assert captured["league"] == LEAGUE
@@ -214,7 +211,7 @@ def test_errors_when_league_has_no_folder(runner, caplog, config_dir: Path) -> N
     _write_season_files(config_dir, 2048)
     with caplog.at_level("ERROR"):
         result = runner.invoke(
-            generate_schedule, ["--season", "2048"], obj={"league": "nope"}
+            generate_schedule, ["--season", "2048", "--league", "nope"]
         )
     assert result.exit_code == 1
     assert any("league 'nope' not found" in r.getMessage() for r in caplog.records)
@@ -223,7 +220,7 @@ def test_errors_when_league_has_no_folder(runner, caplog, config_dir: Path) -> N
 def test_errors_when_no_league_is_configured(
     runner, caplog, config_dir: Path, write_config
 ) -> None:
-    # No --league, no ATHC_LEAGUE, no [athc] league -> exit 1.
+    # No --league, no [athc] league -> exit 1.
     write_config("[athc]\n")
     _write_season_files(config_dir, 2048)
     with caplog.at_level("ERROR"):

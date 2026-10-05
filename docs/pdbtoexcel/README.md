@@ -8,21 +8,21 @@ workbook. Built on `playpool` (play classification) and `fbpro98_gameplan`
 
 ```bash
 athc convert-pdb stats.pdb out.xlsm -o offense.pln -d defense.pln
-athc convert-pdb stats.pdb out.xlsx --play-path E:\SIERRA\FbPro98\PNFL
+athc convert-pdb stats.pdb out.xlsx --league PCFL
 ```
 
 - `out.xlsm` embeds VBA sort macros; `out.xlsx` is plain.
 - Cross-reference up to two offensive (`-o`/`-o2`) and two defensive (`-d`/`-d2`)
   game plans to fill the Slot columns.
-- `--skip-calcs` drops the percentage columns; `--skip-totals` drops the Total
-  Stats team.
+- The workbook always includes the Total Stats team.
+- `--skip-calcs` drops the percentage columns.
 - Exit 0 ok, 1 on an input/I/O error, 2 on usage (bad extension, etc.).
 
 Plays are grouped by their **game** category (e.g. "Pass Short Left").
 
 ## Config
 
-The league folder `leagues\<NAME>\` (picked by `--league` / `ATHC_LEAGUE` /
+The league folder `leagues\<NAME>\` (picked by `--league` /
 `[athc] league`; see [../design/config.md](../design/config.md)):
 
 ```ini
@@ -32,11 +32,8 @@ play_path = E:\SIERRA\FbPro98\PNFL
 ```
 
 `play_path` (the `.ply` pool, required) plus the optional `rules\playpool.toml`
-of filename filters that tag plays (QB draws, screens, defensive fronts).
-Playpool rules resolve as `--playpool-rules`, else the league's
-`rules\playpool.toml`, else none; `--play-path` alone still reads the league's
-rules. The workbook
-options are app-wide settings in `[convert-pdb]` in `athc.ini`
-(`calculate_total_stats`, `calculate_percentages`,
-`include_category_worksheets`, `exclude_sacks_from_pass_attempts`);
-`--skip-totals` / `--skip-calcs` turn the first two off for one run.
+of filename filters that tag plays (QB draws, screens, defensive fronts). The
+workbook options are app-wide settings in `[convert-pdb]` in `athc.ini`
+(`calculate_percentages`, `include_category_worksheets`,
+`exclude_sacks_from_pass_attempts`); `--skip-calcs` turns the first off for one
+run.

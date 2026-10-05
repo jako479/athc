@@ -44,8 +44,8 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   rules and standings there. `athc.ini` keeps only app-wide settings.
 - The league in use is `[athc] league`, set by hand or with
   `athc config set league NAME`, which rewrites `athc.ini` and keeps its
-  comments. `athc --league NAME <command>` overrides it for one run (one root
-  option, like `aws --profile`), and `ATHC_LEAGUE` sits between the two.
+  comments. `--league NAME` on a league-aware command overrides it for one run
+  (`athc profile check OFF1.prf --league PCFL`, like `aws s3 ls --profile x`).
 - Rule layering stays: a `gameplan_rules` / `profile_rules` list in
   `league.ini` replaces the fixed file.
 - Rule files live only in league folders; there is no shared default
@@ -102,7 +102,7 @@ leagues\
 - `.vscode/` is untracked; game data files are marked binary in
   `.gitattributes`.
 - Config stays INI. Logging is designed but not wired — one `basicConfig` in
-  `cli()` with `-v/--verbose`, per [docs/design/logging.md](docs/design/logging.md).
+  `cli()`, per [docs/design/logging.md](docs/design/logging.md).
 - Install is `install.bat` plus a wheel in a zip; uv downloads a managed
   Python, so Python is no longer a prerequisite.
 
@@ -126,7 +126,8 @@ Working. Checks one profile and/or one gameplan, and how they fit. Docs:
 [README](docs/check_ppp/README.md)
 
 - Takes one `.prf` and/or one `.pln`, in either order; the extension tells
-  them apart. No options: every rule comes from the league folder.
+  them apart. The only option is `--league`: every rule comes from the league
+  folder.
 - Each file is checked and printed exactly as `profile check` and
   `gameplan check` do, with its own code, since those two will be removed. With
   both files, they must be the same side, and a profile category the gameplan
@@ -172,8 +173,7 @@ Working. Validates and edits `.pln` game plans. Docs:
 [README](docs/gameplan/README.md) · [rules](release/leagues/PNFL/rules/gameplan.toml)
 
 - Rules and the play pool come from the league folder (`rules\gameplan.toml`,
-  `rules\playpool.toml`, `play_path` in `league.ini`); `--play-path`,
-  `--playpool-rules` and `--rules` still override per run.
+  `rules\playpool.toml`, `play_path` in `league.ini`); `check` has no overrides.
 - Attribute caps take a count, ratio or percent form — one form per attribute,
   so a league writes its rule the way the league states it. Naming two forms
   for one attribute is a rules-file error.
@@ -183,9 +183,8 @@ Working. Validates and edits `.pln` game plans. Docs:
   is covered.
 - `find-play` searches by play name across files and trees, reading the
   category straight from the `.pln`. `replace-play` swaps one play across
-  files. Both back up first.
-- Every command that writes makes a timestamped `.bak` next to the file first,
-  unless `--no-backup`. Covered in the README and in tests.
+  files.
+- `set-normals`, `set-specials` and `replace-play` write in place with no backup.
 
 Open: `check` folds into one `athc check-ppp` · `replace-play` should take a list
 of plays for bulk swaps.
@@ -196,9 +195,8 @@ Working. Extracts a WinLogStats database into an Excel workbook. Docs:
 [README](docs/pdbtoexcel/README.md) ·
 [ARCHITECTURE](docs/pdbtoexcel/ARCHITECTURE.md)
 
-- The play pool comes from the league folder; playpool rules are
-  `--playpool-rules`, else the league's `rules\playpool.toml`, and
-  `--play-path` alone still reads the league's rules. The four workbook options
+- The play pool and playpool rules come only from the league folder. The
+  workbook always has the Total Stats team; the three other workbook options
   stay in `[convert-pdb]`.
 
 Note: a standalone port for testers lives outside this repo at
@@ -220,7 +218,7 @@ Working. Validates and compares `.prf` coaching profiles. Docs:
 [README](docs/profile/README.md) · [rules](release/leagues/PNFL/rules/profile.toml)
 
 - `check` takes its rules from the league folder (`rules\profile.toml`, or a
-  `profile_rules` list in `league.ini`); `--rules` still overrides.
+  `profile_rules` list in `league.ini`); there is no override.
 - Gameplan compatibility is checked both ways, fails `check` like any other
   rule, and each direction is turned on in the rules file under
   `[gameplan_compatibility]`.
@@ -233,8 +231,7 @@ Working. Validates and compares `.prf` coaching profiles. Docs:
   covered.
 - `diff` reports one line per differing situation and infers CSV from the
   `--output` extension.
-- `copy` makes a timestamped `.bak` next to each target before writing, unless
-  `--no-backup`. Covered in the README and in tests.
+- `copy` writes each target in place with no backup.
 
 Open: `check` folds into one `athc check-ppp` · revisit `edit`/`copy` options.
 
@@ -248,7 +245,7 @@ Working. Docs: [README](docs/scheduler/README.md) ·
   on Intel hybrid CPUs) minus 2. A benchmark on an i5-14600KF found 8-12
   threads fastest and 18-24 slower. The report shows the CPU, thread count and
   seed, so a schedule can be reproduced on another machine.
-- League-agnostic: `athc --league NAME` picks the league; its standings are
+- League-agnostic: `--league NAME` picks the league; its standings are
   `standings\<season>.league.ini` and its rules `rules\scheduler.toml` in the
   league folder. Conferences and divisions come from the standings file, the
   same-place games from the divisions, and the writers take the league name.
@@ -293,9 +290,9 @@ construction, never pruned · then the quirk budget in
 - **The league in use is a key in `athc.ini`, not a separate state file.**
   Calibre keeps its current library the same way; `athc config set` rewrites
   the file with ConfigUpdater so the comments survive.
-- **`--league` is one root option.** `aws --profile`, `gcloud
-  --configuration` and `kubectl --context` do the same; subcommands never
-  carry it.
+- **`--league` is on each league-aware command, after the command name.**
+  `aws s3 ls --profile x` and `kubectl get --context x` take theirs there too;
+  Click only takes a root option before the command name, which read oddly.
 - **convert-pdb's workbook options are app-wide.** They stay in
   `[convert-pdb]`; only the play pool is per league.
 - **One `athc check-ppp` replaces `gameplan check` and `profile check`.**

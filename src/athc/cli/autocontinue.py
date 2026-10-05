@@ -9,12 +9,13 @@ import time
 import click
 
 from athc.autocontinue.config import ConfigError
+from athc.cli import CONTEXT_SETTINGS, AthcCommand
 
 PROG = "athc autocontinue"
 logger = logging.getLogger(__name__)
 
 
-@click.command(name="autocontinue")
+@click.command(name="autocontinue", cls=AthcCommand, context_settings=CONTEXT_SETTINGS)
 @click.option(
     "--hot-corner/--no-hot-corner",
     default=None,

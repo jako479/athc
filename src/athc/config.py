@@ -139,11 +139,11 @@ def configured_league() -> str | None:
 
 
 def resolve_league(league: str | None = None) -> str:
-    """The league name to use. Priority: `league` arg -> `ATHC_LEAGUE` env ->
-    `[athc] league`; a blank arg counts as not given. LeagueError when none is
-    set or the folder is missing."""
+    """The league name to use. Priority: `league` arg -> `[athc] league`; a blank
+    arg counts as not given. LeagueError when none is set or the folder is
+    missing."""
     league = (league or "").strip() or None
-    name = league or os.environ.get("ATHC_LEAGUE") or configured_league()
+    name = league or configured_league()
     if not name:
         raise LeagueError(
             "no league selected; run 'athc config set league NAME' or pass "

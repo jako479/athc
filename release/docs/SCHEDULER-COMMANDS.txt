@@ -17,22 +17,20 @@ generate-schedule  --  build the season schedule
    named schedule_<season>_<timestamp>; the report adds a _report.html suffix.
 
    Show help:
-      athc generate-schedule --help
+      athc generate-schedule -h
 
    Example terminal calls:
       athc generate-schedule --season 2048
-      athc --league PCFL generate-schedule --season 2029 --seed 7
+      athc generate-schedule --league PCFL --season 2029 --seed 7
 
    Options:
-      --season YEAR      (required) season to schedule, e.g. 2048; reads
-                          standings\<season>.league.ini from the league
-                          folder (run 'athc config path')
-      --seed INT          random seed for reproducible output
-      --time-limit SECS   override the solver time limit (CP-SAT
-                          deterministic time, not wall-clock seconds)
-
-   Put --league NAME before the command (athc --league PCFL generate-schedule
-   ...) to use another league; default is [athc] league.
+      --league name         league to schedule; default is [athc] league
+      --season year         (required) season to schedule, e.g. 2048; reads
+                            standings\<season>.league.ini from the league
+                            folder (run 'athc config path')
+      --seed number         random seed for reproducible output
+      --time-limit number   override the solver time limit (CP-SAT
+                            deterministic time, not wall-clock seconds)
 
    Exit 0 = written, 1 = error (league, config, no feasible schedule),
    2 = bad arguments.

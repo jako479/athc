@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import logging
+import shutil
 from pathlib import Path
+
+import pytest
 
 from athc.cli.gameplan.list_normals import list_normals
 from athc.cli.gameplan.list_specials import list_specials
@@ -27,20 +30,56 @@ def test_normals_rejects_invalid_sort(runner) -> None:
     )
 
 
-def test_normals_stdout_offense_slot(runner) -> None:
-    result = runner.invoke(list_normals, [str(GP_OFFENSE)])
+def test_normals_help_uses_lowercase_names(runner) -> None:
+    result = runner.invoke(list_normals, ["--help"])
+    assert result.exit_code == 0
+    assert "] gameplan [output_file]" in result.output
+    assert "GAMEPLAN" not in result.output and "OUTPUT_PATH" not in result.output
+
+
+@pytest.mark.parametrize("option", ["--force", "--output"])
+def test_normals_removed_options_rejected(runner, tmp_path: Path, option: str) -> None:
+    out = tmp_path / "plays.txt"
+    result = runner.invoke(list_normals, [str(GP_OFFENSE), option, str(out)])
+    assert result.exit_code == 2
+    assert "No such option" in result.output
+
+
+def test_normals_default_writes_next_to_gameplan(runner, tmp_path: Path) -> None:
+    gp = tmp_path / "OFF.pln"
+    shutil.copy2(GP_OFFENSE, gp)
+    result = runner.invoke(list_normals, [str(gp)])
+    assert result.exit_code == 0
+    out = tmp_path / "OFF.normals.txt"
+    lines = out.read_text(encoding="utf-8").splitlines()
+    assert lines[0].startswith(":: ") and str(gp.resolve()) in lines[0]
+    assert lines[1:] == _expected("offense_normals_slot.txt")
+
+
+def test_normals_overwrites_existing_file(runner, tmp_path: Path) -> None:
+    out = tmp_path / "plays.txt"
+    out.write_text("existing\n", encoding="utf-8")
+    result = runner.invoke(list_normals, [str(GP_OFFENSE), str(out)])
+    assert result.exit_code == 0
+    assert out.read_text(encoding="utf-8").splitlines()[1:] == _expected(
+        "offense_normals_slot.txt"
+    )
+
+
+def test_normals_dash_offense_slot(runner) -> None:
+    result = runner.invoke(list_normals, [str(GP_OFFENSE), "-"])
     assert result.exit_code == 0
     assert result.output.splitlines() == _expected("offense_normals_slot.txt")
 
 
-def test_normals_stdout_defense_slot(runner) -> None:
-    result = runner.invoke(list_normals, [str(GP_DEFENSE)])
+def test_normals_dash_defense_slot(runner) -> None:
+    result = runner.invoke(list_normals, [str(GP_DEFENSE), "-"])
     assert result.exit_code == 0
     assert result.output.splitlines() == _expected("defense_normals_slot.txt")
 
 
-def test_normals_stdout_sort_name(runner) -> None:
-    result = runner.invoke(list_normals, [str(GP_OFFENSE), "--sort", "name"])
+def test_normals_dash_sort_name(runner) -> None:
+    result = runner.invoke(list_normals, [str(GP_OFFENSE), "-", "--sort", "name"])
     assert result.exit_code == 0
     assert result.output.splitlines() == _expected("offense_normals_name.txt")
 
@@ -60,28 +99,6 @@ def test_normals_file_sort_name(runner, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert out.read_text(encoding="utf-8").splitlines()[1:] == _expected(
         "offense_normals_name.txt"
-    )
-
-
-def test_normals_refuses_overwrite_without_force(
-    runner, tmp_path: Path, caplog
-) -> None:
-    out = tmp_path / "plays.txt"
-    out.write_text("existing\n", encoding="utf-8")
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(list_normals, [str(GP_OFFENSE), str(out)])
-    assert result.exit_code == 1
-    assert out.read_text(encoding="utf-8") == "existing\n"
-    assert "already exists" in caplog.text
-
-
-def test_normals_overwrites_with_force(runner, tmp_path: Path) -> None:
-    out = tmp_path / "plays.txt"
-    out.write_text("existing\n", encoding="utf-8")
-    result = runner.invoke(list_normals, [str(GP_OFFENSE), str(out), "--force"])
-    assert result.exit_code == 0
-    assert out.read_text(encoding="utf-8").splitlines()[1:] == _expected(
-        "offense_normals_slot.txt"
     )
 
 
@@ -116,14 +133,50 @@ def test_specials_requires_path(runner) -> None:
     assert runner.invoke(list_specials, []).exit_code == 2
 
 
-def test_specials_stdout_offense(runner) -> None:
-    result = runner.invoke(list_specials, [str(GP_OFFENSE)])
+def test_specials_help_uses_lowercase_names(runner) -> None:
+    result = runner.invoke(list_specials, ["--help"])
+    assert result.exit_code == 0
+    assert "] gameplan [output_file]" in result.output
+    assert "GAMEPLAN" not in result.output and "OUTPUT_PATH" not in result.output
+
+
+@pytest.mark.parametrize("option", ["--force", "--output"])
+def test_specials_removed_options_rejected(runner, tmp_path: Path, option: str) -> None:
+    out = tmp_path / "spec.txt"
+    result = runner.invoke(list_specials, [str(GP_OFFENSE), option, str(out)])
+    assert result.exit_code == 2
+    assert "No such option" in result.output
+
+
+def test_specials_default_writes_next_to_gameplan(runner, tmp_path: Path) -> None:
+    gp = tmp_path / "OFF.pln"
+    shutil.copy2(GP_OFFENSE, gp)
+    result = runner.invoke(list_specials, [str(gp)])
+    assert result.exit_code == 0
+    out = tmp_path / "OFF.specials.txt"
+    lines = out.read_text(encoding="utf-8").splitlines()
+    assert lines[0].startswith(":: ") and str(gp.resolve()) in lines[0]
+    assert lines[1:] == _expected("offense_specials.txt")
+
+
+def test_specials_overwrites_existing_file(runner, tmp_path: Path) -> None:
+    out = tmp_path / "spec.txt"
+    out.write_text("existing\n", encoding="utf-8")
+    result = runner.invoke(list_specials, [str(GP_OFFENSE), str(out)])
+    assert result.exit_code == 0
+    assert out.read_text(encoding="utf-8").splitlines()[1:] == _expected(
+        "offense_specials.txt"
+    )
+
+
+def test_specials_dash_offense(runner) -> None:
+    result = runner.invoke(list_specials, [str(GP_OFFENSE), "-"])
     assert result.exit_code == 0
     assert result.output.splitlines() == _expected("offense_specials.txt")
 
 
-def test_specials_stdout_defense(runner) -> None:
-    result = runner.invoke(list_specials, [str(GP_DEFENSE)])
+def test_specials_dash_defense(runner) -> None:
+    result = runner.invoke(list_specials, [str(GP_DEFENSE), "-"])
     assert result.exit_code == 0
     assert result.output.splitlines() == _expected("defense_specials.txt")
 
@@ -135,18 +188,6 @@ def test_specials_file_writes_header_and_plays(runner, tmp_path: Path) -> None:
     lines = out.read_text(encoding="utf-8").splitlines()
     assert lines[0].startswith(":: ") and str(GP_OFFENSE.resolve()) in lines[0]
     assert lines[1:] == _expected("offense_specials.txt")
-
-
-def test_specials_refuses_overwrite_without_force(
-    runner, tmp_path: Path, caplog
-) -> None:
-    out = tmp_path / "spec.txt"
-    out.write_text("existing\n", encoding="utf-8")
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(list_specials, [str(GP_OFFENSE), str(out)])
-    assert result.exit_code == 1
-    assert out.read_text(encoding="utf-8") == "existing\n"
-    assert "already exists" in caplog.text
 
 
 def test_specials_file_logs_count(runner, tmp_path: Path) -> None:

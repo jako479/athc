@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import click
 
+from athc.cli import CONTEXT_SETTINGS
 from athc.cli.config import config
 from athc.config import config_dir, config_file
 
 
-@config.command(name="reveal")
+@config.command(name="reveal", context_settings=CONTEXT_SETTINGS)
 def reveal() -> None:
     """Reveal athc.ini in the file manager, or open its folder if it's absent."""
     directory = config_dir()

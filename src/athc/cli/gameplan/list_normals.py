@@ -7,6 +7,7 @@ from pathlib import Path
 
 import click
 
+from athc.cli import CONTEXT_SETTINGS
 from athc.cli.gameplan import gameplan
 from athc.cli.gameplan._common import emit_play_list, normal_play_lines
 from athc.fbpro98_gameplan import InvalidGamePlanError, read_gameplan
@@ -15,9 +16,14 @@ PROG = "athc gameplan list-normals"
 logger = logging.getLogger(__name__)
 
 
-@gameplan.command(name="list-normals")
-@click.argument("gameplan_path", type=click.Path(path_type=Path))
-@click.argument("output_path", required=False, type=click.Path(path_type=Path))
+@gameplan.command(name="list-normals", context_settings=CONTEXT_SETTINGS)
+@click.argument("gameplan_path", metavar="gameplan", type=click.Path(path_type=Path))
+@click.argument(
+    "output_path",
+    metavar="[output_file]",
+    required=False,
+    type=click.Path(path_type=Path, allow_dash=True),
+)
 @click.option(
     "--sort",
     type=click.Choice(["slot", "name"]),
@@ -25,19 +31,19 @@ logger = logging.getLogger(__name__)
     show_default=True,
     help="Order of the listed plays.",
 )
-@click.option("-f", "--force", is_flag=True, help="Overwrite OUTPUT_PATH if it exists.")
 @click.pass_context
 def list_normals(
     ctx: click.Context,
     gameplan_path: Path,
     output_path: Path | None,
     sort: str,
-    force: bool,
 ) -> None:
-    """List the 64 normal plays from GAMEPLAN_PATH.
+    """List the 64 normal plays from gameplan.
 
-    Prints to stdout, or writes to OUTPUT_PATH with a `:: <source>` header line.
-    `--sort slot` keeps slot positions (empty slots blank); `name` drops blanks.
+    Writes them, under a `:: <source>` header line, to output_file, or by default
+    to <name>.normals.txt next to gameplan; an existing file is replaced. An
+    output_file of `-` prints them instead. `--sort slot` keeps slot positions
+    (empty slots blank); `name` drops blanks.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     try:
@@ -46,12 +52,13 @@ def list_normals(
         logger.error("%s: %s", PROG, error)
         ctx.exit(1)
     lines = normal_play_lines(gp, sort=sort)
+    if output_path is None:
+        output_path = gameplan_path.with_name(f"{gameplan_path.stem}.normals.txt")
     ctx.exit(
         emit_play_list(
             lines,
-            output_path,
+            None if str(output_path) == "-" else output_path,
             gameplan_path,
-            force=force,
             prog=PROG,
             logger=logger,
             noun="normal",

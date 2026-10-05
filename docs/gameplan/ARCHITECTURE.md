@@ -15,7 +15,7 @@ src/athc/gameplan/        # tool logic (no Click)
 
 src/athc/cli/gameplan/    # CLI group
 ├── __init__.py           # `athc gameplan` group
-├── _common.py            # shared helpers (files, search, rules, pool, listing, backup)
+├── _common.py            # shared helpers (files, search, rules, pool, listing)
 ├── check.py              # `athc gameplan check`
 ├── find_play.py          # `athc gameplan find-play`
 ├── list_normals.py       # `athc gameplan list-normals`
@@ -51,12 +51,12 @@ The PNFL rule set is [release/leagues/PNFL/rules/gameplan.toml](../../release/le
 
 ## Config
 
-The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.md)), chosen by `--league` / `ATHC_LEAGUE` / `[athc] league`:
+The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.md)), chosen by `--league` / `[athc] league`:
 
 - `rules\gameplan.toml` — the rules (or a `gameplan_rules` list in `league.ini`, one path per line, later files layering over earlier).
 - `league.ini` `play_path` (play pool dir) and `rules\playpool.toml` (optional filename-filter TOML).
 
-`check` also takes `--play-path`, `--playpool-rules`, and repeatable `--rules` to override. The league is read only while a value still comes from it: `--play-path` alone keeps the league's `rules\playpool.toml`; with all three given, no league is needed. With no rules resolvable there's nothing to validate → log an error, exit 2.
+`check` reads all of these from the league folder only. With no rules resolvable there's nothing to validate → log an error, exit 2.
 
 ## check
 
@@ -64,39 +64,35 @@ The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.
 
 ## list-normals / list-specials
 
-`athc gameplan list-normals FILE [OUTPUT]` and `list-specials FILE [OUTPUT]` read one `.pln` and emit play names — no pool, rules, or config. `list-normals` takes `--sort slot|name` (slot keeps the 64 positions with blanks; name drops blanks, sorts case-insensitively); `list-specials` is source order. No `OUTPUT` prints to stdout; with `OUTPUT` it writes a `:: <source>` header then the names (`-f` to overwrite). Exit `0` = ok, `1` = read error or refused overwrite, `2` = usage.
+`athc gameplan list-normals gameplan [output_file]` and `list-specials gameplan [output_file]` read one `.pln` and emit play names — no pool, rules, or config. `list-normals` takes `--sort slot|name` (slot keeps the 64 positions with blanks; name drops blanks, sorts case-insensitively); `list-specials` is source order. Each writes `<name>.normals.txt` / `<name>.specials.txt` next to the `.pln`, or `output_file`; an existing file is replaced; an `output_file` of `-` prints to stdout (the POSIX convention for `-` as a file). A written file has a `:: <source>` header then the names. Exit `0` = ok, `1` = read or write error, `2` = usage.
 
 ## find-play
 
-`athc gameplan find-play PLAY... PATH` searches one or more case-insensitive names across the normal + custom-special slots of each `.pln` (file, directory, or tree with `-r`); stock specials and clock plays are skipped. Normal hits read `'NAME' found in slots G-C, G-C` (`slot` for one); a custom-special hit reads `'NAME' found in special slot N (long-cat)`. Every file missing a play prints `not found`; directory/tree mode adds a per-play summary footer. Exit `0` = every play hit somewhere, `1` = a play missed everywhere, `2` = I/O error.
+`athc gameplan find-play play... path` searches one or more case-insensitive names across the normal + custom-special slots of each `.pln` (file, directory, or tree with `-r`); stock specials and clock plays are skipped. Normal hits read `'NAME' found in slots G-C, G-C` (`slot` for one); a custom-special hit reads `'NAME' found in special slot N (long-cat)`. Every file missing a play prints `not found`; directory/tree mode adds a per-play summary footer. Exit codes follow grep: `0` = at least one play found, `1` = none found, `2` = I/O error.
 
 ## set-normals / set-specials
 
-`gameplan.writer` resolves a play list against the pool into `.pln` slot entries (`apply_normal_plays` / `apply_special_plays`), aggregating every per-line problem into one `InvalidPlayInputError`. Side and special-teams classification come from each play's `.ply` header, not the rules. The list format is one name per line, `::` comment lines, ` ::` inline trailers (`parse_play_list`). A timestamped `.bak` is written before any update (`make_backup`, unless `--no-backup`); input or read failures abort before any backup or write. The backup is named `<file>.<YYYY-MM-DD-HHMM>.bak`; backups accumulate, but two edits of the same file in the same minute reuse one name, so the second silently overwrites the first.
+`gameplan.writer` resolves a play list against the pool into `.pln` slot entries (`apply_normal_plays` / `apply_special_plays`), aggregating every per-line problem into one `InvalidPlayInputError`. Side and special-teams classification come from each play's `.ply` header, not the rules. The list format is one name per line, `::` comment lines, ` ::` inline trailers (`parse_play_list`). Input or read failures abort before any write.
 
-- `set-normals GAMEPLAN [INPUT]` replaces all 64 normal slots of one `.pln`. Special-teams plays are rejected (use set-specials). Exit `0` = updated, `1` = error, `2` = usage.
-- `set-specials TARGET [INPUT]` merges the custom special slots (unlisted categories preserved) of one `.pln`, or every `.pln` in a directory/tree (`-r`). Each play self-slots by its special category; wrong-side files are skipped silently (offense `.pln` are even-sized, defense odd). Exit `0` = all updated, `1` = some files failed, `2` = setup error.
-
-Both read `INPUT` or `--stdin`, and resolve the pool like `check` (`--play-path` / `--playpool-rules` / league config).
+- `set-normals gameplan input_file` replaces all 64 normal slots of one `.pln`; an `input_file` of `-` reads stdin. The pool and its playpool rules come from the league. No backup is made. Special-teams plays are rejected (use set-specials). Exit `0` = updated, `1` = error, `2` = usage.
+- `set-specials path input_file` merges the custom special slots (unlisted categories preserved) of one `.pln`, or every `.pln` in a directory/tree (`-r`); an `input_file` of `-` reads stdin. Each play self-slots by its special category; wrong-side files are skipped silently (offense `.pln` are even-sized, defense odd). The pool and its playpool rules come from the league. No backup is made. Exit `0` = all updated, `1` = some files failed, `2` = setup error.
 
 ## replace-play
 
-`gameplan replace-play PLAY REPLACEMENT PATH` swaps every instance of `PLAY` for
-`REPLACEMENT` across one `.pln`, a directory, or a tree (`-r`) — `find-play`'s
+`gameplan replace-play play replacement path` swaps every instance of `play` for
+`replacement` across one `.pln`, a directory, or a tree (`-r`) — `find-play`'s
 case-insensitive search (normal + custom-special slots) plus `set-normals`'
-pool-resolution + `.bak`. `PLAY` is a single play (unlike `find-play`, which takes
-several); both `PLAY` and `REPLACEMENT` are fixed positionals. `REPLACEMENT` must resolve in the pool (checked once,
-up front; a miss logs an error and exits 2); `PLAY` need not (it may already be
+pool-resolution. `play` is a single play (unlike `find-play`, which takes
+several); both `play` and `replacement` are fixed positionals. `replacement` must resolve in the pool (checked once,
+up front; a miss logs an error and exits 2); `play` need not (it may already be
 gone — the rename case). Only matched slots are swapped (surgical, unlike
-`set-normals`); the rest are preserved. The pool is built **without** playpool
-rules — the swap uses each play's category bytes, not the filename-derived
-attributes those rules add — so `replace-play` takes `--play-path` (or the
-league from `athc --league`) but no `--playpool-rules` and no `--rules`. The
+`set-normals`); the rest are preserved. The pool is the league's `play_path`,
+built **without** playpool rules — the swap uses each play's category bytes, not
+the filename-derived attributes those rules add. The
 `GamePlan` model validates each swap (side parity; a special play's category
 must match its slot); an invalid
-swap fails that file (reported, not written, no `.bak`). A timestamped `.bak` is
-written next to each updated file (unless `--no-backup`). Run `check` afterward
-to validate against league rules.
+swap fails that file (reported, not written). No backup is made. Run `check`
+afterward to validate against league rules.
 
 Output uses the short game-category label. A play's normal-slot hits collapse to
 one line, slots bracketed in order at the end: `<file>: 'OLD' (cat) replaced with

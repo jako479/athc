@@ -5,9 +5,7 @@ from __future__ import annotations
 
 import glob
 import logging
-import shutil
 from collections.abc import Iterable
-from datetime import datetime
 from pathlib import Path
 
 import click
@@ -20,14 +18,6 @@ from athc.playpool import load_rules as load_pool_rules
 
 COMMENT_TOKEN = "::"
 _GLOB_CHARS = frozenset("*?[")
-
-
-def make_backup(path: Path) -> Path:
-    """Copy `path` to `<path>.<YYYY-MM-DD-HHMM>.bak`; returns the backup path."""
-    stamp = datetime.now().strftime("%Y-%m-%d-%H%M")
-    backup = path.with_name(f"{path.name}.{stamp}.bak")
-    shutil.copy2(path, backup)
-    return backup
 
 
 def parse_play_list(text: str) -> list[str]:
@@ -135,7 +125,7 @@ def resolve_rules(
     if not files:
         logger.error(
             "%s: no rules configured - nothing to check. "
-            "Add rules\\gameplan.toml to the league folder or pass --rules.",
+            "Add rules\\gameplan.toml to the league folder.",
             prog,
         )
         return None
@@ -194,19 +184,15 @@ def emit_play_list(
     out_path: Path | None,
     source: Path,
     *,
-    force: bool,
     prog: str,
     logger: logging.Logger,
     noun: str,
 ) -> int:
-    """Print `lines` to stdout, or write them to `out_path` with a `:: <source>`
-    header. Returns the exit code (0 ok, 1 refused/write error)."""
+    """Print `lines` to stdout, or write them to `out_path` (replacing it) with a
+    `:: <source>` header. Returns the exit code (0 ok, 1 write error)."""
     if out_path is None:
         click.echo("\n".join(lines))
         return 0
-    if out_path.exists() and not force:
-        logger.error("%s: %s already exists (use -f to overwrite)", prog, out_path)
-        return 1
     text = f":: {source.resolve()}\n" + "\n".join(lines) + "\n"
     try:
         out_path.write_text(text, encoding="utf-8")

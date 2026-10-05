@@ -8,14 +8,9 @@ from pathlib import Path
 
 import click
 
-from athc.cli import selected_league
+from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.gameplan import gameplan
-from athc.cli.gameplan._common import (
-    build_pool,
-    collect_files,
-    find_in_gameplan,
-    make_backup,
-)
+from athc.cli.gameplan._common import build_pool, collect_files, find_in_gameplan
 from athc.fbpro98_gameplan import (
     CustomPlayRef,
     GamePlan,
@@ -89,7 +84,7 @@ def replace_in_gameplan(
 
 
 def _replace_one(
-    path: Path, target: str, entry: CustomPlayRef, *, no_backup: bool
+    path: Path, target: str, entry: CustomPlayRef
 ) -> tuple[str, list[str], int]:
     """Apply the replacement to one .pln. Returns `(status, lines, count)`; status is
     'updated', 'absent', or 'failed', and `lines` are the stdout lines for it."""
@@ -101,34 +96,25 @@ def _replace_one(
     count = len(normal_hits) + len(special_hits)
     if count == 0:
         return "absent", [], 0
-    backup = None if no_backup else make_backup(path)
     write_gameplan(updated, path)
-    lines = format_replacement_lines(path, normal_hits, special_hits, entry)
-    if backup is not None:
-        lines.append(f"{path}: backup {backup.name}")
-    return "updated", lines, count
+    return (
+        "updated",
+        format_replacement_lines(path, normal_hits, special_hits, entry),
+        count,
+    )
 
 
-@gameplan.command(name="replace-play")
-@click.argument("play")
-@click.argument("replacement")
-@click.argument("path", type=click.Path(path_type=Path))
+@gameplan.command(name="replace-play", context_settings=CONTEXT_SETTINGS)
+@click.argument("play", metavar="play")
+@click.argument("replacement", metavar="replacement")
+@click.argument("path", metavar="path", type=click.Path(path_type=Path))
 @click.option(
     "-r",
     "--recursive",
     is_flag=True,
-    help="Recurse into subdirectories when PATH is a directory.",
+    help="Recurse into subdirectories when path is a directory.",
 )
-@click.option(
-    "--no-backup", is_flag=True, help="Do not create a .bak copy before writing."
-)
-@click.option(
-    "--play-path",
-    "play_path",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Play pool directory (overrides the league's play_path).",
-)
+@league_option
 @click.pass_context
 def replace_play(
     ctx: click.Context,
@@ -136,27 +122,21 @@ def replace_play(
     replacement: str,
     path: Path,
     recursive: bool,
-    no_backup: bool,
-    play_path: Path | None,
+    league: str | None,
 ) -> None:
-    """Replace every instance of PLAY with REPLACEMENT across .pln files.
+    """Replace every instance of play with replacement across .pln files.
 
-    PLAY and REPLACEMENT are single, case-insensitive names (unlike find-play, only
-    one PLAY); PATH is a .pln file or a directory (top level, or the whole tree with
-    -r). REPLACEMENT must exist in the play pool (--play-path or the league's
-    play_path); PLAY need not (it may already be gone). Normal and custom-special slots
-    are searched. A timestamped .bak is written next to each updated file (unless
-    --no-backup). Rules are not checked; run `check` afterward to validate.
+    play and replacement are single, case-insensitive names (unlike find-play, only
+    one play); path is a .pln file or a directory (top level, or the whole tree with
+    -r). replacement must exist in the league's play pool; play need not (it may
+    already be gone). Normal and custom-special slots are searched. Rules are not
+    checked; run `check` afterward to validate.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    league = selected_league(ctx)
     # Pool needs no playpool rules: replace-play uses each play's category bytes, not
-    # the filename-derived attributes those rules add. So the league is read only
-    # when --play-path is absent.
+    # the filename-derived attributes those rules add.
     try:
-        pool_path = (
-            play_path if play_path is not None else load_config(league).play_path
-        )
+        pool_path = load_config(league).play_path
     except (ConfigFileError, ValueError, OSError) as error:
         logger.error("%s: %s", PROG, error)
         ctx.exit(2)
@@ -182,7 +162,7 @@ def replace_play(
     single_file = Path(path).is_file()
     updated = failed = replaced_total = 0
     for file in files:
-        status, lines, count = _replace_one(file, play, entry, no_backup=no_backup)
+        status, lines, count = _replace_one(file, play, entry)
         for line in lines:
             click.echo(line)
         if status == "updated":

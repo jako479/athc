@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import click
 
+from athc.cli import CONTEXT_SETTINGS, CommandGroup
 
-@click.group()
+
+@click.group(cls=CommandGroup, context_settings=CONTEXT_SETTINGS)
 def profile() -> None:
     """Validate and edit Front Page Sports Football Pro '98 coaching profiles (.prf)."""
 

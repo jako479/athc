@@ -14,10 +14,10 @@ uv sync
 
 ```bash
 athc generate-schedule --season 2048
-athc --league PCFL generate-schedule --season 2029 --seed 7
+athc generate-schedule --league PCFL --season 2029 --seed 7
 ```
 
-`athc --league NAME` names the league (or `ATHC_LEAGUE`, or `[athc] league` in `athc.ini`); `--season` picks its standings file. Both files live in the league's folder under the config dir (find it with `athc config path`):
+`--league name` names the league (or `[athc] league` in `athc.ini`); `--season` picks its standings file. Both files live in the league's folder under the config dir (find it with `athc config path`):
 
 - `standings\<season>.league.ini` — the standings: `[OverallStandings]` plus `[DivisionStandings]` (a league with divisions) or `[ConferenceStandings]` (two conferences, no divisions). Required.
 - `rules\scheduler.toml` — rule amounts and solver settings. Optional; every key defaults.

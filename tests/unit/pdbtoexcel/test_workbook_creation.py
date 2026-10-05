@@ -27,7 +27,6 @@ def _config(**over: object) -> Config:
     base: dict[str, object] = {
         "play_path": "",
         "playpool_rules": None,
-        "calculate_total_stats": True,
         "calculate_percentages": True,
         "include_category_worksheets": False,
         "exclude_sacks_from_pass_attempts": True,

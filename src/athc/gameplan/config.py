@@ -31,15 +31,13 @@ def load_config(
     play_path: Path | None = None,
     playpool_rules: Path | None = None,
     rule_files: Sequence[Path] | None = None,
-    play_path_option: str | None = "--play-path",
 ) -> Config:
     """Assemble the gameplan config from the league folder.
 
     The `play_path` / `playpool_rules` / `rule_files` overrides win and stay
     CWD-relative; the league is resolved only while a value still comes from it
     (LeagueError when it can't be), so overriding `play_path` alone keeps the
-    league's playpool rules. `play_path_option` is the caller's override flag the
-    missing-play_path error suggests; None when it has none.
+    league's playpool rules.
     """
     cfg: LeagueConfig | None = None
 
@@ -52,10 +50,9 @@ def load_config(
     if play_path is None:
         resolved = league_cfg().path("play_path")
         if resolved is None:
-            hint = f" or pass {play_path_option}" if play_path_option else ""
             raise ConfigFileError(
                 "no play_path for the league; set play_path in "
-                f"{league_cfg().dir / 'league.ini'}{hint}"
+                f"{league_cfg().dir / 'league.ini'}"
             )
         play_path = resolved
 

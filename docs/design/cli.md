@@ -147,16 +147,16 @@ Production users never set the var; the default `%LOCALAPPDATA%\athc` wins.
 
 ## Standard idioms
 
-- `context_settings={"help_option_names": ["-h", "--help"]}` on the root group so both `-h` and `--help` work.
+- `context_settings=CONTEXT_SETTINGS` (`help_option_names` `-h` and `--help`) on every group and command, so `-h` works everywhere; each command shows its own help.
+- Argument names and option values show in lowercase with underscores (`metavar="pdb_file"`), the POSIX synopsis style, not Click's default capitals.
+- The usage line lists each option, help first, then the arguments (`athc gameplan list-normals [-h] [--sort slot|name] gameplan [output_file]`), the POSIX / argparse style instead of Click's `[OPTIONS]`; a long line wraps between options. Groups use `CommandGroup` (the root `AthcGroup` builds on it) and standalone commands `cls=AthcCommand`; a group's subcommands get `AthcCommand` automatically.
 - `no_args_is_help=True` on the root group so bare `athc` prints help instead of hanging.
 - `@click.version_option(package_name="athc")` reads the installed metadata — no hard-coded version strings.
 - `python -m athc` works via `athc/__main__.py`.
 
 ## Cross-cutting options: `--league`
 
-`--league NAME` is one option on the root group (`athc --league PCFL gameplan check plan.pln`), like `aws --profile`, `gcloud --configuration`, `kubectl --context` and `docker --context`. The root callback stores it in `ctx.obj`; league-aware commands (gameplan, profile, check-ppp, convert-pdb, generate-schedule) read it with `selected_league(ctx)`. Non-league tools (autocontinue, config) simply ignore it.
-
-`-v/--verbose` also sits on the root group: it applies to every command without exception, and the handler it configures is process-wide ([logging.md](logging.md#handler-setup)).
+`--league name` is an option on each league-aware command (`gameplan check` / `replace-play` / `set-normals` / `set-specials`, `profile check`, `check-ppp`, `convert-pdb`, `generate-schedule`), so it goes after the command name like any other option: `athc gameplan check plan.pln --league PCFL`. That matches `aws s3 ls --profile x` and `kubectl get --context x`. It is not on the root group because Click only takes a group's options before the subcommand name. Commands that never read league data don't have it.
 
 A shared decorator keeps the option uniform:
 
@@ -165,15 +165,15 @@ A shared decorator keeps the option uniform:
 def league_option(f):
     return click.option(
         "--league",
-        envvar="ATHC_LEAGUE",
         default=None,
+        metavar="name",
         help="League name (a folder under leagues\\ in the config dir).",
     )(f)
 ```
 
-Selection priority (highest first): `--league` flag → `ATHC_LEAGUE` env → `[athc] league` in config → error. Full rules in [config.md](config.md).
+Selection priority (highest first): `--league` flag → `[athc] league` in config → error. Full rules in [config.md](config.md).
 
-The decorator is applied once, to the root `cli` group. `selected_league(ctx)` returns `None` when a command runs on its own (tests, embedding).
+Each league-aware command applies `@league_option` and takes a `league: str | None` parameter (athc-admin's commands do the same).
 
 ## Help text conventions
 
@@ -185,8 +185,8 @@ The decorator is applied once, to the root `cli` group. `selected_league(ctx)` r
 
 Two channels: stdout (`click.echo`) for everything the user reads (results and
 status), stderr (`logging`) for errors and warnings only. The root group callback
-owns handler setup — one `basicConfig` for the whole process, level set by
-`-v/--verbose`. Full convention — color, log levels, library behavior,
+owns handler setup — one `basicConfig` for the whole process. Full
+convention — color, log levels, library behavior,
 exit-code timing: [logging.md](logging.md).
 
 **Libraries** (`<pkg>/<tool>/`, `playpool`, …) call `getLogger(__name__)` but **never** `basicConfig` (the app owns handler setup). They use `logger.warning` for recoverable "skipped X" notices (duplicate play, missing file) and `logger.info` for progress — they don't print results.
@@ -204,7 +204,7 @@ are in each tool's `ARCHITECTURE.md`.
 | Exit | Meaning |
 |---|---|
 | `0` | Clean — no problems (identical; all files updated). |
-| `1` | Findings — ran, but found problems: violations, differences, a missed play, or some files failed. |
+| `1` | Findings — ran, but found problems: violations, differences, no play found, or some files failed. |
 | `2` | Error — couldn't run: usage, config, I/O, no rules, or a profile/gameplan side mismatch. |
 
 **Commands without** — `list-normals`, `list-specials`, `convert-pdb`,

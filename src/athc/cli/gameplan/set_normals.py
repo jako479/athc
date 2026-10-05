@@ -8,9 +8,9 @@ from pathlib import Path
 
 import click
 
-from athc.cli import selected_league
+from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.gameplan import gameplan
-from athc.cli.gameplan._common import build_pool, make_backup, parse_play_list
+from athc.cli.gameplan._common import build_pool, parse_play_list
 from athc.fbpro98_gameplan import (
     GamePlan,
     InvalidGamePlanError,
@@ -25,59 +25,34 @@ logger = logging.getLogger(__name__)
 NORMAL_COUNT = GamePlan.NUMBER_NORMAL_PLAYS
 
 
-@gameplan.command(name="set-normals")
-@click.argument("gameplan_path", type=click.Path(path_type=Path))
-@click.argument("input_path", required=False, type=click.Path(path_type=Path))
-@click.option(
-    "--stdin", "use_stdin", is_flag=True, help="Read the play list from stdin."
-)
-@click.option(
-    "--no-backup", is_flag=True, help="Do not create a .bak copy before writing."
+@gameplan.command(name="set-normals", context_settings=CONTEXT_SETTINGS)
+@click.argument("gameplan_path", metavar="gameplan", type=click.Path(path_type=Path))
+@click.argument(
+    "input_path",
+    metavar="input_file",
+    type=click.Path(path_type=Path, allow_dash=True),
 )
 @click.option("-q", "--quiet", is_flag=True, help="Suppress the success message.")
-@click.option(
-    "--play-path",
-    "play_path",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Play pool directory (overrides the league's play_path).",
-)
-@click.option(
-    "--playpool-rules",
-    "playpool_rules",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Playpool rules TOML (overrides the league's playpool_rules).",
-)
+@league_option
 @click.pass_context
 def set_normals(
     ctx: click.Context,
     gameplan_path: Path,
-    input_path: Path | None,
-    use_stdin: bool,
-    no_backup: bool,
+    input_path: Path,
     quiet: bool,
-    play_path: Path | None,
-    playpool_rules: Path | None,
+    league: str | None,
 ) -> None:
-    """Replace the 64 normal slots of GAMEPLAN_PATH from a play list (file or --stdin).
+    """Replace the 64 normal slots of gameplan from the play list in input_file.
 
-    One play name per line; `::` comment lines and ` ::` trailers are ignored. A
-    timestamped .bak is written next to the target first (unless --no-backup). The
-    play pool resolves names; run `check` to validate the result.
+    An input_file of `-` reads the list from the console. One play name per line;
+    `::` comment lines and ` ::` trailers are ignored. The league's play pool
+    resolves names; run `check` to validate the result.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    league = selected_league(ctx)
-    if use_stdin and input_path is not None:
-        raise click.UsageError("provide either INPUT_PATH or --stdin, not both")
-    if not use_stdin and input_path is None:
-        raise click.UsageError("INPUT_PATH is required (or pass --stdin)")
-
     try:
-        if use_stdin:
+        if str(input_path) == "-":
             text = sys.stdin.read()
         else:
-            assert input_path is not None
             text = input_path.read_text(encoding="utf-8")
         lines = parse_play_list(text)
         if len(lines) > NORMAL_COUNT:
@@ -85,12 +60,7 @@ def set_normals(
                 "%s: input has %d play(s), max is %d", PROG, len(lines), NORMAL_COUNT
             )
             ctx.exit(1)
-        config = load_config(
-            league,
-            play_path=play_path,
-            playpool_rules=playpool_rules,
-            rule_files=(),  # no gameplan rules needed: don't resolve a league for them
-        )
+        config = load_config(league, rule_files=())  # no gameplan rules needed
     except (ConfigFileError, ValueError, OSError) as error:
         logger.error("%s: %s", PROG, error)
         ctx.exit(1)
@@ -125,9 +95,7 @@ def set_normals(
         logger.error("%s: %s", PROG, error)
         ctx.exit(1)
 
-    backup = None if no_backup else make_backup(gameplan_path)
     write_gameplan(updated, gameplan_path)
     count = sum(1 for p in updated.normal_plays if p is not None)
-    tail = "" if backup is None else f" Backup: {backup}"
     if not quiet:
-        click.echo(f"Updated {gameplan_path}: {count} normal play(s).{tail}")
+        click.echo(f"Updated {gameplan_path}: {count} normal play(s).")

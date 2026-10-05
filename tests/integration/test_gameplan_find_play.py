@@ -278,13 +278,20 @@ def test_cli_multiple_plays_all_hit(runner, tmp_path: Path) -> None:
     assert "'DUPRM': Found 1 instance(s) in 1 gameplan(s)." in result.output
 
 
-def test_cli_one_play_misses_exit_1(runner) -> None:
+def test_cli_one_play_found_exit_0(runner) -> None:
+    # Like grep: any hit is success, even when another play is missing.
     result = runner.invoke(find_play, [KNOWN_NORMAL, MISSING, str(GP_OFFENSE)])
-    assert result.exit_code == 1
+    assert result.exit_code == 0
     assert (
         f"'{KNOWN_NORMAL}'" in result.output
         and f"'{MISSING}' not found" in result.output
     )
+
+
+def test_cli_no_play_found_exit_1(runner) -> None:
+    result = runner.invoke(find_play, [MISSING, "NOSUCHPLAYYY", str(GP_OFFENSE)])
+    assert result.exit_code == 1
+    assert f"'{MISSING}' not found" in result.output
 
 
 # ── command: directory / tree ─────────────────────────────────────────────────
@@ -329,7 +336,7 @@ def test_cli_directory_per_play_summary(runner, tmp_path: Path) -> None:
     result = runner.invoke(
         find_play, [KNOWN_NORMAL, KNOWN_SPECIAL, MISSING, str(tmp_path)]
     )
-    assert result.exit_code == 1
+    assert result.exit_code == 0  # some plays found
     assert f"'{KNOWN_NORMAL}': Found 1 instance(s) in 1 gameplan(s)." in result.output
     assert f"'{MISSING}': Found 0 instance(s) in 0 gameplan(s)." in result.output
 

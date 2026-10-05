@@ -3,9 +3,9 @@
 league folder, plus the default category order.
 
 `play_path` / `playpool_rules` locate the play pool used to classify and (optionally)
-tag plays. Playpool rules resolve as `--playpool-rules`, else the league's
-`rules\\playpool.toml`, else none. Category order — the row sort order and the
-Options sheet — defaults to the game's own category vocabulary.
+tag plays. Playpool rules resolve as the `playpool_rules` override, else the
+league's `rules\\playpool.toml`, else none. Category order — the row sort order and
+the Options sheet — defaults to the game's own category vocabulary.
 """
 
 from __future__ import annotations
@@ -34,7 +34,6 @@ type CategoryOrder = Mapping[PLAY_DATA.PLAY_TYPE, list[str]]
 class Config:
     play_path: str = ""
     playpool_rules: Path | None = None  # optional; classifies + tags plays
-    calculate_total_stats: bool = True
     calculate_percentages: bool = True
     include_category_worksheets: bool = False
     exclude_sacks_from_pass_attempts: bool = True
@@ -68,7 +67,7 @@ def load_config(
 ) -> Config:
     """Locate the play pool and read the workbook options.
 
-    `play_path` / `playpool_rules` (CLI overrides, kept CWD-relative) win;
+    `play_path` / `playpool_rules` (overrides, kept CWD-relative) win;
     otherwise each comes from the league folder, resolved while either is
     missing (LeagueError when it can't be), so `play_path` alone keeps the
     league's playpool rules. A league folder without `play_path` yields "" and
@@ -86,7 +85,6 @@ def load_config(
     return Config(
         play_path=play_path,
         playpool_rules=playpool_rules,
-        calculate_total_stats=_bool(raw, "calculate_total_stats", True),
         calculate_percentages=_bool(raw, "calculate_percentages", True),
         include_category_worksheets=_bool(raw, "include_category_worksheets", False),
         exclude_sacks_from_pass_attempts=_bool(

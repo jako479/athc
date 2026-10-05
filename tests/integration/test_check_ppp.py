@@ -723,35 +723,40 @@ def test_cli_malformed_ini(
     assert result.stdout == ""
 
 
-# ── root group: --league, ATHC_LEAGUE, registration ───────────────────────────
+# ── --league, ATHC_LEAGUE, registration ───────────────────────────────────────
 
 
-def test_root_league_flag_beats_athc_ini(
+def test_league_flag_beats_athc_ini(
     runner, league: BuildLeague, write_config: WriteConfig
 ) -> None:
     league("PNFL", profile_rules=None, gameplan_rules=None)  # would fail
     league("PCFL")
     write_config("[athc]\nleague = PNFL\n")
     result = runner.invoke(
-        cli, ["--league", "PCFL", "check-ppp", str(OFF1), str(GP_OFFENSE)]
+        cli, ["check-ppp", str(OFF1), str(GP_OFFENSE), "--league", "PCFL"]
     )
     assert result.exit_code == 1
 
 
-def test_root_league_from_env(
-    runner, league: BuildLeague, monkeypatch: pytest.MonkeyPatch
+def test_athc_league_env_is_ignored(
+    runner,
+    league: BuildLeague,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     league("PCFL")
     monkeypatch.setenv("ATHC_LEAGUE", "PCFL")
-    result = runner.invoke(cli, ["check-ppp", str(OFF1), str(GP_OFFENSE)])
-    assert result.exit_code == 1
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(cli, ["check-ppp", str(OFF1), str(GP_OFFENSE)])
+    assert result.exit_code == 2
+    assert "no league selected" in caplog.text
 
 
-def test_root_league_unknown_folder(
+def test_league_flag_unknown_folder(
     runner, pnfl: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(cli, ["--league", "NOPE", "check-ppp", str(OFF1)])
+        result = runner.invoke(cli, ["check-ppp", str(OFF1), "--league", "NOPE"])
     assert result.exit_code == 2
     assert "NOPE" in caplog.text and "not found" in caplog.text
 

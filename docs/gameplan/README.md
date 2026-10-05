@@ -8,8 +8,8 @@ Library + CLI for FbPro98 gameplans (`.pln`). Validates a gameplan against leagu
 
 | Exit | `check` / `find-play` / `set-specials` / `replace-play` | `list-*` / `set-normals` |
 |---|---|---|
-| `0` | **Clean** — no violations, all found, all updated | ok / updated |
-| `1` | **Findings** — violations, a play missed, nothing replaced, or some files failed | error (read, write, or invalid input) |
+| `0` | **Clean** — no violations, a play found, all updated | ok / updated |
+| `1` | **Findings** — violations, no play found, nothing replaced, or some files failed | error (read, write, or invalid input) |
 | `2` | **Error** — couldn't run: usage, config, I/O, no rules, or replacement not in pool | usage (bad arguments) |
 
 An **error** means the command couldn't run; a **finding** is a real problem to
@@ -41,30 +41,30 @@ violations = validate_gameplan(gp, rules, pool)  # tuple[Violation, ...]
 ```bash
 athc gameplan check OFF.pln Def.pln           # league from config
 athc gameplan check plans/ -r                 # directory tree
-athc gameplan check OFF.pln --play-path C:/PNFL/plays \
-    --playpool-rules PNFL.playpool.toml --rules gameplan.toml
+athc gameplan check OFF.pln --league PCFL     # another league
 
-athc gameplan list-normals OFF.pln                 # 64 normal plays to stdout
+athc gameplan list-normals OFF.pln                 # 64 normal plays to OFF.normals.txt
 athc gameplan list-normals OFF.pln plays.txt --sort name
-athc gameplan list-specials OFF.pln spec.txt -f    # custom special teams
+athc gameplan list-normals OFF.pln -               # to stdout
+athc gameplan list-specials OFF.pln                # custom special teams to OFF.specials.txt
 athc gameplan find-play OR45RL01 OFF.pln           # slot(s) holding the play
 athc gameplan find-play OR45RL01 BCFGPAT plans/ -r # many plays across a tree
-athc gameplan set-normals OFF.pln plays.txt        # replace 64 normal slots (+ .bak)
-athc gameplan set-normals OFF.pln --stdin --no-backup
+athc gameplan set-normals OFF.pln plays.txt        # replace 64 normal slots
+athc gameplan set-normals OFF.pln -                # play list from stdin
 athc gameplan set-specials plans/ spec.txt -r      # merge specials across a tree
-athc gameplan replace-play OLDRUN NEWRUN plans/ -r # swap one play for another (+ .bak)
+athc gameplan replace-play OLDRUN NEWRUN plans/ -r # swap one play for another
 ```
 
-`list-*` and `find-play` just read a `.pln` — no pool, rules or config. `set-*` need the pool (like `check`, minus `--rules`) and edit in place after a `.bak`. `replace-play OLDNAME NEWNAME PATH` swaps one play for another wherever `find-play` would find it (`--play-path` or the league from `athc --league`, no `--rules`/`--playpool-rules`); `NEWNAME` must be in the pool. `athc gameplan <command> --help` for flags.
+`list-*` and `find-play` just read a `.pln` — no pool, rules or config. `set-*` need the pool (like `check`, minus the gameplan rules) and edit in place with no backup. `replace-play play replacement path` swaps one play for another wherever `find-play` would find it, using the league's play pool; `replacement` must be in the pool. `athc gameplan <command> --help` for flags.
 
 ## Config
 
-The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.md)), picked by `--league` / `ATHC_LEAGUE` / `[athc] league`:
+The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.md)), picked by `--league` / `[athc] league`:
 
 - `rules\gameplan.toml` — the rules (or a `gameplan_rules` list in `league.ini`, later files layering over earlier).
 - `league.ini` `play_path` (pool dir) and `rules\playpool.toml` (optional filename-filter TOML).
 
-`--play-path`, `--playpool-rules`, and repeatable `--rules` override the folder. `--play-path` alone still reads the league's `rules\playpool.toml`; given all three, no league is needed. No rules resolvable ⇒ exit 2 (nothing to validate).
+`check` reads all of these from the league folder only. No rules resolvable ⇒ exit 2 (nothing to validate).
 
 ## See also
 

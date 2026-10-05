@@ -17,7 +17,7 @@ WriteConfig = Callable[..., Path]
 
 # Every workbook option flipped away from its default.
 WORKBOOK_OPTIONS_INI = (
-    "[convert-pdb]\ncalculate_total_stats = false\ncalculate_percentages = false\n"
+    "[convert-pdb]\ncalculate_percentages = false\n"
     "include_category_worksheets = true\nexclude_sacks_from_pass_attempts = false\n"
 )
 
@@ -44,7 +44,7 @@ def test_load_config_defaults(make_league: MakeLeague) -> None:
     cfg = load_config("PNFL")
     assert cfg.play_path == ""
     assert cfg.playpool_rules is None
-    assert cfg.calculate_total_stats is True and cfg.calculate_percentages is True
+    assert cfg.calculate_percentages is True
 
 
 def test_load_config_from_league_folder(make_league: MakeLeague) -> None:
@@ -63,7 +63,7 @@ def test_load_config_cli_overrides_win(make_league: MakeLeague) -> None:
     assert cfg.playpool_rules == Path("E:\\r.toml")
 
 
-# ── playpool rules: --playpool-rules > league rules\playpool.toml > None ──
+# ── playpool rules: playpool_rules override > league rules\playpool.toml > None ──
 
 
 def test_playpool_toml_next_to_athc_ini_is_ignored(
@@ -81,8 +81,7 @@ def test_play_path_override_reads_league_rules(make_league: MakeLeague) -> None:
     assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
 
 
-def test_play_path_override_needs_a_league(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
+def test_play_path_override_needs_a_league() -> None:
     with pytest.raises(LeagueError, match="no league selected"):
         load_config(play_path="D:/plays")
 
@@ -105,7 +104,6 @@ def test_load_config_reads_workbook_options(
     make_league("PNFL")
     write_config(WORKBOOK_OPTIONS_INI)
     cfg = load_config("PNFL")
-    assert cfg.calculate_total_stats is False
     assert cfg.calculate_percentages is False
     assert cfg.include_category_worksheets is True
     assert cfg.exclude_sacks_from_pass_attempts is False
@@ -114,7 +112,6 @@ def test_load_config_reads_workbook_options(
 def test_workbook_options_default_without_section(make_league: MakeLeague) -> None:
     make_league("PNFL")
     cfg = load_config("PNFL")
-    assert cfg.calculate_total_stats is True
     assert cfg.calculate_percentages is True
     assert cfg.include_category_worksheets is False
     assert cfg.exclude_sacks_from_pass_attempts is True
@@ -124,7 +121,6 @@ def test_workbook_options_need_no_league(write_config: WriteConfig) -> None:
     # Both overrides skip league resolution; the athc.ini section is read anyway.
     write_config(WORKBOOK_OPTIONS_INI)
     cfg = _load_without_league()
-    assert cfg.calculate_total_stats is False
     assert cfg.calculate_percentages is False
     assert cfg.include_category_worksheets is True
     assert cfg.exclude_sacks_from_pass_attempts is False
@@ -146,11 +142,17 @@ def test_workbook_options_need_no_league(write_config: WriteConfig) -> None:
 def test_workbook_option_accepts_configparser_booleans(
     write_config: WriteConfig, raw: str, expected: bool
 ) -> None:
-    write_config(f"[convert-pdb]\ncalculate_total_stats = {raw}\n")
-    assert _load_without_league().calculate_total_stats is expected
+    write_config(f"[convert-pdb]\ncalculate_percentages = {raw}\n")
+    assert _load_without_league().calculate_percentages is expected
 
 
 def test_workbook_option_rejects_other_values(write_config: WriteConfig) -> None:
-    write_config("[convert-pdb]\ncalculate_total_stats = maybe\n")
-    with pytest.raises(ConfigFileError, match="calculate_total_stats"):
+    write_config("[convert-pdb]\ncalculate_percentages = maybe\n")
+    with pytest.raises(ConfigFileError, match="calculate_percentages"):
         _load_without_league()
+
+
+def test_calculate_total_stats_is_no_longer_read(write_config: WriteConfig) -> None:
+    # Totals are always on; a leftover key is ignored, even with a bad value.
+    write_config("[convert-pdb]\ncalculate_total_stats = maybe\n")
+    assert not hasattr(_load_without_league(), "calculate_total_stats")

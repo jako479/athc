@@ -106,9 +106,9 @@ def _generate(directory: Path, case: GoldenCase) -> tuple[str, str, str]:
     result = CliRunner().invoke(
         cli,
         [
+            "generate-schedule",
             "--league",
             case.league,
-            "generate-schedule",
             "--season",
             str(case.season),
             "--seed",

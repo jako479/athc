@@ -51,10 +51,9 @@ invocation, so one setup site covers built-ins and plugins alike.
 
 ```python
 @click.group(cls=AthcGroup, ...)
-@click.option("-v", "--verbose", is_flag=True, help="Log debug detail to stderr.")
-def cli(verbose: bool) -> None:
+def cli() -> None:
     logging.basicConfig(
-        level=logging.DEBUG if verbose else logging.INFO,
+        level=logging.INFO,
         format="%(message)s",
         handlers=[RichHandler(console=Console(stderr=True), show_time=False,
                               show_path=False, markup=False)],
@@ -67,11 +66,11 @@ Leaf commands call `getLogger(__name__)` and nothing else. **No command calls
 first wins, the rest are dead code. One setup site is what makes the handler
 swappable at all.
 
-`-v/--verbose` is the only log-level control; there is no config-file key for it.
+The log level is fixed; there is no option or config-file key for it.
 
 > **Not yet wired up.** Today the 14 leaf commands each call `basicConfig` and
-> the umbrella installs no handler, so output is uncolored and `-v` doesn't
-> exist. Tracked in [TODO.md](../../TODO.md).
+> the umbrella installs no handler, so output is uncolored. Tracked in
+> [TODO.md](../../TODO.md).
 
 ## CLI commands
 

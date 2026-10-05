@@ -155,46 +155,39 @@ def test_cli_copies_goal_line_and_stop_clock_combined(runner, tmp_path: Path) ->
 def test_cli_prints_updated_line_and_summary(runner, tmp_path: Path) -> None:
     source = _mutated_source(OFF1, tmp_path, flip=(1,))
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
-    result = runner.invoke(
-        copy, [str(source), str(target), "--stop-clock", "--no-backup"]
-    )
+    result = runner.invoke(copy, [str(source), str(target), "--stop-clock"])
     assert result.exit_code == 0
     assert f"{target}: updated (stop-clock)" in result.output
     assert "1 file(s) processed; 1 updated, 0 failed." in result.output
 
 
-def test_cli_reports_backup_name(runner, tmp_path: Path) -> None:
+def test_cli_help_uses_lowercase_names(runner) -> None:
+    result = runner.invoke(copy, ["--help"])
+    assert result.exit_code == 0
+    assert "] source target" in result.output
+    assert "SRC.prf" not in result.output and "TARGET" not in result.output
+
+
+# ── no backups ────────────────────────────────────────────────────────────────
+
+
+def test_cli_writes_no_backup(runner, tmp_path: Path) -> None:
     source = _mutated_source(OFF1, tmp_path, flip=(1,))
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     result = runner.invoke(copy, [str(source), str(target), "--stop-clock"])
     assert result.exit_code == 0
-    assert f"{target}: updated (stop-clock; backup target.prf." in result.output
+    assert list(tmp_path.glob("*.bak")) == []
+    assert "; backup " not in result.output
 
 
-# ── backup ────────────────────────────────────────────────────────────────────
-
-
-def test_cli_creates_backup_by_default(runner, tmp_path: Path) -> None:
+def test_cli_no_backup_option_removed(runner, tmp_path: Path) -> None:
     source = _mutated_source(OFF1, tmp_path, flip=(1,))
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
-    original = target.read_bytes()
-    assert (
-        runner.invoke(copy, [str(source), str(target), "--stop-clock"]).exit_code == 0
+    result = runner.invoke(
+        copy, [str(source), str(target), "--stop-clock", "--no-backup"]
     )
-    backups = list(tmp_path.glob("target.prf.*.bak"))
-    assert len(backups) == 1 and backups[0].read_bytes() == original
-
-
-def test_cli_no_backup_skips_backup(runner, tmp_path: Path) -> None:
-    source = _mutated_source(OFF1, tmp_path, flip=(1,))
-    target = _copy_prf(OFF1, tmp_path, name="target.prf")
-    assert (
-        runner.invoke(
-            copy, [str(source), str(target), "--stop-clock", "--no-backup"]
-        ).exit_code
-        == 0
-    )
-    assert list(tmp_path.glob("target.prf.*.bak")) == []
+    assert result.exit_code == 2
+    assert "No such option" in result.output
 
 
 # ── bulk: directory + side filter ─────────────────────────────────────────────

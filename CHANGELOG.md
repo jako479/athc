@@ -7,6 +7,29 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: usage lines list each option (`[-h] [--sort slot|name] gameplan [output_file]`) instead of `[OPTIONS]`
+- profile: `diff` help shows `file1 file2` and `-o file`
+- profile: `copy` takes `source target`, dropped `--no-backup` and makes no backups
+- profile: `check` dropped `--rules`; help shows `path...` and `--gameplan pln_file`
+- scheduler: `generate-schedule` help shows `--season year`, `--seed number`, `--time-limit number`
+- gameplan: `set-specials` takes `path input_file` (`-` reads the console); dropped `--stdin`, `--play-path`, `--playpool-rules` and `--no-backup`, and makes no backups
+- gameplan: `set-normals` takes `gameplan input_file` (`-` reads the console); dropped `--stdin`, `--play-path`, `--playpool-rules` and `--no-backup`
+- gameplan: `set-normals` and `replace-play` no longer make backups; `--no-backup` is gone from both
+- gameplan: `replace-play` dropped `--play-path` (the pool comes from the league); help shows `play replacement path`
+- gameplan: `find-play` exits like grep — 0 when any play is found, 1 when none are
+- gameplan: `find-play` help shows `play... path` in lowercase
+- gameplan: `list-specials` takes the output file (or `-`) as an optional second argument; `--output` is gone
+- gameplan: `list-normals` takes the output file (or `-`) as an optional second argument again; `--output` is gone
+- gameplan: `list-specials` matches `list-normals`: writes `<name>.specials.txt` by default, `--output file` or `--output -`, no `-f`
+- athc: `-h` works on every command; help shows argument and value names in lowercase (`gameplan`, `--league name`)
+- gameplan: `list-normals` takes `--output file` instead of a second argument; `--output -` prints
+- gameplan: `list-normals` writes `<name>.normals.txt` next to the `.pln` by default and replaces it; `-` prints instead; `-f` is gone
+- gameplan: `check` dropped `--play-path`, `--playpool-rules` and `--rules`; everything comes from the league folder
+- convert-pdb: dropped `--play-path`, `--playpool-rules` and `--skip-totals`; the Total Stats team is always written and `calculate_total_stats` is no longer a setting
+- config: `athc config edit` always opens athc.ini in its default app; `$VISUAL`/`$EDITOR` are no longer read
+- athc: `--league` moved from `athc` to each command that uses a league, so it goes after the command name
+- docs: dropped the planned root `-v/--verbose` option
+- athc: the `ATHC_LEAGUE` environment variable is gone; the league comes from `--league` or `athc config set league`
 - athc: config and rules files reorganised to support multiple leagues
 - athc: new `athc config set` command and a root `--league` option to pick the league
 - gameplan: `--play-path` alone no longer drops the league's playpool rules; the timed, rollout and QB-draw caps were silently skipped
@@ -37,6 +60,7 @@ high-level change completed alongside it gets its own line.
 
 ## check-ppp
 
+- takes its own `--league name`; help shows `file [file]`
 - a profile and its gameplan are checked against each other: same side, every profile category backed by the gameplan; unused gameplan categories are info only
 - added the `check-ppp` command: one profile and/or one gameplan, checked like `profile check` and `gameplan check`
 

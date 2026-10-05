@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from athc.cli import selected_league
+from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.gameplan import gameplan
 from athc.cli.gameplan._common import build_pool, collect_files, resolve_rules
 from athc.fbpro98_gameplan import InvalidGamePlanError, read_gameplan
@@ -19,51 +19,28 @@ PROG = "athc gameplan check"
 logger = logging.getLogger(__name__)
 
 
-@gameplan.command(name="check")
-@click.argument("paths", nargs=-1, required=True, metavar="PATH...")
+@gameplan.command(name="check", context_settings=CONTEXT_SETTINGS)
+@click.argument("paths", nargs=-1, required=True, metavar="path...")
 @click.option(
     "-r",
     "--recursive",
     is_flag=True,
-    help="Recurse into subdirectories of a directory PATH.",
+    help="Recurse into subdirectories of a directory path.",
 )
-@click.option(
-    "--play-path",
-    "play_path",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Play pool directory (overrides the league's play_path).",
-)
-@click.option(
-    "--playpool-rules",
-    "playpool_rules",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Playpool rules TOML (overrides the league's playpool_rules).",
-)
-@click.option(
-    "--rules",
-    "rule_overrides",
-    type=click.Path(path_type=Path),
-    multiple=True,
-    help="Gameplan rules TOML file; repeat to layer multiple. Overrides config.",
-)
+@league_option
 @click.pass_context
 def check(
     ctx: click.Context,
     paths: tuple[str, ...],
     recursive: bool,
-    play_path: Path | None,
-    playpool_rules: Path | None,
-    rule_overrides: tuple[Path, ...],
+    league: str | None,
 ) -> None:
-    """Validate one or more .pln gameplans against the configured rules.
+    """Validate one or more .pln gameplans against the league's rules.
 
-    Each PATH is a .pln file, a directory (top level, or the whole tree with -r),
+    Each path is a .pln file, a directory (top level, or the whole tree with -r),
     or a glob.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    league = selected_league(ctx)
 
     files, path_errors = collect_files(paths, suffix=".pln", recursive=recursive)
     for error in path_errors:
@@ -72,12 +49,7 @@ def check(
         ctx.exit(2)
 
     try:
-        config = load_config(
-            league,
-            play_path=play_path,
-            playpool_rules=playpool_rules,
-            rule_files=list(rule_overrides) or None,
-        )
+        config = load_config(league)
     except (ConfigFileError, ValueError) as error:
         logger.error("%s: %s", PROG, error)
         ctx.exit(2)

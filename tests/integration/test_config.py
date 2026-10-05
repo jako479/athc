@@ -4,7 +4,7 @@
 `load_league_config` reads `config_dir()/athc.ini` and `leagues/<NAME>/league.ini`,
 so per testing-integration.md these live in the integration tier (unit tests never
 read config). Covered once here rather than per command. A league is a folder under
-`leagues/`; `[athc] league` in athc.ini names the one used when no flag/env is given.
+`leagues/`; `[athc] league` in athc.ini names the one used when no flag is given.
 
 Also covers the `athc config` command group (path / edit / reveal), with the
 editor and Explorer launches mocked.
@@ -36,7 +36,7 @@ WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
 
 
-# ── resolution priority: --league arg → ATHC_LEAGUE → [athc] league ──
+# ── resolution priority: --league arg → [athc] league ──
 
 
 def test_resolves_explicit_league_arg(make_league: MakeLeague) -> None:
@@ -44,40 +44,12 @@ def test_resolves_explicit_league_arg(make_league: MakeLeague) -> None:
     assert load_league("PNFL")["play_path"] == "D:/p"
 
 
-def test_resolves_from_env(
-    make_league: MakeLeague, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    make_league("PNFL", "[league]\nplay_path = D:/p\n")
-    monkeypatch.setenv("ATHC_LEAGUE", "PNFL")
-    assert load_league()["play_path"] == "D:/p"
-
-
 def test_resolves_from_configured_league(
-    make_league: MakeLeague, write_config: WriteConfig, monkeypatch: pytest.MonkeyPatch
+    make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
-    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
     make_league("PNFL", "[league]\nplay_path = D:/p\n")
     write_config("[athc]\nleague = PNFL\n")
     assert load_league()["play_path"] == "D:/p"
-
-
-def test_arg_beats_env(
-    make_league: MakeLeague, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    make_league("ARG", "[league]\nk = arg\n")
-    make_league("ENV", "[league]\nk = env\n")
-    monkeypatch.setenv("ATHC_LEAGUE", "ENV")
-    assert load_league("ARG")["k"] == "arg"
-
-
-def test_env_beats_configured_league(
-    make_league: MakeLeague, write_config: WriteConfig, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    make_league("ENV", "[league]\nk = env\n")
-    make_league("CFG", "[league]\nk = cfg\n")
-    write_config("[athc]\nleague = CFG\n")
-    monkeypatch.setenv("ATHC_LEAGUE", "ENV")
-    assert load_league()["k"] == "env"
 
 
 # ── resolve_league: the name alone, same priority ──
@@ -88,23 +60,16 @@ def test_resolve_league_returns_the_explicit_name(make_league: MakeLeague) -> No
     assert resolve_league("PNFL") == "PNFL"
 
 
-def test_resolve_league_falls_back_to_env_then_configured(
-    make_league: MakeLeague, write_config: WriteConfig, monkeypatch: pytest.MonkeyPatch
+def test_resolve_league_falls_back_to_configured(
+    make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
     make_league("DEF")
-    make_league("ENV")
     write_config("[athc]\nleague = DEF\n")
-    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
     assert resolve_league() == "DEF"
-    monkeypatch.setenv("ATHC_LEAGUE", "ENV")
-    assert resolve_league() == "ENV"
 
 
-def test_resolve_league_errors_when_none_resolvable(
-    make_league: MakeLeague, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_resolve_league_errors_when_none_resolvable(make_league: MakeLeague) -> None:
     make_league("PNFL")
-    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
     with pytest.raises(LeagueError, match="no league selected"):
         resolve_league()
 
@@ -181,10 +146,7 @@ def test_rule_files_list_replaces_default_in_order(make_league: MakeLeague) -> N
 # ── errors ──
 
 
-def test_no_league_resolvable_lists_available(
-    make_league: MakeLeague, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
+def test_no_league_resolvable_lists_available(make_league: MakeLeague) -> None:
     make_league("PNFL")
     make_league("PCFL")
     with pytest.raises(LeagueError) as exc:
@@ -195,10 +157,7 @@ def test_no_league_resolvable_lists_available(
     assert "Available: PCFL, PNFL" in msg
 
 
-def test_no_league_and_no_folders(
-    monkeypatch: pytest.MonkeyPatch, config_dir: Path
-) -> None:
-    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
+def test_no_league_and_no_folders(config_dir: Path) -> None:
     with pytest.raises(LeagueError) as exc:
         load_league()
     assert str(config_dir / "leagues") in str(exc.value)
@@ -213,10 +172,7 @@ def test_unknown_league_errors(make_league: MakeLeague) -> None:
     assert "Available: PNFL" in msg
 
 
-def test_empty_league_key_is_no_league(
-    write_config: WriteConfig, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
+def test_empty_league_key_is_no_league(write_config: WriteConfig) -> None:
     write_config("[athc]\nleague =\n")
     with pytest.raises(LeagueError, match="no league selected"):
         load_league()
@@ -237,25 +193,19 @@ def test_league_dir_rejects_blank_names(name: str, config_dir: Path) -> None:
 
 
 def test_resolve_league_blank_arg_is_no_arg(
-    make_league: MakeLeague,
-    write_config: WriteConfig,
-    monkeypatch: pytest.MonkeyPatch,
+    make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
     # `--league "   "` behaves like no flag: the configured league is used.
-    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
     make_league("PNFL")
     write_config("[athc]\nleague = PNFL\n")
     assert load_league_config("   ").name == "PNFL"
 
 
 def test_malformed_athc_ini_errors(
-    make_league: MakeLeague,
-    write_config: WriteConfig,
-    monkeypatch: pytest.MonkeyPatch,
+    make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
-    # No explicit league and no env: the league must come from athc.ini, so the
-    # malformed file is actually read.
-    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
+    # No explicit league: the league must come from athc.ini, so the malformed
+    # file is actually read.
     make_league("PNFL")
     ini = write_config("[athc\nbroken\n")
     with pytest.raises(ConfigFileError) as exc:
@@ -353,11 +303,9 @@ def test_reveal_opens_folder_when_absent(
     assert launched == [((str(config_dir),), {})]
 
 
-def test_edit_no_env_opens_associated_app(
+def test_edit_opens_associated_app(
     runner, config_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.delenv("VISUAL", raising=False)
-    monkeypatch.delenv("EDITOR", raising=False)
     launched: list[tuple[object, ...]] = []
     monkeypatch.setattr("click.launch", lambda *a, **k: launched.append(a))
     result = runner.invoke(edit, [])
@@ -367,9 +315,10 @@ def test_edit_no_env_opens_associated_app(
     assert launched == [(str(ini),)]
 
 
-def test_edit_uses_editor_env(
+def test_edit_ignores_editor_env(
     runner, config_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setenv("VISUAL", "myvisual")
     monkeypatch.setenv("EDITOR", "myeditor")
     edited: list[dict[str, object]] = []
     launched: list[tuple[object, ...]] = []
@@ -377,15 +326,13 @@ def test_edit_uses_editor_env(
     monkeypatch.setattr("click.launch", lambda *a, **k: launched.append(a))
     result = runner.invoke(edit, [])
     assert result.exit_code == 0
-    assert edited == [{"filename": str(config_dir / "athc.ini")}]
-    assert launched == []
+    assert edited == []
+    assert launched == [(str(config_dir / "athc.ini"),)]
 
 
 def test_edit_preserves_existing_file(
     runner, write_config: WriteConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.delenv("VISUAL", raising=False)
-    monkeypatch.delenv("EDITOR", raising=False)
     ini = write_config("[athc]\nleague = PNFL\n")
     monkeypatch.setattr("click.launch", lambda *a, **k: None)
     result = runner.invoke(edit, [])
@@ -401,10 +348,8 @@ RELEASE = Path(__file__).resolve().parents[2] / "release"
 @pytest.fixture
 def release_config_dir(monkeypatch: pytest.MonkeyPatch) -> None:
     """Point config lookup at the shipped `release/` folder itself (overriding the
-    autouse temp dir). `ATHC_LEAGUE` is cleared so the league comes from athc.ini,
-    as on a fresh install."""
+    autouse temp dir), as on a fresh install."""
     monkeypatch.setenv("ATHC_CONFIG_DIR", str(RELEASE))
-    monkeypatch.delenv("ATHC_LEAGUE", raising=False)
 
 
 @pytest.mark.usefixtures("release_config_dir")
@@ -451,11 +396,10 @@ def test_release_convert_pdb_config_loads() -> None:
 
     cfg = pdbtoexcel_config.load_config()
     assert cfg.playpool_rules is not None and cfg.playpool_rules.is_file()
-    # --play-path alone still reads the league's rules\playpool.toml.
+    # A play_path override alone still reads the league's rules\playpool.toml.
     rules = pdbtoexcel_config.load_config(play_path="D:/plays").playpool_rules
     assert rules == RELEASE / "leagues" / "PNFL" / "rules" / "playpool.toml"
     # The shipped [convert-pdb] section spells out the defaults.
-    assert cfg.calculate_total_stats is True
     assert cfg.calculate_percentages is True
     assert cfg.include_category_worksheets is False
     assert cfg.exclude_sacks_from_pass_attempts is True

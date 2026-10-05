@@ -1,26 +1,19 @@
-"""`athc config edit` -- open the athc settings file in an editor."""
+"""`athc config edit` -- open the athc settings file in its default app."""
 
 from __future__ import annotations
 
-import os
-
 import click
 
+from athc.cli import CONTEXT_SETTINGS
 from athc.cli.config import config
 from athc.config import config_file
 
 
-@config.command(name="edit")
+@config.command(name="edit", context_settings=CONTEXT_SETTINGS)
 def edit() -> None:
-    """Open athc.ini in an editor, creating it if missing.
-
-    Uses $VISUAL/$EDITOR when set, else the file's associated app (Notepad by default).
-    """
+    """Open athc.ini in its default app, creating it if missing."""
     path = config_file()
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
         path.touch()
-    if os.environ.get("VISUAL") or os.environ.get("EDITOR"):
-        click.edit(filename=str(path))
-    else:
-        click.launch(str(path))
+    click.launch(str(path))

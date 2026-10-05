@@ -1,12 +1,10 @@
-"""Shared helpers for `athc profile`: file collection, backup, rules loading."""
+"""Shared helpers for `athc profile`: file collection, rules loading."""
 
 from __future__ import annotations
 
 import glob
 import logging
-import shutil
 from collections.abc import Iterable
-from datetime import datetime
 from pathlib import Path
 
 from athc.profile import ProfileRules, RulesFileError, load_rules
@@ -16,14 +14,6 @@ _GLOB_CHARS = frozenset("*?[")
 
 def is_glob(s: str) -> bool:
     return any(c in s for c in _GLOB_CHARS)
-
-
-def make_backup(path: Path) -> Path:
-    """Copy `path` to `<path>.<YYYY-MM-DD-HHMM>.bak` and return the backup path."""
-    stamp = datetime.now().strftime("%Y-%m-%d-%H%M")
-    backup = path.with_name(f"{path.name}.{stamp}.bak")
-    shutil.copy2(path, backup)
-    return backup
 
 
 def collect_files(
@@ -92,7 +82,7 @@ def resolve_rules(
     if not files:
         logger.error(
             "%s: no rules configured - nothing to check. "
-            "Add rules\\profile.toml to the league folder or pass --rules.",
+            "Add rules\\profile.toml to the league folder.",
             prog,
         )
         return None

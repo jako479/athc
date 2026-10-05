@@ -10,7 +10,7 @@ from pathlib import Path
 
 import click
 
-from athc.cli import selected_league
+from athc.cli import CONTEXT_SETTINGS, AthcCommand, league_option
 from athc.config import ConfigFileError, LeagueError, resolve_league
 from athc.scheduler.config import (
     ConfigError,
@@ -24,31 +24,44 @@ PROG = "athc generate-schedule"
 logger = logging.getLogger(__name__)
 
 
-@click.command(name="generate-schedule", hidden=True)
+@click.command(
+    name="generate-schedule",
+    cls=AthcCommand,
+    hidden=True,
+    context_settings=CONTEXT_SETTINGS,
+)
 @click.option(
     "--season",
     required=True,
     type=int,
+    metavar="year",
     help="Season being scheduled (e.g. 2048).",
 )
 @click.option(
-    "--seed", type=int, default=None, help="Random seed for deterministic generation."
+    "--seed",
+    type=int,
+    default=None,
+    metavar="number",
+    help="Random seed for deterministic generation.",
 )
 @click.option(
     "--time-limit",
     type=int,
     default=None,
+    metavar="number",
     help=(
         "Override the solver time limit "
         "(CP-SAT deterministic time, not wall-clock seconds)."
     ),
 )
+@league_option
 @click.pass_context
 def generate_schedule(
     ctx: click.Context,
     season: int,
     seed: int | None,
     time_limit: int | None,
+    league: str | None,
 ) -> None:
     """Generate a league's seasonal schedule and an HTML report.
 
@@ -64,7 +77,6 @@ def generate_schedule(
     directory, named `schedule_<season>_<timestamp>`.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    league = selected_league(ctx)
     chosen_seed = seed if seed is not None else random.randint(0, 1_000_000)
 
     try:

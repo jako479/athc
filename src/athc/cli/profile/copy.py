@@ -7,8 +7,9 @@ from pathlib import Path
 
 import click
 
+from athc.cli import CONTEXT_SETTINGS
 from athc.cli.profile import profile
-from athc.cli.profile._common import collect_files, make_backup
+from athc.cli.profile._common import collect_files
 from athc.fbpro98_profile import (
     InvalidProfileError,
     UnsupportedProfileError,
@@ -30,17 +31,14 @@ _FLAG_LABELS = {
 }
 
 
-@profile.command(name="copy")
-@click.argument("source", metavar="SRC.prf", type=click.Path(path_type=Path))
-@click.argument("target", metavar="TARGET", type=click.Path(path_type=Path))
+@profile.command(name="copy", context_settings=CONTEXT_SETTINGS)
+@click.argument("source", metavar="source", type=click.Path(path_type=Path))
+@click.argument("target", metavar="target", type=click.Path(path_type=Path))
 @click.option(
     "-r",
     "--recursive",
     is_flag=True,
-    help="Recurse into subdirectories when TARGET is a directory.",
-)
-@click.option(
-    "--no-backup", is_flag=True, help="Do not create a .bak copy before writing."
+    help="Recurse into subdirectories when target is a directory.",
 )
 @click.option(
     "--stop-clock",
@@ -78,15 +76,13 @@ def copy(
     source: Path,
     target: Path,
     recursive: bool,
-    no_backup: bool,
     **flags: bool,
 ) -> None:
-    """Copy selected fields from SRC.prf into one or more TARGET .prf files.
+    """Copy selected fields from the source .prf into one or more target .prf files.
 
-    TARGET is a .prf file or a directory (top level, or the whole tree with -r).
-    Files of the wrong side (offense vs defense) are skipped. A timestamped .bak
-    is made next to each target before it is written (suppress with --no-backup).
-    At least one copy flag is required.
+    target is a .prf file or a directory (top level, or the whole tree with -r).
+    Files of the wrong side (offense vs defense) are skipped. At least one copy
+    flag is required.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     if not any(flags.values()):
@@ -115,7 +111,7 @@ def copy(
     for path in files:
         if not _matches_side(path, side) or path.resolve() == source_resolved:
             continue
-        status, message = _copy_one(source, path, flags, no_backup=no_backup)
+        status, message = _copy_one(source, path, flags)
         click.echo(f"{path}: {status} ({message})")
         if status == "updated":
             updated += 1
@@ -135,20 +131,16 @@ def _matches_side(path: Path, side: str) -> bool:
     return even if side == "offense" else not even
 
 
-def _copy_one(
-    source: Path, target: Path, flags: dict[str, bool], *, no_backup: bool
-) -> tuple[str, str]:
+def _copy_one(source: Path, target: Path, flags: dict[str, bool]) -> tuple[str, str]:
     """Return `(status, message)` where status is `updated` or `failed`."""
     try:
         result = ProfileWriter(source, target).apply(**flags)
-        backup = None if no_backup else make_backup(target)
         write_profile(result, str(target))
     except ProfileTypeMismatchError as error:
         return "failed", str(error)
     except (InvalidProfileError, UnsupportedProfileError, OSError) as error:
         return "failed", str(error)
-    suffix = "" if backup is None else f"; backup {backup.name}"
-    return "updated", f"{_flag_summary(flags)}{suffix}"
+    return "updated", _flag_summary(flags)
 
 
 def _flag_summary(flags: dict[str, bool]) -> str:

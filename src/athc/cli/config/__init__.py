@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import click
 
+from athc.cli import CONTEXT_SETTINGS, CommandGroup
 
-@click.group()
+
+@click.group(cls=CommandGroup, context_settings=CONTEXT_SETTINGS)
 def config() -> None:
     """Print the path to athc.ini, edit it, reveal it, or set a value in it."""
 

@@ -9,14 +9,9 @@ from pathlib import Path
 
 import click
 
-from athc.cli import selected_league
+from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.gameplan import gameplan
-from athc.cli.gameplan._common import (
-    build_pool,
-    collect_files,
-    make_backup,
-    parse_play_list,
-)
+from athc.cli.gameplan._common import build_pool, collect_files, parse_play_list
 from athc.fbpro98_gameplan import (
     GamePlan,
     InvalidGamePlanError,
@@ -86,9 +81,7 @@ def _determine_side(pool: PlayPool, lines: Sequence[str]) -> str | None:
     return None
 
 
-def _update_one(
-    path: Path, lines: Sequence[str], pool: PlayPool, *, no_backup: bool
-) -> tuple[str, str]:
+def _update_one(path: Path, lines: Sequence[str], pool: PlayPool) -> tuple[str, str]:
     """Apply the special list to one .pln. Returns `(status, message)`."""
     try:
         gp = read_gameplan(str(path))
@@ -97,72 +90,46 @@ def _update_one(
         return "failed", error.violations[0] if error.violations else "invalid input"
     except (OSError, InvalidGamePlanError, ValueError) as error:
         return "failed", str(error)
-    backup = None if no_backup else make_backup(path)
     write_gameplan(updated, path)
     count = sum(1 for p in updated.custom_special_plays if p is not None)
-    tail = "" if backup is None else f"; backup {backup.name}"
-    return "updated", f"{count} special play(s){tail}"
+    return "updated", f"{count} special play(s)"
 
 
-@gameplan.command(name="set-specials")
-@click.argument("target", type=click.Path(path_type=Path))
-@click.argument("input_path", required=False, type=click.Path(path_type=Path))
+@gameplan.command(name="set-specials", context_settings=CONTEXT_SETTINGS)
+@click.argument("target", metavar="path", type=click.Path(path_type=Path))
+@click.argument(
+    "input_path",
+    metavar="input_file",
+    type=click.Path(path_type=Path, allow_dash=True),
+)
 @click.option(
     "-r",
     "--recursive",
     is_flag=True,
-    help="Recurse into subdirectories when TARGET is a directory.",
+    help="Recurse into subdirectories when path is a directory.",
 )
-@click.option(
-    "--stdin", "use_stdin", is_flag=True, help="Read the play list from stdin."
-)
-@click.option(
-    "--no-backup", is_flag=True, help="Do not create a .bak copy before writing."
-)
-@click.option(
-    "--play-path",
-    "play_path",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Play pool directory (overrides the league's play_path).",
-)
-@click.option(
-    "--playpool-rules",
-    "playpool_rules",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Playpool rules TOML (overrides the league's playpool_rules).",
-)
+@league_option
 @click.pass_context
 def set_specials(
     ctx: click.Context,
     target: Path,
-    input_path: Path | None,
+    input_path: Path,
     recursive: bool,
-    use_stdin: bool,
-    no_backup: bool,
-    play_path: Path | None,
-    playpool_rules: Path | None,
+    league: str | None,
 ) -> None:
-    """Set the custom special-teams plays of TARGET from a play list (file or --stdin).
+    """Set the custom special-teams plays of path from the play list in input_file.
 
-    TARGET is a .pln file or a directory (top level, or the tree with -r). Files of the
-    wrong side are skipped silently (offense .pln are even-sized, defense odd). Merge
-    semantics: unlisted special categories are preserved. A timestamped .bak is written
-    next to each updated file (unless --no-backup).
+    path is a .pln file or a directory (top level, or the tree with -r); an
+    input_file of `-` reads the list from the console. Files of the wrong side are
+    skipped silently (offense .pln are even-sized, defense odd). Merge semantics:
+    unlisted special categories are preserved. The league's play pool resolves
+    names.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    league = selected_league(ctx)
-    if use_stdin and input_path is not None:
-        raise click.UsageError("provide either INPUT_PATH or --stdin, not both")
-    if not use_stdin and input_path is None:
-        raise click.UsageError("INPUT_PATH is required (or pass --stdin)")
-
     try:
-        if use_stdin:
+        if str(input_path) == "-":
             text = sys.stdin.read()
         else:
-            assert input_path is not None
             text = input_path.read_text(encoding="utf-8")
         lines = parse_play_list(text)
         if len(lines) > SPECIAL_COUNT:
@@ -170,12 +137,7 @@ def set_specials(
                 "%s: input has %d play(s), max is %d", PROG, len(lines), SPECIAL_COUNT
             )
             ctx.exit(2)
-        config = load_config(
-            league,
-            play_path=play_path,
-            playpool_rules=playpool_rules,
-            rule_files=(),  # no gameplan rules needed: don't resolve a league for them
-        )
+        config = load_config(league, rule_files=())  # no gameplan rules needed
     except (ConfigFileError, ValueError, OSError) as error:
         logger.error("%s: %s", PROG, error)
         ctx.exit(2)
@@ -203,7 +165,7 @@ def set_specials(
     for path in files:
         if not _matches_side(path, side):
             continue
-        status, message = _update_one(path, lines, pool, no_backup=no_backup)
+        status, message = _update_one(path, lines, pool)
         click.echo(f"{path}: {status} ({message})")
         if status == "updated":
             updated += 1

@@ -1,7 +1,9 @@
 # TODO
 
+- gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run
+- gameplan: `list-normals --sort category` — group the plays by category, each group under a `::` category header comment
 - athc: install through a PyInstaller-built installer (exe), replacing the `install.bat` + wheel zip and the uv prerequisite
-- athc: cli: wire logging in the `cli()` group callback — global `-v/--verbose`, `RichHandler` on stderr, `click.style` on stdout; drop the 14 per-command `basicConfig` calls. Design: [docs/design/logging.md](docs/design/logging.md)
+- athc: cli: wire logging in the `cli()` group callback — `RichHandler` on stderr, `click.style` on stdout; drop the 14 per-command `basicConfig` calls. Design: [docs/design/logging.md](docs/design/logging.md)
 - athc: tests: add ruff's `PT` rule group (pytest style); 117 findings today, 111 auto-fixable under `--unsafe-fixes`
 - autocontinue: work with Dean to determine usability requirements
 - autocontinue: add halftime

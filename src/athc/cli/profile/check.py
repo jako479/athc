@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from athc.cli import selected_league
+from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.profile import profile
 from athc.cli.profile._common import collect_files, resolve_rules
 from athc.config import ConfigFileError, LeagueError
@@ -31,47 +31,41 @@ PROG = "athc profile check"
 logger = logging.getLogger(__name__)
 
 
-@profile.command(name="check")
-@click.argument("paths", nargs=-1, required=True, metavar="PATH...")
+@profile.command(name="check", context_settings=CONTEXT_SETTINGS)
+@click.argument("paths", nargs=-1, required=True, metavar="path...")
 @click.option(
     "-r",
     "--recursive",
     is_flag=True,
-    help="Recurse into subdirectories of a directory PATH.",
-)
-@click.option(
-    "--rules",
-    "rule_overrides",
-    type=click.Path(path_type=Path),
-    multiple=True,
-    help="Rules TOML file; repeat to layer multiple. Overrides config.",
+    help="Recurse into subdirectories of a directory path.",
 )
 @click.option(
     "--gameplan",
     "gameplan_path",
+    metavar="pln_file",
     type=click.Path(path_type=Path),
     default=None,
     help="Also check that this .pln gameplan and each profile cover the same "
     "play categories, in both directions (same side only).",
 )
+@league_option
 @click.pass_context
 def check(
     ctx: click.Context,
     paths: tuple[str, ...],
     recursive: bool,
-    rule_overrides: tuple[Path, ...],
     gameplan_path: Path | None,
+    league: str | None,
 ) -> None:
-    """Validate one or more .prf coaching profiles against the configured rules.
+    """Validate one or more .prf coaching profiles against the league's rules.
 
-    Each PATH is a .prf file, a directory (top level, or the whole tree with -r),
+    Each path is a .prf file, a directory (top level, or the whole tree with -r),
     or a glob. With --gameplan, each profile is also checked for play-category
     coverage against that .pln (offense with offense, defense with defense), in
     both directions: categories the gameplan does not back, and gameplan
     categories the profile never uses.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    league = selected_league(ctx)
 
     files, path_errors = collect_files(paths, suffix=".prf", recursive=recursive)
     for error in path_errors:
@@ -80,7 +74,7 @@ def check(
         ctx.exit(2)
 
     try:
-        config = load_config(league, rule_files=list(rule_overrides) or None)
+        config = load_config(league)
     except (ConfigFileError, LeagueError) as error:
         logger.error("%s: %s", PROG, error)
         ctx.exit(2)

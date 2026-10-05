@@ -31,8 +31,8 @@ src/athc/cli/generate_schedule.py   # Click command (lazy solver import)
 
 ## What this package does
 
-- Provides a CLI: `athc [--league NAME] generate-schedule --season YEAR [--seed INT] [--time-limit INT]`
-- Resolves the league (root `--league` → `ATHC_LEAGUE` → `[athc] league`) with the shared `athc.config.resolve_league`
+- Provides a CLI: `athc generate-schedule [--league name] --season year [--seed number] [--time-limit number]`
+- Resolves the league (`--league` → `[athc] league`) with the shared `athc.config.resolve_league`
 - Loads `standings\<season>.league.ini` (the standings, which define conferences and divisions) and `rules\scheduler.toml` (optional amounts) from the league's folder
 - Solves the schedule in two CP-SAT phases
 - Writes `schedule_<season>_<timestamp>.txt` / `.html` and `_report.html` to the current directory, titled by league

@@ -49,8 +49,9 @@ For athc's `leagues\<NAME>\` folders and the stored current league.
 - **Kodi** — `profiles/<name>/` plus a registry naming the last-loaded profile.
 - **Calibre** — libraries are folders; the current one is `library_path` in the app-wide prefs. Precedent for keeping the pointer in the main settings file.
 - **pip / gcloud / poetry** — `config set KEY VALUE` writes one setting; precedent for `athc config set league NAME`.
+- **AWS CLI / kubectl** — the profile flag goes after the command: `aws s3 ls --profile x` ([docs](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-options.html)), `kubectl get --context x` ([docs](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_get/)). Precedent for `--league` after the command name.
 
-**Adaptation for athc**: fixed file names inside each league folder; `[athc] league` in `athc.ini`; `--league` as a root option (`athc --league NAME <command>`); priority `--league` → `ATHC_LEAGUE` → `[athc] league` → error. Full design: [config.md](config.md). CLI mechanics: [cli.md](cli.md).
+**Adaptation for athc**: fixed file names inside each league folder; `[athc] league` in `athc.ini`; `--league` on each league-aware command (`athc <command> --league NAME`); priority `--league` → `[athc] league` → error. Full design: [config.md](config.md). CLI mechanics: [cli.md](cli.md).
 
 ## Plugins via entry points
 

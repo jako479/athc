@@ -29,14 +29,17 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + rules; 
 ## `athc profile check` — command (CliRunner)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| No PATH given | — | usage error, exit 2 | `test_cli_requires_path` | ☑ |
-| Violations | data + `--rules` | exit 1; "1 file(s) checked" | `test_cli_violations_exit_1` | ☑ |
-| Multiple files | data + `--rules` | exit 1; "2 file(s) checked" | `test_cli_multiple_files` | ☑ |
-| Directory / `-r` | tmp + `--rules` | exit 1; counts | `test_cli_directory` / `test_cli_recursive` | ☑ |
-| Clean (mocked) | data + `--rules` | exit 0; "OK" | `test_cli_clean_exit_0` | ☑ |
+| No path given | — | usage error, exit 2 | `test_cli_requires_path` | ☑ |
+| `--rules` removed | option | exit 2; "No such option" | `test_cli_rules_option_removed` | ☑ |
+| Violations | data + league | exit 1; "1 file(s) checked" | `test_cli_violations_exit_1` | ☑ |
+| Multiple files | data + league | exit 1; "2 file(s) checked" | `test_cli_multiple_files` | ☑ |
+| Directory / `-r` | tmp + league | exit 1; counts | `test_cli_directory` / `test_cli_recursive` | ☑ |
+| Clean (mocked) | data + league | exit 0; "OK" | `test_cli_clean_exit_0` | ☑ |
 | Missing path | tmp | exit 2; "does not exist" | `test_cli_missing_path` | ☑ |
-| Malformed `.prf` | tmp + `--rules` | exit 2; "ERROR" printed | `test_cli_malformed_prf` | ☑ |
-| Continues past bad file | tmp + `--rules` | exit 2; both lines printed | `test_cli_continues_past_bad` | ☑ |
+| Malformed `.prf` | tmp + league | exit 2; "ERROR" printed | `test_cli_malformed_prf` | ☑ |
+| Continues past bad file | tmp + league | exit 2; both lines printed | `test_cli_continues_past_bad` | ☑ |
+
+The "league" input is a selected league folder whose `rules/profile.toml` is the test rules file.
 
 ## `athc profile check` — rules / config resolution
 | Case | Input | Expected | Test | Status |
@@ -44,13 +47,11 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + rules; 
 | No league configured | empty config | exit 2; "no league selected" | `test_cli_no_league` | ☑ |
 | League folder without rules | `leagues/PNFL/` | exit 2; "no rules configured" | `test_cli_no_rules_in_league_folder` | ☑ |
 | Rules from the league folder | `leagues/PNFL/rules/profile.toml` + `[athc] league` | exit 1 | `test_cli_rules_from_league_folder` | ☑ |
-| Root `--league` (`ctx.obj`) picks the folder | two leagues | exit 1 | `test_cli_league_flag_picks_folder` | ☑ |
+| `--league` picks the folder | two leagues | exit 1 | `test_cli_league_flag_picks_folder` | ☑ |
 | `profile_rules` list | relative to the league folder | exit 1 | `test_cli_profile_rules_list_relative_to_league_folder` | ☑ |
-| `--rules` overrides the league | list bogus + `--rules` | exit 1; bogus unused | `test_cli_rules_override_league` | ☑ |
-| `--rules` layering | two files | later overrides earlier | `test_cli_rules_layering` | ☑ |
-| Bad rules TOML | `--rules` bad | exit 2; "TOML parse error" | `test_cli_bad_rules_toml` | ☑ |
-| Missing rules file (ini / cli) | path | exit 2; path named | `test_cli_missing_rules` `[P]` | ☑ |
-| Missing `--config` | path | exit 2; "config file not found" | `test_cli_missing_config` | ☑ |
+| `profile_rules` layering | base + overlay | later overrides earlier | `test_cli_rules_layering` | ☑ |
+| Bad rules TOML | league `rules/profile.toml` bad | exit 2; "TOML parse error" | `test_cli_bad_rules_toml` | ☑ |
+| Missing listed rules file | `profile_rules` → absent file | exit 2; path named | `test_cli_missing_rules` | ☑ |
 | Malformed `athc.ini` | bad ini | exit 2 | `test_cli_malformed_ini` | ☑ |
 
 ## `athc profile check` — `--gameplan` compatibility
@@ -65,8 +66,8 @@ Real `TST-OFF1.prf`/`TST-DEF1.prf` + real `offense.pln`/`defense.pln`; clean `co
 | check_file side mismatch (both ways) | data | `(-1, "profile is X but gameplan is Y")` | `test_check_file_gameplan_side_mismatch` / `_defense` | ☑ |
 | **Golden report (real)** | data ↔ expected | byte-equal (path normalized) | `test_check_file_gameplan_matches_golden` `[P]` | ☑ |
 | CLI offense / defense | data + `--gameplan` | exit 1; compat line | `test_cli_gameplan_offense_exit_1` / `_defense_exit_1` | ☑ |
-| CLI clean (mocked) | clean + empty rules | exit 0; "gameplan compatible" | `test_cli_gameplan_clean_exit_0` | ☑ |
-| CLI reverse fails | clean + empty rules | exit 1; `gameplan:` line | `test_cli_gameplan_reverse_exit_1` | ☑ |
+| CLI clean (mocked) | clean + league with compat-only rules | exit 0; "gameplan compatible" | `test_cli_gameplan_clean_exit_0` | ☑ |
+| CLI reverse fails | clean + league with compat-only rules | exit 1; `gameplan:` line | `test_cli_gameplan_reverse_exit_1` | ☑ |
 | CLI side mismatch | data | exit 2; "profile is offense but gameplan is defense" | `test_cli_gameplan_side_mismatch_exit_2` | ☑ |
 | CLI mixed sides continues | 2 files, 1 gameplan | exit 2; both lines; "2 file(s) checked" | `test_cli_gameplan_mixed_sides_continues` | ☑ |
 | CLI gameplan missing / bad ext / malformed | tmp | exit 2; logged | `test_cli_gameplan_missing_file_exit_2` / `_bad_extension_exit_2` / `_malformed_exit_2` | ☑ |
@@ -74,7 +75,7 @@ Real `TST-OFF1.prf`/`TST-DEF1.prf` + real `offense.pln`/`defense.pln`; clean `co
 ## `athc profile check` — Packaging check (real subprocess)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Real subprocess `athc profile check` | data + `--rules` | exit 1; report printed | `test_entry_point_subprocess` | ☑ |
+| Real subprocess `athc profile check` | data + league | exit 1; report printed | `test_entry_point_subprocess` | ☑ |
 
 ---
 
@@ -99,32 +100,35 @@ Same eight cases as profile (single / top level / recursive / missing / non-`.pl
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | No PATH given | — | usage error, exit 2 | `test_cli_requires_path` | ☑ |
-| Violations | data + flags | exit 1; "1 file(s) checked" | `test_cli_violations_exit_1` | ☑ |
-| Multiple files | data + flags | exit 1; "2 file(s) checked" | `test_cli_multiple_files` | ☑ |
-| Directory / `-r` | tmp + flags | exit 1; counts | `test_cli_directory` / `test_cli_recursive` | ☑ |
-| Clean (mocked) | data + flags | exit 0; "OK" | `test_cli_clean_exit_0` | ☑ |
-| Missing path | tmp + flags | exit 2; "does not exist" | `test_cli_missing_path` | ☑ |
-| Malformed `.pln` | tmp + flags | exit 2; "ERROR" printed | `test_cli_malformed_pln` | ☑ |
-| Continues past bad file | tmp + flags | exit 2; both lines printed | `test_cli_continues_past_bad` | ☑ |
+| Removed options rejected | `--play-path`, `--playpool-rules`, `--rules` | exit 2; "No such option" | `test_cli_removed_options_are_rejected` `[P]` | ☑ |
+| Violations | data + league | exit 1; "1 file(s) checked" | `test_cli_violations_exit_1` | ☑ |
+| Multiple files | data + league | exit 1; "2 file(s) checked" | `test_cli_multiple_files` | ☑ |
+| Directory / `-r` | tmp + league | exit 1; counts | `test_cli_directory` / `test_cli_recursive` | ☑ |
+| Clean (mocked) | data + league | exit 0; "OK" | `test_cli_clean_exit_0` | ☑ |
+| Missing path | tmp + league | exit 2; "does not exist" | `test_cli_missing_path` | ☑ |
+| Malformed `.pln` | tmp + league | exit 2; "ERROR" printed | `test_cli_malformed_pln` | ☑ |
+| Continues past bad file | tmp + league | exit 2; both lines printed | `test_cli_continues_past_bad` | ☑ |
+
+The "league" input is a selected league folder holding the test pool (`play_path`), `rules/playpool.toml` and `rules/gameplan.toml`.
 
 ## pool / rules / config resolution
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Missing play path | bad `--play-path` | exit 2; "not a directory" | `test_cli_missing_play_path` | ☑ |
-| Bad playpool rules TOML | bad `--playpool-rules` | exit 2 | `test_cli_bad_playpool_rules` | ☑ |
-| Rules need a league | path flags only, no league | exit 2; "no league selected" | `test_cli_no_rules_needs_a_league` | ☑ |
+| Missing play path | league `play_path` absent | exit 2; "not a directory" | `test_cli_missing_play_path` | ☑ |
+| Bad playpool rules TOML | league `rules/playpool.toml` bad | exit 2 | `test_cli_bad_playpool_rules` | ☑ |
 | League folder without rules | `--league` + folder | exit 2; "no rules configured" | `test_cli_no_rules_in_league_folder` | ☑ |
-| Bad rules TOML | bad `--rules` | exit 2; "TOML parse error" | `test_cli_bad_rules_toml` | ☑ |
-| No league resolvable | no flags, no config | exit 2; "league" | `test_cli_no_league` | ☑ |
+| Bad rules TOML | league `rules/gameplan.toml` bad | exit 2; "TOML parse error" | `test_cli_bad_rules_toml` | ☑ |
+| No league resolvable | no config | exit 2; "league" | `test_cli_no_league` | ☑ |
 | Resolves from the league folder | `[athc] league` + `leagues/PNFL/` | exit 1 | `test_cli_resolves_from_league_folder` | ☑ |
 | `gameplan_rules` list | base + overlay | exit 1 | `test_cli_gameplan_rules_list_layers_in_order` | ☑ |
 | Listed rules file missing | `gameplan_rules` → absent file | exit 2; path named | `test_cli_missing_listed_rules_file_is_reported` | ☑ |
-| Missing `--config` | path | exit 2; "config file not found" | `test_cli_missing_config` | ☑ |
+| League playpool rules apply | league | exit 1; "timed passes" | `test_cli_league_playpool_rules_apply` | ☑ |
+| `play_path` override keeps league playpool rules | `load_config(play_path=…)` | league's `rules/playpool.toml` | `test_load_config_play_path_alone_reads_league_playpool_rules` | ☑ |
 
 ## Packaging check (real subprocess)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Real subprocess `athc gameplan check` | data + flags | exit 1; report printed | `test_entry_point_subprocess` | ☑ |
+| Real subprocess `athc gameplan check` | data + league | exit 1; report printed | `test_entry_point_subprocess` | ☑ |
 
 ---
 
@@ -137,25 +141,30 @@ In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `d
 |---|---|---|---|---|
 | No PATH given | — | usage error, exit 2 | `test_normals_requires_path` | ☑ |
 | Invalid `--sort` | data | usage error, exit 2 | `test_normals_rejects_invalid_sort` | ☑ |
-| Stdout, slot order | data | 64 lines match fixture | `test_normals_stdout_offense_slot` / `..._defense_slot` | ☑ |
-| Stdout, `--sort name` | data | sorted, blanks dropped | `test_normals_stdout_sort_name` | ☑ |
-| File: header + plays | data + out | line 1 `::`, rest match | `test_normals_file_writes_header_and_plays` | ☑ |
-| File: `--sort name` | data + out | rest match name fixture | `test_normals_file_sort_name` | ☑ |
-| Refuse overwrite (no `-f`) | existing out | exit 1; file untouched | `test_normals_refuses_overwrite_without_force` | ☑ |
-| Overwrite with `--force` | existing out | exit 0; rewritten | `test_normals_overwrites_with_force` | ☑ |
+| Help uses lowercase names | `--help` | `gameplan [output_file]`; no capitals | `test_normals_help_uses_lowercase_names` | ☑ |
+| `--force` / `--output` removed | option | exit 2; "No such option" | `test_normals_removed_options_rejected` `[P]` | ☑ |
+| Default: `<name>.normals.txt` next to the `.pln` | tmp copy | header + plays | `test_normals_default_writes_next_to_gameplan` | ☑ |
+| `-` prints, slot order | data | 64 lines match fixture | `test_normals_dash_offense_slot` / `..._defense_slot` | ☑ |
+| `-` prints, `--sort name` | data | sorted, blanks dropped | `test_normals_dash_sort_name` | ☑ |
+| Output file: header + plays | data + out | line 1 `::`, rest match | `test_normals_file_writes_header_and_plays` | ☑ |
+| Output file: `--sort name` | data + out | rest match name fixture | `test_normals_file_sort_name` | ☑ |
+| Existing file replaced | existing out | exit 0; rewritten | `test_normals_overwrites_existing_file` | ☑ |
 | Logs count + path | data + out | "Wrote 64 normal play(s)" | `test_normals_file_logs_count` | ☑ |
 | Missing gameplan | tmp | exit 1; error logged | `test_normals_missing_gameplan` | ☑ |
-| Malformed, file mode | tmp | exit 1; no file written | `test_normals_malformed_file_mode_no_output` | ☑ |
+| Malformed, output file | tmp | exit 1; no file written | `test_normals_malformed_file_mode_no_output` | ☑ |
 
 ## list-specials
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | No PATH given | — | usage error, exit 2 | `test_specials_requires_path` | ☑ |
-| Stdout (source order) | data | lines match fixture | `test_specials_stdout_offense` / `..._defense` | ☑ |
-| File: header + plays | data + out | line 1 `::`, rest match | `test_specials_file_writes_header_and_plays` | ☑ |
-| Refuse overwrite (no `-f`) | existing out | exit 1; file untouched | `test_specials_refuses_overwrite_without_force` | ☑ |
+| Help uses lowercase names | `--help` | `gameplan [output_file]`; no capitals | `test_specials_help_uses_lowercase_names` | ☑ |
+| `--force` / `--output` removed | option | exit 2; "No such option" | `test_specials_removed_options_rejected` `[P]` | ☑ |
+| Default: `<name>.specials.txt` next to the `.pln` | tmp copy | header + plays | `test_specials_default_writes_next_to_gameplan` | ☑ |
+| `-` prints (source order) | data | lines match fixture | `test_specials_dash_offense` / `..._defense` | ☑ |
+| Output file: header + plays | data + out | line 1 `::`, rest match | `test_specials_file_writes_header_and_plays` | ☑ |
+| Existing file replaced | existing out | exit 0; rewritten | `test_specials_overwrites_existing_file` | ☑ |
 | Logs count + path | data + out | "Wrote 6 special play(s)" | `test_specials_file_logs_count` | ☑ |
-| Malformed, file mode | tmp | exit 1; no file written | `test_specials_malformed_file_mode_no_output` | ☑ |
+| Malformed, output file | tmp | exit 1; no file written | `test_specials_malformed_file_mode_no_output` | ☑ |
 
 ---
 
@@ -178,15 +187,16 @@ In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find
 |---|---|---|---|---|
 | No args / single arg | — | usage error, exit 2 | `test_cli_requires_args` / `test_cli_single_arg_is_rejected` | ☑ |
 | `--verbose` (removed) | data | usage error, exit 2 | `test_cli_verbose_option_is_rejected` | ☑ |
-| Wildcard `PATH` (matching files present) | tmp | usage error, exit 2; not expanded | `test_cli_wildcard_path_is_rejected` | ☑ |
+| Wildcard `path` (matching files present) | tmp | usage error, exit 2; not expanded | `test_cli_wildcard_path_is_rejected` | ☑ |
 | Single file hit (normal / special) | data | slot(s); special adds category; no summary | `test_cli_single_file_hit` / `test_cli_finds_custom_special` | ☑ |
 | Single file miss | data | exit 1; "not found" | `test_cli_single_file_miss_exit_1` | ☑ |
 | Case-insensitive | data | hit | `test_cli_single_file_case_insensitive` | ☑ |
 | Several plays over a dir; one play in 2 slots of a gameplan that holds 2 of them; summary | tmp | exit 0; per-play "Found N in M" | `test_cli_multiple_plays_all_hit` | ☑ |
-| Multiple plays, one misses | data | exit 1 | `test_cli_one_play_misses_exit_1` | ☑ |
+| Multiple plays, one found (grep rule) | data | exit 0 | `test_cli_one_play_found_exit_0` | ☑ |
+| Multiple plays, none found | data | exit 1 | `test_cli_no_play_found_exit_1` | ☑ |
 | Directory: hit in one file, miss in the other | tmp | exit 0; hit + `not found` lines; footer | `test_cli_directory_reports_hit_and_miss_per_file` | ☑ |
 | Directory: no hits | tmp | exit 1; `not found` + footer | `test_cli_directory_misses_are_reported` | ☑ |
-| Directory: instance/file counts | tmp | "Found N in M" | `test_cli_directory_summary_counts_multiple_hits` / `..._per_play_summary` | ☑ |
+| Directory: instance/file counts | tmp | "Found N in M"; exit 0 when any play found | `test_cli_directory_summary_counts_multiple_hits` / `..._per_play_summary` | ☑ |
 | Recursive subdir | tmp | exit 0; found | `test_cli_recursive_finds_in_subdir` | ☑ |
 | Missing path / malformed `.pln` | tmp | exit 2 | `test_cli_missing_path_exit_2` / `test_cli_malformed_pln_exit_2` | ☑ |
 
@@ -194,32 +204,33 @@ In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find
 
 # `athc gameplan set-normals`
 
-In [test_gameplan_set_normals.py](test_gameplan_set_normals.py). Operates on a tmp copy of `data/offense.pln` with the curated pool (`--play-path` + `--playpool-rules`). Edits in place; `check` validates. Exit 0 = updated, 2 = error (nothing written).
+In [test_gameplan_set_normals.py](test_gameplan_set_normals.py). Operates on a tmp copy of `data/offense.pln` with the curated pool (a selected league whose `play_path` is `data/plays`, with its `rules/playpool.toml`). Edits in place, no backup; `check` validates. Exit 0 = updated, 1 = error (nothing written), 2 = usage.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Needs gameplan / input-or-stdin / not both | — | usage error, exit 2 | `test_requires_gameplan` / `test_requires_input_or_stdin` / `test_rejects_input_and_stdin_together` | ☑ |
-| Writes normals from file | tmp + flags | slot 0 set, rest cleared | `test_writes_from_file` | ☑ |
-| Backup by default / `--no-backup` | tmp | one `.bak` = original / none | `test_creates_backup_by_default` / `test_no_backup_skips_backup` | ☑ |
-| Logs "Updated" + "Backup:" | tmp | INFO line | `test_logs_backup_path` | ☑ |
-| Skips `::` / strips ` ::` / `name::` fails | tmp | parsed / parsed / exit 2 | `test_skips_comment_lines` / `test_strips_inline_comments` / `test_inline_comment_requires_space` | ☑ |
-| `-q` still updates; `--stdin` | tmp | exit 0; set | `test_quiet_still_updates` / `test_reads_from_stdin` | ☑ |
-| Special-teams play rejected (untouched) | tmp | exit 2; "set-specials"; no `.bak` | `test_rejects_special_teams_play` | ☑ |
-| Missing play aborts (untouched) | tmp | exit 2; no `.bak` | `test_missing_play_aborts` | ☑ |
-| >64 plays / missing `.pln` / bad play-path | tmp | exit 2 | `test_too_many_plays_rejected` / `test_missing_pln` / `test_invalid_play_path` | ☑ |
+| Needs gameplan / input_file | — | usage error, exit 2 | `test_requires_gameplan` / `test_requires_input_file` | ☑ |
+| Removed options rejected | `--stdin`, `--no-backup`, `--play-path`, `--playpool-rules` | exit 2; "No such option" | `test_removed_options_rejected` `[P]` | ☑ |
+| Writes normals from file | tmp | slot 0 set, rest cleared | `test_writes_from_file` | ☑ |
+| No backup | tmp | "Updated"; no `.bak` | `test_writes_no_backup` | ☑ |
+| Skips `::` / strips ` ::` / `name::` fails | tmp | parsed / parsed / exit 1 | `test_skips_comment_lines` / `test_strips_inline_comments` / `test_inline_comment_requires_space` | ☑ |
+| `-q` still updates; `-` reads the console | tmp | exit 0; set | `test_quiet_still_updates` / `test_dash_reads_from_console` | ☑ |
+| Special-teams play rejected (untouched) | tmp | exit 1; "set-specials" | `test_rejects_special_teams_play` | ☑ |
+| Missing play aborts (untouched) | tmp | exit 1 | `test_missing_play_aborts` | ☑ |
+| >64 plays / missing `.pln` / league `play_path` missing | tmp | exit 1 | `test_too_many_plays_rejected` / `test_missing_pln` / `test_invalid_play_path` | ☑ |
 
 # `athc gameplan set-specials`
 
-In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of `offense.pln` / `defense.pln`. Merge semantics; bulk over file/dir/tree; wrong-side files skipped by size parity. Exit 0 = all updated, 1 = some failed, 2 = setup error.
+In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of `offense.pln` / `defense.pln`, with the curated pool from a selected league (`play_path` = `data/plays`, its `rules/playpool.toml`). Merge semantics; bulk over file/dir/tree; wrong-side files skipped by size parity; no backup. Exit 0 = all updated, 1 = some failed, 2 = setup error.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Needs target / input-or-stdin / not both / no `-q` | — | usage error, exit 2 | `test_requires_target` / `test_requires_input_or_stdin` / `test_rejects_input_and_stdin_together` / `test_no_quiet_option` | ☑ |
-| Writes special from file; merge preserves others | tmp + flags | slot 1 set; rest intact | `test_writes_special_from_file` / `test_merge_preserves_other_categories` | ☑ |
-| Backup by default / `--no-backup` | tmp | one `.bak` / none | `test_creates_backup_by_default` / `test_no_backup_skips_backup` | ☑ |
-| Comments; `--stdin` | tmp | parsed; set | `test_skips_and_strips_comments` / `test_reads_from_stdin` | ☑ |
+| Needs path / input_file / no `-q` | — | usage error, exit 2 | `test_requires_path` / `test_requires_input_file` / `test_no_quiet_option` | ☑ |
+| Removed options rejected | `--stdin`, `--no-backup`, `--play-path`, `--playpool-rules` | exit 2; "No such option" | `test_removed_options_rejected` `[P]` | ☑ |
+| Writes special from file; merge preserves others | tmp | slot 1 set; rest intact | `test_writes_special_from_file` / `test_merge_preserves_other_categories` | ☑ |
+| No backup | tmp | no `.bak`; no backup note | `test_writes_no_backup` | ☑ |
+| Comments; `-` reads the console | tmp | parsed; set | `test_skips_and_strips_comments` / `test_dash_reads_from_console` | ☑ |
 | Normal play / duplicate / >10 rejected (untouched) | tmp | exit 2 | `test_rejects_normal_play` / `test_rejects_duplicate_play` / `test_too_many_plays_rejected` | ☑ |
-| Missing target | tmp | exit 2 | `test_missing_target` | ☑ |
+| Missing target / league `play_path` missing | tmp | exit 2 | `test_missing_target` / `test_invalid_play_path` | ☑ |
 | Directory top-level / recursive | tmp | "2 file(s) processed" | `test_directory_top_level_only` / `test_directory_recursive` | ☑ |
 | Offense input skips defense files | tmp | "1 file(s) processed"; def untouched | `test_offense_input_skips_defense_files` | ☑ |
 | Continues past a failed file | tmp | exit 1; 1 updated, 1 failed | `test_continues_past_failed_file` | ☑ |
@@ -228,7 +239,7 @@ In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of
 
 # `athc gameplan replace-play`
 
-In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `replace_in_gameplan` / `format_replacement_lines` helpers on constructed offense/defense gameplans; CLI tier on tmp copies of `offense.pln` (`OR45RL01` @ 1-1) and constructed gameplans written to tmp, against the curated pool (`--play-path`). Finds the target like `find-play` (normal + custom-special, case-insensitive), swaps each hit for `REPLACEMENT` (must be in the pool), backs up like `set-normals`. A play's normal hits collapse to one line, slots bracketed in order at the end — `'OLD' (cat) replaced with 'NEW' (cat) [1-3][4-2]`; specials print one line each — `Replaced 'OLD' (cat) in special slot N with 'NEW' (cat)`; short category. The GamePlan model validates each swap (side; special category). No rules. Exit 0 = clean, 1 = nothing replaced or some files failed, 2 = setup error.
+In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `replace_in_gameplan` / `format_replacement_lines` helpers on constructed offense/defense gameplans; CLI tier on tmp copies of `offense.pln` (`OR45RL01` @ 1-1) and constructed gameplans written to tmp, against the curated pool (a selected league whose `play_path` is `data/plays`). Finds the target like `find-play` (normal + custom-special, case-insensitive), swaps each hit for `replacement` (must be in the pool), backs up like `set-normals`. A play's normal hits collapse to one line, slots bracketed in order at the end — `'OLD' (cat) replaced with 'NEW' (cat) [1-3][4-2]`; specials print one line each — `Replaced 'OLD' (cat) in special slot N with 'NEW' (cat)`; short category. The GamePlan model validates each swap (side; special category). No rules. Exit 0 = clean, 1 = nothing replaced or some files failed, 2 = setup error.
 
 ## `replace_in_gameplan` (constructed gameplans)
 | Case | Expected | Test | Status |
@@ -267,11 +278,11 @@ In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `replace_in_g
 | Case-insensitive target | data + flags | replaced | `test_cli_single_file_target_case_insensitive` | ☑ |
 | Miss (untouched) | data + flags | exit 1; "not found"; unchanged | `test_cli_single_file_miss_exit_1` | ☑ |
 
-## command — backup
+## command — no backups
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Backup by default / `--no-backup` | data + flags | one `.bak` = original / none | `test_creates_backup_by_default` / `test_no_backup_skips_backup` | ☑ |
-| Reports backup name | data + flags | "backup offense.pln.….bak" | `test_reports_backup_name` | ☑ |
+| No backup written or reported | data | no `.bak`; no backup line | `test_writes_no_backup` | ☑ |
+| `--no-backup` removed | option | exit 2; "No such option" | `test_no_backup_option_removed` | ☑ |
 
 ## command — directory / tree
 | Case | Input | Expected | Test | Status |
@@ -289,7 +300,8 @@ In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `replace_in_g
 | Wrong special category | tmp + flags | exit 1; failed; no `.bak`; unchanged | `test_cli_replacement_wrong_special_category_fails` | ☑ |
 | Missing PATH | tmp + flags | exit 2; "does not exist" | `test_cli_missing_path_exit_2` | ☑ |
 | Malformed `.pln` | tmp + flags | exit 1; "failed" | `test_cli_malformed_pln_exit_1` | ☑ |
-| Bad `--play-path` | tmp | exit 2; "not a directory" | `test_cli_invalid_play_path_exit_2` | ☑ |
+| League `play_path` missing | tmp | exit 2; "not a directory" | `test_cli_invalid_play_path_exit_2` | ☑ |
+| `--play-path` removed | option | exit 2; "No such option" | `test_cli_play_path_option_removed` | ☑ |
 | Continues past a failed file | tmp + flags | exit 1; 1 replaced, 1 failed | `test_cli_continues_past_failed_file` | ☑ |
 
 ---
@@ -338,17 +350,18 @@ In [test_profile_copy.py](test_profile_copy.py). Inputs: real `TST-OFF1/DEF1.prf
 ## command (CliRunner)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Usage errors (no SRC / no TARGET / no flag) | args | exit 2 | `test_cli_usage_errors_exit_2` `[P]` | ☑ |
+| Usage errors (no source / no target / no flag) | args | exit 2 | `test_cli_usage_errors_exit_2` `[P]` | ☑ |
+| Help uses lowercase names | `--help` | `source target`; no capitals | `test_cli_help_uses_lowercase_names` | ☑ |
 | Copy stop-clock (offense / defense) | mutated src | exit 0; bits copied | `test_cli_copies_stop_clock_offense` / `_defense` | ☑ |
 | Copy sub-percent / field-goal-range | mutated src | exit 0; field copied | `test_cli_copies_sub_percent` / `_field_goal_range` | ☑ |
 | Goal-line + stop-clock combined | mutated src | exit 0; both applied | `test_cli_copies_goal_line_and_stop_clock_combined` | ☑ |
 | Updated line + summary | mutated src | "updated (stop-clock)"; footer | `test_cli_prints_updated_line_and_summary` | ☑ |
-| Reports backup name | mutated src | "backup target.prf.…" | `test_cli_reports_backup_name` | ☑ |
 
-## backup / bulk / failures
+## no backups / bulk / failures
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Backup by default / `--no-backup` | mutated src | `.bak` == original / none | `test_cli_creates_backup_by_default` / `test_cli_no_backup_skips_backup` | ☑ |
+| No backup written or reported | mutated src | no `.bak`; no backup note | `test_cli_writes_no_backup` | ☑ |
+| `--no-backup` removed | option | exit 2; "No such option" | `test_cli_no_backup_option_removed` | ☑ |
 | Directory top-level / `-r` | dir | exit 0; 2 processed | `test_cli_directory_top_level_only` / `test_cli_directory_recursive` | ☑ |
 | Offense source skips defense targets | dir mix | wrong side untouched | `test_cli_offense_source_skips_defense_targets` | ☑ |
 | Single wrong-side target skipped | DEF1 target | exit 0; 0 processed; untouched | `test_cli_single_wrong_side_target_skipped` | ☑ |
@@ -420,12 +433,12 @@ In [test_check_ppp.py](test_check_ppp.py). Same real `.prf` / `.pln` / pool as `
 | Listed rules file missing | `*_rules` → absent file | exit 2; path named | `test_cli_missing_listed_rules_file` `[P]` | ☑ |
 | Malformed `athc.ini` | bad ini | exit 2; athc.ini named | `test_cli_malformed_ini` | ☑ |
 
-## root group
+## --league and registration
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| `--league` beats `athc.ini` | two leagues | exit 1 | `test_root_league_flag_beats_athc_ini` | ☑ |
-| `ATHC_LEAGUE` | env + folder | exit 1 | `test_root_league_from_env` | ☑ |
-| Unknown league | `--league NOPE` | exit 2; "not found" | `test_root_league_unknown_folder` | ☑ |
+| `--league` beats `athc.ini` | two leagues | exit 1 | `test_league_flag_beats_athc_ini` | ☑ |
+| `ATHC_LEAGUE` is ignored | env + folder, no `[athc] league` | exit 2; "no league selected" | `test_athc_league_env_is_ignored` | ☑ |
+| Unknown league | `--league NOPE` | exit 2; "not found" | `test_league_flag_unknown_folder` | ☑ |
 | Listed in `athc --help` | — | "check-ppp" shown | `test_root_help_lists_check_ppp` | ☑ |
 
 ## Packaging check (real subprocess)
@@ -464,30 +477,31 @@ In [test_autocontinue.py](test_autocontinue.py). Config-driven (`athc.ini [autoc
 
 # `athc convert-pdb`
 
-In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`; `--play-path` is an (often empty) `tmp_path` with a selected league that has no rules (`--play-path` alone still reads the league), so the workbook builds with populated Tendencies and empty play sheets — full workbook content is covered by `tests/unit/pdbtoexcel/test_workbook_creation.py`. Output read back with openpyxl. Exit 0 ok / 1 input or I/O error / 2 usage.
+In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`; a selected league with no rules whose `play_path` is an empty `tmp_path` folder, so the workbook builds with populated Tendencies and empty play sheets — full workbook content is covered by `tests/unit/pdbtoexcel/test_workbook_creation.py`. Output read back with openpyxl. Exit 0 ok / 1 input or I/O error / 2 usage.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Missing second arg | one arg | usage error, exit 2 | `test_requires_both_args` | ☑ |
 | Bad pdb / output extension | args | exit 2 | `test_bad_extension_exit_2` `[P]` | ☑ |
 | Bad `.pln` extension | `-o plan.txt` | exit 2 | `test_bad_pln_extension_exit_2` | ☑ |
+| Removed options rejected | `--play-path`, `--playpool-rules`, `--skip-totals` | exit 2; "No such option" | `test_removed_options_are_rejected` `[P]` | ☑ |
 | Missing PDB file | tmp | exit 1; "file not found" | `test_missing_pdb_exit_1` | ☑ |
-| Play path not a directory | file | exit 1; "play path is not a directory" | `test_play_path_not_a_directory_exit_1` | ☑ |
+| Play path not a directory | league `play_path` is a file | exit 1; "play path is not a directory" | `test_play_path_not_a_directory_exit_1` | ☑ |
 | Invalid PDB content | tmp | exit 1 | `test_invalid_pdb_content_exit_1` | ☑ |
 | Produces `.xlsx` + sheets + tendencies | data + dir | exit 0; 5 sheets; 23x16 tendency rows | `test_produces_xlsx_with_sheets` | ☑ |
 | Produces `.xlsm` | data + dir | exit 0; file written | `test_produces_xlsm` | ☑ |
-| `--skip-calcs` / `--skip-totals` | data + dir | exit 0 | `test_skip_flags` `[P]` | ☑ |
+| `--skip-calcs` | data + dir | exit 0 | `test_skip_calcs` | ☑ |
 | Real subprocess `athc convert-pdb` | data + dir | exit 0; file written | `test_entry_point_subprocess` | ☑ |
 
 ---
 
 # `athc generate-schedule`
 
-In [test_generate_schedule.py](test_generate_schedule.py). Slow (a full solve per league) → `pytest -m slow`; not run by default. One test parametrized over two test leagues — `divisions` (2026) and `conferences` (2029). For each it installs committed, test-owned inputs into the config dir as `leagues/<league>/` — `data/<league>.<season>.ini` as `standings/<season>.league.ini` and the frozen `data/<league>.scheduler.toml` as `rules/scheduler.toml` — then runs the scheduler end-to-end via the CLI (`athc --league <league> generate-schedule`) at a fixed seed (no `--time-limit`; the rules file drives the solve). **Golden regression**: validates the produced schedule against every rule that applies to that league (`schedule_validation.py`, the one validator), cross-checks that the `.html` schedule encodes the same games as the `.txt`, recomputes the report's ranks/SOS, then asserts the three output files byte-match the league's goldens in `expected/` (`schedule_<season>.*`; report run-info fields normalized). Depends on the fixed `solver_workers` reproducibility contract. Regenerate both golden sets with `python -m tests.integration.test_generate_schedule --bless`.
+In [test_generate_schedule.py](test_generate_schedule.py). Slow (a full solve per league) → `pytest -m slow`; not run by default. One test parametrized over two test leagues — `divisions` (2026) and `conferences` (2029). For each it installs committed, test-owned inputs into the config dir as `leagues/<league>/` — `data/<league>.<season>.ini` as `standings/<season>.league.ini` and the frozen `data/<league>.scheduler.toml` as `rules/scheduler.toml` — then runs the scheduler end-to-end via the CLI (`athc generate-schedule --league <league>`) at a fixed seed (no `--time-limit`; the rules file drives the solve). **Golden regression**: validates the produced schedule against every rule that applies to that league (`schedule_validation.py`, the one validator), cross-checks that the `.html` schedule encodes the same games as the `.txt`, recomputes the report's ranks/SOS, then asserts the three output files byte-match the league's goldens in `expected/` (`schedule_<season>.*`; report run-info fields normalized). Depends on the fixed `solver_workers` reproducibility contract. Regenerate both golden sets with `python -m tests.integration.test_generate_schedule --bless`.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Schedule follows every rule + matches golden, per league | `leagues/<league>/standings/<season>.league.ini`; root `--league`, `--season --seed` | exit 0; all rules pass; 3 files byte-equal to that league's `expected/` goldens | `test_generate_schedule_matches_golden[divisions]` / `[conferences]` | ☑ |
+| Schedule follows every rule + matches golden, per league | `leagues/<league>/standings/<season>.league.ini`; `--league`, `--season --seed` | exit 0; all rules pass; 3 files byte-equal to that league's `expected/` goldens | `test_generate_schedule_matches_golden[divisions]` / `[conferences]` | ☑ |
 
 ---
 
@@ -498,9 +512,7 @@ In [test_config.py](test_config.py). Direct tests of `load_league_config()` / `l
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Explicit `--league` arg | `leagues/PNFL/league.ini` | `[league]` dict | `test_resolves_explicit_league_arg` | ☑ |
-| From `ATHC_LEAGUE` env | env + folder | `[league]` dict | `test_resolves_from_env` | ☑ |
 | From `[athc] league` | key + folder | `[league]` dict | `test_resolves_from_configured_league` | ☑ |
-| Priority arg > env > key | all set | arg wins; env beats key | `test_arg_beats_env` / `test_env_beats_configured_league` | ☑ |
 | `LeagueConfig` name / dir / values | folder | as on disk; missing `league.ini` → `{}` | `test_league_config_names_folder` / `test_missing_league_ini_gives_empty_values` | ☑ |
 | Relative paths in `league.ini` | `play_path = plays` | resolved against the league folder | `test_path_resolves_relative_against_league_dir` | ☑ |
 | Fixed rules file / rule list | `rules/gameplan.toml`, `gameplan_rules` | fixed file when present, else `()`; list replaces it in order | `test_rules_file_only_when_present` / `test_rule_files_*` | ☑ |
@@ -509,24 +521,28 @@ In [test_config.py](test_config.py). Direct tests of `load_league_config()` / `l
 | Blank `league =` | key empty | "no league selected" | `test_empty_league_key_is_no_league` | ☑ |
 | Path segments in a name (`..`, `a\b`) | bad names | `LeagueError` "not found" | `test_league_dir_rejects_path_segments` `[P]` | ☑ |
 | Blank name (`""`, `"   "`) | blank | `LeagueError` "not found" (never the `leagues/` folder itself) | `test_league_dir_rejects_blank_names` `[P]` | ☑ |
-| `resolve_league()` returns the name | arg / env / key; none; unknown | name; `LeagueError` | `test_resolve_league_returns_the_explicit_name` / `test_resolve_league_falls_back_to_env_then_configured` / `test_resolve_league_errors_*` | ☑ |
+| `resolve_league()` returns the name | arg / key; none; unknown | name; `LeagueError` | `test_resolve_league_returns_the_explicit_name` / `test_resolve_league_falls_back_to_configured` / `test_resolve_league_errors_*` | ☑ |
 | Blank `--league` arg | `"   "` + `[athc] league` | configured league used | `test_resolve_league_blank_arg_is_no_arg` | ☑ |
 | Malformed `athc.ini` / `league.ini` | bad INI | `ConfigFileError` names the file | `test_malformed_athc_ini_errors` / `test_malformed_league_ini_errors` | ☑ |
 | `%` in `league.ini` | `%LOCALAPPDATA%` value | `ConfigFileError` names the file | `test_percent_in_league_ini_is_config_file_error` | ☑ |
 | `%(key)s` interpolation | inside `league.ini` | resolved | `test_interpolation_within_league_ini` | ☑ |
 
-## `athc --league` (root)
+## `--league` (per command)
 
-In [test_cli_root.py](test_cli_root.py). `--league` is one option on the root group; the root callback stores it in `ctx.obj` and league-aware commands read it with `selected_league(ctx)`.
+In [test_cli_root.py](test_cli_root.py). `--league` is an option on each league-aware command (the shared `league_option`), not on the root group.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Root `--help` lists `--league` | `athc --help` | exit 0; `--league` shown | `test_root_help_lists_league` | ☑ |
-| Subcommands no longer take `--league` | `--help` per command | `--league` absent | `test_subcommands_no_longer_take_league` `[P]` | ☑ |
-| Root `--league` reaches `profile check` | two leagues | exit 1 (PCFL rules used) | `test_root_league_reaches_profile_check` | ☑ |
-| Unknown league on the root | `--league NOPE` | exit 2; "NOPE" "not found" | `test_root_league_unknown_folder` | ☑ |
-| `ATHC_LEAGUE` through the root | env + folder | exit 1 | `test_root_league_from_env` | ☑ |
-| `selected_league` with / without root obj | `ctx.obj` dict / none | name / `None` | `test_selected_league_reads_root_context` / `test_selected_league_is_none_without_root` | ☑ |
+| Root `--help` has no `--league` | `athc --help` | exit 0; `--league` absent | `test_root_help_has_no_league` | ☑ |
+| Root rejects `--league` | `athc --league PNFL profile check` | exit 2; "No such option" | `test_root_rejects_league` | ☑ |
+| Every league-aware command takes `--league` | `--help` per command | `--league name` shown | `test_league_commands_take_league` `[P]` | ☑ |
+| `-h` on every command and group | `-h` per command | exit 0; "Usage:" | `test_short_help_option_on_every_command` `[P]` | ☑ |
+| Usage line lists each option | `-h` on the root, a group and several commands | exact usage line | `test_usage_lists_each_option` `[P]` | ☑ |
+| Long usage wraps between options | `convert-pdb -h` | several lines; no option split | `test_long_usage_wraps_between_options` | ☑ |
+| Help uses lowercase names | `--help` on `config set`, `convert-pdb`, `gameplan check`, `find-play`, `replace-play`, `set-normals`, `set-specials`, `generate-schedule`, `profile check`, `profile diff`, `check-ppp` | lowercase names; no capitals | `test_help_uses_lowercase_names` `[P]` | ☑ |
+| Each command passes `--league` on | `--league NOPE` per command | non-zero; "league 'NOPE' not found" | `test_league_flag_reaches_the_command` `[P]` | ☑ |
+| `--league` after the command reaches `profile check` | two leagues | exit 1 (PCFL rules used) | `test_league_flag_picks_profile_rules` | ☑ |
+| `ATHC_LEAGUE` is ignored | env set, no `[athc] league` | exit 2; "no league selected" | `test_root_ignores_athc_league_env` | ☑ |
 
 ## `athc config set`
 
@@ -554,7 +570,7 @@ In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.i
 | `[autocontinue]` | release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
 | gameplan | release/ | loads; playpool rules and rule files exist | `test_release_gameplan_config_loads` | ☑ |
 | profile | release/ | loads; rule files exist | `test_release_profile_config_loads` | ☑ |
-| convert-pdb | release/ | loads; playpool rules exist; `--play-path` alone gets the league's file | `test_release_convert_pdb_config_loads` | ☑ |
+| convert-pdb | release/ | loads; playpool rules exist; a `play_path` override alone gets the league's file | `test_release_convert_pdb_config_loads` | ☑ |
 | scheduler | release/ | each league's tunables load; PNFL 2048 and PCFL 2029 standings exist | `test_release_scheduler_files_load` `[P]` | ☑ |
 | `dev/` mirrors `release/` | both | same fixed files present for PNFL and PCFL | `test_dev_mirrors_release_layout` | ☑ |
 
@@ -562,7 +578,7 @@ In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.i
 
 # `athc config`
 
-In [test_config.py](test_config.py) (alongside the resolver tests above). Three thin commands over the settings file; editor / Explorer launches are mocked.
+In [test_config.py](test_config.py) (alongside the resolver tests above). Thin commands over the settings file; app / Explorer launches are mocked.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -570,6 +586,6 @@ In [test_config.py](test_config.py) (alongside the resolver tests above). Three 
 | `path` prints the file path | config_dir | full `athc.ini` path | `test_path_prints_config_file` | ☑ |
 | `reveal` selects the file | existing ini | `launch(<athc.ini>, locate=True)` | `test_reveal_selects_existing_file` | ☑ |
 | `reveal` opens the folder if absent | config_dir | `launch(<dir>)` | `test_reveal_opens_folder_when_absent` | ☑ |
-| `edit`, no `$EDITOR` → associated app | config_dir | file created; `launch(<athc.ini>)` | `test_edit_no_env_opens_associated_app` | ☑ |
-| `edit`, `$EDITOR` set → editor | env set | `edit(filename=…)`; no launch | `test_edit_uses_editor_env` | ☑ |
+| `edit` opens the default app | config_dir | file created; `launch(<athc.ini>)` | `test_edit_opens_associated_app` | ☑ |
+| `edit` ignores `$VISUAL`/`$EDITOR` | both set | `launch(<athc.ini>)`; no `edit` | `test_edit_ignores_editor_env` | ☑ |
 | `edit` keeps existing file | existing ini | content unchanged | `test_edit_preserves_existing_file` | ☑ |
