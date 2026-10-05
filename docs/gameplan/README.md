@@ -69,7 +69,7 @@ The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.
 ## See also
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — layers, layout, violation format.
-- [release/leagues/PNFL/rules/gameplan.toml](../../release/leagues/PNFL/rules/gameplan.toml) — the PNFL rule set.
+- `release/leagues/<NAME>/rules/gameplan.toml` — each league's rule set.
 
 ## Tests
 

@@ -1,6 +1,6 @@
 # fbpro98_profile — Test Matrix
 
-Covers reader / model / writer / schema for the `.prf` coaching-profile library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). Ported from the pnfl suite + athc additions. **Implemented** — `pytest tests/unit/fbpro98_profile` → 154 passing. Status: ☑ done.
+Covers reader / model / writer / schema for the `.prf` coaching-profile library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). **Implemented** — `pytest tests/unit/fbpro98_profile` → 154 passing. Status: ☑ done.
 
 Inputs (`data/`): real `TST-OFF1/OFF2/DEF1/DEF2.prf`, `*-AUD.prf` (audibles on), `*-PL.prf` (gameplan-embedded), and `stock_profiles/*.PRF`. Error cases mutate real bytes.
 
@@ -43,7 +43,7 @@ Inputs (`data/`): real `TST-OFF1/OFF2/DEF1/DEF2.prf`, `*-AUD.prf` (audibles on),
 | Mutation round-trips (field_goal_range, use_audibles); `*-AUD` preserved | ☑ |
 | Workflow: update existing in place; write new from scratch; reconstructed == fixture bytes (offense + defense) | ☑ |
 
-## schema.py — `test_schema.py` *(added — pnfl had none)*
+## schema.py — `test_schema.py`
 | Case | Status |
 |---|---|
 | Struct sizes; block IDs; data sizes; stock sizes; `STOP_CLOCK_BIT` / `WEIGHT_MASK` | ☑ |

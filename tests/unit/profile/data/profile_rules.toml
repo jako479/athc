@@ -1,5 +1,4 @@
-# PNFL coaching-profile validation rules.
-# Source: https://pnfl.biz/messageboard/viewtopic.php?f=18&t=28
+# Test coaching-profile rules (a full, realistic rule set).
 
 schema_version = 1
 audibles_allowed = false

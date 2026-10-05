@@ -33,13 +33,13 @@ MISSING = "NOSUCHPLAYXX"
 
 def _empty_offense_gameplan() -> GamePlan:
     clock_a = CustomPlayRef(
-        filename="PNFL\\CLOCK11.PLY",
+        filename="plays\\CLOCK11.PLY",
         play_category=1,
         special_category=11,
         user_category=0,
     )
     clock_b = CustomPlayRef(
-        filename="PNFL\\CLOCK12.PLY",
+        filename="plays\\CLOCK12.PLY",
         play_category=1,
         special_category=12,
         user_category=0,
@@ -69,7 +69,7 @@ def _set_custom_special(gp: GamePlan, category: int, play: CustomPlayRef) -> Gam
 def _make_offense_normal(name: str, *, user_category: int = 0x05) -> CustomPlayRef:
     """Default user_category 0x05 = 'Run Left' (after masking 0x3F); play_category 1 = offense side."""
     return CustomPlayRef(
-        filename=f"PNFL\\{name}.PLY",
+        filename=f"plays\\{name}.PLY",
         play_category=1,
         special_category=0,
         user_category=user_category,
@@ -78,7 +78,7 @@ def _make_offense_normal(name: str, *, user_category: int = 0x05) -> CustomPlayR
 
 def _make_offense_special(name: str, special_category: int = 1) -> CustomPlayRef:
     return CustomPlayRef(
-        filename=f"PNFL\\{name}.PLY",
+        filename=f"plays\\{name}.PLY",
         play_category=1,
         special_category=special_category,
         user_category=0,
@@ -88,7 +88,7 @@ def _make_offense_special(name: str, special_category: int = 1) -> CustomPlayRef
 def _make_defense_special(name: str, special_category: int = 2) -> CustomPlayRef:
     """Defense special play (play_category 0 = receiving side)."""
     return CustomPlayRef(
-        filename=f"PNFL\\{name}.PLY",
+        filename=f"plays\\{name}.PLY",
         play_category=0,
         special_category=special_category,
         user_category=0,

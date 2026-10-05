@@ -30,11 +30,12 @@ def _normal_slot_grid(slot_index: int) -> str:
 
 
 def build_custom_play(record: Play, root_dir: Path) -> CustomPlayRef:
-    """Build the `.pln` slot entry from a pool record (path relative to pool root)."""
+    """Build the `.pln` slot entry from a pool record: the play pool's folder name,
+    then the play's path inside the pool."""
     relative = str(record.file_path.relative_to(root_dir)).replace("/", "\\")
     pf = record.play_file
     return CustomPlayRef(
-        filename=f"PNFL\\{relative}",
+        filename=f"{root_dir.name}\\{relative}",
         play_category=pf.play_category,
         special_category=pf.special_category,
         user_category=pf.user_category,

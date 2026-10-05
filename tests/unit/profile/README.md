@@ -38,7 +38,7 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | `gameplan_compatibility` not a table | tmp | "must be a table" | `test_gameplan_compatibility_must_be_table` | ☑ |
 | Layering overrides a compat flag | tmp ×2 | later value wins | `test_layering_overrides_gameplan_compatibility` | ☑ |
 | Five time buckets → distinct rules | tmp | one rule per `MinutesRemaining` | `test_all_time_buckets_match_distinctly` | ☑ |
-| Shipped PNFL rules load | data | min/disallowed/situations | `test_pnfl_rules_load` | ☑ |
+| Every shipped league's rules load | `dev/` + `release/` `leagues/<league>/rules/profile.toml` | loads | `test_shipped_rules_load` `[P]` | ☑ |
 
 ### Error → `RulesFileError`
 | Case | Input | Expected | Test | Status |

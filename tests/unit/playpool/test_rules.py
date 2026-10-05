@@ -14,6 +14,7 @@ from athc.playpool import (
     build_rules,
     load_rules,
 )
+from tests.conftest import shipped_files, shipped_id
 from tests.unit.playpool.conftest import RULES_TOML
 
 
@@ -113,13 +114,9 @@ def test_missing_file(tmp_path: Path) -> None:
         load_rules(tmp_path / "nope.toml")
 
 
-def test_pnfl_rules_load() -> None:
-    root = Path(__file__).resolve().parents[3]
-    rules = load_rules(
-        root / "release" / "leagues" / "PNFL" / "rules" / "playpool.toml"
-    )
-    assert "SGZfade" in rules.timed.include
-    assert rules.qb_draw.regex_any
+@pytest.mark.parametrize("path", shipped_files("*/rules/playpool.toml"), ids=shipped_id)
+def test_shipped_rules_load(path: Path) -> None:
+    load_rules(path)
 
 
 # ── FilenameFilter.matches (case-sensitive; vetoes win) ───────────────────────

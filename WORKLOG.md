@@ -4,6 +4,13 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-05 — **athc**: hooked the PCFL up to gameplan, playpool and profile
+  by copying the PNFL's rules into its league folder. `set-normals`,
+  `set-specials` and `replace-play` wrote every play path as `PNFL\...`; they
+  now use the play pool's folder name. Tests no longer name a league: test
+  leagues get neutral names, rules come from the tests' own files, shipped-file
+  tests run once per league folder, and an empty list of shipped files fails
+  the run instead of skipping.
 - 2026-10-05 — **check-playpool**: new command that checks the play pool on
   its own, with the same checks and messages pool loading already gives
   convert-pdb and the gameplan tools. The pool now also keeps those warnings

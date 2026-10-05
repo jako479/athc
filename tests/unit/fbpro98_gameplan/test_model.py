@@ -320,7 +320,7 @@ def test_with_normal_plays_too_many_raises():
 @pytest.mark.parametrize(
     "filename,expected",
     [
-        ("PNFL\\Offense\\PSR\\OR45RL01.PLY", "OR45RL01"),
+        ("plays\\Offense\\PSR\\OR45RL01.PLY", "OR45RL01"),
         ("X.ply", "X"),
         ("X", "X"),
         ("dir\\sub\\PLAY.PLY", "PLAY"),

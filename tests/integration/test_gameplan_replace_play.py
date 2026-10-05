@@ -22,6 +22,7 @@ from athc.fbpro98_gameplan import (
     read_gameplan,
     write_gameplan,
 )
+from tests.conftest import LEAGUE
 from tests.integration.conftest import GP_DEFENSE, GP_OFFENSE, PLAYS
 
 MakeLeague = Callable[..., Path]
@@ -31,8 +32,8 @@ WriteConfig = Callable[..., Path]
 @pytest.fixture(autouse=True)
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league; its play_path is the curated test pool."""
-    write_config("[athc]\nleague = PNFL\n")
-    return make_league("PNFL", f"[league]\nplay_path = {PLAYS}\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    return make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
 
 
 # Real plays in the curated pool (and, for OR45RL01, in offense.pln slot 1-1).
@@ -49,7 +50,7 @@ MISSING = "NOSUCHPLAYXX"
 
 def _clock(category: int) -> CustomPlayRef:
     return CustomPlayRef(
-        filename=f"PNFL\\CLOCK{category}.PLY",
+        filename=f"plays\\CLOCK{category}.PLY",
         play_category=1,
         special_category=category,
         user_category=0,
@@ -59,7 +60,7 @@ def _clock(category: int) -> CustomPlayRef:
 def _onorm(name: str, user_category: int = 0x05) -> CustomPlayRef:
     """Offense normal play (user_category 0x05 = Run Left)."""
     return CustomPlayRef(
-        filename=f"PNFL\\{name}.PLY",
+        filename=f"plays\\{name}.PLY",
         play_category=1,
         special_category=0,
         user_category=user_category,
@@ -69,7 +70,7 @@ def _onorm(name: str, user_category: int = 0x05) -> CustomPlayRef:
 def _ospec(name: str, category: int) -> CustomPlayRef:
     """Offense special-teams play in `category` (1-10)."""
     return CustomPlayRef(
-        filename=f"PNFL\\{name}.PLY",
+        filename=f"plays\\{name}.PLY",
         play_category=1,
         special_category=category,
         user_category=0,
@@ -79,7 +80,7 @@ def _ospec(name: str, category: int) -> CustomPlayRef:
 def _dnorm(name: str) -> CustomPlayRef:
     """Defense normal play."""
     return CustomPlayRef(
-        filename=f"PNFL\\{name}.PLY",
+        filename=f"plays\\{name}.PLY",
         play_category=0,
         special_category=0,
         user_category=0x04,
@@ -89,7 +90,7 @@ def _dnorm(name: str) -> CustomPlayRef:
 def _dspec(name: str, category: int) -> CustomPlayRef:
     """Defense special-teams play in `category` (1-10)."""
     return CustomPlayRef(
-        filename=f"PNFL\\{name}.PLY",
+        filename=f"plays\\{name}.PLY",
         play_category=0,
         special_category=category,
         user_category=0,

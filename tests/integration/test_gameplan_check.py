@@ -18,6 +18,7 @@ from athc.gameplan import load_rules
 from athc.gameplan.config import load_config
 from athc.playpool import load_rules as load_pool_rules
 from athc.playpool import read_play_pool
+from tests.conftest import LEAGUE
 from tests.integration.conftest import (
     EXPECTED,
     GP_DEFENSE,
@@ -36,10 +37,10 @@ MakeLeague = Callable[..., Path]
 @pytest.fixture
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league: the test pool, its playpool rules and gameplan rules."""
-    folder = make_league("PNFL", f"[league]\nplay_path = {PLAYS}\n")
+    folder = make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
     shutil.copy(GP_RULES, folder / "rules" / "gameplan.toml")
     shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
-    write_config("[athc]\nleague = PNFL\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
     return folder
 
 
@@ -276,9 +277,9 @@ def test_cli_bad_playpool_rules(
 def test_cli_no_rules_in_league_folder(
     runner, make_league: MakeLeague, caplog: pytest.LogCaptureFixture
 ) -> None:
-    make_league("PNFL", f"[league]\nplay_path = {PLAYS}\n")
+    make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(check, [str(GP_OFFENSE), "--league", "PNFL"])
+        result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])
     assert result.exit_code == 2
     assert "no rules configured" in caplog.text
     assert "rules\\gameplan.toml" in caplog.text
@@ -307,11 +308,11 @@ def test_cli_no_league(runner, caplog: pytest.LogCaptureFixture) -> None:
 def test_cli_resolves_from_league_folder(
     runner, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
-    # No flags: league from athc.ini, everything else from leagues/PNFL/.
-    folder = make_league("PNFL", f"[league]\nplay_path = {PLAYS}\n")
+    # No flags: league from athc.ini, everything else from its league folder.
+    folder = make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
     shutil.copy(GP_RULES, folder / "rules" / "gameplan.toml")
     shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
-    write_config("[athc]\nleague = PNFL\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 1
     assert "violation(s)" in result.output
@@ -322,13 +323,13 @@ def test_cli_gameplan_rules_list_layers_in_order(
 ) -> None:
     # A gameplan_rules list replaces the fixed file; the overlay is read last.
     folder = make_league(
-        "PNFL",
+        LEAGUE,
         f"[league]\nplay_path = {PLAYS}\n"
         f"gameplan_rules =\n    {GP_RULES}\n    rules\\overlay.toml\n",
     )
     shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
     (folder / "rules" / "overlay.toml").write_text("", encoding="utf-8")
-    result = runner.invoke(check, [str(GP_OFFENSE), "--league", "PNFL"])
+    result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])
     assert result.exit_code == 1
     assert "violation(s)" in result.output
 
@@ -337,11 +338,11 @@ def test_cli_missing_listed_rules_file_is_reported(
     runner, make_league: MakeLeague, caplog: pytest.LogCaptureFixture
 ) -> None:
     make_league(
-        "PNFL",
+        LEAGUE,
         f"[league]\nplay_path = {PLAYS}\ngameplan_rules =\n    rules\\gone.toml\n",
     )
     with caplog.at_level(logging.ERROR):
-        result = runner.invoke(check, [str(GP_OFFENSE), "--league", "PNFL"])
+        result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])
     assert result.exit_code == 2
     assert "gone.toml" in caplog.text
 
@@ -351,9 +352,9 @@ def test_load_config_play_path_alone_reads_league_playpool_rules(
 ) -> None:
     """A `play_path` override replaces only `play_path`; the playpool rules still
     come from the league folder."""
-    folder = make_league("PNFL", f"[league]\nplay_path = {tmp_path / 'league-pool'}\n")
+    folder = make_league(LEAGUE, f"[league]\nplay_path = {tmp_path / 'league-pool'}\n")
     shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
-    write_config("[athc]\nleague = PNFL\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
     cfg = load_config(play_path=PLAYS)
     assert cfg.play_path == PLAYS
     assert cfg.playpool_rules == folder / "rules" / "playpool.toml"

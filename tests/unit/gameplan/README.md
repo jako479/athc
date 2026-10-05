@@ -2,7 +2,7 @@
 
 Tool-logic unit cases (rules loader). Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). CLI cases live in [../../integration/README.md](../../integration/README.md).
 
-One row per behavior. Input: `tmp` = constructed TOML; `data` = shipped `release/leagues/PNFL/rules/gameplan.toml`. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/gameplan` passes.
+One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `leagues/<league>/rules/gameplan.toml` in `dev/` and `release/`. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/gameplan` passes.
 
 ## rules.py — `load_rules`
 
@@ -71,7 +71,7 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 ### shipped rules
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| PNFL rule set loads | data | counts + disallowed lists | `test_pnfl_rules_load` | ☑ |
+| Every shipped league's rules load | shipped | loads | `test_shipped_rules_load` `[P]` | ☑ |
 
 ## validators.py — `validate_gameplan`
 

@@ -2,7 +2,7 @@
 
 Each command that reads league data adds the shared `league_option`, so the
 flag goes after the command name like any other option (`athc profile check
---league PCFL ...`), the way `aws s3 ls --profile x` and `kubectl get --context
+--league NAME ...`), the way `aws s3 ls --profile x` and `kubectl get --context
 x` take theirs.
 """
 
@@ -25,6 +25,7 @@ from athc.cli.gameplan.set_normals import set_normals
 from athc.cli.gameplan.set_specials import set_specials
 from athc.cli.generate_schedule import generate_schedule
 from athc.cli.profile.check import check as profile_check
+from tests.conftest import LEAGUE, OTHER_LEAGUE
 from tests.integration.conftest import DATA, GP_OFFENSE, OFF1, RULES_TOML
 
 MakeLeague = Callable[..., Path]
@@ -48,7 +49,7 @@ def test_root_help_has_no_league(runner) -> None:
 
 
 def test_root_rejects_league(runner) -> None:
-    result = runner.invoke(cli, ["--league", "PNFL", "profile", "check", str(OFF1)])
+    result = runner.invoke(cli, ["--league", LEAGUE, "profile", "check", str(OFF1)])
     assert result.exit_code == 2
     assert "No such option" in result.output
 
@@ -85,7 +86,7 @@ def test_league_flag_reaches_the_command(
     caplog: pytest.LogCaptureFixture,
     command: click.Command,
 ) -> None:
-    make_league("PNFL")
+    make_league()
     args = [*_unknown_league_args(command, tmp_path), "--league", "NOPE"]
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(command, args)
@@ -94,11 +95,15 @@ def test_league_flag_reaches_the_command(
 
 
 def test_league_flag_picks_profile_rules(runner, make_league: MakeLeague) -> None:
-    make_league("PNFL")  # no rules -> would fail
-    other = make_league("PCFL")
+    make_league()  # no rules -> would fail
+    other = make_league(OTHER_LEAGUE)
     shutil.copy(RULES_TOML, other / "rules" / "profile.toml")
-    result = runner.invoke(cli, ["profile", "check", "--league", "PCFL", str(OFF1)])
-    assert result.exit_code == 1  # ran against PCFL's rules and found violations
+    result = runner.invoke(
+        cli, ["profile", "check", "--league", OTHER_LEAGUE, str(OFF1)]
+    )
+    assert (
+        result.exit_code == 1
+    )  # ran against the other league's rules and found violations
 
 
 def _command_paths(
@@ -227,9 +232,9 @@ def test_root_ignores_athc_league_env(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    other = make_league("PCFL")
+    other = make_league(OTHER_LEAGUE)
     shutil.copy(RULES_TOML, other / "rules" / "profile.toml")
-    monkeypatch.setenv("ATHC_LEAGUE", "PCFL")
+    monkeypatch.setenv("ATHC_LEAGUE", OTHER_LEAGUE)
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(cli, ["profile", "check", str(OFF1)])
     assert result.exit_code == 2

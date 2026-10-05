@@ -1,6 +1,6 @@
 # fbpro98_gameplan — Test Matrix
 
-Covers reader / model / writer / schema for the `.pln` gameplan library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). Ported from the pnfl suite + athc additions. **Implemented** — `pytest tests/unit/fbpro98_gameplan` → 88 passing. Status: ☑ done.
+Covers reader / model / writer / schema for the `.pln` gameplan library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). **Implemented** — `pytest tests/unit/fbpro98_gameplan` → 88 passing. Status: ☑ done.
 
 Inputs: real `offense.pln` / `defense.pln` in `data/` (+ `data/expected/*.txt` slot/name dumps); error cases mutate the real bytes (no hand-built `.pln`).
 
@@ -24,7 +24,7 @@ Inputs: real `offense.pln` / `defense.pln` in `data/` (+ `data/expected/*.txt` s
 | Missing null terminator; invalid stock flag | ☑ |
 | Bad J95 id/size; invalid profile type; J95 count mismatch | ☑ |
 | Bad S98 id/size/content; wrong parity; nonexistent path → `OSError` | ☑ |
-| **J95-block-too-small; S98-header-too-small** | ☑ *(added — pnfl missed)* |
+| **J95-block-too-small; S98-header-too-small** | ☑ |
 
 ## model.py — `test_model.py` (constructed `GamePlan`)
 | Area | Status |
@@ -44,7 +44,7 @@ Inputs: real `offense.pln` / `defense.pln` in `data/` (+ `data/expected/*.txt` s
 | Empty slot → zero offset; `<64` pads; all 64 filled | ☑ |
 | J95 counts updated on write; too-many entries raises | ☑ |
 
-## schema.py — `test_schema.py` *(added — pnfl had none)*
+## schema.py — `test_schema.py`
 | Case | Status |
 |---|---|
 | Struct sizes; block IDs; `DEFAULT_AUDIBLE` / `S98_EXPECTED_DATA` | ☑ |

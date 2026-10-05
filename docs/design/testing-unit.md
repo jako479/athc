@@ -10,6 +10,8 @@ How athc's **unit** tests are structured — components in isolation. Integratio
 
 Unit tests use **no config** — components are called directly with constructed or committed inputs, never reading `athc.ini`. An autouse `config_dir` fixture (root `tests/conftest.py`) still points `ATHC_CONFIG_DIR` at an empty temp dir so nothing leaks to the real machine config; the few tests that load config use the shared `write_config` helper to write `athc.ini` there. A test needing the platformdirs default must `monkeypatch.delenv("ATHC_CONFIG_DIR", raising=False)`.
 
+Tests never name a real league. A test of shipped league files runs once per league folder found in `dev/` and `release/` (`shipped_files` in root `tests/conftest.py`).
+
 ## Layout
 
 Split by test type; `unit/` **mirrors** `src/athc/` so a file's tests are findable.

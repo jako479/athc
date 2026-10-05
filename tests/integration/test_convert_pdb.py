@@ -16,6 +16,7 @@ import pytest
 from athc.cli.convert_pdb import convert_pdb
 from athc.pdbtoexcel import config as pdbtoexcel_config
 from athc.pdbtoexcel.pdb import PLAY_DATA
+from tests.conftest import LEAGUE
 from tests.integration.conftest import DATA
 
 PDB = DATA / "2045-2047.pdb"
@@ -29,8 +30,8 @@ def league(
     """The selected league, with no rules; its play_path is an empty folder."""
     plays = tmp_path / "plays"
     plays.mkdir()
-    write_config("[athc]\nleague = PNFL\n")
-    return make_league("PNFL", f"[league]\nplay_path = {plays}\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    return make_league(LEAGUE, f"[league]\nplay_path = {plays}\n")
 
 
 # ── extension / usage validation (exit 2) ─────────────────────────────────────
@@ -94,8 +95,8 @@ def test_play_path_not_a_directory_exit_1(
 ) -> None:
     not_a_dir = tmp_path / "notdir.txt"
     not_a_dir.write_text("x", encoding="utf-8")
-    write_config("[athc]\nleague = PNFL\n")
-    make_league("PNFL", f"[league]\nplay_path = {not_a_dir}\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    make_league(LEAGUE, f"[league]\nplay_path = {not_a_dir}\n")
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(convert_pdb, [str(PDB), str(tmp_path / "o.xlsx")])
     assert result.exit_code == 1
@@ -151,7 +152,7 @@ def test_skip_calcs(runner, tmp_path: Path) -> None:
 def test_entry_point_subprocess(
     make_league: MakeLeague, config_dir: Path, tmp_path: Path
 ) -> None:
-    make_league("PNFL", f"[league]\nplay_path = {tmp_path}\n")
+    make_league(LEAGUE, f"[league]\nplay_path = {tmp_path}\n")
     env = {**os.environ, "ATHC_CONFIG_DIR": str(config_dir)}
     out = tmp_path / "out.xlsx"
     result = subprocess.run(
@@ -163,7 +164,7 @@ def test_entry_point_subprocess(
             str(PDB),
             str(out),
             "--league",
-            "PNFL",
+            LEAGUE,
         ],
         capture_output=True,
         text=True,
@@ -176,9 +177,9 @@ def test_entry_point_subprocess(
 
 
 def test_config_play_path_from_league_folder(make_league: MakeLeague) -> None:
-    folder = make_league("PNFL", "[league]\nplay_path = plays\n")
+    folder = make_league(LEAGUE, "[league]\nplay_path = plays\n")
     (folder / "rules" / "playpool.toml").write_text("", encoding="utf-8")
-    cfg = pdbtoexcel_config.load_config("PNFL")
+    cfg = pdbtoexcel_config.load_config(LEAGUE)
     assert cfg.play_path == str(folder / "plays")
     assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
 
@@ -192,8 +193,8 @@ def test_config_both_overrides_need_no_league() -> None:
 
 
 def test_config_missing_play_path_is_empty(make_league: MakeLeague) -> None:
-    make_league("PNFL")
-    assert pdbtoexcel_config.load_config("PNFL").play_path == ""
+    make_league()
+    assert pdbtoexcel_config.load_config(LEAGUE).play_path == ""
 
 
 def test_cli_no_league_is_one_line_error(

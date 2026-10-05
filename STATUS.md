@@ -41,6 +41,9 @@ athc profile diff               DONE
 
 Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
+- Tests never name a real league: test leagues get neutral names, rules come
+  from the tests' own files, and shipped-file tests run once per league folder.
+- The PCFL ships gameplan, playpool and profile rules, copied from the PNFL's.
 - One folder per league under `leagues\`; every league-aware tool reads its
   rules and standings there. `athc.ini` keeps only app-wide settings.
 - The league in use is `[athc] league`, set by hand or with
@@ -75,6 +78,9 @@ leagues\
   PCFL\
     league.ini                [league] play_path, db_path
     rules\
+      gameplan.toml
+      profile.toml
+      playpool.toml
       scheduler.toml
     standings\
       2029.league.ini
@@ -184,6 +190,8 @@ Reads and writes `.prf` coaching profiles. Docs:
 Working. Validates and edits `.pln` game plans. Docs:
 [README](docs/gameplan/README.md) · [rules](release/leagues/PNFL/rules/gameplan.toml)
 
+- A written play path starts with the play pool's folder name, so each league's
+  gameplans point at its own plays.
 - Rules and the play pool come from the league folder (`rules\gameplan.toml`,
   `rules\playpool.toml`, `play_path` in `league.ini`); `check` has no overrides.
 - Attribute caps take a count, ratio or percent form — one form per attribute,

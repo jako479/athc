@@ -11,6 +11,7 @@ from athc.config import ConfigFileError, LeagueError
 from athc.pdbtoexcel import default_category_order, load_config
 from athc.pdbtoexcel.config import Config
 from athc.pdbtoexcel.pdb import PLAY_DATA
+from tests.conftest import LEAGUE
 
 MakeLeague = Callable[..., Path]
 WriteConfig = Callable[..., Path]
@@ -40,25 +41,25 @@ def _load_without_league() -> Config:
 
 
 def test_load_config_defaults(make_league: MakeLeague) -> None:
-    make_league("PNFL")  # league folder with no league.ini and no rules
-    cfg = load_config("PNFL")
+    make_league()  # league folder with no league.ini and no rules
+    cfg = load_config(LEAGUE)
     assert cfg.play_path == ""
     assert cfg.playpool_rules is None
     assert cfg.calculate_percentages is True
 
 
 def test_load_config_from_league_folder(make_league: MakeLeague) -> None:
-    folder = make_league("PNFL", "[league]\nplay_path = D:\\plays\n")
+    folder = make_league(LEAGUE, "[league]\nplay_path = D:\\plays\n")
     (folder / "rules" / "playpool.toml").write_text("", encoding="utf-8")
-    cfg = load_config("PNFL")
+    cfg = load_config(LEAGUE)
     assert cfg.play_path == "D:\\plays"
     assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
 
 
 def test_load_config_cli_overrides_win(make_league: MakeLeague) -> None:
-    folder = make_league("PNFL", "[league]\nplay_path = D:\\plays\n")
+    folder = make_league(LEAGUE, "[league]\nplay_path = D:\\plays\n")
     (folder / "rules" / "playpool.toml").write_text("", encoding="utf-8")
-    cfg = load_config("PNFL", play_path="E:\\other", playpool_rules=Path("E:\\r.toml"))
+    cfg = load_config(LEAGUE, play_path="E:\\other", playpool_rules=Path("E:\\r.toml"))
     assert cfg.play_path == "E:\\other"
     assert cfg.playpool_rules == Path("E:\\r.toml")
 
@@ -69,15 +70,15 @@ def test_load_config_cli_overrides_win(make_league: MakeLeague) -> None:
 def test_playpool_toml_next_to_athc_ini_is_ignored(
     make_league: MakeLeague, config_dir: Path
 ) -> None:
-    make_league("PNFL")  # no rules\playpool.toml
+    make_league()  # no rules\playpool.toml
     (config_dir / "playpool.toml").write_text("", encoding="utf-8")
-    assert load_config("PNFL").playpool_rules is None
+    assert load_config(LEAGUE).playpool_rules is None
 
 
 def test_play_path_override_reads_league_rules(make_league: MakeLeague) -> None:
-    folder = make_league("PNFL")
+    folder = make_league()
     (folder / "rules" / "playpool.toml").write_text("", encoding="utf-8")
-    cfg = load_config("PNFL", play_path="D:/plays")
+    cfg = load_config(LEAGUE, play_path="D:/plays")
     assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
 
 
@@ -87,31 +88,31 @@ def test_play_path_override_needs_a_league() -> None:
 
 
 def test_cli_playpool_rules_wins(make_league: MakeLeague) -> None:
-    folder = make_league("PNFL")
+    folder = make_league()
     (folder / "rules" / "playpool.toml").write_text("", encoding="utf-8")
-    cfg = load_config("PNFL", playpool_rules=Path("E:\\r.toml"))
+    cfg = load_config(LEAGUE, playpool_rules=Path("E:\\r.toml"))
     assert cfg.playpool_rules == Path("E:\\r.toml")
 
 
 def test_no_playpool_rules_anywhere_is_none(make_league: MakeLeague) -> None:
-    make_league("PNFL")
-    assert load_config("PNFL").playpool_rules is None
+    make_league()
+    assert load_config(LEAGUE).playpool_rules is None
 
 
 def test_load_config_reads_workbook_options(
     make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
-    make_league("PNFL")
+    make_league()
     write_config(WORKBOOK_OPTIONS_INI)
-    cfg = load_config("PNFL")
+    cfg = load_config(LEAGUE)
     assert cfg.calculate_percentages is False
     assert cfg.include_category_worksheets is True
     assert cfg.exclude_sacks_from_pass_attempts is False
 
 
 def test_workbook_options_default_without_section(make_league: MakeLeague) -> None:
-    make_league("PNFL")
-    cfg = load_config("PNFL")
+    make_league()
+    cfg = load_config(LEAGUE)
     assert cfg.calculate_percentages is True
     assert cfg.include_category_worksheets is False
     assert cfg.exclude_sacks_from_pass_attempts is True

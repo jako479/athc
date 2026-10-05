@@ -10,7 +10,8 @@ from pathlib import Path
 import pytest
 
 from athc.cli.gameplan.set_normals import set_normals
-from athc.fbpro98_gameplan import PlayRef, read_gameplan
+from athc.fbpro98_gameplan import CustomPlayRef, PlayRef, read_gameplan
+from tests.conftest import LEAGUE
 from tests.integration.conftest import GP_OFFENSE, PLAYS, POOL_RULES
 
 NORMAL = "OR45RL01"  # a real normal offense play in the pool
@@ -22,9 +23,9 @@ WriteConfig = Callable[..., Path]
 @pytest.fixture(autouse=True)
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league: the curated test pool and its playpool rules."""
-    folder = make_league("PNFL", f"[league]\nplay_path = {PLAYS}\n")
+    folder = make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
     shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
-    write_config("[athc]\nleague = PNFL\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
     return folder
 
 
@@ -83,6 +84,16 @@ def test_writes_from_file(runner, tmp_path: Path) -> None:
     rt = read_gameplan(str(p))
     assert rt.normal_plays[0] is not None and rt.normal_plays[0].name == NORMAL
     assert all(x is None for x in rt.normal_plays[1:])
+
+
+def test_slot_path_starts_with_play_pool_folder(runner, tmp_path: Path) -> None:
+    """A slot's path starts with the play pool's folder name, not a fixed league."""
+    p = _copy(tmp_path)
+    result = runner.invoke(set_normals, [str(p), str(_input(tmp_path, NORMAL + "\n"))])
+    assert result.exit_code == 0
+    play = read_gameplan(str(p)).normal_plays[0]
+    assert isinstance(play, CustomPlayRef)
+    assert play.filename == f"{PLAYS.name}\\Offense\\RL\\{NORMAL}.ply"
 
 
 def test_writes_no_backup(runner, tmp_path: Path) -> None:

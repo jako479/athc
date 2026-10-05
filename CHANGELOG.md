@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: PCFL ships gameplan, playpool and profile rules (same as the PNFL's)
 - athc: usage lines list each option (`[-h] [--sort slot|name] gameplan [output_file]`) instead of `[OPTIONS]`
 - profile: `diff` help shows `file1 file2` and `-o file`
 - profile: `copy` takes `source target`, dropped `--no-backup` and makes no backups
@@ -85,6 +86,7 @@ high-level change completed alongside it gets its own line.
 
 ## gameplan
 
+- written play paths use the play pool's folder name instead of always `PNFL`
 - find-play: a wildcard PATH is a usage error, never expanded
 - find-play: dropped `--verbose`, so misses always print `not found`; hits read `found in slot(s) …`, with no category on normal slots
 - rules: attribute caps take a count, ratio or percent form, and the PNFL 2-DL caps moved to percents

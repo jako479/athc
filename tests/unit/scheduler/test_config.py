@@ -21,6 +21,7 @@ from athc.scheduler.config import (
     scheduler_rules_path,
 )
 from athc.scheduler.domain.league import TOTAL_TEAMS, League
+from tests.conftest import ROOT, shipped_files, shipped_id
 
 from .conftest import (
     CONFERENCES_LEAGUE,
@@ -28,27 +29,12 @@ from .conftest import (
     ONE_PLAYOFF_TEAM_FROM_4_TEAM_DIVISION,
 )
 
-ROOT = Path(__file__).resolve().parents[3]
 LEAGUE = "divisions"  # the test league's name
 SEASON = 2048
 
-# Every shipped standings (leagues/<league>/standings/<season>.league.ini) and
-# scheduler rules (leagues/<league>/rules/scheduler.toml) file.
-SHIPPED_STANDINGS = sorted(
-    path
-    for folder in ("dev", "release")
-    for path in (ROOT / folder / "leagues").glob("*/standings/*.league.ini")
-)
-SHIPPED_RULES = sorted(
-    path
-    for folder in ("dev", "release")
-    for path in (ROOT / folder / "leagues").glob("*/rules/scheduler.toml")
-)
-
-
-def _shipped_id(path: Path) -> str:
-    # dev/PNFL/2049.league.ini, release/PCFL/scheduler.toml
-    return f"{path.parents[3].name}/{path.parents[1].name}/{path.name}"
+# Every shipped standings and scheduler rules file.
+SHIPPED_STANDINGS = shipped_files("*/standings/*.league.ini")
+SHIPPED_RULES = shipped_files("*/rules/scheduler.toml")
 
 
 # ---------------------------------------------------------------------------
@@ -457,7 +443,7 @@ def test_load_league_errors_on_standings_duplicate(tmp_path: Path) -> None:
         load_league(ini)
 
 
-@pytest.mark.parametrize("path", SHIPPED_STANDINGS, ids=_shipped_id)
+@pytest.mark.parametrize("path", SHIPPED_STANDINGS, ids=shipped_id)
 def test_shipped_standings_file_loads(path: Path) -> None:
     league = load_league(path)
     assert len(league.teams) == TOTAL_TEAMS
@@ -863,7 +849,7 @@ def test_load_league_errors_on_wrong_conference_size(tmp_path: Path) -> None:
         load_league(ini)
 
 
-@pytest.mark.parametrize("path", SHIPPED_RULES, ids=_shipped_id)
+@pytest.mark.parametrize("path", SHIPPED_RULES, ids=shipped_id)
 def test_shipped_rules_file_fits_its_leagues_standings(path: Path) -> None:
     # A league's rules/scheduler.toml must fit every standings file in its folder.
     folder = path.parents[1]
@@ -880,15 +866,18 @@ def test_shipped_rules_file_fits_its_leagues_standings(path: Path) -> None:
 
 
 def test_shipped_conference_league_files_match_the_test_league() -> None:
-    folder = ROOT / "dev" / "leagues" / "PCFL"
-    league = load_league(folder / "standings" / "2029.league.ini")
-    assert league == CONFERENCES_LEAGUE
-    config = load_scheduler_config(folder / "rules" / "scheduler.toml")
-    assert config.league.weeks == 12
-    assert config.difficulty.spread == 0.0
-    assert config.phase2.max_consecutive_conference_home_or_away == 2
-    assert config.phase2.opening_nonconference_weeks == 3
-    assert config.phase2.require_home_balance_per_six_weeks is False
-    assert config.phase2.require_home_away_streak_caps is False
-    assert config.phase2.require_mixed_home_away_at_season_ends is False
-    assert config.rivalries.pairs == CONFERENCES_RIVALRIES
+    # The conference test league copies a shipped league; keep them in step.
+    matches = [p for p in SHIPPED_STANDINGS if load_league(p) == CONFERENCES_LEAGUE]
+    assert matches
+    for standings_path in matches:
+        config = load_scheduler_config(
+            standings_path.parents[1] / "rules" / "scheduler.toml"
+        )
+        assert config.league.weeks == 12
+        assert config.difficulty.spread == 0.0
+        assert config.phase2.max_consecutive_conference_home_or_away == 2
+        assert config.phase2.opening_nonconference_weeks == 3
+        assert config.phase2.require_home_balance_per_six_weeks is False
+        assert config.phase2.require_home_away_streak_caps is False
+        assert config.phase2.require_mixed_home_away_at_season_ends is False
+        assert config.rivalries.pairs == CONFERENCES_RIVALRIES

@@ -94,8 +94,7 @@ That folder will contain:
       rules\               gameplan.toml, profile.toml, playpool.toml,
                            scheduler.toml
       standings\           <season>.league.ini for the scheduler
-   leagues\PCFL\        the PCFL league, same layout (rules\ has only
-                        scheduler.toml)
+   leagues\PCFL\        the PCFL league, same layout
 
 To open this folder, run 'athc config reveal' (or paste
 %LOCALAPPDATA%\athc into File Explorer's address bar).

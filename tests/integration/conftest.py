@@ -13,12 +13,9 @@ RULES_TOML = DATA / "profile_rules.toml"
 OFF1 = DATA / "TST-OFF1.prf"
 DEF1 = DATA / "TST-DEF1.prf"
 
-# gameplan check: real gameplans + a curated pool; the canonical PNFL release rules.
-_RELEASE_RULES = (
-    Path(__file__).resolve().parents[2] / "release" / "leagues" / "PNFL" / "rules"
-)
-GP_RULES = _RELEASE_RULES / "gameplan.toml"
-POOL_RULES = _RELEASE_RULES / "playpool.toml"
+# gameplan check: real gameplans + a curated pool and their rules.
+GP_RULES = DATA / "gameplan_rules.toml"
+POOL_RULES = DATA / "playpool_rules.toml"
 GP_OFFENSE = DATA / "offense.pln"
 GP_DEFENSE = DATA / "defense.pln"
 PLAYS = DATA / "plays"

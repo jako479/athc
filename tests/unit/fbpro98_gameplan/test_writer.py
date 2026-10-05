@@ -33,7 +33,7 @@ def _copy_fixture(src: Path, tmp_path: Path) -> Path:
 
 def _make_play(name: str) -> CustomPlayRef:
     return CustomPlayRef(
-        filename=f"PNFL\\Offense\\PSR\\{name}.ply",
+        filename=f"plays\\Offense\\PSR\\{name}.ply",
         play_category=9,
         special_category=0,
         user_category=5,

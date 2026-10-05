@@ -1,5 +1,5 @@
 """Tests for read_play_pool: file-driven classification across three layouts,
-optional PNFL folder attributes, and folder mismatch warnings."""
+optional league folder attributes, and folder mismatch warnings."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from athc.playpool import (
 from athc.playpool.pool import folder_warnings
 from tests.unit.playpool.conftest import PLAYS, MakePlay
 
-ALL_POOLS = ["pnfl_pool", "flat_pool", "nonpnfl_pool"]
+ALL_POOLS = ["league_pool", "flat_pool", "arbitrary_pool"]
 
 # File-driven attributes — identical in every layout.
 # (name, category, rollout, qb_draw, pass_logic)
@@ -35,7 +35,7 @@ OFFENSE = [
     ("WR10GR01", "Goal Line Run", False, True, None),
 ]
 
-# (name, category, pnfl_front) — front appears only in the PNFL tree.
+# (name, category, league_front) — front appears only in the league folder layout.
 DEFENSE = [
     ("AF22PL01", "Pass Long", DefensiveFront.TWO_DL),
     ("AF31rl3H", "Run Left", DefensiveFront.THREE_FOUR),
@@ -67,29 +67,29 @@ def test_offensive_file_driven(
 
 
 @pytest.mark.parametrize("pool_name", ALL_POOLS)
-def test_screen_only_from_pnfl_folder(
+def test_screen_only_from_screens_folder(
     request: pytest.FixtureRequest, pool_name: str
 ) -> None:
     play = request.getfixturevalue(pool_name).find_by_name("AF6Zscrn")
     assert isinstance(play, OffensivePlay)
-    assert play.screen is (pool_name == "pnfl_pool")
+    assert play.screen is (pool_name == "league_pool")
 
 
 @pytest.mark.parametrize("pool_name", ALL_POOLS)
-@pytest.mark.parametrize("name,category,pnfl_front", DEFENSE)
+@pytest.mark.parametrize("name,category,league_front", DEFENSE)
 def test_defensive_file_driven(
     request: pytest.FixtureRequest,
     pool_name: str,
     name: str,
     category: str,
-    pnfl_front: DefensiveFront | None,
+    league_front: DefensiveFront | None,
 ) -> None:
     pool: PlayPool = request.getfixturevalue(pool_name)
     play = pool.find_by_name(name)
     assert isinstance(play, DefensivePlay)
     assert play in pool.defensive_plays
     assert play.category.long == category
-    expected = pnfl_front if pool_name == "pnfl_pool" else None
+    expected = league_front if pool_name == "league_pool" else None
     assert play.defensive_front == expected
 
 
@@ -109,12 +109,12 @@ def test_find_across_sides(request: pytest.FixtureRequest, pool_name: str) -> No
     assert pool.find_by_name("DOESNOTEXIST") is None
 
 
-@pytest.mark.parametrize("tree", ["pnfl", "flat", "nonpnfl"])
+@pytest.mark.parametrize("tree", ["league", "flat", "arbitrary"])
 def test_no_warnings_on_consistent_trees(
     request: pytest.FixtureRequest, tree: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """PNFL plays match their folders; non-PNFL/flat have no recognized folders."""
-    root = PLAYS if tree == "pnfl" else request.getfixturevalue(f"{tree}_tree")
+    """League-layout plays match their folders; the others have no recognized folders."""
+    root = PLAYS if tree == "league" else request.getfixturevalue(f"{tree}_tree")
     with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
         read_play_pool(root)
     assert "play in" not in caplog.text  # no side/category mismatch warnings
@@ -290,7 +290,7 @@ def test_no_warn_when_consistent(make_play: MakePlay) -> None:
 
 @pytest.mark.parametrize("rel", ["X.ply", "Offense/X.ply", "alpha/beta/X.ply"])
 def test_no_warn_loose_or_unrecognized(make_play: MakePlay, rel: str) -> None:
-    """No category folder (loose, side root, or non-PNFL) → no warning, even for a
-    User Specific play that has no valid PNFL folder anywhere."""
+    """No category folder (loose, side root, or unrecognized) → no warning, even
+    for a User Specific play that has no valid category folder anywhere."""
     play = make_play("X", play_category=0x01, user_category=0xFF)  # User Specific
     assert folder_warnings(rel, play) == []

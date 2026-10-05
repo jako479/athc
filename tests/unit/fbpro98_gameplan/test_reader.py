@@ -416,7 +416,7 @@ def test_nonexistent_path_raises_oserror(tmp_path):
         read_gameplan(tmp_path / "nonexistent.pln")
 
 
-# ---------- error branches pnfl's suite missed ----------
+# ---------- more error branches ----------
 
 
 def test_file_too_small_for_j95_raises(tmp_path):

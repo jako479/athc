@@ -2,7 +2,7 @@
 
 Cases covered for the play-pool library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
 
-One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFile`/record/filter; `tree` = the curated PNFL tree in `data/plays/`, plus the same files copied into a flat and a non-PNFL tree (conftest fixtures `pnfl_pool` / `flat_pool` / `nonpnfl_pool`); `rel` = a play's path relative to the pool root; `tmp`/`dict` = constructed input. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/playpool` passes.
+One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFile`/record/filter; `tree` = the curated plays in `data/plays/` in the league folder layout, plus the same files copied into a flat tree and a tree of arbitrary folder names (conftest fixtures `league_pool` / `flat_pool` / `arbitrary_pool`); `shipped` = every `leagues/<league>/rules/playpool.toml` in `dev/` and `release/`; `rel` = a play's path relative to the pool root; `tmp`/`dict` = constructed input. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/playpool` passes.
 
 ## rules.py — `load_rules` / `build_rules`
 
@@ -20,7 +20,7 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 | All problems collected at once | tmp | 5 errors, each kind present | `test_collects_multiple_errors` | ☑ |
 | TOML parse error | tmp | "TOML parse error" | `test_toml_parse_error` | ☑ |
 | Missing file | path | `RulesFileError` | `test_missing_file` | ☑ |
-| Shipped PNFL rules load | data | timed include + qb regex | `test_pnfl_rules_load` | ☑ |
+| Every shipped league's rules load | shipped | loads | `test_shipped_rules_load` `[P]` | ☑ |
 
 ## rules.py — `FilenameFilter.matches` (case-sensitive; vetoes win)
 
@@ -46,20 +46,20 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 | `find_by_name` case-insensitive | make | hit; miss → None | `test_find_by_name` | ☑ |
 | Duplicate name → warn, last wins | make | warning; last record | `test_duplicate_name_warns` | ☑ |
 
-## pool.py — file-driven classification (identical across PNFL / non-PNFL / flat)
+## pool.py — file-driven classification (identical across league layout / arbitrary / flat)
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Offensive: category + rollout/qb_draw/pass_logic | tree | same in all 3 layouts | `test_offensive_file_driven` `[P]` | ☑ |
-| `screen` only from a PNFL `Screens/` folder | tree | True in PNFL, else False | `test_screen_only_from_pnfl_folder` `[P]` | ☑ |
-| Defensive: category; `defensive_front` PNFL-only | tree | front in PNFL, else None | `test_defensive_file_driven` `[P]` | ☑ |
+| `screen` only from a `Screens/` folder | tree | True in league layout, else False | `test_screen_only_from_screens_folder` `[P]` | ☑ |
+| Defensive: category; `defensive_front` league layout only | tree | front in league layout, else None | `test_defensive_file_driven` `[P]` | ☑ |
 | Special-teams play filed | tree | `SpecialTeamsPlay` | `test_special_file_driven` `[P]` | ☑ |
 | `find_by_name` across sides | tree | hits / miss | `test_find_across_sides` `[P]` | ☑ |
 | Consistent trees emit no warning | tree | no "play in" | `test_no_warnings_on_consistent_trees` `[P]` | ☑ |
 | Invalid `.ply` skipped + warning | tree | warned; absent | `test_invalid_skipped` | ☑ |
 | Flat loose play classified from file | tmp | offensive; not skipped | `test_flat_play_classified_from_file` | ☑ |
 
-## pool.py — `folder_warnings` (recognized PNFL folder vs the play file)
+## pool.py — `folder_warnings` (recognized league folder vs the play file)
 
 Warning = `<reason>: <path-from-pool-root>`. Wrong side reported alone; category checked only when the side matches; unrecognized folders never warn.
 
@@ -75,4 +75,4 @@ Warning = `<reason>: <path-from-pool-root>`. Wrong side reported alone; category
 | `User Specific` in a category folder | rel | category warning | `test_warn_user_specific_in_category_folder` | ☑ |
 | Wrong side suppresses category warning | rel | side warning only | `test_wrong_side_reported_alone` | ☑ |
 | Consistent folder | rel | no warning | `test_no_warn_when_consistent` | ☑ |
-| Loose / side-root / non-PNFL (incl. User Specific) | rel | no warning | `test_no_warn_loose_or_unrecognized` `[P]` | ☑ |
+| Loose / side-root / unrecognized (incl. User Specific) | rel | no warning | `test_no_warn_loose_or_unrecognized` `[P]` | ☑ |

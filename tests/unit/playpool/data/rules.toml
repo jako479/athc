@@ -1,4 +1,4 @@
-# Test playpool rules — the PNFL filename filters, plus a `FAKETR` in TimedPass
+# Test playpool rules — a realistic set of filename filters, plus a `FAKETR` in TimedPass
 # exclude so a "TR"-ending play (timed + rollout by suffix) ends up rollout-only.
 
 schema_version = 1

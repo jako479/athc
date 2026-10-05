@@ -49,4 +49,4 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 | Tendencies written | synth | 16 rows per team | `test_tendencies_written` | ☑ |
 | Slot column from gameplan | synth + pool + pln | slot 0 → "1-1" | `test_slot_column_from_gameplan` | ☑ |
 
-Notes vs the pnfl suite: grouping is by **game category** (not `pool_category`); the dropped PNFL `TOTAL_STATS_FILTER`/`DELETED_PLAYS` have no tests (removed code). Exact percentage-cell values aren't asserted (column presence + the underlying counts are).
+Notes: grouping is by **game category** (not `pool_category`). Exact percentage-cell values aren't asserted (column presence + the underlying counts are).

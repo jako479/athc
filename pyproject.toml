@@ -60,6 +60,8 @@ where = ["src"]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers --strict-config --import-mode=importlib -m 'not slow' --cov=athc --cov-report=term-missing"
 filterwarnings = ["error"]
+# A parametrize list built from files on disk must never come up empty and skip.
+empty_parameter_set_mark = "fail_at_collect"
 markers = [
     "slow: long-running scheduler solver tests; opt-in via `pytest -m slow` or `pytest -m ''`",
 ]

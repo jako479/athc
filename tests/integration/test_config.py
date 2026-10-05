@@ -31,6 +31,7 @@ from athc.config import (
     resolve_league,
     resolve_path,
 )
+from tests.conftest import LEAGUE, OTHER_LEAGUE
 
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
@@ -40,15 +41,15 @@ MakeLeague = Callable[..., Path]
 
 
 def test_resolves_explicit_league_arg(make_league: MakeLeague) -> None:
-    make_league("PNFL", "[league]\nplay_path = D:/p\n")
-    assert load_league("PNFL")["play_path"] == "D:/p"
+    make_league(LEAGUE, "[league]\nplay_path = D:/p\n")
+    assert load_league(LEAGUE)["play_path"] == "D:/p"
 
 
 def test_resolves_from_configured_league(
     make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
-    make_league("PNFL", "[league]\nplay_path = D:/p\n")
-    write_config("[athc]\nleague = PNFL\n")
+    make_league(LEAGUE, "[league]\nplay_path = D:/p\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
     assert load_league()["play_path"] == "D:/p"
 
 
@@ -56,8 +57,8 @@ def test_resolves_from_configured_league(
 
 
 def test_resolve_league_returns_the_explicit_name(make_league: MakeLeague) -> None:
-    make_league("PNFL", "[league]\nplay_path = D:/p\n")
-    assert resolve_league("PNFL") == "PNFL"
+    make_league(LEAGUE, "[league]\nplay_path = D:/p\n")
+    assert resolve_league(LEAGUE) == LEAGUE
 
 
 def test_resolve_league_falls_back_to_configured(
@@ -69,53 +70,53 @@ def test_resolve_league_falls_back_to_configured(
 
 
 def test_resolve_league_errors_when_none_resolvable(make_league: MakeLeague) -> None:
-    make_league("PNFL")
+    make_league()
     with pytest.raises(LeagueError, match="no league selected"):
         resolve_league()
 
 
 def test_resolve_league_errors_on_unknown_name(make_league: MakeLeague) -> None:
-    make_league("PNFL")
-    with pytest.raises(LeagueError, match="PCFL"):
-        resolve_league("PCFL")
+    make_league()
+    with pytest.raises(LeagueError, match=OTHER_LEAGUE):
+        resolve_league(OTHER_LEAGUE)
 
 
 # ── LeagueConfig helpers ──
 
 
 def test_league_config_names_folder(make_league: MakeLeague, config_dir: Path) -> None:
-    make_league("PNFL", "[league]\nplay_path = D:/p\n")
-    cfg = load_league_config("PNFL")
-    assert cfg.name == "PNFL"
-    assert cfg.dir == config_dir / "leagues" / "PNFL"
+    make_league(LEAGUE, "[league]\nplay_path = D:/p\n")
+    cfg = load_league_config(LEAGUE)
+    assert cfg.name == LEAGUE
+    assert cfg.dir == config_dir / "leagues" / LEAGUE
     assert cfg.values == {"play_path": "D:/p"}
 
 
 def test_missing_league_ini_gives_empty_values(make_league: MakeLeague) -> None:
-    make_league("PNFL")  # folder only
-    assert load_league_config("PNFL").values == {}
+    make_league()  # folder only
+    assert load_league_config(LEAGUE).values == {}
 
 
 def test_path_resolves_relative_against_league_dir(make_league: MakeLeague) -> None:
-    folder = make_league("PNFL", "[league]\nplay_path = plays\nabs = D:/x\n")
-    cfg = load_league_config("PNFL")
+    folder = make_league(LEAGUE, "[league]\nplay_path = plays\nabs = D:/x\n")
+    cfg = load_league_config(LEAGUE)
     assert cfg.path("play_path") == folder / "plays"
     assert cfg.path("abs") == Path("D:/x")
     assert cfg.path("missing") is None
 
 
 def test_rules_file_only_when_present(make_league: MakeLeague) -> None:
-    folder = make_league("PNFL")
-    cfg = load_league_config("PNFL")
+    folder = make_league()
+    cfg = load_league_config(LEAGUE)
     assert cfg.rules_file("gameplan.toml") is None
     (folder / "rules" / "gameplan.toml").write_text("", encoding="utf-8")
     assert cfg.rules_file("gameplan.toml") == folder / "rules" / "gameplan.toml"
 
 
 def test_rule_files_default_is_the_fixed_file(make_league: MakeLeague) -> None:
-    folder = make_league("PNFL")
+    folder = make_league()
     (folder / "rules" / "gameplan.toml").write_text("", encoding="utf-8")
-    cfg = load_league_config("PNFL")
+    cfg = load_league_config(LEAGUE)
     assert cfg.rule_files("gameplan_rules", "gameplan.toml") == (
         folder / "rules" / "gameplan.toml",
     )
@@ -124,19 +125,19 @@ def test_rule_files_default_is_the_fixed_file(make_league: MakeLeague) -> None:
 def test_rule_files_default_empty_when_fixed_file_missing(
     make_league: MakeLeague,
 ) -> None:
-    make_league("PNFL")
+    make_league()
     assert (
-        load_league_config("PNFL").rule_files("gameplan_rules", "gameplan.toml") == ()
+        load_league_config(LEAGUE).rule_files("gameplan_rules", "gameplan.toml") == ()
     )
 
 
 def test_rule_files_list_replaces_default_in_order(make_league: MakeLeague) -> None:
     folder = make_league(
-        "PNFL",
+        LEAGUE,
         "[league]\ngameplan_rules =\n    rules\\base.toml\n    D:\\house.toml\n",
     )
     (folder / "rules" / "gameplan.toml").write_text("", encoding="utf-8")
-    cfg = load_league_config("PNFL")
+    cfg = load_league_config(LEAGUE)
     assert cfg.rule_files("gameplan_rules", "gameplan.toml") == (
         folder / "rules" / "base.toml",
         Path("D:\\house.toml"),
@@ -147,14 +148,14 @@ def test_rule_files_list_replaces_default_in_order(make_league: MakeLeague) -> N
 
 
 def test_no_league_resolvable_lists_available(make_league: MakeLeague) -> None:
-    make_league("PNFL")
-    make_league("PCFL")
+    make_league()
+    make_league(OTHER_LEAGUE)
     with pytest.raises(LeagueError) as exc:
         load_league()
     msg = str(exc.value)
     assert "no league selected" in msg
     assert "athc config set league" in msg
-    assert "Available: PCFL, PNFL" in msg
+    assert f"Available: {OTHER_LEAGUE}, {LEAGUE}" in msg
 
 
 def test_no_league_and_no_folders(config_dir: Path) -> None:
@@ -164,12 +165,12 @@ def test_no_league_and_no_folders(config_dir: Path) -> None:
 
 
 def test_unknown_league_errors(make_league: MakeLeague) -> None:
-    make_league("PNFL")
+    make_league()
     with pytest.raises(LeagueError) as exc:
-        load_league("PCFL")
+        load_league(OTHER_LEAGUE)
     msg = str(exc.value)
-    assert "PCFL" in msg and "not found" in msg
-    assert "Available: PNFL" in msg
+    assert OTHER_LEAGUE in msg and "not found" in msg
+    assert f"Available: {LEAGUE}" in msg
 
 
 def test_empty_league_key_is_no_league(write_config: WriteConfig) -> None:
@@ -196,9 +197,9 @@ def test_resolve_league_blank_arg_is_no_arg(
     make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
     # `--league "   "` behaves like no flag: the configured league is used.
-    make_league("PNFL")
-    write_config("[athc]\nleague = PNFL\n")
-    assert load_league_config("   ").name == "PNFL"
+    make_league()
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    assert load_league_config("   ").name == LEAGUE
 
 
 def test_malformed_athc_ini_errors(
@@ -206,7 +207,7 @@ def test_malformed_athc_ini_errors(
 ) -> None:
     # No explicit league: the league must come from athc.ini, so the malformed
     # file is actually read.
-    make_league("PNFL")
+    make_league()
     ini = write_config("[athc\nbroken\n")
     with pytest.raises(ConfigFileError) as exc:
         load_league_config()
@@ -217,16 +218,16 @@ def test_percent_in_league_ini_is_config_file_error(make_league: MakeLeague) -> 
     # `%LOCALAPPDATA%\plays` is the native Windows idiom; configparser sees a
     # broken `%(...)s` interpolation. It must surface as a ConfigFileError naming
     # the file, not as a raw configparser error.
-    folder = make_league("PNFL", "[league]\nplay_path = %LOCALAPPDATA%\\plays\n")
+    folder = make_league(LEAGUE, "[league]\nplay_path = %LOCALAPPDATA%\\plays\n")
     with pytest.raises(ConfigFileError) as exc:
-        load_league("PNFL")
+        load_league(LEAGUE)
     assert str(folder / "league.ini") in str(exc.value)
 
 
 def test_malformed_league_ini_errors(make_league: MakeLeague) -> None:
-    folder = make_league("PNFL", "[league\nbroken")
+    folder = make_league(LEAGUE, "[league\nbroken")
     with pytest.raises(ConfigFileError) as exc:
-        load_league("PNFL")
+        load_league(LEAGUE)
     assert str(folder / "league.ini") in str(exc.value)
 
 
@@ -259,10 +260,10 @@ def test_resolve_path_absolute_is_unchanged() -> None:
 
 def test_interpolation_within_league_ini(make_league: MakeLeague) -> None:
     make_league(
-        "PNFL",
-        "[league]\nleague_root = D:/Leagues/PNFL\nplay_path = %(league_root)s/plays\n",
+        LEAGUE,
+        f"[league]\nleague_root = D:/Leagues/{LEAGUE}\nplay_path = %(league_root)s/plays\n",
     )
-    assert load_league("PNFL")["play_path"] == "D:/Leagues/PNFL/plays"
+    assert load_league(LEAGUE)["play_path"] == f"D:/Leagues/{LEAGUE}/plays"
 
 
 # ── athc config command group: path / edit / reveal ──
@@ -333,16 +334,18 @@ def test_edit_ignores_editor_env(
 def test_edit_preserves_existing_file(
     runner, write_config: WriteConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    ini = write_config("[athc]\nleague = PNFL\n")
+    ini = write_config(f"[athc]\nleague = {LEAGUE}\n")
     monkeypatch.setattr("click.launch", lambda *a, **k: None)
     result = runner.invoke(edit, [])
     assert result.exit_code == 0
-    assert ini.read_text(encoding="utf-8") == "[athc]\nleague = PNFL\n"
+    assert ini.read_text(encoding="utf-8") == f"[athc]\nleague = {LEAGUE}\n"
 
 
 # ── shipped release/: every loader reads it as installed ──
 
 RELEASE = Path(__file__).resolve().parents[2] / "release"
+# Every shipped league folder; each one runs the same tests.
+SHIPPED_LEAGUES = sorted(p.name for p in (RELEASE / "leagues").iterdir() if p.is_dir())
 
 
 @pytest.fixture
@@ -352,18 +355,21 @@ def release_config_dir(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ATHC_CONFIG_DIR", str(RELEASE))
 
 
+def test_release_ships_leagues() -> None:
+    assert SHIPPED_LEAGUES
+
+
 @pytest.mark.usefixtures("release_config_dir")
-def test_release_league_loads() -> None:
-    cfg = load_league_config()  # [athc] league -> leagues/PNFL/
-    assert cfg.name == "PNFL"
+def test_release_selected_league_loads() -> None:
+    assert load_league_config().name in SHIPPED_LEAGUES
+
+
+@pytest.mark.usefixtures("release_config_dir")
+@pytest.mark.parametrize("name", SHIPPED_LEAGUES)
+def test_release_league_loads(name: str) -> None:
+    cfg = load_league_config(name)
     assert cfg.values["play_path"]
     assert (cfg.dir / "standings").is_dir()
-
-
-@pytest.mark.usefixtures("release_config_dir")
-@pytest.mark.parametrize("name", ["PNFL", "PCFL"])
-def test_release_every_league_has_a_play_path(name: str) -> None:
-    assert load_league(name)["play_path"]
 
 
 @pytest.mark.usefixtures("release_config_dir")
@@ -374,63 +380,74 @@ def test_release_autocontinue_section_loads() -> None:
 
 
 @pytest.mark.usefixtures("release_config_dir")
-def test_release_gameplan_config_loads() -> None:
+@pytest.mark.parametrize("name", SHIPPED_LEAGUES)
+def test_release_gameplan_config_loads(name: str) -> None:
     from athc.gameplan import config as gameplan_config
 
-    cfg = gameplan_config.load_config()
+    cfg = gameplan_config.load_config(name)
     assert cfg.playpool_rules is not None and cfg.playpool_rules.is_file()
     assert cfg.rule_files and all(p.is_file() for p in cfg.rule_files)
 
 
 @pytest.mark.usefixtures("release_config_dir")
-def test_release_profile_config_loads() -> None:
+@pytest.mark.parametrize("name", SHIPPED_LEAGUES)
+def test_release_profile_config_loads(name: str) -> None:
     from athc.profile import config as profile_config
 
-    cfg = profile_config.load_config()
+    cfg = profile_config.load_config(name)
     assert cfg.rule_files and all(p.is_file() for p in cfg.rule_files)
 
 
 @pytest.mark.usefixtures("release_config_dir")
-def test_release_convert_pdb_config_loads() -> None:
+@pytest.mark.parametrize("name", SHIPPED_LEAGUES)
+def test_release_convert_pdb_config_loads(name: str) -> None:
     from athc.pdbtoexcel import config as pdbtoexcel_config
 
-    cfg = pdbtoexcel_config.load_config()
+    cfg = pdbtoexcel_config.load_config(name)
     assert cfg.playpool_rules is not None and cfg.playpool_rules.is_file()
     # A play_path override alone still reads the league's rules\playpool.toml.
-    rules = pdbtoexcel_config.load_config(play_path="D:/plays").playpool_rules
-    assert rules == RELEASE / "leagues" / "PNFL" / "rules" / "playpool.toml"
-    # The shipped [convert-pdb] section spells out the defaults.
+    rules = pdbtoexcel_config.load_config(name, play_path="D:/plays").playpool_rules
+    assert rules == RELEASE / "leagues" / name / "rules" / "playpool.toml"
+
+
+@pytest.mark.usefixtures("release_config_dir")
+def test_release_convert_pdb_defaults() -> None:
+    from athc.pdbtoexcel import config as pdbtoexcel_config
+
+    # The shipped [convert-pdb] section in athc.ini spells out the defaults.
+    cfg = pdbtoexcel_config.load_config()
     assert cfg.calculate_percentages is True
     assert cfg.include_category_worksheets is False
     assert cfg.exclude_sacks_from_pass_attempts is True
 
 
 @pytest.mark.usefixtures("release_config_dir")
-@pytest.mark.parametrize(("league", "season"), [("PNFL", 2048), ("PCFL", 2029)])
-def test_release_scheduler_files_load(league: str, season: int) -> None:
+@pytest.mark.parametrize("name", SHIPPED_LEAGUES)
+def test_release_scheduler_files_load(name: str) -> None:
     from athc.scheduler.config import (
         find_league_path,
         load_scheduler_config,
         scheduler_rules_path,
     )
 
-    load_scheduler_config(scheduler_rules_path(league))
-    assert find_league_path(league, season).is_file()
+    load_scheduler_config(scheduler_rules_path(name))
+    standings = sorted((RELEASE / "leagues" / name / "standings").glob("*.league.ini"))
+    assert standings
+    for standings_file in standings:
+        season = int(standings_file.name.split(".")[0])
+        assert find_league_path(name, season) == standings_file
 
 
 def test_dev_mirrors_release_layout() -> None:
+    def shipped(root: Path) -> set[Path]:
+        patterns = (
+            "athc.ini",
+            "leagues/*/league.ini",
+            "leagues/*/rules/*.toml",
+            "leagues/*/standings/*.league.ini",
+        )
+        return {p.relative_to(root) for pat in patterns for p in root.glob(pat)}
+
     dev = RELEASE.parent / "dev"
-    for rel in (
-        "athc.ini",
-        "leagues/PNFL/league.ini",
-        "leagues/PNFL/rules/gameplan.toml",
-        "leagues/PNFL/rules/profile.toml",
-        "leagues/PNFL/rules/playpool.toml",
-        "leagues/PNFL/rules/scheduler.toml",
-        "leagues/PNFL/standings/2048.league.ini",
-        "leagues/PCFL/league.ini",
-        "leagues/PCFL/rules/scheduler.toml",
-        "leagues/PCFL/standings/2029.league.ini",
-    ):
-        assert (dev / rel).is_file(), rel
-        assert (RELEASE / rel).is_file(), rel
+    assert shipped(RELEASE)
+    assert shipped(dev) == shipped(RELEASE)

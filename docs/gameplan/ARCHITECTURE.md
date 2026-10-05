@@ -47,7 +47,7 @@ Each capped attribute (`qb_draws`, `rollouts`, `timed`, `two_dl`) takes one of t
 
 Loading reports every problem at once (`RulesFileError.errors`); any error aborts `check` with each logged (exit 2).
 
-The PNFL rule set is [release/leagues/PNFL/rules/gameplan.toml](../../release/leagues/PNFL/rules/gameplan.toml) — data a coach supplies as a file, not code.
+Each league's rule set is `release/leagues/<NAME>/rules/gameplan.toml` — data a coach supplies as a file, not code.
 
 ## Config
 
@@ -72,7 +72,7 @@ The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.
 
 ## set-normals / set-specials
 
-`gameplan.writer` resolves a play list against the pool into `.pln` slot entries (`apply_normal_plays` / `apply_special_plays`), aggregating every per-line problem into one `InvalidPlayInputError`. Side and special-teams classification come from each play's `.ply` header, not the rules. The list format is one name per line, `::` comment lines, ` ::` inline trailers (`parse_play_list`). Input or read failures abort before any write.
+`gameplan.writer` resolves a play list against the pool into `.pln` slot entries (`apply_normal_plays` / `apply_special_plays`), aggregating every per-line problem into one `InvalidPlayInputError`. Side and special-teams classification come from each play's `.ply` header, not the rules. The list format is one name per line, `::` comment lines, ` ::` inline trailers (`parse_play_list`). Input or read failures abort before any write. Each slot's play path is the play pool's folder name, then the play's path inside the pool (`<pool folder>\Offense\RL\OR45RL01.ply`).
 
 - `set-normals gameplan input_file` replaces all 64 normal slots of one `.pln`; an `input_file` of `-` reads stdin. The pool and its playpool rules come from the league. No backup is made. Special-teams plays are rejected (use set-specials). Exit `0` = updated, `1` = error, `2` = usage.
 - `set-specials path input_file` merges the custom special slots (unlisted categories preserved) of one `.pln`, or every `.pln` in a directory/tree (`-r`); an `input_file` of `-` reads stdin. Each play self-slots by its special category; wrong-side files are skipped silently (offense `.pln` are even-sized, defense odd). The pool and its playpool rules come from the league. No backup is made. Exit `0` = all updated, `1` = some files failed, `2` = setup error.

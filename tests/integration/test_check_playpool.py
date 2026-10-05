@@ -15,6 +15,7 @@ import pytest
 from click.testing import Result
 
 from athc.cli.check_playpool import check_playpool
+from tests.conftest import LEAGUE, OTHER_LEAGUE
 from tests.integration.conftest import PLAYS
 
 WriteConfig = Callable[..., Path]
@@ -102,8 +103,8 @@ def test_default_is_current_league_play_path(
     runner, tmp_path: Path, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
     root = clean_tree(tmp_path / "plays")
-    league_with(make_league, "PNFL", root)
-    write_config("[athc]\nleague = PNFL\n")
+    league_with(make_league, LEAGUE, root)
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner)
     assert result.exit_code == 0
     assert f"in '{root}'" in result.stdout
@@ -112,14 +113,14 @@ def test_default_is_current_league_play_path(
 def test_league_option_picks_another_league(
     runner, tmp_path: Path, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
-    pnfl = clean_tree(tmp_path / "pnfl")
-    pcfl = clean_tree(tmp_path / "pcfl")
-    league_with(make_league, "PNFL", pnfl)
-    league_with(make_league, "PCFL", pcfl)
-    write_config("[athc]\nleague = PNFL\n")
-    result = run(runner, "--league", "PCFL")
+    league_plays = clean_tree(tmp_path / "league_plays")
+    other_plays = clean_tree(tmp_path / "other_plays")
+    league_with(make_league, LEAGUE, league_plays)
+    league_with(make_league, OTHER_LEAGUE, other_plays)
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = run(runner, "--league", OTHER_LEAGUE)
     assert result.exit_code == 0
-    assert f"in '{pcfl}'" in result.stdout
+    assert f"in '{other_plays}'" in result.stdout
 
 
 # ── errors: exit 2, on stderr ─────────────────────────────────────────────────
@@ -139,8 +140,8 @@ def test_league_without_play_path_exit_2(
     write_config: WriteConfig,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    folder = make_league("PNFL")
-    write_config("[athc]\nleague = PNFL\n")
+    folder = make_league()
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
     with caplog.at_level(logging.ERROR):
         result = run(runner)
     assert result.exit_code == 2

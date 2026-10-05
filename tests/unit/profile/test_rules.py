@@ -22,6 +22,7 @@ from athc.profile.rules import (
     RUN_MIDDLE,
     RUN_RANDOM,
 )
+from tests.conftest import shipped_files, shipped_id
 from tests.unit.profile.conftest import DATA, exact_substitution
 
 MINIMAL = "audibles_allowed = false\nmin_categories = 2\n"
@@ -536,15 +537,9 @@ def test_rule_min_categories_zero_ok(tmp_path: Path) -> None:
     assert rules.offense_situations[0].min_categories == 0
 
 
-# ── shipped rules ─────────────────────────────────────────────────────────────
+# ── every shipped league's rules load ─────────────────────────────────────────
 
 
-def test_pnfl_rules_load() -> None:
-    root = Path(__file__).resolve().parents[3]
-    rules = load_rules(
-        [str(root / "release" / "leagues" / "PNFL" / "rules" / "profile.toml")]
-    )
-    assert rules.min_categories == 2
-    assert RUN_RANDOM in rules.offense_disallowed_categories
-    assert rules.defense_disallowed_categories == frozenset()
-    assert rules.offense_situations and rules.defense_situations
+@pytest.mark.parametrize("path", shipped_files("*/rules/profile.toml"), ids=shipped_id)
+def test_shipped_rules_load(path: Path) -> None:
+    load_rules([path])

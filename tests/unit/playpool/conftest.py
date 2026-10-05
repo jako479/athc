@@ -1,11 +1,11 @@
 """Shared fixtures for playpool unit tests.
 
 Three pools over the SAME plays exercise the file-driven classifier:
-  pnfl_pool    — the curated PNFL tree in data/plays/ (folders add attributes)
-  nonpnfl_pool — the same files under arbitrary folder names
-  flat_pool    — the same files in one flat directory
+  league_pool    — data/plays/ in the league folder layout (folders add attributes)
+  arbitrary_pool — the same files under arbitrary folder names
+  flat_pool      — the same files in one flat directory
 Side, category, and filename attributes must match across all three; only the
-PNFL tree adds `screen` / `defensive_front`.
+league folder layout adds `screen` / `defensive_front`.
 """
 
 from __future__ import annotations
@@ -23,8 +23,8 @@ DATA = Path(__file__).resolve().parent / "data"
 PLAYS = DATA / "plays"
 RULES_TOML = DATA / "rules.toml"
 
-# arbitrary folder names — none is a recognized PNFL token
-NONPNFL_DIRS = ("alpha", "beta/inner", "gamma", "passes", "runs", "misc/deep")
+# arbitrary folder names — none is a recognized league folder
+ARBITRARY_DIRS = ("alpha", "beta/inner", "gamma", "passes", "runs", "misc/deep")
 
 MakePlay = Callable[..., PlayFile]
 
@@ -72,18 +72,18 @@ def flat_tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture(scope="session")
-def nonpnfl_tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Every fixture .ply copied under arbitrary (non-PNFL) folder names."""
-    root = tmp_path_factory.mktemp("nonpnfl")
+def arbitrary_tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Every fixture .ply copied under arbitrary folder names."""
+    root = tmp_path_factory.mktemp("arbitrary")
     for i, src in enumerate(_ply_files()):
-        sub = root / NONPNFL_DIRS[i % len(NONPNFL_DIRS)]
+        sub = root / ARBITRARY_DIRS[i % len(ARBITRARY_DIRS)]
         sub.mkdir(parents=True, exist_ok=True)
         shutil.copy(src, sub / src.name)
     return root
 
 
 @pytest.fixture(scope="session")
-def pnfl_pool(rules: PlaypoolRules) -> PlayPool:
+def league_pool(rules: PlaypoolRules) -> PlayPool:
     return read_play_pool(PLAYS, rules=rules)
 
 
@@ -93,5 +93,5 @@ def flat_pool(flat_tree: Path, rules: PlaypoolRules) -> PlayPool:
 
 
 @pytest.fixture(scope="session")
-def nonpnfl_pool(nonpnfl_tree: Path, rules: PlaypoolRules) -> PlayPool:
-    return read_play_pool(nonpnfl_tree, rules=rules)
+def arbitrary_pool(arbitrary_tree: Path, rules: PlaypoolRules) -> PlayPool:
+    return read_play_pool(arbitrary_tree, rules=rules)

@@ -83,4 +83,4 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_ply()` = 
 
 ## Resolved finding
 
-**User Specific (`0xFF`/`0xFE`).** `category_name` masked `user_category & 0x3F`, but the tables key User Specific at the full byte `0xFF`/`0xFE`, so it always returned `None` — never noticed because PNFL plays are never User Specific, and the tool is meant to be league-agnostic. Fixed in `model.py` to look up the full byte first, falling back to the masked base, so `0xFF`/`0xFE` resolve while ordinary codes still match. Covered by `test_user_specific_resolves`.
+**User Specific (`0xFF`/`0xFE`).** `category_name` masked `user_category & 0x3F`, but the tables key User Specific at the full byte `0xFF`/`0xFE`, so it always returned `None`. Fixed in `model.py` to look up the full byte first, falling back to the masked base, so `0xFF`/`0xFE` resolve while ordinary codes still match. Covered by `test_user_specific_resolves`.
