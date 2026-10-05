@@ -87,7 +87,7 @@ Each tool reads its one fixed file under the league's `rules\`. An optional mult
 
 ## Multi-league selection
 
-`--league NAME` is one option on the root command (`athc --league NAME <command>`). League-aware commands (`gameplan check` / `replace-play` / `set-normals` / `set-specials`, `profile check`, `convert-pdb`, `generate-schedule`) read it through `selected_league(ctx)`; non-league tools ignore it. The option and helper are in [cli.md](cli.md#cross-cutting-options---league). A league is resolved only when a value is still needed after the CLI overrides.
+`--league NAME` is one option on the root command (`athc --league NAME <command>`). League-aware commands (`gameplan check` / `replace-play` / `set-normals` / `set-specials`, `profile check`, `check-ppp`, `convert-pdb`, `generate-schedule`) read it through `selected_league(ctx)`; non-league tools ignore it. The option and helper are in [cli.md](cli.md#cross-cutting-options---league). A league is resolved only when a value is still needed after the CLI overrides.
 
 **Selection priority** (highest wins):
 

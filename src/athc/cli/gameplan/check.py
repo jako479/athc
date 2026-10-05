@@ -10,7 +10,7 @@ import click
 from athc.cli import selected_league
 from athc.cli.gameplan import gameplan
 from athc.cli.gameplan._common import build_pool, collect_files, resolve_rules
-from athc.fbpro98_gameplan import InvalidGamePlanError, read_gameplan
+from athc.fbpro98_gameplan import GamePlan, InvalidGamePlanError, read_gameplan
 from athc.gameplan import Rules, Violation, validate_gameplan
 from athc.gameplan.config import ConfigFileError, load_config
 from athc.playpool import PlayPool
@@ -112,10 +112,22 @@ def check(
 
 def check_file(path: Path, rules: Rules, pool: PlayPool) -> tuple[int, str]:
     """Return `(count, line)`; a parse/I/O error returns `(-1, error line)`."""
+    gp = read_file(path)
+    if isinstance(gp, str):
+        return -1, gp
+    return report(path, gp, rules, pool)
+
+
+def read_file(path: Path) -> GamePlan | str:
+    """The gameplan, or its `<path>: ERROR: ...` line when it can't be read."""
     try:
-        gp = read_gameplan(str(path))
+        return read_gameplan(str(path))
     except (OSError, InvalidGamePlanError, ValueError) as error:
-        return -1, f"{path}: ERROR: {error}"
+        return f"{path}: ERROR: {error}"
+
+
+def report(path: Path, gp: GamePlan, rules: Rules, pool: PlayPool) -> tuple[int, str]:
+    """`(count, line)` for a gameplan already read: OK, or its violations."""
     violations = validate_gameplan(gp, rules, pool)
     side = "offense" if gp.is_offense else "defense"
     normal = sum(1 for p in gp.normal_plays if p is not None)

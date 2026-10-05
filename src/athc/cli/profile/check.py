@@ -14,6 +14,7 @@ from athc.config import ConfigFileError, LeagueError
 from athc.fbpro98_gameplan import GamePlan, InvalidGamePlanError, read_gameplan
 from athc.fbpro98_profile import (
     InvalidProfileError,
+    Profile,
     UnsupportedProfileError,
     read_profile,
 )
@@ -132,13 +133,40 @@ def check_file(
     path: Path, rules: ProfileRules, gameplan: GamePlan | None = None
 ) -> tuple[int, str]:
     """Return `(count, line)`; a parse/I/O error or side mismatch returns
-    `(-1, error line)`. With a gameplan, `count` also includes whichever
-    compatibility checks `[gameplan_compatibility]` enables, and the head line reports
-    them."""
+    `(-1, error line)`."""
+    prof = read_file(path)
+    if isinstance(prof, str):
+        return -1, prof
+    if gameplan is not None and (mismatch := side_mismatch(path, prof, gameplan)):
+        return -1, mismatch
+    return report(path, prof, rules, gameplan)
+
+
+def read_file(path: Path) -> Profile | str:
+    """The profile, or its `<path>: ERROR: ...` line when it can't be read."""
     try:
-        prof = read_profile(str(path))
+        return read_profile(str(path))
     except (OSError, InvalidProfileError, UnsupportedProfileError) as error:
-        return -1, f"{path}: ERROR: {error}"
+        return f"{path}: ERROR: {error}"
+
+
+def side_mismatch(path: Path, prof: Profile, gameplan: GamePlan) -> str | None:
+    """The `<path>: ERROR: ...` line when the profile and gameplan sides differ."""
+    if prof.is_offense == gameplan.is_offense:
+        return None
+    side = "offense" if prof.is_offense else "defense"
+    gp_side = "offense" if gameplan.is_offense else "defense"
+    return (
+        f"{path}: ERROR: profile is {side} but gameplan is {gp_side}; sides must match"
+    )
+
+
+def report(
+    path: Path, prof: Profile, rules: ProfileRules, gameplan: GamePlan | None = None
+) -> tuple[int, str]:
+    """`(count, line)` for a profile already read. With a same-side gameplan,
+    `count` also includes whichever compatibility checks `[gameplan_compatibility]`
+    enables, and the head line reports them."""
     violations = validate_profile(prof, rules)
     side = "offense" if prof.is_offense else "defense"
     summary = f"{side}, FG range {prof.field_goal_range}"
@@ -146,12 +174,6 @@ def check_file(
     if gameplan is None:
         return _render(path, violations, summary)
 
-    if prof.is_offense != gameplan.is_offense:
-        gp_side = "offense" if gameplan.is_offense else "defense"
-        return -1, (
-            f"{path}: ERROR: profile is {side} but gameplan is {gp_side}; "
-            f"sides must match"
-        )
     issues: tuple[CompatIssue, ...] = ()
     if rules.profile_categories_in_gameplan:
         issues += check_gameplan_compatibility(prof, gameplan)

@@ -155,9 +155,9 @@ athc --league NAME <command>.
 
    --gameplan FILE also checks the profile's play categories against a .pln
    gameplan: every category the profile uses (normal and special teams) must
-   have a custom play in the gameplan. It also warns about gameplan categories
-   the profile never uses (a warning does not fail the check). Profile and
-   gameplan must be the same side (offense or defense).
+   have a custom play in the gameplan. It also reports gameplan categories the
+   profile never uses. The league's rules\profile.toml turns each direction on.
+   Profile and gameplan must be the same side (offense or defense).
 
    Show help:
       athc profile check --help
@@ -201,7 +201,27 @@ athc --league NAME <command>.
       athc profile diff OFF1.prf OFF2.prf --output changes.csv
 
 
-11) convert-pdb  --  WinLogStats stats (.pdb) into Excel
+11) check-ppp  --  check a profile and/or a game plan, and how they fit
+    -------------------------------------------------------------------
+
+   Checks one .prf coaching profile, one .pln game plan, or both, in either
+   order (the extension tells them apart). Each file gets the same check as
+   profile check and gameplan check, with the rules from the current league;
+   there are no options. With both files, they must be the same side, and
+   every play category the profile uses must have a custom play in the game
+   plan. Game plan categories the profile never uses are listed as info only;
+   they do not fail the check. Every error is reported, not just the first.
+
+   Show help:
+      athc check-ppp --help
+
+   Example terminal calls:
+      athc check-ppp OFF1.prf OFF.pln
+      athc check-ppp OFF1.prf
+      athc check-ppp OFF.pln
+
+
+12) convert-pdb  --  WinLogStats stats (.pdb) into Excel
     ----------------------------------------------------
 
    Builds an Excel workbook (.xlsx, or .xlsm for embedded sorting macros)
@@ -220,7 +240,7 @@ athc --league NAME <command>.
       athc convert-pdb stats.pdb output.xlsm -d defense.pln -o offense.pln
 
 
-12) autocontinue  --  auto-click the FbPro '98 'Continue' button between plays
+13) autocontinue  --  auto-click the FbPro '98 'Continue' button between plays
     --------------------------------------------------------------------------
 
    Watches for the 'Continue' button and clicks it between plays. Settings
@@ -242,7 +262,7 @@ athc --league NAME <command>.
       athc autocontinue --no-hot-corner
 
 
-13) config  --  locate, edit, reveal, or set your athc settings
+14) config  --  locate, edit, reveal, or set your athc settings
     ----------------------------------------------------------
 
    Helpers for the settings file (athc.ini) and its folder. `path` prints
@@ -269,14 +289,15 @@ EXIT CODES
 
    0 always means success. The meaning of 1 and 2 depends on the command.
 
-   Checks and comparisons -- gameplan check, profile check, profile diff,
-   find-play, and the bulk editors set-specials, replace-play, and
-   profile copy:
+   Checks and comparisons -- gameplan check, profile check, check-ppp,
+   profile diff, find-play, and the bulk editors set-specials, replace-play,
+   and profile copy:
       0   clean -- nothing to report
       1   ran, but found problems (violations, differences, a missing
           play, nothing replaced, or some files failed)
-      2   could not run (bad arguments, config or I/O error, no rules, or
-          the replacement play is not in the pool)
+      2   could not run (bad arguments, config or I/O error, no rules, a
+          profile and game plan of different sides, or the replacement play
+          is not in the pool)
 
    All other commands either succeed or fail:
       0   success

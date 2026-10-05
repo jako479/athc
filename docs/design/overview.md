@@ -23,6 +23,7 @@ athc/
     # CLI WIRING (Click decorators; no tool logic)
     cli/
       __init__.py                        # AthcGroup + main() + shared decorators
+      check_ppp.py                       # athc check-ppp (leaf)
       generate_schedule.py               # athc generate-schedule (leaf)
       convert_pdb.py                     # athc convert-pdb (leaf)
       autocontinue.py                    # athc autocontinue (leaf)

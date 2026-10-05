@@ -35,6 +35,11 @@ high-level change completed alongside it gets its own line.
 - hot-corner toggle, focus checks, halftime images
 - added the `autocontinue` command
 
+## check-ppp
+
+- a profile and its gameplan are checked against each other: same side, every profile category backed by the gameplan; unused gameplan categories are info only
+- added the `check-ppp` command: one profile and/or one gameplan, checked like `profile check` and `gameplan check`
+
 ## fbpro98_gameplan
 
 - updated for the `PlayRef` rename

@@ -21,7 +21,7 @@ src/athc/profile/          # tool logic (no Click)
 src/athc/cli/profile/      # Click wiring
 ├── __init__.py    # `profile` group
 ├── _common.py     # collect_files, make_backup, resolve_rules
-├── check.py       # `athc profile check`
+├── check.py       # `athc profile check` (read_file / report / side_mismatch, shared with check-ppp)
 ├── diff.py        # `athc profile diff` (+ render / render_csv)
 └── copy.py        # `athc profile copy`
 ```

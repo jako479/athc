@@ -17,6 +17,7 @@ for it are not when the work happened.
 
 ```
 athc autocontinue               DONE
+athc check-ppp                  DONE (single files)
 athc config edit                DONE
 athc config path                DONE
 athc config reveal              DONE
@@ -33,7 +34,6 @@ athc generate-schedule          DONE
 athc profile check              DONE
 athc profile copy               DONE
 athc profile diff               DONE
-athc check-ppp                  FUTURE
 ```
 
 ## athc
@@ -119,6 +119,25 @@ Working. Docs: [README](docs/autocontinue/README.md) ·
 - Hot-corner toggle, focus checks and halftime assets added.
 
 Open: halftime handling itself.
+
+## check-ppp
+
+Working. Checks one profile and/or one gameplan, and how they fit. Docs:
+[README](docs/check_ppp/README.md)
+
+- Takes one `.prf` and/or one `.pln`, in either order; the extension tells
+  them apart. No options: every rule comes from the league folder.
+- Each file is checked and printed exactly as `profile check` and
+  `gameplan check` do, through their shared `read_file` / `report` code. With
+  both files, they must be the same side, and a profile category the gameplan
+  lacks fails the check; a gameplan category the profile never uses is only an
+  info line. Both always run; the `[gameplan_compatibility]` flags are for
+  `profile check` only.
+- Every input, config and file error is reported in one run; a side mismatch
+  still prints each file's own report.
+
+Open: a directory of profiles and gameplans (pairing by team, 1st and 2nd
+halves) · replace `gameplan check` and `profile check`.
 
 ## fbpro98_gameplan (library)
 
@@ -260,6 +279,13 @@ construction, never pruned · then the quirk budget in
 
 ## Decisions
 
+- **In check-ppp, unused gameplan categories are info, not a failure.** The
+  league rule was corrected: the gameplan must back every category the profile
+  uses, and extra gameplan categories are fine. check-ppp ignores the
+  `[gameplan_compatibility]` flags; `profile check` is unchanged and still
+  fails on them.
+- **check-ppp tells its files apart by extension.** Positional files of mixed
+  kinds, like gcc; a fixed order only works when both files are always given.
 - **One folder per league, fixed file names inside.** The OBS / Kodi / Hugo
   shape; nothing lists the inner files in config, so adding a league is
   copying a folder.
@@ -271,11 +297,12 @@ construction, never pruned · then the quirk budget in
   carry it.
 - **convert-pdb's workbook options are app-wide.** They stay in
   `[convert-pdb]`; only the play pool is per league.
-- **One `athc check-ppp FILES...` replaces `gameplan check` and `profile check`.**
+- **One `athc check-ppp` replaces `gameplan check` and `profile check`.**
   It runs each file's own league rules and adds the compatibility checks when
   it has a matching pair, so a league manager validates a submission in one
-  command. To settle: how a directory or glob pairs many files of both types,
-  and whether the two tools keep their other subcommands.
+  command. For now it takes one profile and/or one gameplan. To settle: how a
+  directory pairs many files of both types, and whether the two tools keep
+  their other subcommands.
 - **Compatibility rules live in the rules file, not the code.** They are league
   rules like any other, so a league enables each direction itself.
 - **`solver_workers` defaults to `"auto"`.** A seed reproduces only at the same

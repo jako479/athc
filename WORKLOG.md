@@ -4,6 +4,18 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-04 — **check-ppp**: new command that checks one profile and/or one
+  gameplan in a single run, ahead of replacing `gameplan check` and
+  `profile check`. Files are positional and told apart by extension (the gcc
+  pattern), since either one may be left out. Each check's file reading and
+  report code was split out, so check-ppp prints exactly what the two commands
+  print and reads each file once. The cross-check follows the corrected
+  league rule: a profile category the gameplan lacks fails, while a gameplan
+  category the profile never uses is only info, both regardless of the
+  `[gameplan_compatibility]` flags (`profile check` keeps them and still fails
+  on unused categories). Every input, config and file error is reported in one run, and the
+  error hints name no options check-ppp lacks. Directories wait until
+  pairing files by team (names differ, 1st and 2nd halves) is worked out.
 - 2026-10-04 — **scheduler**: phase 1 now solves the way phase 2 does —
   multithreaded across `solver_workers`, stopping on deterministic time
   (`phase1_time_limit`, now 120) — through one shared solver setup in

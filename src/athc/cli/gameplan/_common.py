@@ -127,16 +127,22 @@ def find_in_gameplan(
 
 
 def resolve_rules(
-    rule_files: Iterable[Path], *, prog: str, logger: logging.Logger
+    rule_files: Iterable[Path],
+    *,
+    prog: str,
+    logger: logging.Logger,
+    option: str | None = "--rules",
 ) -> Rules | None:
     """Load gameplan rules from `rule_files`; return None (a hard error for the
-    caller) when none are configured or loading fails."""
+    caller) when none are configured or loading fails. `option` is the
+    command's override flag the error suggests; None when it has none."""
     files = list(rule_files)
     if not files:
         logger.error(
             "%s: no rules configured - nothing to check. "
-            "Add rules\\gameplan.toml to the league folder or pass --rules.",
+            "Add rules\\gameplan.toml to the league folder%s.",
             prog,
+            f" or pass {option}" if option else "",
         )
         return None
     try:

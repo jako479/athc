@@ -16,6 +16,7 @@ import click
 import pytest
 
 from athc.cli import cli, selected_league
+from athc.cli.check_ppp import check_ppp
 from athc.cli.convert_pdb import convert_pdb
 from athc.cli.gameplan.check import check as gameplan_check
 from athc.cli.generate_schedule import generate_schedule
@@ -32,7 +33,8 @@ def test_root_help_lists_league(runner) -> None:
 
 
 @pytest.mark.parametrize(
-    "command", [gameplan_check, profile_check, convert_pdb, generate_schedule]
+    "command",
+    [gameplan_check, profile_check, check_ppp, convert_pdb, generate_schedule],
 )
 def test_subcommands_no_longer_take_league(runner, command: click.Command) -> None:
     result = runner.invoke(command, ["--help"])

@@ -357,6 +357,85 @@ In [test_profile_copy.py](test_profile_copy.py). Inputs: real `TST-OFF1/DEF1.prf
 
 ---
 
+# `athc check-ppp`
+
+In [test_check_ppp.py](test_check_ppp.py). Same real `.prf` / `.pln` / pool as `profile check` and `gameplan check`; every rule comes from a tmp league folder (`league` / `pnfl` fixtures), since check-ppp has no options. Reports are compared to the existing `profile check` / `gameplan check` goldens in `expected/` (path normalized). Exit 0 clean / 1 findings / 2 error.
+
+## arguments
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| No file | — | usage error, exit 2 | `test_cli_requires_a_file` | ☑ |
+| Third file | 3 files | usage error, exit 2 | `test_cli_rejects_a_third_file` | ☑ |
+
+## one file
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Profile only = `profile check` | data | exit 1; golden + summary | `test_cli_profile_only_matches_profile_check` `[P]` | ☑ |
+| Profile only clean (mocked) | data | exit 0; OK line | `test_cli_profile_only_clean_exit_0` | ☑ |
+| Profile only needs no gameplan config | league w/o play_path or gameplan rules | exit 1 | `test_cli_profile_only_needs_no_gameplan_config` | ☑ |
+| Gameplan only = `gameplan check` | data | exit 1; golden + summary | `test_cli_gameplan_only_matches_gameplan_check` `[P]` | ☑ |
+| Gameplan only clean (mocked) | data | exit 0; OK line | `test_cli_gameplan_only_clean_exit_0` | ☑ |
+| Gameplan only needs no profile rules | league w/o profile rules | exit 1 | `test_cli_gameplan_only_needs_no_profile_rules` | ☑ |
+
+## both files
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Both = `profile check --gameplan` + `gameplan check` | OFF1 + offense.pln | exit 1; both goldens + one summary | `test_cli_both_matches_existing_reports` | ☑ |
+| Unused gameplan categories are info | DEF1 + defense.pln | exit 1; 1 `gameplan:` line, 4 `gameplan info:` lines not counted | `test_cli_unused_gameplan_categories_are_info` | ☑ |
+| Order does not matter | gameplan first | same stdout | `test_cli_file_order_does_not_matter` | ☑ |
+| Clean both (mocked) | clean profile, info mocked | exit 0; two OK lines | `test_cli_both_clean_exit_0` | ☑ |
+| Unused gameplan categories alone | clean profile, flags off, gameplan mocked | exit 0; 10 `gameplan info:` lines | `test_cli_unused_gameplan_categories_alone_exit_0` | ☑ |
+| Cross-check ignores the league flags | each flag combination | always 1 issue, 4 info lines | `test_cli_cross_check_ignores_league_flags` `[P]` | ☑ |
+| Side mismatch | OFF1 + defense.pln | exit 2; each file's own report + mismatch line | `test_cli_side_mismatch_still_checks_each_file` | ☑ |
+| Side mismatch, defense profile | DEF1 + offense.pln | exit 2; no cross-check | `test_cli_side_mismatch_defense_profile` | ☑ |
+
+## input and file errors
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Missing file | tmp | exit 2; "path does not exist"; no stdout | `test_cli_missing_file` | ☑ |
+| Every input error reported | missing + `.txt` | both logged | `test_cli_reports_every_input_error` | ☑ |
+| Wrong extension | `.txt` | exit 2; "not a .prf or .pln file" | `test_cli_wrong_extension` | ☑ |
+| Directory | tmp dir | exit 2; "not a file" | `test_cli_directory_is_not_a_file` | ☑ |
+| Extension case-insensitive | `.PRF` + `.PLN` | exit 1 | `test_cli_extension_is_case_insensitive` | ☑ |
+| Second file of a kind | 2 `.prf` / 2 `.pln` | exit 2; first still checked | `test_cli_second_file_of_a_kind_is_an_error` `[P]` | ☑ |
+| Continues past bad input | OFF1 + `.txt` | exit 2; OFF1 golden | `test_cli_continues_past_bad_input` | ☑ |
+| Malformed `.prf` / `.pln` | tmp | exit 2; ERROR line | `test_cli_malformed_file` `[P]` | ☑ |
+| File of the other kind | profile as `.pln`, gameplan as `.prf` | exit 2; ERROR line | `test_cli_file_of_the_other_kind_is_an_error` `[P]` | ☑ |
+| Bad profile, gameplan still checked | tmp + data | exit 2; gameplan golden | `test_cli_bad_profile_still_checks_gameplan` | ☑ |
+| Bad gameplan, profile still checked | data + tmp | exit 2; profile golden, no cross-check | `test_cli_bad_gameplan_still_checks_profile` | ☑ |
+| Both unreadable | tmp | exit 2; both ERROR lines | `test_cli_both_unreadable_reports_both` | ☑ |
+
+## league / rules config
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| No league | empty config | exit 2; "no league selected" logged once | `test_cli_no_league` | ☑ |
+| Rules from `[athc] league` | league folder | exit 1 | `test_cli_rules_from_league_set_in_athc_ini` | ☑ |
+| No profile / gameplan rules | league folder | exit 2; "no rules configured"; no `--rules` hint; other file still checked | `test_cli_no_profile_rules_in_league` / `test_cli_no_gameplan_rules_in_league` | ☑ |
+| Config error still reports mismatch / unreadable file | no league | exit 2; mismatch line / ERROR line | `test_cli_config_error_still_reports_side_mismatch` / `test_cli_config_error_still_reports_unreadable_file` | ☑ |
+| Every config error reported | no rules, bad play path | all three logged | `test_cli_reports_every_config_error` | ☑ |
+| No `play_path` / not a directory | league folder | exit 2; no `--play-path` hint | `test_cli_no_play_path` / `test_cli_play_path_not_a_directory` | ☑ |
+| Bad rules TOML | profile / gameplan | exit 2; "TOML parse error"; other file still checked | `test_cli_bad_rules_toml` `[P]` | ☑ |
+| Bad playpool rules | league folder | exit 2 | `test_cli_bad_playpool_rules` | ☑ |
+| Rule lists in `league.ini` | `profile_rules` + `gameplan_rules` | exit 1 | `test_cli_rule_lists_in_league_ini` | ☑ |
+| Listed rules file missing | `*_rules` → absent file | exit 2; path named | `test_cli_missing_listed_rules_file` `[P]` | ☑ |
+| Malformed `athc.ini` | bad ini | exit 2; athc.ini named | `test_cli_malformed_ini` | ☑ |
+
+## root group
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| `--league` beats `athc.ini` | two leagues | exit 1 | `test_root_league_flag_beats_athc_ini` | ☑ |
+| `ATHC_LEAGUE` | env + folder | exit 1 | `test_root_league_from_env` | ☑ |
+| Unknown league | `--league NOPE` | exit 2; "not found" | `test_root_league_unknown_folder` | ☑ |
+| Listed in `athc --help` | — | "check-ppp" shown | `test_root_help_lists_check_ppp` | ☑ |
+
+## Packaging check (real subprocess)
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Real subprocess `athc check-ppp` | data + league | exit 1; summary printed | `test_entry_point_subprocess` | ☑ |
+| Errors go to stderr | missing file | exit 2; stdout empty; stderr names the file | `test_entry_point_errors_go_to_stderr` | ☑ |
+
+---
+
 # `athc autocontinue`
 
 In [test_autocontinue.py](test_autocontinue.py). Config-driven (`athc.ini [autocontinue]`); the pyautogui watch loop is manual-only, so the CLI is tested with `auto_continue` stubbed (nothing touches the screen). `config_dir` fixture isolates `ATHC_CONFIG_DIR`.

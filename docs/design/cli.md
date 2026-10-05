@@ -154,7 +154,7 @@ Production users never set the var; the default `%LOCALAPPDATA%\athc` wins.
 
 ## Cross-cutting options: `--league`
 
-`--league NAME` is one option on the root group (`athc --league PCFL gameplan check plan.pln`), like `aws --profile`, `gcloud --configuration`, `kubectl --context` and `docker --context`. The root callback stores it in `ctx.obj`; league-aware commands (gameplan, profile, convert-pdb, generate-schedule) read it with `selected_league(ctx)`. Non-league tools (autocontinue, config) simply ignore it.
+`--league NAME` is one option on the root group (`athc --league PCFL gameplan check plan.pln`), like `aws --profile`, `gcloud --configuration`, `kubectl --context` and `docker --context`. The root callback stores it in `ctx.obj`; league-aware commands (gameplan, profile, check-ppp, convert-pdb, generate-schedule) read it with `selected_league(ctx)`. Non-league tools (autocontinue, config) simply ignore it.
 
 `-v/--verbose` also sits on the root group: it applies to every command without exception, and the handler it configures is process-wide ([logging.md](logging.md#handler-setup)).
 
@@ -198,14 +198,14 @@ problem in the input, distinct from the command failing to run. Per-tool specifi
 are in each tool's `ARCHITECTURE.md`.
 
 **Commands with a findings tier** — `gameplan check`, `profile check`,
-`profile diff`, `find-play`, and the multi-file editors `set-specials`,
+`check-ppp`, `profile diff`, `find-play`, and the multi-file editors `set-specials`,
 `replace-play`, and `profile copy`. They follow the grep/diff convention:
 
 | Exit | Meaning |
 |---|---|
 | `0` | Clean — no problems (identical; all files updated). |
 | `1` | Findings — ran, but found problems: violations, differences, a missed play, or some files failed. |
-| `2` | Error — couldn't run: usage, config, I/O, or no rules. |
+| `2` | Error — couldn't run: usage, config, I/O, no rules, or a profile/gameplan side mismatch. |
 
 **Commands without** — `list-normals`, `list-specials`, `convert-pdb`,
 `set-normals`, `generate-schedule`, `autocontinue`, `config`. They follow the common

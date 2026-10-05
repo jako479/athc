@@ -69,7 +69,7 @@ swappable at all.
 
 `-v/--verbose` is the only log-level control; there is no config-file key for it.
 
-> **Not yet wired up.** Today the 13 leaf commands each call `basicConfig` and
+> **Not yet wired up.** Today the 14 leaf commands each call `basicConfig` and
 > the umbrella installs no handler, so output is uncolored and `-v` doesn't
 > exist. Tracked in [TODO.md](../../TODO.md).
 
