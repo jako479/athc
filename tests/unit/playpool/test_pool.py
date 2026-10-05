@@ -179,6 +179,62 @@ def test_wrong_category_folder_warns(
     )
 
 
+# ── issues: every warning is also kept on the pool, word for word ─────────────
+
+
+def _copy_play(name: str, folder: Path) -> None:
+    folder.mkdir(parents=True, exist_ok=True)
+    shutil.copy(next(PLAYS.glob(f"**/{name}.ply")), folder / f"{name}.ply")
+
+
+def test_no_issues_when_consistent(tmp_path: Path) -> None:
+    _copy_play("AF2AshtZ", tmp_path / "Offense" / "PSM")
+    assert read_play_pool(tmp_path).issues == []
+
+
+def test_category_mismatch_is_an_issue(tmp_path: Path) -> None:
+    _copy_play("AF2AshtZ", tmp_path / "Offense" / "PML")
+    assert read_play_pool(tmp_path).issues == [
+        "Pass Short Middle play in a Pass Medium Left folder: Offense/PML/AF2AshtZ.ply"
+    ]
+
+
+def test_wrong_side_is_an_issue(tmp_path: Path) -> None:
+    _copy_play("AF32gp02", tmp_path / "Offense")
+    assert read_play_pool(tmp_path).issues == [
+        "Defensive play in the offense tree: Offense/AF32gp02.ply"
+    ]
+
+
+def test_duplicate_name_is_an_issue(tmp_path: Path) -> None:
+    _copy_play("AF21rm12", tmp_path / "a")
+    _copy_play("AF21rm12", tmp_path / "b")
+    assert read_play_pool(tmp_path).issues == [
+        "Duplicate play name 'AF21rm12'; last loaded wins"
+    ]
+
+
+def test_invalid_file_is_an_issue(tmp_path: Path) -> None:
+    (tmp_path / "bad.ply").write_bytes(b"\x00\x01\x02")
+    issues = read_play_pool(tmp_path).issues
+    assert len(issues) == 1
+    assert issues[0].startswith("Skipping invalid play file: ")
+    assert "bad.ply" in issues[0]
+
+
+def test_issues_match_the_logged_warnings(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    _copy_play("AF2AshtZ", tmp_path / "Offense" / "PML")
+    _copy_play("AF21rm12", tmp_path / "a")
+    _copy_play("AF21rm12", tmp_path / "b")
+    with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
+        pool = read_play_pool(tmp_path)
+    logged = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(pool.issues) == 2
+    assert pool.issues == logged
+
+
 # ── folder_warnings unit cases (pure; exhaustive over mismatch kinds) ──────────
 
 

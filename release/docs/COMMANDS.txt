@@ -218,7 +218,26 @@ unless the command is given --league NAME.
       athc check-ppp OFF.pln
 
 
-12) convert-pdb  --  WinLogStats stats (.pdb) into Excel
+12) check-playpool  --  check the play pool for misfiled and duplicate plays
+    ------------------------------------------------------------------------
+
+   Checks every play under the league's play_path, or under a folder you
+   give instead (then no league is needed); --league picks another league.
+   Reports plays in a folder that doesn't match the play file, duplicate play
+   names, and invalid play files -- the same warnings other commands show
+   when they load the play pool. Ends with a count of plays
+   checked and issues found.
+
+   Show help:
+      athc check-playpool -h
+
+   Example terminal calls:
+      athc check-playpool
+      athc check-playpool E:\SIERRA\FbPro98\PNFL
+      athc check-playpool --league PCFL
+
+
+13) convert-pdb  --  WinLogStats stats (.pdb) into Excel
     ----------------------------------------------------
 
    Builds an Excel workbook (.xlsx, or .xlsm for embedded sorting macros)
@@ -238,7 +257,7 @@ unless the command is given --league NAME.
       athc convert-pdb stats.pdb output.xlsm -d defense.pln -o offense.pln
 
 
-13) autocontinue  --  auto-click the FbPro '98 'Continue' button between plays
+14) autocontinue  --  auto-click the FbPro '98 'Continue' button between plays
     --------------------------------------------------------------------------
 
    Watches for the 'Continue' button and clicks it between plays. Settings
@@ -260,7 +279,7 @@ unless the command is given --league NAME.
       athc autocontinue --no-hot-corner
 
 
-14) config  --  locate, edit, reveal, or set your athc settings
+15) config  --  locate, edit, reveal, or set your athc settings
     ----------------------------------------------------------
 
    Helpers for the settings file (athc.ini) and its folder. `path` prints
@@ -288,11 +307,12 @@ EXIT CODES
    0 always means success. The meaning of 1 and 2 depends on the command.
 
    Checks and comparisons -- gameplan check, profile check, check-ppp,
-   profile diff, find-play, and the bulk editors set-specials, replace-play,
-   and profile copy:
+   check-playpool, profile diff, find-play, and the bulk editors
+   set-specials, replace-play, and profile copy:
       0   clean -- nothing to report
-      1   ran, but found problems (violations, differences, no play
-          found, nothing replaced, or some files failed)
+      1   ran, but found problems (violations, play pool issues,
+          differences, no play found, nothing replaced, or some files
+          failed)
       2   could not run (bad arguments, config or I/O error, no rules, a
           profile and game plan of different sides, or the replacement play
           is not in the pool)

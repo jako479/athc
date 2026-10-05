@@ -135,22 +135,29 @@ class PlayPool:
         self.offensive_plays: list[OffensivePlay] = []
         self.defensive_plays: list[DefensivePlay] = []
         self.special_teams_plays: list[SpecialTeamsPlay] = []
+        # Kept as well as logged, so a caller like check-playpool can print and
+        # count them as findings.
+        self.issues: list[str] = []
         self._plays_by_name: dict[str, Play] = {}
 
     def find_by_name(self, name: str) -> Play | None:
         return self._plays_by_name.get(name.upper())
 
+    def _warn(self, message: str) -> None:
+        logger.warning(message)
+        self.issues.append(message)
+
     def _register(self, play: Play) -> None:
         key = play.name.upper()
         if key in self._plays_by_name:
-            logger.warning("Duplicate play name '%s'; last loaded wins", play.name)
+            self._warn(f"Duplicate play name '{play.name}'; last loaded wins")
         self._plays_by_name[key] = play
 
     def _process_play_file(self, file_path: Path) -> None:
         try:
             play_file = read_play(file_path)
         except InvalidPlayFileError as exc:
-            logger.warning("Skipping invalid play file: %s", exc)
+            self._warn(f"Skipping invalid play file: {exc}")
             return
 
         name = file_path.stem
@@ -160,7 +167,7 @@ class PlayPool:
             rel = Path(file_path.name)
         info = _folder_info(rel.parent.parts)
         for message in _warnings(info, play_file, rel.as_posix()):
-            logger.warning(message)
+            self._warn(message)
 
         if play_file.is_special_teams:
             self._add(SpecialTeamsPlay(name=name, play_file=play_file))

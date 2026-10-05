@@ -38,6 +38,9 @@ src/athc/playpool/
   side is reported alone; unrecognized folders (flat / non-PNFL) never warn. A
   category with no PNFL folder (`User Specific`, Pass Long Left/Middle, Razzle
   Dazzle Run) warns only when filed inside a category folder, not when loose.
+- Keeps every warning it logs (folder mismatches, duplicate names, invalid
+  files) in `PlayPool.issues`, word for word, so `check-playpool` can print
+  and count them.
 
 ## Records — fixed, typed attributes
 
@@ -76,5 +79,5 @@ filename filters are league data. The shipped set is
 
 - `tests/unit/playpool/` — rules parsing + `FilenameFilter.matches`; file-driven
   classification over three layouts (PNFL / non-PNFL / flat); folder attributes;
-  mismatch warnings; record classes.
+  mismatch warnings; `issues`; record classes.
 - Matrix: `tests/unit/playpool/README.md`.

@@ -4,11 +4,11 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-04. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-05. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
-Six commands are in. Nothing has been released.
+Eight commands are in. Nothing has been released.
 
 All non-scheduler work was committed in one batch on 2026-07-19, so git dates
 for it are not when the work happened.
@@ -17,6 +17,7 @@ for it are not when the work happened.
 
 ```
 athc autocontinue               DONE
+athc check-playpool             DONE
 athc check-ppp                  DONE (single files)
 athc config edit                DONE
 athc config path                DONE
@@ -119,6 +120,17 @@ Working. Docs: [README](docs/autocontinue/README.md) ·
 - Hot-corner toggle, focus checks and halftime assets added.
 
 Open: halftime handling itself.
+
+## check-playpool
+
+Working. Checks the play pool. Docs: [README](docs/check_playpool/README.md)
+
+- Reads the league's `play_path`, or a folder given on the command line (then
+  no league is read). `rules\playpool.toml` is not used.
+- Prints the warnings pool loading already logs, word for word, as findings:
+  plays in a folder that contradicts the file, duplicate names, invalid files.
+
+Open: maybe use `rules\playpool.toml` for counts by file name type (TODO).
 
 ## check-ppp
 

@@ -4,6 +4,11 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-05 — **check-playpool**: new command that checks the play pool on
+  its own, with the same checks and messages pool loading already gives
+  convert-pdb and the gameplan tools. The pool now also keeps those warnings
+  in a list, so the command can print and count them as findings like the
+  other check commands do with their results.
 - 2026-10-05 — **check-ppp**: a missing or bad rules file on one side no
   longer lets the other file be checked. Like `gameplan check` and
   `profile check`, any setup error now stops every rule check; errors that

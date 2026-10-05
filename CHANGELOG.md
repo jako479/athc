@@ -58,6 +58,10 @@ high-level change completed alongside it gets its own line.
 - hot-corner toggle, focus checks, halftime images
 - added the `autocontinue` command
 
+## check-playpool
+
+- added the `check-playpool` command: plays in the wrong folder, duplicate play names and invalid play files, from the league's play path or a given folder
+
 ## check-ppp
 
 - takes its own `--league name`; help shows `file [file]`

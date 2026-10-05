@@ -192,6 +192,7 @@ USAGE_CASES = [
         "[--time-limit number] [--league name]",
     ),
     (("autocontinue",), "athc autocontinue [-h] [--hot-corner | --no-hot-corner]"),
+    (("check-playpool",), "athc check-playpool [-h] [--league name] [play_dir]"),
     (
         ("convert-pdb",),
         "athc convert-pdb [-h] [-o pln_file] [-o2 pln_file] [-d pln_file] "

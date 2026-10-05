@@ -68,7 +68,7 @@ swappable at all.
 
 The log level is fixed; there is no option or config-file key for it.
 
-> **Not yet wired up.** Today the 14 leaf commands each call `basicConfig` and
+> **Not yet wired up.** Today the 15 leaf commands each call `basicConfig` and
 > the umbrella installs no handler, so output is uncolored. Tracked in
 > [TODO.md](../../TODO.md).
 

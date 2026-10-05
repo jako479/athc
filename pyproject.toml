@@ -37,6 +37,7 @@ athc = "athc.cli:main"
 # Built-in subcommands register here, same as third-party extensions.
 [project.entry-points."athc.commands"]
 autocontinue = "athc.cli.autocontinue:autocontinue"
+check-playpool = "athc.cli.check_playpool:check_playpool"
 check-ppp = "athc.cli.check_ppp:check_ppp"
 config = "athc.cli.config:config"
 convert-pdb = "athc.cli.convert_pdb:convert_pdb"
