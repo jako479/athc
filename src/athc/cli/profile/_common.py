@@ -84,22 +84,16 @@ def _add(path: Path, files: list[Path], seen: set[Path]) -> None:
 
 
 def resolve_rules(
-    rule_files: Iterable[Path],
-    *,
-    prog: str,
-    logger: logging.Logger,
-    option: str | None = "--rules",
+    rule_files: Iterable[Path], *, prog: str, logger: logging.Logger
 ) -> ProfileRules | None:
     """Load rules from `rule_files`; return None (caller treats as a hard error)
-    when none are configured or loading fails. `option` is the command's
-    override flag the error suggests; None when it has none."""
+    when none are configured or loading fails."""
     files = list(rule_files)
     if not files:
         logger.error(
             "%s: no rules configured - nothing to check. "
-            "Add rules\\profile.toml to the league folder%s.",
+            "Add rules\\profile.toml to the league folder or pass --rules.",
             prog,
-            f" or pass {option}" if option else "",
         )
         return None
     try:

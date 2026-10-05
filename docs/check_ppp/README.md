@@ -28,10 +28,14 @@ them apart. There are no options: the rules come from the current league
 - Both always run. The `[gameplan_compatibility]` flags are for
   `profile check` only.
 
-The output is the same report lines those commands print, profile first, then
-any side-mismatch error, then one summary line. Every error is reported in one
-run: a bad file, a side mismatch or a missing rules file on one side does not
-hide the rest, and the other file is still checked.
+The output is the same report lines those commands print: the profile, then
+the gameplan, then one summary line. Every error is reported in one run: a bad
+file does not hide the rest.
+
+A side mismatch, a missing or bad rules file, or any other setup error stops
+the rule checks and the summary for both files, as a setup error does in
+`gameplan check` and `profile check`; bad files and the mismatch are still
+reported.
 
 ## Results and exit codes
 
@@ -50,8 +54,8 @@ and [gameplan](../gameplan/README.md).
 
 ## Code
 
-`src/athc/cli/check_ppp.py` is a leaf command with no logic of its own. It
-reads, validates and prints through `read_file` / `report` in
-`cli/profile/check.py` and `cli/gameplan/check.py` (plus `side_mismatch`), and
-loads rules through their `_common.py`. Tests:
+`src/athc/cli/check_ppp.py` is a leaf command. It takes nothing from
+`gameplan check` or `profile check`, since it replaces them: reading, rules
+loading and reports live in it. It uses the `profile` / `gameplan` libraries
+and the gameplan group's `build_pool`. Tests:
 `tests/integration/test_check_ppp.py`.

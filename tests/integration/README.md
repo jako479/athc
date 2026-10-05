@@ -386,8 +386,7 @@ In [test_check_ppp.py](test_check_ppp.py). Same real `.prf` / `.pln` / pool as `
 | Clean both (mocked) | clean profile, info mocked | exit 0; two OK lines | `test_cli_both_clean_exit_0` | ☑ |
 | Unused gameplan categories alone | clean profile, flags off, gameplan mocked | exit 0; 10 `gameplan info:` lines | `test_cli_unused_gameplan_categories_alone_exit_0` | ☑ |
 | Cross-check ignores the league flags | each flag combination | always 1 issue, 4 info lines | `test_cli_cross_check_ignores_league_flags` `[P]` | ☑ |
-| Side mismatch | OFF1 + defense.pln | exit 2; each file's own report + mismatch line | `test_cli_side_mismatch_still_checks_each_file` | ☑ |
-| Side mismatch, defense profile | DEF1 + offense.pln | exit 2; no cross-check | `test_cli_side_mismatch_defense_profile` | ☑ |
+| Side mismatch, both ways | OFF1 + defense.pln / DEF1 + offense.pln | exit 2; mismatch line only, no checks, no summary | `test_cli_side_mismatch_stops_the_checks` `[P]` | ☑ |
 
 ## input and file errors
 | Case | Input | Expected | Test | Status |
@@ -410,11 +409,12 @@ In [test_check_ppp.py](test_check_ppp.py). Same real `.prf` / `.pln` / pool as `
 |---|---|---|---|---|
 | No league | empty config | exit 2; "no league selected" logged once | `test_cli_no_league` | ☑ |
 | Rules from `[athc] league` | league folder | exit 1 | `test_cli_rules_from_league_set_in_athc_ini` | ☑ |
-| No profile / gameplan rules | league folder | exit 2; "no rules configured"; no `--rules` hint; other file still checked | `test_cli_no_profile_rules_in_league` / `test_cli_no_gameplan_rules_in_league` | ☑ |
-| Config error still reports mismatch / unreadable file | no league | exit 2; mismatch line / ERROR line | `test_cli_config_error_still_reports_side_mismatch` / `test_cli_config_error_still_reports_unreadable_file` | ☑ |
+| No profile / gameplan rules | league folder | exit 2; "no rules configured"; no `--rules` hint; neither file checked | `test_cli_no_profile_rules_in_league` / `test_cli_no_gameplan_rules_in_league` | ☑ |
+| Rules error still reports side mismatch | no profile rules; OFF1 + defense.pln | exit 2; mismatch line only, no summary | `test_cli_rules_error_still_reports_side_mismatch` | ☑ |
+| Config error still reports mismatch / unreadable file | no league | exit 2; mismatch line / ERROR line; no summary | `test_cli_config_error_still_reports_side_mismatch` / `test_cli_config_error_still_reports_unreadable_file` | ☑ |
 | Every config error reported | no rules, bad play path | all three logged | `test_cli_reports_every_config_error` | ☑ |
 | No `play_path` / not a directory | league folder | exit 2; no `--play-path` hint | `test_cli_no_play_path` / `test_cli_play_path_not_a_directory` | ☑ |
-| Bad rules TOML | profile / gameplan | exit 2; "TOML parse error"; other file still checked | `test_cli_bad_rules_toml` `[P]` | ☑ |
+| Bad rules TOML | profile / gameplan | exit 2; "TOML parse error"; neither file checked | `test_cli_bad_rules_toml` `[P]` | ☑ |
 | Bad playpool rules | league folder | exit 2 | `test_cli_bad_playpool_rules` | ☑ |
 | Rule lists in `league.ini` | `profile_rules` + `gameplan_rules` | exit 1 | `test_cli_rule_lists_in_league_ini` | ☑ |
 | Listed rules file missing | `*_rules` → absent file | exit 2; path named | `test_cli_missing_listed_rules_file` `[P]` | ☑ |

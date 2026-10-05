@@ -4,6 +4,14 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-05 — **check-ppp**: a missing or bad rules file on one side no
+  longer lets the other file be checked. Like `gameplan check` and
+  `profile check`, any setup error now stops every rule check; errors that
+  need no rules (bad files, a side mismatch) are still reported in the same
+  run. check-ppp also stopped reusing code from `gameplan check` and
+  `profile check`, which it will replace; their split for sharing was undone.
+  A side mismatch now stops the checks like a setup error, instead of
+  checking each file on its own.
 - 2026-10-04 — **check-ppp**: new command that checks one profile and/or one
   gameplan in a single run, ahead of replacing `gameplan check` and
   `profile check`. Files are positional and told apart by extension (the gcc

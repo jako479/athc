@@ -16,7 +16,7 @@ src/athc/gameplan/        # tool logic (no Click)
 src/athc/cli/gameplan/    # CLI group
 ├── __init__.py           # `athc gameplan` group
 ├── _common.py            # shared helpers (files, search, rules, pool, listing, backup)
-├── check.py              # `athc gameplan check` (read_file / report, shared with check-ppp)
+├── check.py              # `athc gameplan check`
 ├── find_play.py          # `athc gameplan find-play`
 ├── list_normals.py       # `athc gameplan list-normals`
 ├── list_specials.py      # `athc gameplan list-specials`

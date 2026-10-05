@@ -128,13 +128,14 @@ Working. Checks one profile and/or one gameplan, and how they fit. Docs:
 - Takes one `.prf` and/or one `.pln`, in either order; the extension tells
   them apart. No options: every rule comes from the league folder.
 - Each file is checked and printed exactly as `profile check` and
-  `gameplan check` do, through their shared `read_file` / `report` code. With
+  `gameplan check` do, with its own code, since those two will be removed. With
   both files, they must be the same side, and a profile category the gameplan
   lacks fails the check; a gameplan category the profile never uses is only an
   info line. Both always run; the `[gameplan_compatibility]` flags are for
   `profile check` only.
-- Every input, config and file error is reported in one run; a side mismatch
-  still prints each file's own report.
+- Every input, config and file error is reported in one run. A side mismatch,
+  a rules error or another setup error stops the rule checks and the summary
+  for both files, but bad files and the mismatch still report.
 
 Open: a directory of profiles and gameplans (pairing by team, 1st and 2nd
 halves) · replace `gameplan check` and `profile check`.
@@ -303,8 +304,9 @@ construction, never pruned · then the quirk budget in
   command. For now it takes one profile and/or one gameplan. To settle: how a
   directory pairs many files of both types, and whether the two tools keep
   their other subcommands.
-- **Compatibility rules live in the rules file, not the code.** They are league
-  rules like any other, so a league enables each direction itself.
+- **`profile check`'s compatibility rules live in the rules file, not the
+  code.** They are league rules like any other, so a league enables each
+  direction itself. check-ppp fixes both directions in code instead (see above).
 - **`solver_workers` defaults to `"auto"`.** A seed reproduces only at the same
   thread count, so the report shows the count and it stays config-only.
 - **The config command is `reveal`, not `explorer`.** It opens the config dir

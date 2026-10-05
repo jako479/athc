@@ -144,9 +144,7 @@ def test_cli_profile_only_matches_profile_check(
 def test_cli_profile_only_clean_exit_0(
     runner, pnfl: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(
-        "athc.cli.profile.check.validate_profile", lambda prof, rules: ()
-    )
+    monkeypatch.setattr("athc.cli.check_ppp.validate_profile", lambda prof, rules: ())
     result = run(runner, OFF1)
     assert result.exit_code == 0
     assert result.stdout == (
@@ -182,7 +180,7 @@ def test_cli_gameplan_only_clean_exit_0(
     runner, pnfl: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        "athc.cli.gameplan.check.validate_gameplan", lambda gp, rules, pool: ()
+        "athc.cli.check_ppp.validate_gameplan", lambda gp, rules, pool: ()
     )
     result = run(runner, GP_OFFENSE)
     assert result.exit_code == 0
@@ -252,7 +250,7 @@ def test_cli_both_clean_exit_0(
     league(profile_rules=write_toml(tmp_path, FLAGS_OFF_TOML))
     write_config("[athc]\nleague = PNFL\n")
     monkeypatch.setattr(
-        "athc.cli.gameplan.check.validate_gameplan", lambda gp, rules, pool: ()
+        "athc.cli.check_ppp.validate_gameplan", lambda gp, rules, pool: ()
     )
     monkeypatch.setattr(
         "athc.cli.check_ppp.gameplan_extra_categories", lambda prof, gp: ()
@@ -279,7 +277,7 @@ def test_cli_unused_gameplan_categories_alone_exit_0(
     league(profile_rules=write_toml(tmp_path, FLAGS_OFF_TOML))
     write_config("[athc]\nleague = PNFL\n")
     monkeypatch.setattr(
-        "athc.cli.gameplan.check.validate_gameplan", lambda gp, rules, pool: ()
+        "athc.cli.check_ppp.validate_gameplan", lambda gp, rules, pool: ()
     )
     result = run(runner, COMPAT_OFF_CLEAN, GP_OFFENSE)
     assert result.exit_code == 0
@@ -326,24 +324,21 @@ def test_cli_cross_check_ignores_league_flags(
 # ── side mismatch ─────────────────────────────────────────────────────────────
 
 
-def test_cli_side_mismatch_still_checks_each_file(runner, pnfl: Path) -> None:
-    """Each file gets its own report (no cross-check), then the mismatch error."""
-    result = run(runner, OFF1, GP_DEFENSE)
+@pytest.mark.parametrize(
+    "prof,gameplan,sides",
+    [
+        (OFF1, GP_DEFENSE, "profile is offense but gameplan is defense"),
+        (DEF1, GP_OFFENSE, "profile is defense but gameplan is offense"),
+    ],
+)
+def test_cli_side_mismatch_stops_the_checks(
+    runner, pnfl: Path, prof: Path, gameplan: Path, sides: str
+) -> None:
+    """A mismatch is an error like a setup error: no file is checked and there
+    is no summary, only the mismatch line."""
+    result = run(runner, prof, gameplan)
     assert result.exit_code == 2
-    assert normalized(result, OFF1, GP_DEFENSE) == (
-        golden("TST-OFF1", "defense")
-        + "TST-OFF1.prf: ERROR: profile is offense but gameplan is defense; "
-        "sides must match\n"
-        "\n2 file(s) checked, 19 violation(s) across 2 file(s).\n"
-    )
-
-
-def test_cli_side_mismatch_defense_profile(runner, pnfl: Path) -> None:
-    result = run(runner, DEF1, GP_OFFENSE)
-    assert result.exit_code == 2
-    assert "profile is defense but gameplan is offense" in result.stdout
-    assert "  gameplan: " not in result.stdout
-    assert "  gameplan info: " not in result.stdout
+    assert result.stdout == f"{prof}: ERROR: {sides}; sides must match\n"
 
 
 # ── input errors (logged; every one reported) ─────────────────────────────────
@@ -522,7 +517,7 @@ def test_cli_no_profile_rules_in_league(
     write_config: WriteConfig,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The gameplan has its rules, so it is still checked."""
+    """A rules error stops the rule checks for both files, not just its own."""
     league(profile_rules=None)
     write_config("[athc]\nleague = PNFL\n")
     with caplog.at_level(logging.ERROR):
@@ -531,9 +526,7 @@ def test_cli_no_profile_rules_in_league(
     assert "no rules configured" in caplog.text
     assert "rules\\profile.toml" in caplog.text
     assert "--rules" not in caplog.text  # check-ppp has no such option
-    assert normalized(result, GP_OFFENSE) == (
-        golden("offense") + "\n1 file(s) checked, 3 violation(s) across 1 file(s).\n"
-    )
+    assert result.stdout == ""
 
 
 def test_cli_no_gameplan_rules_in_league(
@@ -542,7 +535,7 @@ def test_cli_no_gameplan_rules_in_league(
     write_config: WriteConfig,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """The profile has its rules, so it is still checked, cross-check included."""
+    """A rules error stops the rule checks for both files, not just its own."""
     league(gameplan_rules=None)
     write_config("[athc]\nleague = PNFL\n")
     with caplog.at_level(logging.ERROR):
@@ -551,9 +544,27 @@ def test_cli_no_gameplan_rules_in_league(
     assert "no rules configured" in caplog.text
     assert "rules\\gameplan.toml" in caplog.text
     assert "--rules" not in caplog.text  # check-ppp has no such option
+    assert result.stdout == ""
+
+
+def test_cli_rules_error_still_reports_side_mismatch(
+    runner,
+    league: BuildLeague,
+    write_config: WriteConfig,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The gameplan's rules load, but a profile rules error stops its check
+    too; the side mismatch needs no rules and is still reported. No summary
+    after a setup error, as in `profile check` / `gameplan check`."""
+    league(profile_rules=None)
+    write_config("[athc]\nleague = PNFL\n")
+    with caplog.at_level(logging.ERROR):
+        result = run(runner, OFF1, GP_DEFENSE)
+    assert result.exit_code == 2
+    assert "rules\\profile.toml" in caplog.text
     assert normalized(result, OFF1) == (
-        golden("compat_offense")
-        + "\n1 file(s) checked, 19 violation(s) across 1 file(s).\n"
+        "TST-OFF1.prf: ERROR: profile is offense but gameplan is defense; "
+        "sides must match\n"
     )
 
 
@@ -568,7 +579,6 @@ def test_cli_config_error_still_reports_side_mismatch(
     assert normalized(result, OFF1) == (
         "TST-OFF1.prf: ERROR: profile is offense but gameplan is defense; "
         "sides must match\n"
-        "\n0 file(s) checked, 0 violation(s) across 0 file(s).\n"
     )
 
 
@@ -581,6 +591,7 @@ def test_cli_config_error_still_reports_unreadable_file(
     assert result.exit_code == 2
     assert "no league selected" in caplog.text
     assert result.stdout.startswith(f"{bad}: ERROR: ")
+    assert result.stdout.count("\n") == 1  # the error line only, no summary
 
 
 def test_cli_reports_every_config_error(
@@ -599,6 +610,7 @@ def test_cli_reports_every_config_error(
     assert "rules\\profile.toml" in caplog.text
     assert "rules\\gameplan.toml" in caplog.text
     assert "not a directory" in caplog.text
+    assert result.stdout == ""
 
 
 def test_cli_no_play_path(
@@ -631,13 +643,7 @@ def test_cli_play_path_not_a_directory(
     assert "not a directory" in caplog.text
 
 
-@pytest.mark.parametrize(
-    "side,still_checked",
-    [
-        ("profile", f"{GP_OFFENSE}: 3 violation(s)"),
-        ("gameplan", f"{OFF1}: 18 violation(s), 1 gameplan issue(s)"),
-    ],
-)
+@pytest.mark.parametrize("side", ["profile", "gameplan"])
 def test_cli_bad_rules_toml(
     runner,
     league: BuildLeague,
@@ -645,9 +651,8 @@ def test_cli_bad_rules_toml(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
     side: str,
-    still_checked: str,
 ) -> None:
-    """Bad rules for one side; the other file is still checked."""
+    """Bad rules for one side; neither file is checked."""
     bad = write_toml(tmp_path, "not = valid = toml")
     league(**{f"{side}_rules": bad})
     write_config("[athc]\nleague = PNFL\n")
@@ -655,8 +660,7 @@ def test_cli_bad_rules_toml(
         result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert "TOML parse error" in caplog.text
-    assert result.stdout.startswith(still_checked)
-    assert "1 file(s) checked" in result.stdout
+    assert result.stdout == ""
 
 
 def test_cli_bad_playpool_rules(
