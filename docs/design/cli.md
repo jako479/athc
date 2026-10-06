@@ -105,7 +105,7 @@ def list_plays(league):
 
 ## Running from source (dev config)
 
-Dev runs read a per-machine `dev/athc.ini` instead of the installed config, selected by `ATHC_CONFIG_DIR` (design: [config.md](config.md#dev-config-running-from-source)). Both methods below use `${workspaceFolder}/dev`, so they work on any clone.
+Dev runs read a per-machine `config/dev/athc.ini` instead of the installed config, selected by `ATHC_CONFIG_DIR` (design: [config.md](config.md#dev-config-running-from-source)). Both methods below use `${workspaceFolder}/config/dev`, so they work on any clone.
 
 ### Run in VS Code (terminal)
 
@@ -113,7 +113,7 @@ In `.vscode/settings.json`:
 
 ```json
 "terminal.integrated.env.windows": {
-  "ATHC_CONFIG_DIR": "${workspaceFolder}/dev"
+  "ATHC_CONFIG_DIR": "${workspaceFolder}/config/dev"
 }
 ```
 
@@ -131,7 +131,7 @@ Per command in `.vscode/launch.json`; `env` sets the var on the debug process:
   "module": "athc",
   "args": ["profile", "check"],
   "console": "integratedTerminal",
-  "env": { "ATHC_CONFIG_DIR": "${workspaceFolder}/dev" }
+  "env": { "ATHC_CONFIG_DIR": "${workspaceFolder}/config/dev" }
 }
 ```
 

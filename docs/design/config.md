@@ -33,8 +33,8 @@ Thin wrappers over `click.edit` / `click.launch`; no `[config]` section (the gro
 Source runs read a per-machine **dev config** instead of the installed one:
 
 - **Override**: `ATHC_CONFIG_DIR`, if set, replaces the whole config dir; else the default `%LOCALAPPDATA%\athc` wins. Resolution: [`athc.config.config_dir()`](../../src/athc/config.py).
-- **Location**: a full `athc.ini` in `dev/` at the repo root (mirrors `release/`).
-- **Shared dir**: athc and athc-admin read the same dir, so one `dev/` serves both.
+- **Location**: a full `athc.ini` in `config/dev/` (mirrors `config/release/`).
+- **Shared dir**: athc and athc-admin read the same dir, so one `config/dev/` serves both.
 - **Production**: end users never set the var.
 
 VS Code terminal/F5 steps: [cli.md](cli.md#running-from-source-dev-config).

@@ -22,12 +22,12 @@ OTHER_LEAGUE = "other_league"
 
 
 def shipped_files(pattern: str) -> list[Path]:
-    """Every shipped `leagues/<pattern>` file, in both `dev/` and `release/`
+    """Every shipped `leagues/<pattern>` file, in both `config/dev/` and `config/release/`
     (e.g. `*/rules/gameplan.toml`)."""
     return sorted(
         path
         for folder in ("dev", "release")
-        for path in (ROOT / folder / "leagues").glob(pattern)
+        for path in (ROOT / "config" / folder / "leagues").glob(pattern)
     )
 
 

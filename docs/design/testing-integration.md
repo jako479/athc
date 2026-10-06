@@ -15,9 +15,9 @@ How athc's **system/integration** tests are structured — a command invoked end
 
 ## Config
 
-Tests use an **isolated, empty config dir**, never the real `athc.ini`: the autouse `config_dir` fixture (root `tests/conftest.py`) monkeypatches `ATHC_CONFIG_DIR` to a `tmp_path`. Tests needing config write their `athc.ini` and league folder there with the shared `write_config` / `make_league` helpers (also in root `tests/conftest.py`). Subprocess packaging checks set `ATHC_CONFIG_DIR` in the child `env` explicitly. The one exception is the shipped-config tests in `test_config.py`, which point `ATHC_CONFIG_DIR` at the repo's `release/` folder itself -- still never the machine config.
+Tests use an **isolated, empty config dir**, never the real `athc.ini`: the autouse `config_dir` fixture (root `tests/conftest.py`) monkeypatches `ATHC_CONFIG_DIR` to a `tmp_path`. Tests needing config write their `athc.ini` and league folder there with the shared `write_config` / `make_league` helpers (also in root `tests/conftest.py`). Subprocess packaging checks set `ATHC_CONFIG_DIR` in the child `env` explicitly. The one exception is the shipped-config tests in `test_config.py`, which point `ATHC_CONFIG_DIR` at the repo's `config/release/` folder itself -- still never the machine config.
 
-Tests never name a real league: test league folders use the neutral names in root `tests/conftest.py`, rules come from the tests' own `data/` files, and every shipped-file test runs once per league folder found in `dev/` and `release/`.
+Tests never name a real league: test league folders use the neutral names in root `tests/conftest.py`, rules come from the tests' own `data/` files, and every shipped-file test runs once per league folder found in `config/dev/` and `config/release/`.
 
 ## Layout
 

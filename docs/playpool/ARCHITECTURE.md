@@ -66,7 +66,7 @@ once (`RulesFileError.errors`) and any error aborts the caller (the gameplan
 command, exit 2). PNFL category folders are matched against the league short
 labels on `fbpro98_play`'s category enum (via `category_by_short`); only these
 filename filters are league data. The shipped set is
-`release/leagues/PNFL/rules/playpool.toml`.
+`config/release/leagues/PNFL/rules/playpool.toml`.
 
 ## What this package enforces / does NOT do
 

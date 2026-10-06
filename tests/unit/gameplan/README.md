@@ -2,7 +2,7 @@
 
 Tool-logic unit cases (rules loader). Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). CLI cases live in [../../integration/README.md](../../integration/README.md).
 
-One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `leagues/<league>/rules/gameplan.toml` in `dev/` and `release/`. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/gameplan` passes.
+One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `leagues/<league>/rules/gameplan.toml` in `config/dev/` and `config/release/`. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/gameplan` passes.
 
 ## rules.py — `load_rules`
 

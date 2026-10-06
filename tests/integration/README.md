@@ -560,22 +560,22 @@ In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.i
 | CLI unknown key | `colour` | exit 2; names known keys | `test_cli_rejects_unknown_key` | ☑ |
 | Help / group listing | `--help` | lists `league` / `set` | `test_cli_help_lists_known_keys` / `test_group_lists_set` | ☑ |
 
-## shipped `release/`
+## shipped `config/release/`
 
-`ATHC_CONFIG_DIR` is pointed at `release/` itself (the `release_config_dir` fixture), so `athc.ini` and every `leagues/<NAME>/` are read exactly as installed. Every league folder runs the same tests: each loader must load, and every rule file it resolves must exist.
+`ATHC_CONFIG_DIR` is pointed at `config/release/` itself (the `release_config_dir` fixture), so `athc.ini` and every `leagues/<NAME>/` are read exactly as installed. Every league folder runs the same tests: each loader must load, and every rule file it resolves must exist.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| At least one league ships | release/ | league folders found | `test_release_ships_leagues` | ☑ |
-| `[athc] league` names a shipped league | release/ | loads | `test_release_selected_league_loads` | ☑ |
-| Every league | release/ | play_path set; standings folder present | `test_release_league_loads` `[P]` | ☑ |
-| `[autocontinue]` | release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
-| gameplan, every league | release/ | loads; playpool rules and rule files exist | `test_release_gameplan_config_loads` `[P]` | ☑ |
-| profile, every league | release/ | loads; rule files exist | `test_release_profile_config_loads` `[P]` | ☑ |
-| convert-pdb, every league | release/ | loads; playpool rules exist; a `play_path` override alone gets the league's file | `test_release_convert_pdb_config_loads` `[P]` | ☑ |
-| `[convert-pdb]` defaults | release/ | spelled out in `athc.ini` | `test_release_convert_pdb_defaults` | ☑ |
-| scheduler, every league | release/ | tunables load; every standings file resolves | `test_release_scheduler_files_load` `[P]` | ☑ |
-| `dev/` mirrors `release/` | both | same `athc.ini`, `league.ini`, rules and standings files | `test_dev_mirrors_release_layout` | ☑ |
+| At least one league ships | config/release/ | league folders found | `test_release_ships_leagues` | ☑ |
+| `[athc] league` names a shipped league | config/release/ | loads | `test_release_selected_league_loads` | ☑ |
+| Every league | config/release/ | play_path set; standings folder present | `test_release_league_loads` `[P]` | ☑ |
+| `[autocontinue]` | config/release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
+| gameplan, every league | config/release/ | loads; playpool rules and rule files exist | `test_release_gameplan_config_loads` `[P]` | ☑ |
+| profile, every league | config/release/ | loads; rule files exist | `test_release_profile_config_loads` `[P]` | ☑ |
+| convert-pdb, every league | config/release/ | loads; playpool rules exist; a `play_path` override alone gets the league's file | `test_release_convert_pdb_config_loads` `[P]` | ☑ |
+| `[convert-pdb]` defaults | config/release/ | spelled out in `athc.ini` | `test_release_convert_pdb_defaults` | ☑ |
+| scheduler, every league | config/release/ | tunables load; every standings file resolves | `test_release_scheduler_files_load` `[P]` | ☑ |
+| `config/dev/` mirrors `config/release/` | both | same `athc.ini`, `league.ini`, rules and standings files | `test_dev_mirrors_release_layout` | ☑ |
 
 ---
 

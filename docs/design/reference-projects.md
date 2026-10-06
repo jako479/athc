@@ -72,7 +72,7 @@ End-user Python apps (not packagers) that ship a self-contained Windows install.
 - [Calibre](https://github.com/kovidgoyal/calibre) — large end-user Python desktop app; bundles its own runtime so users install nothing extra.
 - [MusicBrainz Picard](https://github.com/metabrainz/picard) — end-user Python/Qt app; offline Windows installer with bundled deps.
 
-**Adaptation for athc**: offline-bundled wheels (`--no-index --find-links --offline`) for reproducibility and failure tolerance (PyPI outages, corporate firewalls, AV TLS interception). Build script in `release/`, final artifact in `dist/` (standard Python build output). Future direction: an [Inno Setup](https://jrsoftware.org/isinfo.php) `.exe` (used by Audacity, qBittorrent).
+**Adaptation for athc**: offline-bundled wheels (`--no-index --find-links --offline`) for reproducibility and failure tolerance (PyPI outages, corporate firewalls, AV TLS interception). Build script in `config/release/`, final artifact in `dist/` (standard Python build output). Future direction: an [Inno Setup](https://jrsoftware.org/isinfo.php) `.exe` (used by Audacity, qBittorrent).
 
 ## Testing exemplars
 

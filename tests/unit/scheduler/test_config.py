@@ -454,9 +454,9 @@ def test_shipped_file_sets_match_between_dev_and_release() -> None:
     # The two config twins ship the same standings and rules files.
     by_folder = {
         folder: {
-            p.relative_to(ROOT / folder)
+            p.relative_to(ROOT / "config" / folder)
             for p in SHIPPED_STANDINGS + SHIPPED_RULES
-            if p.is_relative_to(ROOT / folder)
+            if p.is_relative_to(ROOT / "config" / folder)
         }
         for folder in ("dev", "release")
     }

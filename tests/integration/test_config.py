@@ -341,16 +341,16 @@ def test_edit_preserves_existing_file(
     assert ini.read_text(encoding="utf-8") == f"[athc]\nleague = {LEAGUE}\n"
 
 
-# ── shipped release/: every loader reads it as installed ──
+# ── shipped config/release/: every loader reads it as installed ──
 
-RELEASE = Path(__file__).resolve().parents[2] / "release"
+RELEASE = Path(__file__).resolve().parents[2] / "config" / "release"
 # Every shipped league folder; each one runs the same tests.
 SHIPPED_LEAGUES = sorted(p.name for p in (RELEASE / "leagues").iterdir() if p.is_dir())
 
 
 @pytest.fixture
 def release_config_dir(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Point config lookup at the shipped `release/` folder itself (overriding the
+    """Point config lookup at the shipped `config/release/` folder itself (overriding the
     autouse temp dir), as on a fresh install."""
     monkeypatch.setenv("ATHC_CONFIG_DIR", str(RELEASE))
 

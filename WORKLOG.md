@@ -4,6 +4,9 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-06 — **athc**: `dev\` and `release\` moved under `config\` so the two
+  config trees sit together. Tests, VS Code settings and docs follow; the
+  release scripts were left alone.
 - 2026-10-06 — **league files**: reverse engineered the PNFL's other game
   files to learn what sets the `.lg2` team order (the `.lge` tree order) and
   what each file holds. Team and roster chunks use a running XOR key and the

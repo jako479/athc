@@ -60,7 +60,7 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   each stop with a one-line message. No old-layout compatibility code: nothing
   has been released.
 
-Config tree, identical in `dev\`, `release\` and the installed
+Config tree, identical in `config\dev\`, `config\release\` and the installed
 `%LOCALAPPDATA%\athc\`:
 
 ```
@@ -92,9 +92,9 @@ leagues\
   where a coach will look, not in ARCHITECTURE.
 - The `RULES_PNFL.md` docs are gone. Each tool's rules TOML is the league
   reference; a prose copy of every value went stale the moment one changed.
-- The shipped `release/athc.ini` is loaded through every section loader in
+- The shipped `config/release/athc.ini` is loaded through every section loader in
   `test_config.py`, so a missing bundled rule file fails the suite.
-- `dev/athc.ini` points at the real play pool and game log database. It used
+- `config/dev/athc.ini` points at the real play pool and game log database. It used
   to point at the test fixtures, which nothing required.
 - Agent instructions live in [AGENTS.md](AGENTS.md); `.claude/CLAUDE.md` points
   at it. New STATUS, WORKLOG, CHANGELOG and TODO entries go at the top of their
@@ -207,7 +207,7 @@ Reads and writes `.prf` coaching profiles. Docs:
 ## gameplan
 
 Working. Validates and edits `.pln` game plans. Docs:
-[README](docs/gameplan/README.md) · [rules](release/leagues/PNFL/rules/gameplan.toml)
+[README](docs/gameplan/README.md) · [rules](config/release/leagues/PNFL/rules/gameplan.toml)
 
 - A written play path starts with the play pool's folder name, so each league's
   gameplans point at its own plays.
@@ -254,7 +254,7 @@ Working. Backs `gameplan` and `convert-pdb`. Docs:
 ## profile
 
 Working. Validates and compares `.prf` coaching profiles. Docs:
-[README](docs/profile/README.md) · [rules](release/leagues/PNFL/rules/profile.toml)
+[README](docs/profile/README.md) · [rules](config/release/leagues/PNFL/rules/profile.toml)
 
 - `check` takes its rules from the league folder (`rules\profile.toml`, or a
   `profile_rules` list in `league.ini`); there is no override.
@@ -290,7 +290,7 @@ Working. Docs: [README](docs/scheduler/README.md) ·
   same-place games from the divisions, and the writers take the league name.
   No league or division name is left in scheduler code or tests; one validator
   and one test suite run every league. The PCFL ships in `leagues\PCFL\` in
-  `dev/` and `release/`.
+  `config/dev/` and `config/release/`.
 - Two league formats: the PNFL (divisions, 16 weeks) and the PCFL (two
   conferences of nine, 12 weeks, rivalry week). One matchup builder and one
   schedule builder; PNFL-only rules are toggles.

@@ -37,12 +37,12 @@ In `test_config.py` and `test_cli.py`. The test league is named `divisions`. Sta
 | Division finish order kept; teams canonical | per-division order; alphabetical teams | `test_load_league_reads_division_standings`, `test_load_league_teams_are_alphabetical_within_division` | ☑ |
 | `[ConferenceStandings]` | a division-less league; wrong size errors | `test_load_league_reads_conference_standings`, `test_load_league_errors_on_wrong_conference_size` | ☑ |
 
-### Shipped files — every `dev/` and `release/` standings and rules file
+### Shipped files — every `config/dev/` and `config/release/` standings and rules file
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | Each standings file loads | 18 teams | `test_shipped_standings_file_loads` | ☑ |
 | Each rules file fits its league's standings | weeks, opening weeks, rivalries | `test_shipped_rules_file_fits_its_leagues_standings` | ☑ |
-| dev/ and release/ ship the same set | 8 files each | `test_shipped_file_sets_match_between_dev_and_release` | ☑ |
+| config/dev/ and config/release/ ship the same set | 8 files each | `test_shipped_file_sets_match_between_dev_and_release` | ☑ |
 | Conference league files match the test league | equal league; expected rule values | `test_shipped_conference_league_files_match_the_test_league` | ☑ |
 
 ### CLI — `generate-schedule`

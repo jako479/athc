@@ -82,5 +82,5 @@ profile_rules =
 
 Later files layer over earlier. With no rules configured,
 `check` reports an error and exits 2. The shipped rule set is
-[`release/leagues/PNFL/rules/profile.toml`](../../release/leagues/PNFL/rules/profile.toml),
+[`config/release/leagues/PNFL/rules/profile.toml`](../../config/release/leagues/PNFL/rules/profile.toml),
 and its comments explain every key.

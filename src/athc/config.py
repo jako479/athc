@@ -30,10 +30,10 @@ def resolve_path(value: str | os.PathLike[str]) -> Path:
     """Resolve a path read from `athc.ini` against the config file's directory.
 
     Relative paths are taken under `config_dir()` (where `athc.ini` lives), so one
-    `athc.ini` works unchanged in dev (`ATHC_CONFIG_DIR` -> repo `dev/`) and after
-    install (`%LOCALAPPDATA%\\athc`); absolute paths are used as-is. This is the
-    mainstream config idiom (ruff, mypy): config-relative, not CWD-relative. Paths
-    passed on the CLI stay CWD-relative and must not go through here.
+    `athc.ini` works unchanged in dev (`ATHC_CONFIG_DIR` -> repo `config/dev/`) and
+    after install (`%LOCALAPPDATA%\\athc`); absolute paths are used as-is. This is
+    the mainstream config idiom (ruff, mypy): config-relative, not CWD-relative.
+    Paths passed on the CLI stay CWD-relative and must not go through here.
     """
     p = Path(value)
     return p if p.is_absolute() else config_dir() / p

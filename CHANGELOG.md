@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: the `dev\` and `release\` config folders moved under `config\`
 - check-ppp: follows the league's profile-vs-gameplan settings, renamed `require_all_profile_categories_in_gameplan` (on) and `require_all_gameplan_categories_in_profile` (off)
 - athc: PCFL ships gameplan, playpool and profile rules (same as the PNFL's)
 - athc: usage lines list each option (`[-h] [--sort slot|name] gameplan [output_file]`) instead of `[OPTIONS]`

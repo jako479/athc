@@ -47,7 +47,7 @@ Each capped attribute (`qb_draws`, `rollouts`, `timed`, `two_dl`) takes one of t
 
 Loading reports every problem at once (`RulesFileError.errors`); any error aborts `check` with each logged (exit 2).
 
-Each league's rule set is `release/leagues/<NAME>/rules/gameplan.toml` — data a coach supplies as a file, not code.
+Each league's rule set is `config/release/leagues/<NAME>/rules/gameplan.toml` — data a coach supplies as a file, not code.
 
 ## Config
 

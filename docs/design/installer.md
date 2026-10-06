@@ -12,7 +12,7 @@ Prerequisites (covered in the bundled `docs\README.txt`): Windows 10+, uv, inter
 
 ## Release zip
 
-One wheel + docs + example config + season config + `install.bat` → `athc-<ver>.zip`. Produced by `release/release-build.ps1`, written to `dist/`. Dependencies are pulled from PyPI by `install.bat` (needs internet), not bundled.
+One wheel + docs + example config + season config + `install.bat` → `athc-<ver>.zip`. Produced by `config/release/release-build.ps1`, written to `dist/`. Dependencies are pulled from PyPI by `install.bat` (needs internet), not bundled.
 
 ## What lands on disk
 
@@ -49,7 +49,7 @@ When a tool sees a deprecated key: log a one-line startup warning, keep reading 
 
 ## Build pipeline
 
-`release/` contains: `release-build.ps1`, `install.bat`, `athc.ini`, and the `docs\` + `leagues\` folders.
+`config/release/` contains: `release-build.ps1`, `install.bat`, `athc.ini`, and the `docs\` + `leagues\` folders.
 
 `release-build.ps1`:
 

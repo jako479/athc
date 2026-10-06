@@ -10,11 +10,16 @@
 athc/
   pyproject.toml
   docs/                                  # internal docs (markdown, for repo readers)
-  release/                               # source for end-user release bundle
-    docs/                                # user-facing docs (README, COMMANDS, ...)
-    athc.ini                             # example config
-    install.bat                          # end-user install script
-    release-build.ps1                    # builds wheel + assembles zip into ../dist/
+  config/
+    dev/                                 # dev config (ATHC_CONFIG_DIR), mirrors release\
+      athc.ini
+      leagues/                           # per-league league.ini, rules\, standings\
+    release/                             # source for end-user release bundle
+      docs/                              # user-facing docs (README, COMMANDS, ...)
+      athc.ini                           # example config
+      leagues/                           # per-league league.ini, rules\, standings\
+      install.bat                        # end-user install script
+      release-build.ps1                  # builds wheel + assembles zip into ../dist/
   src/athc/
     __init__.py
     __main__.py                          # python -m athc
@@ -67,7 +72,7 @@ A package can start as a library and grow a `cli/` later (or vice versa).
 - Each tool owns its own `config.py` with a `Config` dataclass; missing keys/sections fall back to in-code defaults.
 - `--league NAME` on a league-aware command overrides `[athc] league` for one run; `athc config set league NAME` stores the default.
 - `athc config path | edit | reveal` locate, edit, and reveal `athc.ini` (no `[config]` section); see [config.md](config.md#editing-the-config).
-- Dev override: set `ATHC_CONFIG_DIR` to the repo's `dev/` folder when running from source. Design in [config.md](config.md#dev-config-running-from-source); VS Code terminal + F5 steps in [cli.md](cli.md#running-from-source-dev-config).
+- Dev override: set `ATHC_CONFIG_DIR` to the repo's `config/dev/` folder when running from source. Design in [config.md](config.md#dev-config-running-from-source); VS Code terminal + F5 steps in [cli.md](cli.md#running-from-source-dev-config).
 - Full structure, multi-league selection rules, dev override details, and deprecation: [config.md](config.md). File deploy/upgrade behavior: [installer.md](installer.md). CLI/run-from-source details: [cli.md](cli.md).
 
 ## Extension mechanism
@@ -111,4 +116,4 @@ Extension packages can also extend athc libraries (e.g., a separate package impo
 - `uv build` writes wheel + sdist to `dist/`.
 
 **Release zip + end-user install**
-- `release/release-build.ps1` produces a self-contained release zip in `dist/` containing the wheel + bundled transitive deps + docs + install.bat. Full pipeline and `install.bat` behavior in [installer.md](installer.md). Versioning and release flow: [release.md](release.md).
+- `config/release/release-build.ps1` produces a self-contained release zip in `dist/` containing the wheel + bundled transitive deps + docs + install.bat. Full pipeline and `install.bat` behavior in [installer.md](installer.md). Versioning and release flow: [release.md](release.md).

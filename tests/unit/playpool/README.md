@@ -2,7 +2,7 @@
 
 Cases covered for the play-pool library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
 
-One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFile`/record/filter; `tree` = the curated plays in `data/plays/` in the league folder layout, plus the same files copied into a flat tree and a tree of arbitrary folder names (conftest fixtures `league_pool` / `flat_pool` / `arbitrary_pool`); `shipped` = every `leagues/<league>/rules/playpool.toml` in `dev/` and `release/`; `rel` = a play's path relative to the pool root; `tmp`/`dict` = constructed input. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/playpool` passes.
+One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFile`/record/filter; `tree` = the curated plays in `data/plays/` in the league folder layout, plus the same files copied into a flat tree and a tree of arbitrary folder names (conftest fixtures `league_pool` / `flat_pool` / `arbitrary_pool`); `shipped` = every `leagues/<league>/rules/playpool.toml` in `config/dev/` and `config/release/`; `rel` = a play's path relative to the pool root; `tmp`/`dict` = constructed input. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/playpool` passes.
 
 ## rules.py — `load_rules` / `build_rules`
 

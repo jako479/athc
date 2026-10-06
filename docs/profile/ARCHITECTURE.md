@@ -37,7 +37,7 @@ back to one. Situation rules are a list: each has optional game-state filters
 matches. Substitution rules are one `SubstitutionRule` per position group, a
 `PercentBound` per side (out/in): an exact value or an optional min/max range;
 a side with no key is unchecked, and each unmet side is its own violation. The
-shipped [release/leagues/PNFL/rules/profile.toml](../../release/leagues/PNFL/rules/profile.toml)
+shipped [config/release/leagues/PNFL/rules/profile.toml](../../config/release/leagues/PNFL/rules/profile.toml)
 is the reference; its comments cover the matrix, category counts, disallowed
 categories and substitutions.
 
