@@ -4,6 +4,8 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-06 — **convert-pdb**: removed the `skip_totals` parameter and test
+  case left behind when `--skip-totals` was dropped.
 - 2026-10-06 — **check-ppp**: `require_all_gameplan_categories_in_profile`
   moved from the profile rules' `[gameplan_compatibility]` to a new
   `[profile_compatibility]` section in the gameplan rules, so each side's

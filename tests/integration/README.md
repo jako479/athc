@@ -510,7 +510,7 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`;
 | Missing second arg | one arg | usage error, exit 2 | `test_requires_both_args` | ☑ |
 | Bad pdb / output extension | args | exit 2 | `test_bad_extension_exit_2` `[P]` | ☑ |
 | Bad `.pln` extension | `-o plan.txt` | exit 2 | `test_bad_pln_extension_exit_2` | ☑ |
-| Removed options rejected | `--play-path`, `--playpool-rules`, `--skip-totals` | exit 2; "No such option" | `test_removed_options_are_rejected` `[P]` | ☑ |
+| Removed options rejected | `--play-path`, `--playpool-rules` | exit 2; "No such option" | `test_removed_options_are_rejected` `[P]` | ☑ |
 | Missing PDB file | tmp | exit 1; "file not found" | `test_missing_pdb_exit_1` | ☑ |
 | Play path not a directory | league `play_path` is a file | exit 1; "play path is not a directory" | `test_play_path_not_a_directory_exit_1` | ☑ |
 | Invalid PDB content | tmp | exit 1 | `test_invalid_pdb_content_exit_1` | ☑ |

@@ -20,7 +20,6 @@ def convert_pdb(
     play_path_override: str | None = None,
     playpool_rules_override: Path | None = None,
     skip_calcs: bool = False,
-    skip_totals: bool = False,  # Not used: the --skip-totals option was removed.
 ) -> None:
     """Build an Excel workbook from a PDB and optional gameplan files."""
     config = load_config(
@@ -33,8 +32,6 @@ def convert_pdb(
             f"play path is not a directory: {config.play_path!r} "
             f"(set play_path in the league's league.ini)"
         )
-    # skip_totals is not used: the --skip-totals option was removed.
-    calculate_totals = not skip_totals
 
     creator = PdbWorkbookCreator.from_config(
         config,
@@ -45,4 +42,4 @@ def convert_pdb(
         pln_defense_2,
         pln_offense_2,
     )
-    creator.create_workbook(output_path, not skip_calcs, calculate_totals)
+    creator.create_workbook(output_path, not skip_calcs, calculate_totals=True)

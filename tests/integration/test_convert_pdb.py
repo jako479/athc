@@ -62,7 +62,7 @@ def test_bad_pln_extension_exit_2(runner, tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "removed",
-    [["--play-path", "plays"], ["--playpool-rules", "r.toml"], ["--skip-totals"]],
+    [["--play-path", "plays"], ["--playpool-rules", "r.toml"]],
 )
 def test_removed_options_are_rejected(
     runner, tmp_path: Path, removed: list[str]
