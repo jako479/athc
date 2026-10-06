@@ -4,6 +4,12 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-06 — **check-ppp**: `require_all_gameplan_categories_in_profile`
+  moved from the profile rules' `[gameplan_compatibility]` to a new
+  `[profile_compatibility]` section in the gameplan rules, so each side's
+  rules hold its own cross-check setting; check-ppp reads the flag from the
+  gameplan rules, and the profile rules reject the old key. `profile check`
+  and `gameplan check` are untouched.
 - 2026-10-06 — **check-ppp**: now always takes a profile with its gameplan,
   and checks a whole folder or tree too. A team-to-file list in config was
   dropped for the league's own `.lg2`, which already names each team's eight

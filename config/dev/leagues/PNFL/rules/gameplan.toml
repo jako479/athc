@@ -46,6 +46,11 @@ disallowed_offensive_categories = [
 ]
 disallowed_defensive_categories = ["User Specific"]
 
+# Cross-check between a gameplan and a profile, applied by `check-ppp`.
+# Omitted = not enforced.
+[profile_compatibility]
+require_all_gameplan_categories_in_profile = false  # every category the gameplan has must be used
+
 # ── Offense ───────────────────────────────────────────────────────────────────
 
 [offense.RM]

@@ -283,6 +283,59 @@ def test_disallowed_absent_is_empty(tmp_path: Path) -> None:
     assert rules.disallowed_defensive_categories == frozenset()
 
 
+# ── [profile_compatibility] ───────────────────────────────────────────────────
+
+
+def test_profile_compatibility_defaults_when_omitted(tmp_path: Path) -> None:
+    """Omitted section leaves the compatibility check off."""
+    rules = load_rules([write(tmp_path, MINIMAL)])
+    assert rules.require_all_gameplan_categories_in_profile is False
+
+
+def test_profile_compatibility_parses(tmp_path: Path) -> None:
+    text = (
+        MINIMAL + "[profile_compatibility]\n"
+        "require_all_gameplan_categories_in_profile = true\n"
+    )
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.require_all_gameplan_categories_in_profile is True
+
+
+def test_profile_compatibility_unknown_key(tmp_path: Path) -> None:
+    text = MINIMAL + "[profile_compatibility]\nbogus = true\n"
+    with pytest.raises(RulesFileError, match=r"\[profile_compatibility\]: unknown key"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_profile_compatibility_must_be_bool(tmp_path: Path) -> None:
+    text = (
+        MINIMAL
+        + '[profile_compatibility]\nrequire_all_gameplan_categories_in_profile = "x"\n'
+    )
+    with pytest.raises(RulesFileError, match="must be a boolean"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_profile_compatibility_must_be_table(tmp_path: Path) -> None:
+    text = MINIMAL + "profile_compatibility = true\n"
+    with pytest.raises(RulesFileError, match="must be a table"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_layering_overrides_profile_compatibility(tmp_path: Path) -> None:
+    a = tmp_path / "a.toml"
+    a.write_text(
+        "[profile_compatibility]\nrequire_all_gameplan_categories_in_profile = true\n",
+        encoding="utf-8",
+    )
+    b = tmp_path / "b.toml"
+    b.write_text(
+        "[profile_compatibility]\nrequire_all_gameplan_categories_in_profile = false\n",
+        encoding="utf-8",
+    )
+    assert load_rules([a, b]).require_all_gameplan_categories_in_profile is False
+
+
 # ── layering / paths ──────────────────────────────────────────────────────────
 
 

@@ -40,6 +40,7 @@ No rules ship inside the package. `load_rules(paths)` parses one or more externa
 - `OffenseCategoryRule(required, min_count, max_count, max_qb_draws_*, max_rollouts_*, max_timed_*)`
 - `DefenseCategoryRule(required, min_count, max_count, max_two_dl_*)`
 - Aggregate counts over the 64 normal slots: min/max plays per game category + per-category attribute caps; required special categories; disallowed categories; optional `custom_special_play_required`.
+- `[profile_compatibility]` — `require_all_gameplan_categories_in_profile`, read only by `athc check-ppp` ([../check_ppp/README.md](../check_ppp/README.md)); `validate_gameplan` ignores it.
 
 Section labels are short category labels — `[offense.RM]` (Run Middle), `[defense.RunDazzle]` (Run Dazzle). Every per-category key is optional (`required` defaults false, `min_count` 0), but a section must set at least one. The loader rejects unknown labels, and subkeys applied to the wrong category type. `disallowed_offensive_categories` / `disallowed_defensive_categories` list full category names a gameplan must not contain.
 

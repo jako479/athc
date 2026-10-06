@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 
 import click
@@ -52,6 +53,15 @@ LEAGUE_PATH_KEY = "path"
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True, slots=True)
+class Setup:
+    """The league's loaded rules and play pool: all three, or no check runs."""
+
+    profile_rules: ProfileRules
+    gameplan_rules: Rules
+    pool: PlayPool
+
+
 @click.command(name="check-ppp", cls=AthcCommand, context_settings=CONTEXT_SETTINGS)
 @click.argument("first", metavar="path")
 @click.argument("second", metavar="[path]", required=False)
@@ -80,10 +90,10 @@ def check_ppp(
     folder is checked.
 
     Each file is checked like `profile check` and `gameplan check`. A pair
-    must be the same side, and the league's profile rules decide whether
-    profile categories with no custom play in the gameplan, and gameplan
-    categories the profile never uses, fail the check; unused gameplan
-    categories that don't fail are listed as info only.
+    must be the same side. The league's profile rules decide whether profile
+    categories with no custom play in the gameplan fail the check, and its
+    gameplan rules whether gameplan categories the profile never uses do;
+    unused gameplan categories that don't fail are listed as info only.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     if second is None:
@@ -104,16 +114,9 @@ def check_pair(first: str, second: str, league: str | None) -> int:
     # `gameplan check` and `profile check`, though, a setup error or a side
     # mismatch stops every rule check and the summary, so no file is validated.
     logged: set[str] = set()
-    profile_rules = load_profile_rules(league, logged)
-    gameplan_setup = load_gameplan_setup(league, logged)
-    setup_failed = profile_rules is None or gameplan_setup is None
-    if setup_failed:
-        profile_rules = gameplan_setup = None
-
-    reports, mismatch = check_files(
-        profile_path, profile_rules, gameplan_path, gameplan_setup
-    )
-    if setup_failed or mismatch is not None:
+    setup = load_setup(league, logged)
+    reports, mismatch = check_files(profile_path, gameplan_path, setup)
+    if setup is None or mismatch is not None:
         # Nothing was validated: the reports hold only unreadable-file lines.
         for _, line in reports:
             click.echo(line)
@@ -142,31 +145,26 @@ def check_directory(raw: str, league: str | None, *, recursive: bool) -> int:
     # Every setup problem is logged, as in two-file mode; the league file is
     # what names the pairs, so without it there is nothing to check.
     logged: set[str] = set()
-    profile_rules = load_profile_rules(league, logged)
-    gameplan_setup = load_gameplan_setup(league, logged)
+    setup = load_setup(league, logged)
     lg2 = load_lg2(league, logged)
     if lg2 is None:
         return 2
     pairs = find_pairs(directory, league_pairs(lg2), recursive=recursive)
-    setup_failed = profile_rules is None or gameplan_setup is None
     if not pairs:
         # Not an error: no file has to be there. A status line, so stdout.
         scope = "tree" if recursive else "directory"
         click.echo(
             f"{raw}: no profile and gameplan pairs from the league file in {scope}"
         )
-        return 2 if setup_failed else 0
-    if setup_failed:
-        profile_rules = gameplan_setup = None
+        return 2 if setup is None else 0
 
     reports: list[tuple[int, str]] = []
     reported: set[Path] = set()  # gameplans with a line of their own already
     for profile_path, gameplan_path in pairs:
         pair_reports, mismatch = check_files(
             profile_path,
-            profile_rules,
             gameplan_path,
-            gameplan_setup,
+            setup,
             report_gameplan=gameplan_path not in reported,
         )
         if mismatch is not None:
@@ -175,7 +173,7 @@ def check_directory(raw: str, league: str | None, *, recursive: bool) -> int:
             continue
         reported.add(gameplan_path)
         reports.extend(pair_reports)
-    if setup_failed:
+    if setup is None:
         # Nothing was validated: only unreadable-file and mismatch lines.
         for _, line in reports:
             click.echo(line)
@@ -299,6 +297,16 @@ def sort_inputs(paths: Sequence[str]) -> tuple[Path | None, Path | None, list[st
     return profile, gameplan, errors
 
 
+def load_setup(league: str | None, logged: set[str]) -> Setup | None:
+    """The league's profile rules, gameplan rules and play pool; None (every
+    problem already logged) when any of them can't load."""
+    profile_rules = load_profile_rules(league, logged)
+    gameplan_setup = load_gameplan_setup(league, logged)
+    if profile_rules is None or gameplan_setup is None:
+        return None
+    return Setup(profile_rules, *gameplan_setup)
+
+
 def load_profile_rules(league: str | None, logged: set[str]) -> ProfileRules | None:
     """The league's profile rules; None (already logged) when they can't load."""
     try:
@@ -329,18 +337,17 @@ def load_gameplan_setup(
 
 def check_files(
     profile_path: Path,
-    profile_rules: ProfileRules | None,
     gameplan_path: Path,
-    gameplan_setup: tuple[Rules, PlayPool] | None,
+    setup: Setup | None,
     *,
     report_gameplan: bool = True,
 ) -> tuple[list[tuple[int, str]], str | None]:
     """Each file's `(count, line)`, profile first, plus the side-mismatch error
     line. Both files are read, so a read error or mismatch reports even without
-    rules. A file is validated only when its rules are given and the sides
-    match; the cross-check runs only on two readable files. Without
-    `report_gameplan` (a gameplan another pair already reported), the gameplan
-    is still read for the cross-check but gets no line of its own."""
+    rules. A file is validated only when the setup loaded and the sides match;
+    the cross-check runs only on two readable files. Without `report_gameplan`
+    (a gameplan another pair already reported), the gameplan is still read for
+    the cross-check but gets no line of its own."""
     prof = read_profile_file(profile_path)
     gp = read_gameplan_file(gameplan_path)
     if (
@@ -353,14 +360,14 @@ def check_files(
     reports: list[tuple[int, str]] = []
     if isinstance(prof, str):
         reports.append((-1, prof))
-    elif profile_rules is not None:
+    elif setup is not None:
         other = gp if isinstance(gp, GamePlan) else None
-        reports.append(profile_report(profile_path, prof, profile_rules, other))
+        reports.append(profile_report(profile_path, prof, setup, other))
     if report_gameplan:
         if isinstance(gp, str):
             reports.append((-1, gp))
-        elif gameplan_setup is not None:
-            reports.append(gameplan_report(gameplan_path, gp, *gameplan_setup))
+        elif setup is not None:
+            reports.append(gameplan_report(gameplan_path, gp, setup))
     return reports, None
 
 
@@ -391,14 +398,14 @@ def side_mismatch(path: Path, prof: Profile, gameplan: GamePlan) -> str | None:
 
 
 def profile_report(
-    path: Path, prof: Profile, rules: ProfileRules, gameplan: GamePlan | None
+    path: Path, prof: Profile, setup: Setup, gameplan: GamePlan | None
 ) -> tuple[int, str]:
     """`(count, line)` in `profile check`'s format. With a same-side gameplan,
-    the `[gameplan_compatibility]` settings pick what counts: profile
-    categories the gameplan lacks are issues when required, else unchecked;
-    gameplan categories the profile never uses are issues when required, else
-    info lines that don't count."""
-    violations = validate_profile(prof, rules)
+    the compatibility settings pick what counts: profile categories the
+    gameplan lacks are issues when the profile rules require it, else
+    unchecked; gameplan categories the profile never uses are issues when the
+    gameplan rules require it, else info lines that don't count."""
+    violations = validate_profile(prof, setup.profile_rules)
     summary = f"{_side(prof.is_offense)}, FG range {prof.field_goal_range}"
     details = [f"  {_profile_violation(v)}" for v in violations]
     if gameplan is None:
@@ -408,10 +415,10 @@ def profile_report(
         return len(violations), "\n".join([head, *details])
 
     issues: tuple[CompatIssue, ...] = ()
-    if rules.require_all_profile_categories_in_gameplan:
+    if setup.profile_rules.require_all_profile_categories_in_gameplan:
         issues += check_gameplan_compatibility(prof, gameplan)
     extras = gameplan_extra_categories(prof, gameplan)
-    if rules.require_all_gameplan_categories_in_profile:
+    if setup.gameplan_rules.require_all_gameplan_categories_in_profile:
         issues += extras
         extras = ()
     total = len(violations) + len(issues)
@@ -428,11 +435,9 @@ def profile_report(
     return total, "\n".join(lines)
 
 
-def gameplan_report(
-    path: Path, gp: GamePlan, rules: Rules, pool: PlayPool
-) -> tuple[int, str]:
+def gameplan_report(path: Path, gp: GamePlan, setup: Setup) -> tuple[int, str]:
     """`(count, line)` in `gameplan check`'s format: OK, or its violations."""
-    violations = validate_gameplan(gp, rules, pool)
+    violations = validate_gameplan(gp, setup.gameplan_rules, setup.pool)
     normal = sum(1 for p in gp.normal_plays if p is not None)
     summary = f"{_side(gp.is_offense)}, {normal} normal"
     if not violations:

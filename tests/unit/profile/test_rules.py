@@ -131,25 +131,33 @@ def test_min_categories_defaults_when_omitted(tmp_path: Path) -> None:
 
 
 def test_gameplan_compatibility_defaults_when_omitted(tmp_path: Path) -> None:
-    """Omitted section leaves both compatibility checks off."""
+    """Omitted section leaves the compatibility check off."""
     rules = load_rules([write(tmp_path, MINIMAL)])
     assert rules.require_all_profile_categories_in_gameplan is False
-    assert rules.require_all_gameplan_categories_in_profile is False
 
 
 def test_gameplan_compatibility_parses(tmp_path: Path) -> None:
     text = (
         MINIMAL + "[gameplan_compatibility]\n"
         "require_all_profile_categories_in_gameplan = true\n"
-        "require_all_gameplan_categories_in_profile = false\n"
     )
     rules = load_rules([write(tmp_path, text)])
     assert rules.require_all_profile_categories_in_gameplan is True
-    assert rules.require_all_gameplan_categories_in_profile is False
 
 
 def test_gameplan_compatibility_unknown_key(tmp_path: Path) -> None:
     text = MINIMAL + "[gameplan_compatibility]\nbogus = true\n"
+    with pytest.raises(RulesFileError, match="unknown key"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_gameplan_compatibility_rejects_the_gameplan_rules_flag(tmp_path: Path) -> None:
+    """`require_all_gameplan_categories_in_profile` belongs to the gameplan
+    rules' `[profile_compatibility]`, so here it is an unknown key."""
+    text = (
+        MINIMAL + "[gameplan_compatibility]\n"
+        "require_all_gameplan_categories_in_profile = true\n"
+    )
     with pytest.raises(RulesFileError, match="unknown key"):
         load_rules([write(tmp_path, text)])
 

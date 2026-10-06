@@ -41,13 +41,8 @@ from tests.integration.conftest import (
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
 BuildLeague = Callable[..., Path]
-COMPAT_TOML = """[gameplan_compatibility]
-require_all_profile_categories_in_gameplan = true
-require_all_gameplan_categories_in_profile = true
-"""
-FLAGS_OFF_TOML = """[gameplan_compatibility]
+PROFILE_FLAG_OFF_TOML = """[gameplan_compatibility]
 require_all_profile_categories_in_gameplan = false
-require_all_gameplan_categories_in_profile = false
 """
 
 
@@ -166,6 +161,15 @@ def write_toml(tmp_path: Path, text: str, name: str = "rules.toml") -> Path:
     return path
 
 
+def gameplan_rules(tmp_path: Path, *, reverse: bool) -> Path:
+    """GP_RULES with `require_all_gameplan_categories_in_profile` set to `reverse`."""
+    text = GP_RULES.read_text(encoding="utf-8").replace(
+        "require_all_gameplan_categories_in_profile = true",
+        f"require_all_gameplan_categories_in_profile = {str(reverse).lower()}",
+    )
+    return write_toml(tmp_path, text, "gameplan.toml")
+
+
 def write_bytes(tmp_path: Path, name: str, data: bytes = b"\x00\x01\x02") -> Path:
     path = tmp_path / name
     path.write_bytes(data)
@@ -231,9 +235,11 @@ def test_cli_both_matches_existing_reports(
     stems: tuple[str, str],
     count: int,
 ) -> None:
-    """With both `[gameplan_compatibility]` settings on, as in the test rules:
-    profile report with its `gameplan:` lines (as `profile check --gameplan`
-    printed), then the gameplan report (as `gameplan check`), then one summary."""
+    """With both compatibility settings on, as in the test rules (the profile
+    rules' `[gameplan_compatibility]` and the gameplan rules'
+    `[profile_compatibility]`): profile report with its `gameplan:` lines (as
+    `profile check --gameplan` printed), then the gameplan report (as
+    `gameplan check`), then one summary."""
     result = run(runner, prof, gameplan)
     assert result.exit_code == 1
     assert normalized(result, prof, gameplan) == (
@@ -245,14 +251,10 @@ def test_cli_both_matches_existing_reports(
 def test_cli_unused_gameplan_categories_are_info(
     runner, league: BuildLeague, write_config: WriteConfig, tmp_path: Path
 ) -> None:
-    """With `require_all_gameplan_categories_in_profile` off, a gameplan category
-    the profile never uses is only an info line and does not count; a profile
-    category the gameplan lacks still fails."""
-    text = RULES_TOML.read_text(encoding="utf-8").replace(
-        "require_all_gameplan_categories_in_profile = true",
-        "require_all_gameplan_categories_in_profile = false",
-    )
-    league(profile_rules=write_toml(tmp_path, text))
+    """With the gameplan rules' `require_all_gameplan_categories_in_profile`
+    off, a gameplan category the profile never uses is only an info line and
+    does not count; a profile category the gameplan lacks still fails."""
+    league(gameplan_rules=gameplan_rules(tmp_path, reverse=False))
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, DEF1, GP_DEFENSE)
     assert result.exit_code == 1
@@ -284,7 +286,10 @@ def test_cli_both_clean_exit_0(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    league(profile_rules=write_toml(tmp_path, FLAGS_OFF_TOML))
+    league(
+        profile_rules=write_toml(tmp_path, PROFILE_FLAG_OFF_TOML),
+        gameplan_rules=gameplan_rules(tmp_path, reverse=False),
+    )
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     monkeypatch.setattr(
         "athc.cli.check_ppp.validate_gameplan", lambda gp, rules, pool: ()
@@ -311,7 +316,10 @@ def test_cli_unused_gameplan_categories_alone_exit_0(
     """Both files pass their own rules and the gameplan backs every profile
     category; the 10 gameplan categories the profile never uses are only info,
     reported even with the league's flags off."""
-    league(profile_rules=write_toml(tmp_path, FLAGS_OFF_TOML))
+    league(
+        profile_rules=write_toml(tmp_path, PROFILE_FLAG_OFF_TOML),
+        gameplan_rules=gameplan_rules(tmp_path, reverse=False),
+    )
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     monkeypatch.setattr(
         "athc.cli.check_ppp.validate_gameplan", lambda gp, rules, pool: ()
@@ -352,17 +360,19 @@ def test_cli_cross_check_follows_league_settings(
     files: int,
 ) -> None:
     """TST-DEF1 vs defense.pln: 1 profile category the gameplan lacks, 4 gameplan
-    categories the profile never uses. The first counts only when
-    `require_all_profile_categories_in_gameplan` is on; the others count when
-    `require_all_gameplan_categories_in_profile` is on, else they are info lines.
-    The total adds defense.pln's own violation; `files` is how many files have
-    findings."""
+    categories the profile never uses. The first counts only when the profile
+    rules' `require_all_profile_categories_in_gameplan` is on; the others count
+    when the gameplan rules' `require_all_gameplan_categories_in_profile` is
+    on, else they are info lines. The total adds defense.pln's own violation;
+    `files` is how many files have findings."""
     settings = (
         "[gameplan_compatibility]\n"
         f"require_all_profile_categories_in_gameplan = {str(forward).lower()}\n"
-        f"require_all_gameplan_categories_in_profile = {str(reverse).lower()}\n"
     )
-    league(profile_rules=write_toml(tmp_path, settings))
+    league(
+        profile_rules=write_toml(tmp_path, settings),
+        gameplan_rules=gameplan_rules(tmp_path, reverse=reverse),
+    )
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, DEF1, GP_DEFENSE)
     assert result.exit_code == 1

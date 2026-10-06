@@ -70,7 +70,11 @@ class DefenseCategoryRule:
 @dataclass(frozen=True, slots=True)
 class Rules:
     """A gameplan validation rule set, loaded from external TOML. Every field is
-    optional; an empty rule set enforces nothing."""
+    optional; an empty rule set enforces nothing.
+
+    The `[profile_compatibility]` flag gates the gameplan-vs-profile check
+    `check-ppp` runs; it defaults False — not enforced.
+    """
 
     offense_categories: Mapping[str, OffenseCategoryRule] = field(default_factory=dict)
     defense_categories: Mapping[str, DefenseCategoryRule] = field(default_factory=dict)
@@ -78,6 +82,7 @@ class Rules:
     disallowed_offensive_categories: frozenset[str] = frozenset()
     disallowed_defensive_categories: frozenset[str] = frozenset()
     custom_special_play_required: bool = False
+    require_all_gameplan_categories_in_profile: bool = False
 
 
 _OFFENSE_CATEGORIES: Final[frozenset[str]] = frozenset(
@@ -124,9 +129,14 @@ _ALLOWED_TOP_KEYS: Final[frozenset[str]] = frozenset(
         "custom_special_play_required",
         "disallowed_offensive_categories",
         "disallowed_defensive_categories",
+        "profile_compatibility",
         "offense",
         "defense",
     }
+)
+# Compatibility checks run by `check-ppp`; each is a boolean.
+_ALLOWED_COMPAT_KEYS: Final[frozenset[str]] = frozenset(
+    {"require_all_gameplan_categories_in_profile"}
 )
 
 
@@ -145,6 +155,7 @@ class _MergedData:
     custom_special_play_required: bool | None = None
     disallowed_offensive: frozenset[str] | None = None
     disallowed_defensive: frozenset[str] | None = None
+    require_all_gameplan_categories_in_profile: bool | None = None
     offense: dict[str, OffenseCategoryRule] = field(default_factory=dict)
     defense: dict[str, DefenseCategoryRule] = field(default_factory=dict)
 
@@ -254,6 +265,10 @@ def _merge_file(
         )
         if ok:
             merged.disallowed_defensive = val
+    if "profile_compatibility" in data:
+        _merge_profile_compatibility(
+            merged, data["profile_compatibility"], errors, source=source
+        )
 
     for label, section in data.get("offense", {}).items():
         val, ok = _attempt(
@@ -275,6 +290,27 @@ def _merge_file(
         if ok:
             name, rule = val
             merged.defense[name] = rule
+
+
+def _merge_profile_compatibility(
+    merged: _MergedData, value: object, errors: list[str], *, source: Path
+) -> None:
+    """Parse `[profile_compatibility]`: one boolean per compatibility check."""
+    where = "[profile_compatibility]"
+    if not isinstance(value, Mapping):
+        errors.append(f"{source}: {where}: must be a table")
+        return
+    _attempt(
+        errors, lambda: _reject_unknown_keys(value, _ALLOWED_COMPAT_KEYS, source, where)
+    )
+    for key in sorted(_ALLOWED_COMPAT_KEYS):
+        if key not in value:
+            continue
+        flag, ok = _attempt(
+            errors, lambda key=key: _require_bool(value[key], source, f"{where}.{key}")
+        )
+        if ok:
+            setattr(merged, key, flag)
 
 
 def _build_offense_section(
@@ -371,6 +407,9 @@ def _build_rules(m: _MergedData) -> Rules:
         disallowed_offensive_categories=m.disallowed_offensive or frozenset(),
         disallowed_defensive_categories=m.disallowed_defensive or frozenset(),
         custom_special_play_required=bool(m.custom_special_play_required),
+        require_all_gameplan_categories_in_profile=bool(
+            m.require_all_gameplan_categories_in_profile
+        ),
     )
 
 

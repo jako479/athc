@@ -62,6 +62,16 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 | Not a list | tmp | "must be a list" | `test_disallowed_must_be_list` | ☑ |
 | Absent → empty | tmp | empty frozensets | `test_disallowed_absent_is_empty` | ☑ |
 
+### [profile_compatibility]
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Omitted → default | tmp | flag False | `test_profile_compatibility_defaults_when_omitted` | ☑ |
+| Parses | tmp | flag as written | `test_profile_compatibility_parses` | ☑ |
+| Unknown key | tmp | "unknown key" | `test_profile_compatibility_unknown_key` | ☑ |
+| Non-bool | tmp | "must be a boolean" | `test_profile_compatibility_must_be_bool` | ☑ |
+| Not a table | tmp | "must be a table" | `test_profile_compatibility_must_be_table` | ☑ |
+| Layering overrides the flag | tmp ×2 | later value wins | `test_layering_overrides_profile_compatibility` | ☑ |
+
 ### layering / paths
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|

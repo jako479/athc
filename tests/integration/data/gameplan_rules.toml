@@ -22,6 +22,9 @@ disallowed_offensive_categories = [
 ]
 disallowed_defensive_categories = ["User Specific"]
 
+[profile_compatibility]
+require_all_gameplan_categories_in_profile = true
+
 # ── Offense ───────────────────────────────────────────────────────────────────
 # Per-section keys (counts >= 0):
 #   required  = true|false   default false; true -> needs >= min_count plays

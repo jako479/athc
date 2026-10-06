@@ -39,15 +39,17 @@ defense, 2nd-half offense, 2nd-half defense.
 
 - The profile, exactly as `profile check` does.
 - The gameplan, exactly as `gameplan check` does.
-- The pair must be the same side (offense or defense). The profile rules'
-  `[gameplan_compatibility]` settings then decide what fails:
-  - `require_all_profile_categories_in_gameplan` — every play category the
-    profile uses must have a custom play in the gameplan; each one missing is
-    a `gameplan:` line that fails the check. Off, it isn't checked.
-  - `require_all_gameplan_categories_in_profile` — every category the gameplan
-    has a custom play for must be used by the profile; each one unused is a
-    `gameplan:` line that fails the check. Off, they are only
-    `gameplan info:` lines that don't fail.
+- The pair must be the same side (offense or defense). Each side's rules then
+  decide what fails:
+  - `require_all_profile_categories_in_gameplan`, in the profile rules'
+    `[gameplan_compatibility]` — every play category the profile uses must
+    have a custom play in the gameplan; each one missing is a `gameplan:`
+    line that fails the check. Off, it isn't checked.
+  - `require_all_gameplan_categories_in_profile`, in the gameplan rules'
+    `[profile_compatibility]` — every category the gameplan has a custom play
+    for must be used by the profile; each one unused is a `gameplan:` line
+    that fails the check. Off, they are only `gameplan info:` lines that
+    don't fail.
 
 The output is the same report lines those commands print: per pair, the
 profile, then the gameplan; then one summary line. Every error is reported in

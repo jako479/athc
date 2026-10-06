@@ -6,7 +6,6 @@ min_categories = 2
 
 [gameplan_compatibility]
 require_all_profile_categories_in_gameplan = true
-require_all_gameplan_categories_in_profile = true
 
 [substitutions]
 QB = { out_percent = 75, in_percent = 80 }

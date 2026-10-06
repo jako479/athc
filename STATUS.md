@@ -151,8 +151,9 @@ Working. Checks profiles with their gameplans, and how they fit. Docs:
   gameplan used for both halves reports once.
 - Each file is checked and printed exactly as `profile check` and
   `gameplan check` do, with its own code. A pair must be the same side, and
-  the profile rules' `[gameplan_compatibility]` settings decide what fails:
-  `require_all_profile_categories_in_gameplan` (on for PNFL and PCFL) and
+  each side's rules decide what fails: the profile rules'
+  `[gameplan_compatibility]` `require_all_profile_categories_in_gameplan` (on
+  for PNFL and PCFL) and the gameplan rules' `[profile_compatibility]`
   `require_all_gameplan_categories_in_profile` (off; unused gameplan
   categories are then only info lines).
 - An argument error stops the run before anything is read. Past that, every
@@ -327,10 +328,12 @@ construction, never pruned · then the quirk budget in
   league file already lists every team's eight files, so no team list is kept
   in config. Pairs match by file name in one folder at a time, since weeks and
   seasons reuse the same names.
-- **check-ppp follows the `[gameplan_compatibility]` settings.** A profile
-  category the gameplan lacks is the profile's error, so both settings stay in
-  the profile rules. PNFL and PCFL require every profile category in the
-  gameplan, and leave unused gameplan categories as info lines.
+- **check-ppp follows each side's compatibility setting.** A profile
+  category the gameplan lacks is the profile's error, so that setting is in
+  the profile rules (`[gameplan_compatibility]`); the reverse check's setting
+  is in the gameplan rules (`[profile_compatibility]`). PNFL and PCFL require
+  every profile category in the gameplan, and leave unused gameplan
+  categories as info lines.
 - **check-ppp tells its files apart by extension.** Positional files of mixed
   kinds, like gcc, so the order never matters.
 - **One folder per league, fixed file names inside.** The OBS / Kodi / Hugo
