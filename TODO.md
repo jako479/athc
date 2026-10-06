@@ -1,5 +1,7 @@
 # TODO
 
+- convert-pdb: Total Stats filtering (from pnfl's TODO): remove filtering via script? add filtering to config? convert to a table for filtering (greater-than, less-than)?
+- convert-pdb: remove hidden setting `include_category_worksheets = false` from athc.ini
 - athc: docs: explain each command's messages in the release docs ([command-messages](docs/design/TODO/command-messages.md))
 - athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
 - athc: docs: API reference per library, one page each, under a shared index. Design: [docs/design/TODO/api-docs.md](docs/design/TODO/api-docs.md)
