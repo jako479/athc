@@ -32,11 +32,12 @@ class UnsupportedLg2Error(ValueError):
     """
 
 
-def read_lg2(path: StrPath) -> Lg2File:
-    """Read and parse a .lg2 league file from disk.
+def read_lg2(league: str, league_dir: StrPath) -> Lg2File:
+    """Read and parse a league's .lg2 file from disk.
 
     Args:
-        path: Filesystem path to the .lg2 file.
+        league: League name; the file read is `<league>.lg2`.
+        league_dir: Folder holding the league's files.
 
     Returns:
         Parsed Lg2File.
@@ -48,7 +49,7 @@ def read_lg2(path: StrPath) -> Lg2File:
         UnsupportedLg2Error: If the file is for a stock league.
         OSError: If the file cannot be opened or read.
     """
-    file_path = Path(path)
+    file_path = Path(league_dir) / f"{league}.lg2"
     return parse_lg2(file_path.read_bytes(), file_path)
 
 

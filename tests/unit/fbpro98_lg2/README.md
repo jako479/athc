@@ -12,7 +12,7 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` =
 | Custom league team count | golden | 18 teams | `test_custom_league_team_count` | ☑ |
 | Custom league files, incl. leftover text and a shared game plan | golden | teams 0, 5, 17 exact | `test_custom_league_team_files` `[P]` | ☑ |
 | `read` returns `Lg2File`; `parse == read` | golden | equal | `test_read_returns_lg2_file_and_matches_parse` | ☑ |
-| `read` accepts a `str` path | golden | equal to `Path` | `test_read_accepts_str_path` | ☑ |
+| `read` accepts a `str` folder | golden | equal to `Path` | `test_read_accepts_str_league_dir` | ☑ |
 
 ### Stock leagues → `UnsupportedLg2Error`
 | Case | Input | Expected | Test | Status |
@@ -44,7 +44,7 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` =
 | Later team with no files (all zeros) | make_team | "Empty filename" | `test_team_with_no_files_rejected` | ☑ |
 | Non-ASCII byte | make_team | decoded as U+FFFD | `test_non_ascii_byte_decodes_as_replacement` | ☑ |
 | Error names the path | make_team | "in league.lg2" | `test_error_names_the_path` | ☑ |
-| Missing file | path | `OSError` propagates | `test_missing_file_raises_oserror` | ☑ |
+| Missing file | league + tmp folder | `OSError` naming `<league_dir>/<league>.lg2` | `test_missing_file_raises_oserror_for_built_path` | ☑ |
 
 ## model.py
 

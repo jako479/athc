@@ -23,6 +23,7 @@ from athc.fbpro98_lg2 import (
 from athc.fbpro98_lg2.schema import FILENAME_SIZE, FOLDER_SIZE, TEAM_RECORD_SIZE
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "data"
+LEAGUE = "PNFL"
 CUSTOM = FIXTURE_DIR / "PNFL.lg2"
 
 
@@ -44,7 +45,7 @@ def _team(folder: str, names: tuple[str, ...]) -> TeamFiles:
 
 
 def test_custom_league_team_count():
-    assert len(read_lg2(CUSTOM).teams) == 18
+    assert len(read_lg2(LEAGUE, FIXTURE_DIR).teams) == 18
 
 
 @pytest.mark.parametrize(
@@ -104,31 +105,33 @@ def test_custom_league_team_count():
     ],
 )
 def test_custom_league_team_files(index: int, expected: TeamFiles):
-    assert read_lg2(CUSTOM).teams[index] == expected
+    assert read_lg2(LEAGUE, FIXTURE_DIR).teams[index] == expected
 
 
 def test_read_returns_lg2_file_and_matches_parse():
-    lg2 = read_lg2(CUSTOM)
+    lg2 = read_lg2(LEAGUE, FIXTURE_DIR)
     assert isinstance(lg2, Lg2File)
     assert parse_lg2(CUSTOM.read_bytes()) == lg2
 
 
-def test_read_accepts_str_path():
-    assert read_lg2(str(CUSTOM)) == read_lg2(CUSTOM)
+def test_read_accepts_str_league_dir():
+    assert read_lg2(LEAGUE, str(FIXTURE_DIR)) == read_lg2(LEAGUE, FIXTURE_DIR)
 
 
+# Parsed from bytes: the stock fixtures keep the game's upper-case `.LG2` name.
 @pytest.mark.parametrize(
     ("name", "message"),
     [("NFLPI97.LG2", "Modern stock league"), ("08_TEAMS.LG2", "Old stock league")],
 )
 def test_stock_league_rejected(name: str, message: str):
     with pytest.raises(UnsupportedLg2Error, match=message):
-        read_lg2(FIXTURE_DIR / name)
+        parse_lg2((FIXTURE_DIR / name).read_bytes())
 
 
-def test_missing_file_raises_oserror(tmp_path: Path):
-    with pytest.raises(OSError):
-        read_lg2(tmp_path / "missing.lg2")
+def test_missing_file_raises_oserror_for_built_path(tmp_path: Path):
+    with pytest.raises(OSError) as info:
+        read_lg2("missing", tmp_path)
+    assert Path(info.value.filename) == tmp_path / "missing.lg2"
 
 
 # --- stock signatures decide on the first entry only ---

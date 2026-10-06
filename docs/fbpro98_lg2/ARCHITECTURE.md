@@ -17,6 +17,7 @@ The model nests each team's eight files by half, then side, then profile and gam
 ## What this package does
 
 - Reads a custom league's `.lg2` into a typed model, one `TeamFiles` per team in file order.
+- Knows the `.lg2` extension: `read_lg2(league, league_dir)` reads `<league_dir>/<league>.lg2`.
 - Validates structure: whole team records, a NUL in every field, no empty filename.
 - Ignores text left after each NUL and the 9 unknown bytes that end each team record.
 
@@ -24,7 +25,7 @@ The model nests each team's eight files by half, then side, then profile and gam
 
 - Read stock leagues — modern (`STOCK` folder) or old (empty folder) → `UnsupportedLg2Error`.
 - Write `.lg2` files.
-- Know the `.lg2` extension or where the game folder is; the caller supplies the path.
+- Know where a league's files are; the caller supplies the folder.
 
 See [specs/lg2.md](specs/lg2.md) for the format and the reader contract.
 

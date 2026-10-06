@@ -42,4 +42,5 @@ class Lg2File:
     """Full in-memory representation of a custom league's `.lg2` file."""
 
     teams: tuple[TeamFiles, ...]
-    """One entry per team, in file order: the league's `.lge` team order (see specs/lg2.md)."""
+    """One entry per team, in file order: the league's `.lge` team order (see
+    specs/lg2.md)."""
