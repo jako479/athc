@@ -148,10 +148,11 @@ Working. Checks one profile and/or one gameplan, and how they fit. Docs:
   folder.
 - Each file is checked and printed exactly as `profile check` and
   `gameplan check` do, with its own code, since those two will be removed. With
-  both files, they must be the same side, and a profile category the gameplan
-  lacks fails the check; a gameplan category the profile never uses is only an
-  info line. Both always run; the `[gameplan_compatibility]` flags are for
-  `profile check` only.
+  both files, they must be the same side, and the profile rules'
+  `[gameplan_compatibility]` settings decide what fails:
+  `require_all_profile_categories_in_gameplan` (on for PNFL and PCFL) and
+  `require_all_gameplan_categories_in_profile` (off; unused gameplan
+  categories are then only info lines).
 - Every input, config and file error is reported in one run. A side mismatch,
   a rules error or another setup error stops the rule checks and the summary
   for both files, but bad files and the mismatch still report.
@@ -297,11 +298,10 @@ construction, never pruned · then the quirk budget in
 
 ## Decisions
 
-- **In check-ppp, unused gameplan categories are info, not a failure.** The
-  league rule was corrected: the gameplan must back every category the profile
-  uses, and extra gameplan categories are fine. check-ppp ignores the
-  `[gameplan_compatibility]` flags; `profile check` is unchanged and still
-  fails on them.
+- **check-ppp follows the `[gameplan_compatibility]` settings.** A profile
+  category the gameplan lacks is the profile's error, so both settings stay in
+  the profile rules. PNFL and PCFL require every profile category in the
+  gameplan, and leave unused gameplan categories as info lines.
 - **check-ppp tells its files apart by extension.** Positional files of mixed
   kinds, like gcc; a fixed order only works when both files are always given.
 - **One folder per league, fixed file names inside.** The OBS / Kodi / Hugo
@@ -323,7 +323,7 @@ construction, never pruned · then the quirk budget in
   their other subcommands.
 - **`profile check`'s compatibility rules live in the rules file, not the
   code.** They are league rules like any other, so a league enables each
-  direction itself. check-ppp fixes both directions in code instead (see above).
+  direction itself.
 - **`solver_workers` defaults to `"auto"`.** A seed reproduces only at the same
   thread count, so the report shows the count and it stays config-only.
 - **The config command is `reveal`, not `explorer`.** It opens the config dir

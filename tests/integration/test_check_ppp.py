@@ -38,12 +38,12 @@ WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
 BuildLeague = Callable[..., Path]
 COMPAT_TOML = """[gameplan_compatibility]
-profile_categories_in_gameplan = true
-gameplan_categories_in_profile = true
+require_all_profile_categories_in_gameplan = true
+require_all_gameplan_categories_in_profile = true
 """
 FLAGS_OFF_TOML = """[gameplan_compatibility]
-profile_categories_in_gameplan = false
-gameplan_categories_in_profile = false
+require_all_profile_categories_in_gameplan = false
+require_all_gameplan_categories_in_profile = false
 """
 
 
@@ -202,22 +202,44 @@ def test_cli_gameplan_only_needs_no_profile_rules(
 # ── both files ────────────────────────────────────────────────────────────────
 
 
-def test_cli_both_matches_existing_reports(runner, full_league: Path) -> None:
-    """Profile report with its `gameplan:` lines (as `profile check --gameplan`),
-    then the gameplan report (as `gameplan check`), then one summary. TST-OFF1
-    vs offense.pln has no unused gameplan categories, so the reports match."""
-    result = run(runner, OFF1, GP_OFFENSE)
+@pytest.mark.parametrize(
+    "prof,gameplan,stems,count",
+    [
+        (OFF1, GP_OFFENSE, ("compat_offense", "offense"), 22),
+        (DEF1, GP_DEFENSE, ("compat_defense", "defense"), 13),
+    ],
+)
+def test_cli_both_matches_existing_reports(
+    runner,
+    full_league: Path,
+    prof: Path,
+    gameplan: Path,
+    stems: tuple[str, str],
+    count: int,
+) -> None:
+    """With both `[gameplan_compatibility]` settings on, as in the test rules:
+    profile report with its `gameplan:` lines (as `profile check --gameplan`),
+    then the gameplan report (as `gameplan check`), then one summary."""
+    result = run(runner, prof, gameplan)
     assert result.exit_code == 1
-    assert normalized(result, OFF1, GP_OFFENSE) == (
-        golden("compat_offense", "offense")
-        + "\n2 file(s) checked, 22 violation(s) across 2 file(s).\n"
+    assert normalized(result, prof, gameplan) == (
+        golden(*stems)
+        + f"\n2 file(s) checked, {count} violation(s) across 2 file(s).\n"
     )
 
 
-def test_cli_unused_gameplan_categories_are_info(runner, full_league: Path) -> None:
-    """A profile category the gameplan lacks fails, as in `profile check
-    --gameplan`; a gameplan category the profile never uses is only an info
-    line and does not count."""
+def test_cli_unused_gameplan_categories_are_info(
+    runner, league: BuildLeague, write_config: WriteConfig, tmp_path: Path
+) -> None:
+    """With `require_all_gameplan_categories_in_profile` off, a gameplan category
+    the profile never uses is only an info line and does not count; a profile
+    category the gameplan lacks still fails."""
+    text = RULES_TOML.read_text(encoding="utf-8").replace(
+        "require_all_gameplan_categories_in_profile = true",
+        "require_all_gameplan_categories_in_profile = false",
+    )
+    league(profile_rules=write_toml(tmp_path, text))
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, DEF1, GP_DEFENSE)
     assert result.exit_code == 1
     situations = golden("TST-DEF1").splitlines(keepends=True)[1:]
@@ -295,31 +317,47 @@ def test_cli_unused_gameplan_categories_alone_exit_0(
 
 
 @pytest.mark.parametrize(
-    "forward,reverse", [(True, True), (True, False), (False, True), (False, False)]
+    "forward,reverse,issues,infos,total,files",
+    [
+        (True, True, 5, 0, 6, 2),
+        (True, False, 1, 4, 2, 2),
+        (False, True, 4, 0, 5, 2),
+        (False, False, 0, 4, 1, 1),
+    ],
 )
-def test_cli_cross_check_ignores_league_flags(
+def test_cli_cross_check_follows_league_settings(
     runner,
     league: BuildLeague,
     write_config: WriteConfig,
     tmp_path: Path,
     forward: bool,
     reverse: bool,
+    issues: int,
+    infos: int,
+    total: int,
+    files: int,
 ) -> None:
-    """The `[gameplan_compatibility]` flags are for `profile check`; check-ppp
-    always reports TST-DEF1 vs defense.pln's 1 missing category (an issue) and
-    4 unused ones (info)."""
-    flags = (
+    """TST-DEF1 vs defense.pln: 1 profile category the gameplan lacks, 4 gameplan
+    categories the profile never uses. The first counts only when
+    `require_all_profile_categories_in_gameplan` is on; the others count when
+    `require_all_gameplan_categories_in_profile` is on, else they are info lines.
+    The total adds defense.pln's own violation; `files` is how many files have
+    findings."""
+    settings = (
         "[gameplan_compatibility]\n"
-        f"profile_categories_in_gameplan = {str(forward).lower()}\n"
-        f"gameplan_categories_in_profile = {str(reverse).lower()}\n"
+        f"require_all_profile_categories_in_gameplan = {str(forward).lower()}\n"
+        f"require_all_gameplan_categories_in_profile = {str(reverse).lower()}\n"
     )
-    league(profile_rules=write_toml(tmp_path, flags))
+    league(profile_rules=write_toml(tmp_path, settings))
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, DEF1, GP_DEFENSE)
     assert result.exit_code == 1
-    assert result.stdout.count("  gameplan: ") == 1
-    assert result.stdout.count("  gameplan info: ") == 4
-    assert "2 file(s) checked, 2 violation(s) across 2 file(s)." in result.stdout
+    assert result.stdout.count("  gameplan: ") == issues
+    assert result.stdout.count("  gameplan info: ") == infos
+    assert (
+        f"2 file(s) checked, {total} violation(s) across {files} file(s)."
+        in result.stdout
+    )
 
 
 # ── side mismatch ─────────────────────────────────────────────────────────────

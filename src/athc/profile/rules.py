@@ -151,7 +151,8 @@ class ProfileRules:
     `audibles_allowed` omitted in the file defaults to True — no audibles check.
 
     The two `[gameplan_compatibility]` flags gate the compatibility checks
-    `check --gameplan` runs; both default False — not enforced.
+    `profile check --gameplan` and `check-ppp` run; both default False — not
+    enforced.
 
     Every field is optional; an empty rule set enforces nothing.
     """
@@ -163,8 +164,8 @@ class ProfileRules:
     min_categories: int = 0
     offense_disallowed_categories: frozenset[int] = frozenset()
     defense_disallowed_categories: frozenset[int] = frozenset()
-    profile_categories_in_gameplan: bool = False
-    gameplan_categories_in_profile: bool = False
+    require_all_profile_categories_in_gameplan: bool = False
+    require_all_gameplan_categories_in_profile: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -274,9 +275,13 @@ _ALLOWED_TOP_KEYS: Final[frozenset[str]] = frozenset(
         "defense",
     }
 )
-# Compatibility checks run only by `check --gameplan`; each is a boolean.
+# Compatibility checks run by `profile check --gameplan` and `check-ppp`; each
+# is a boolean.
 _ALLOWED_COMPAT_KEYS: Final[frozenset[str]] = frozenset(
-    {"profile_categories_in_gameplan", "gameplan_categories_in_profile"}
+    {
+        "require_all_profile_categories_in_gameplan",
+        "require_all_gameplan_categories_in_profile",
+    }
 )
 # Substitution group keys: per side, an exact value or min/max bounds.
 _SUB_KEYS: Final[tuple[str, ...]] = tuple(
@@ -314,8 +319,8 @@ class _MergedData:
 
     audibles_allowed: bool | None = None
     min_categories: int | None = None
-    profile_categories_in_gameplan: bool | None = None
-    gameplan_categories_in_profile: bool | None = None
+    require_all_profile_categories_in_gameplan: bool | None = None
+    require_all_gameplan_categories_in_profile: bool | None = None
     substitutions: dict[str, SubstitutionRule] = field(default_factory=dict)
     offense_disallowed: frozenset[int] = field(default_factory=frozenset)
     defense_disallowed: frozenset[int] = field(default_factory=frozenset)
@@ -744,7 +749,10 @@ def _build_rules(m: _MergedData) -> ProfileRules:
         scalars["audibles_allowed"] = m.audibles_allowed
     if m.min_categories is not None:
         scalars["min_categories"] = m.min_categories
-    for key in ("profile_categories_in_gameplan", "gameplan_categories_in_profile"):
+    for key in (
+        "require_all_profile_categories_in_gameplan",
+        "require_all_gameplan_categories_in_profile",
+    ):
         if (flag := getattr(m, key)) is not None:
             scalars[key] = flag
     return ProfileRules(

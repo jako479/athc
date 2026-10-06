@@ -30,6 +30,7 @@ from athc.gameplan import load_rules as load_gameplan_rule_files
 from athc.gameplan.config import load_config as load_gameplan_config
 from athc.playpool import PlayPool
 from athc.profile import (
+    CompatIssue,
     ProfileRules,
     check_gameplan_compatibility,
     gameplan_extra_categories,
@@ -56,9 +57,10 @@ def check_ppp(
 
     Pass one profile, one gameplan, or both, in either order; the extension
     tells them apart. Each file is checked like `profile check` and `gameplan
-    check`. With both, they must be the same side, and every play category the
-    profile uses must have a custom play in the gameplan; gameplan categories
-    the profile never uses are listed as info only.
+    check`. With both, they must be the same side, and the league's profile
+    rules decide whether profile categories with no custom play in the
+    gameplan, and gameplan categories the profile never uses, fail the check;
+    unused gameplan categories that don't fail are listed as info only.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -240,10 +242,10 @@ def profile_report(
     path: Path, prof: Profile, rules: ProfileRules, gameplan: GamePlan | None
 ) -> tuple[int, str]:
     """`(count, line)` in `profile check`'s format. With a same-side gameplan,
-    the cross-check follows the league rule, not the `[gameplan_compatibility]`
-    flags (those are for `profile check`): a profile category the gameplan
-    lacks is an issue that counts, and a gameplan category the profile never
-    uses is an info line that doesn't."""
+    the `[gameplan_compatibility]` settings pick what counts: profile
+    categories the gameplan lacks are issues when required, else unchecked;
+    gameplan categories the profile never uses are issues when required, else
+    info lines that don't count."""
     violations = validate_profile(prof, rules)
     summary = f"{_side(prof.is_offense)}, FG range {prof.field_goal_range}"
     details = [f"  {_profile_violation(v)}" for v in violations]
@@ -253,7 +255,13 @@ def profile_report(
         head = f"{path}: {len(violations)} violation(s) ({summary})"
         return len(violations), "\n".join([head, *details])
 
-    issues = check_gameplan_compatibility(prof, gameplan)
+    issues: tuple[CompatIssue, ...] = ()
+    if rules.require_all_profile_categories_in_gameplan:
+        issues += check_gameplan_compatibility(prof, gameplan)
+    extras = gameplan_extra_categories(prof, gameplan)
+    if rules.require_all_gameplan_categories_in_profile:
+        issues += extras
+        extras = ()
     total = len(violations) + len(issues)
     if total == 0:
         head = f"{path}: OK ({summary}; gameplan compatible)"
@@ -264,10 +272,7 @@ def profile_report(
         )
     lines = [head, *details]
     lines.extend(f"  gameplan: {issue.message}" for issue in issues)
-    lines.extend(
-        f"  gameplan info: {extra.message}"
-        for extra in gameplan_extra_categories(prof, gameplan)
-    )
+    lines.extend(f"  gameplan info: {extra.message}" for extra in extras)
     return total, "\n".join(lines)
 
 

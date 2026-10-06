@@ -4,6 +4,13 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-06 — **check-ppp**: now follows the profile rules'
+  `[gameplan_compatibility]` settings instead of ignoring them, so a league
+  decides what fails. A profile category the gameplan lacks is the profile's
+  error, so both settings stay in the profile rules; they were renamed to read
+  as yes/no (`require_all_...`). PNFL and PCFL require every profile category
+  in the gameplan and leave unused gameplan categories as info, which
+  `profile check` now follows too.
 - 2026-10-05 — **athc**: hooked the PCFL up to gameplan, playpool and profile
   by copying the PNFL's rules into its league folder. `set-normals`,
   `set-specials` and `replace-play` wrote every play path as `PNFL\...`; they

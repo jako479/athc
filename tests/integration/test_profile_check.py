@@ -360,11 +360,12 @@ def test_cli_malformed_ini(
 EMPTY_RULES = ProfileRules()  # no rules -> validate_profile reports nothing
 # No league rules, but both gameplan compatibility checks on.
 COMPAT_RULES = ProfileRules(
-    profile_categories_in_gameplan=True, gameplan_categories_in_profile=True
+    require_all_profile_categories_in_gameplan=True,
+    require_all_gameplan_categories_in_profile=True,
 )
 COMPAT_TOML = """[gameplan_compatibility]
-profile_categories_in_gameplan = true
-gameplan_categories_in_profile = true
+require_all_profile_categories_in_gameplan = true
+require_all_gameplan_categories_in_profile = true
 """
 
 

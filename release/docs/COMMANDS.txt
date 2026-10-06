@@ -204,10 +204,11 @@ unless the command is given --league NAME.
    order (the extension tells them apart). Each file gets the same check as
    profile check and gameplan check, with the rules from the current league;
    --league picks another league. With both files, they must be the same
-   side, and every play category the profile uses must have a custom play in
-   the game plan. Game plan categories the profile never uses are listed as
-   info only; they do not fail the check. Every error is reported, not just
-   the first.
+   side, and the league's rules\profile.toml decides whether profile
+   categories with no custom play in the game plan, and game plan categories
+   the profile never uses, fail the check. Unused game plan categories that
+   don't fail are listed as info only. Every error is reported, not just the
+   first.
 
    Show help:
       athc check-ppp -h

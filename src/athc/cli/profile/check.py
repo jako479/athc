@@ -147,9 +147,9 @@ def check_file(
             f"sides must match"
         )
     issues: tuple[CompatIssue, ...] = ()
-    if rules.profile_categories_in_gameplan:
+    if rules.require_all_profile_categories_in_gameplan:
         issues += check_gameplan_compatibility(prof, gameplan)
-    if rules.gameplan_categories_in_profile:
+    if rules.require_all_gameplan_categories_in_profile:
         issues += gameplan_extra_categories(prof, gameplan)
     return _render_with_compat(path, violations, issues, summary)
 

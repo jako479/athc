@@ -394,12 +394,12 @@ In [test_check_ppp.py](test_check_ppp.py). Same real `.prf` / `.pln` / pool as `
 ## both files
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Both = `profile check --gameplan` + `gameplan check` | OFF1 + offense.pln | exit 1; both goldens + one summary | `test_cli_both_matches_existing_reports` | ☑ |
-| Unused gameplan categories are info | DEF1 + defense.pln | exit 1; 1 `gameplan:` line, 4 `gameplan info:` lines not counted | `test_cli_unused_gameplan_categories_are_info` | ☑ |
+| Both = `profile check --gameplan` + `gameplan check` (both settings on) | OFF1 + offense.pln / DEF1 + defense.pln | exit 1; both goldens + one summary | `test_cli_both_matches_existing_reports` `[P]` | ☑ |
+| Unused gameplan categories are info | DEF1 + defense.pln, unused-categories setting off | exit 1; 1 `gameplan:` line, 4 `gameplan info:` lines not counted | `test_cli_unused_gameplan_categories_are_info` | ☑ |
 | Order does not matter | gameplan first | same stdout | `test_cli_file_order_does_not_matter` | ☑ |
 | Clean both (mocked) | clean profile, info mocked | exit 0; two OK lines | `test_cli_both_clean_exit_0` | ☑ |
 | Unused gameplan categories alone | clean profile, flags off, gameplan mocked | exit 0; 10 `gameplan info:` lines | `test_cli_unused_gameplan_categories_alone_exit_0` | ☑ |
-| Cross-check ignores the league flags | each flag combination | always 1 issue, 4 info lines | `test_cli_cross_check_ignores_league_flags` `[P]` | ☑ |
+| Cross-check follows the league settings | each setting combination | missing categories count only when required; unused ones count when required, else 4 info lines | `test_cli_cross_check_follows_league_settings` `[P]` | ☑ |
 | Side mismatch, both ways | OFF1 + defense.pln / DEF1 + offense.pln | exit 2; mismatch line only, no checks, no summary | `test_cli_side_mismatch_stops_the_checks` `[P]` | ☑ |
 
 ## input and file errors

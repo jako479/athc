@@ -31,10 +31,10 @@ or a glob. Each profile prints `OK` or its violations. Needs rules (below).
 that gameplan. The rules file's `[gameplan_compatibility]` turns each
 compatibility check on:
 
-- `profile_categories_in_gameplan` — every category the profile uses must have a
-  custom play in the `.pln`.
-- `gameplan_categories_in_profile` — every category the `.pln` has a custom play
-  for must be used by the profile.
+- `require_all_profile_categories_in_gameplan` — every category the profile
+  uses must have a custom play in the `.pln`.
+- `require_all_gameplan_categories_in_profile` — every category the `.pln` has
+  a custom play for must be used by the profile.
 
 Either one is a `gameplan:` line and a finding. Categories are the normal
 run/pass ones plus special teams (FG/PAT, punt, the fakes); clock and "random"

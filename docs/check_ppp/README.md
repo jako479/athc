@@ -20,13 +20,15 @@ league, or from `[athc] league` in `athc.ini`.
 
 - The profile, exactly as `profile check` does.
 - The gameplan, exactly as `gameplan check` does.
-- With both, the two must be the same side (offense or defense), and every
-  play category the profile uses must have a custom play in the gameplan (a
-  `gameplan:` line that fails the check).
-- Gameplan categories the profile never uses are only `gameplan info:` lines;
-  they don't fail the check. Unlike `profile check`, which fails on them.
-- Both always run. The `[gameplan_compatibility]` flags are for
-  `profile check` only.
+- With both, the two must be the same side (offense or defense). The profile
+  rules' `[gameplan_compatibility]` settings then decide what fails:
+  - `require_all_profile_categories_in_gameplan` — every play category the
+    profile uses must have a custom play in the gameplan; each one missing is
+    a `gameplan:` line that fails the check. Off, it isn't checked.
+  - `require_all_gameplan_categories_in_profile` — every category the gameplan
+    has a custom play for must be used by the profile; each one unused is a
+    `gameplan:` line that fails the check. Off, they are only
+    `gameplan info:` lines that don't fail.
 
 The output is the same report lines those commands print: the profile, then
 the gameplan, then one summary line. Every error is reported in one run: a bad
@@ -42,7 +44,7 @@ reported.
 | Exit | Meaning |
 |---|---|
 | `0` | **Clean** — no violations or issues. |
-| `1` | **Findings** — rule violations, or profile categories the gameplan lacks. |
+| `1` | **Findings** — rule violations, or gameplan issues the league requires. |
 | `2` | **Error** — couldn't run: a missing, unreadable or wrong-type file, two files of one kind, a side mismatch, or a config or rules problem. |
 
 ## Rules
