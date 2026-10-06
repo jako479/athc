@@ -11,20 +11,12 @@ from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.profile import profile
 from athc.cli.profile._common import collect_files, resolve_rules
 from athc.config import ConfigFileError, LeagueError
-from athc.fbpro98_gameplan import GamePlan, InvalidGamePlanError, read_gameplan
 from athc.fbpro98_profile import (
     InvalidProfileError,
     UnsupportedProfileError,
     read_profile,
 )
-from athc.profile import (
-    CompatIssue,
-    ProfileRules,
-    Violation,
-    check_gameplan_compatibility,
-    gameplan_extra_categories,
-    validate_profile,
-)
+from athc.profile import ProfileRules, Violation, validate_profile
 from athc.profile.config import load_config
 
 PROG = "athc profile check"
@@ -39,31 +31,18 @@ logger = logging.getLogger(__name__)
     is_flag=True,
     help="Recurse into subdirectories of a directory path.",
 )
-@click.option(
-    "--gameplan",
-    "gameplan_path",
-    metavar="pln_file",
-    type=click.Path(path_type=Path),
-    default=None,
-    help="Also check that this .pln gameplan and each profile cover the same "
-    "play categories, in both directions (same side only).",
-)
 @league_option
 @click.pass_context
 def check(
     ctx: click.Context,
     paths: tuple[str, ...],
     recursive: bool,
-    gameplan_path: Path | None,
     league: str | None,
 ) -> None:
     """Validate one or more .prf coaching profiles against the league's rules.
 
     Each path is a .prf file, a directory (top level, or the whole tree with -r),
-    or a glob. With --gameplan, each profile is also checked for play-category
-    coverage against that .pln (offense with offense, defense with defense), in
-    both directions: categories the gameplan does not back, and gameplan
-    categories the profile never uses.
+    or a glob.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -83,15 +62,9 @@ def check(
     if rules is None:
         ctx.exit(2)
 
-    gameplan = None
-    if gameplan_path is not None:
-        gameplan = load_gameplan(gameplan_path)
-        if gameplan is None:
-            ctx.exit(2)
-
     total = files_with_violations = total_violations = io_errors = 0
     for path in files:
-        count, line = check_file(path, rules, gameplan)
+        count, line = check_file(path, rules)
         click.echo(line)
         total += 1
         if count < 0:
@@ -110,25 +83,8 @@ def check(
     ctx.exit(1 if total_violations else 0)
 
 
-def load_gameplan(path: Path) -> GamePlan | None:
-    """Read the --gameplan .pln; log and return None on a bad path or parse error."""
-    if path.suffix.lower() != ".pln":
-        logger.error("%s: not a .pln file: %s", PROG, path)
-        return None
-    try:
-        return read_gameplan(str(path))
-    except (OSError, InvalidGamePlanError) as error:
-        logger.error("%s: %s", PROG, error)
-        return None
-
-
-def check_file(
-    path: Path, rules: ProfileRules, gameplan: GamePlan | None = None
-) -> tuple[int, str]:
-    """Return `(count, line)`; a parse/I/O error or side mismatch returns
-    `(-1, error line)`. With a gameplan, `count` also includes whichever
-    compatibility checks `[gameplan_compatibility]` enables, and the head line reports
-    them."""
+def check_file(path: Path, rules: ProfileRules) -> tuple[int, str]:
+    """Return `(count, line)`; a parse/I/O error returns `(-1, error line)`."""
     try:
         prof = read_profile(str(path))
     except (OSError, InvalidProfileError, UnsupportedProfileError) as error:
@@ -136,51 +92,11 @@ def check_file(
     violations = validate_profile(prof, rules)
     side = "offense" if prof.is_offense else "defense"
     summary = f"{side}, FG range {prof.field_goal_range}"
-
-    if gameplan is None:
-        return _render(path, violations, summary)
-
-    if prof.is_offense != gameplan.is_offense:
-        gp_side = "offense" if gameplan.is_offense else "defense"
-        return -1, (
-            f"{path}: ERROR: profile is {side} but gameplan is {gp_side}; "
-            f"sides must match"
-        )
-    issues: tuple[CompatIssue, ...] = ()
-    if rules.require_all_profile_categories_in_gameplan:
-        issues += check_gameplan_compatibility(prof, gameplan)
-    if rules.require_all_gameplan_categories_in_profile:
-        issues += gameplan_extra_categories(prof, gameplan)
-    return _render_with_compat(path, violations, issues, summary)
-
-
-def _render(
-    path: Path, violations: tuple[Violation, ...], summary: str
-) -> tuple[int, str]:
     if not violations:
         return 0, f"{path}: OK ({summary})"
     lines = [f"{path}: {len(violations)} violation(s) ({summary})"]
     lines.extend(f"  {_format_violation(v)}" for v in violations)
     return len(violations), "\n".join(lines)
-
-
-def _render_with_compat(
-    path: Path,
-    violations: tuple[Violation, ...],
-    issues: tuple[CompatIssue, ...],
-    summary: str,
-) -> tuple[int, str]:
-    """Render the gameplan report; every issue counts toward the exit code."""
-    total = len(violations) + len(issues)
-    if total == 0:
-        return 0, f"{path}: OK ({summary}; gameplan compatible)"
-    lines = [
-        f"{path}: {len(violations)} violation(s), "
-        f"{len(issues)} gameplan issue(s) ({summary})"
-    ]
-    lines.extend(f"  {_format_violation(v)}" for v in violations)
-    lines.extend(f"  gameplan: {issue.message}" for issue in issues)
-    return total, "\n".join(lines)
 
 
 def _format_violation(v: Violation) -> str:

@@ -20,8 +20,8 @@ disallowed_offensive_categories = [
 ]
 disallowed_defensive_categories = []
 
-# Cross-checks between a profile and a gameplan, applied by `check-ppp` and
-# `profile check --gameplan`. Omitted = not enforced.
+# Cross-checks between a profile and a gameplan, applied by `check-ppp`.
+# Omitted = not enforced.
 [gameplan_compatibility]
 require_all_profile_categories_in_gameplan = true   # every category the profile uses needs a play
 require_all_gameplan_categories_in_profile = false  # every category the gameplan has must be used

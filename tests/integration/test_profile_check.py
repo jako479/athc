@@ -14,16 +14,12 @@ import pytest
 
 from athc.cli.profile._common import collect_files
 from athc.cli.profile.check import check, check_file
-from athc.fbpro98_gameplan import read_gameplan
-from athc.profile import ProfileRules, load_rules
+from athc.profile import load_rules
 from tests.conftest import LEAGUE, OTHER_LEAGUE
 from tests.integration.conftest import (
-    COMPAT_DEF_CLEAN,
-    COMPAT_OFF_CLEAN,
     DATA,
     DEF1,
     EXPECTED,
-    GP_DEFENSE,
     GP_OFFENSE,
     OFF1,
     RULES_TOML,
@@ -355,194 +351,13 @@ def test_cli_malformed_ini(
     assert result.exit_code == 2
 
 
-# ── --gameplan compatibility (check_file) ─────────────────────────────────────
-
-EMPTY_RULES = ProfileRules()  # no rules -> validate_profile reports nothing
-# No league rules, but both gameplan compatibility checks on.
-COMPAT_RULES = ProfileRules(
-    require_all_profile_categories_in_gameplan=True,
-    require_all_gameplan_categories_in_profile=True,
-)
-COMPAT_TOML = """[gameplan_compatibility]
-require_all_profile_categories_in_gameplan = true
-require_all_gameplan_categories_in_profile = true
-"""
+# ── --gameplan is gone (check-ppp replaces it) ────────────────────────────────
 
 
-def test_check_file_gameplan_offense_reports_compat() -> None:
-    gp = read_gameplan(str(GP_OFFENSE))
-    count, line = check_file(OFF1, RULES, gp)
-    head = line.splitlines()[0]
-    assert "gameplan issue(s)" in head and "offense" in head
-    assert "gameplan: play category GLR (0x00)" in line
-    # 18 rule violations + 1 gameplan issue
-    assert count == 19
-
-
-def test_check_file_gameplan_defense_reports_compat() -> None:
-    gp = read_gameplan(str(GP_DEFENSE))
-    count, line = check_file(DEF1, RULES, gp)
-    assert "gameplan: special-teams category Field Goal/PAT" in line
-    # 7 rule violations + 1 forward issue + 4 reverse issues
-    assert count == 12
-
-
-def test_check_file_gameplan_reverse_counts() -> None:
-    """Gameplan categories the profile never weights are issues like any other:
-    they print as `gameplan:` lines and count toward the exit code."""
-    gp = read_gameplan(str(GP_DEFENSE))
-    count, line = check_file(DEF1, RULES, gp)
-    assert count == 12
-    assert "5 gameplan issue(s)" in line.splitlines()[0]
-    assert "gameplan: gameplan special-teams category Fake FG Run" in line
-
-
-def test_check_file_gameplan_clean(monkeypatch: pytest.MonkeyPatch) -> None:
-    """No issues in either direction -> the bare compatible line."""
-    monkeypatch.setattr(
-        "athc.cli.profile.check.gameplan_extra_categories", lambda prof, gp: ()
-    )
-    gp = read_gameplan(str(GP_OFFENSE))
-    count, line = check_file(COMPAT_OFF_CLEAN, COMPAT_RULES, gp)
-    assert count == 0
-    assert line == f"{COMPAT_OFF_CLEAN}: OK (offense, FG range 20; gameplan compatible)"
-
-
-def test_check_file_gameplan_reverse_only_fails() -> None:
-    """Forward-compatible profile, but the gameplan has plays it never calls:
-    the reverse issues alone fail the check."""
-    gp = read_gameplan(str(GP_OFFENSE))
-    count, line = check_file(COMPAT_OFF_CLEAN, COMPAT_RULES, gp)
-    head = line.splitlines()[0]
-    assert count == 10
-    assert head.startswith(f"{COMPAT_OFF_CLEAN}: 0 violation(s), 10 gameplan issue(s)")
-    assert "gameplan: gameplan play category Run Left" in line
-
-
-def test_check_file_gameplan_side_mismatch() -> None:
-    gp = read_gameplan(str(GP_DEFENSE))  # defense gameplan, offense profile
-    count, line = check_file(OFF1, RULES, gp)
-    assert count == -1
-    assert "profile is offense but gameplan is defense" in line
-
-
-def test_check_file_gameplan_side_mismatch_defense() -> None:
-    gp = read_gameplan(str(GP_OFFENSE))  # offense gameplan, defense profile
-    count, line = check_file(DEF1, RULES, gp)
-    assert count == -1
-    assert "profile is defense but gameplan is offense" in line
-
-
-@pytest.mark.parametrize(
-    "prof,gameplan,stem",
-    [(OFF1, GP_OFFENSE, "compat_offense"), (DEF1, GP_DEFENSE, "compat_defense")],
-)
-def test_check_file_gameplan_matches_golden(
-    prof: Path, gameplan: Path, stem: str
-) -> None:
-    gp = read_gameplan(str(gameplan))
-    _, report = check_file(prof, RULES, gp)
-    normalized = report.replace(str(prof), prof.name)
-    golden = (EXPECTED / f"{stem}.report.txt").read_text(encoding="utf-8")
-    assert normalized + "\n" == golden
-
-
-# ── --gameplan compatibility (command) ────────────────────────────────────────
-
-
-@pytest.mark.usefixtures("league")
-def test_cli_gameplan_offense_exit_1(runner) -> None:
+def test_cli_gameplan_option_rejected(runner) -> None:
     result = runner.invoke(check, [str(OFF1), "--gameplan", str(GP_OFFENSE)])
-    assert result.exit_code == 1
-    assert "gameplan issue(s)" in result.output
-    assert "gameplan: play category GLR (0x00)" in result.output
-
-
-@pytest.mark.usefixtures("league")
-def test_cli_gameplan_defense_exit_1(runner) -> None:
-    result = runner.invoke(check, [str(DEF1), "--gameplan", str(GP_DEFENSE)])
-    assert result.exit_code == 1
-    assert "special-teams category Field Goal/PAT" in result.output
-
-
-def test_cli_gameplan_clean_exit_0(
-    runner, league: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(
-        "athc.cli.profile.check.gameplan_extra_categories", lambda prof, gp: ()
-    )
-    (league / "rules" / "profile.toml").write_text(COMPAT_TOML, encoding="utf-8")
-    result = runner.invoke(
-        check, [str(COMPAT_DEF_CLEAN), "--gameplan", str(GP_DEFENSE)]
-    )
-    assert result.exit_code == 0
-    assert "gameplan compatible" in result.output
-
-
-def test_cli_gameplan_reverse_exit_1(runner, league: Path) -> None:
-    """Gameplan categories the profile never uses fail the check on their own:
-    a forward-compatible profile still exits 1."""
-    (league / "rules" / "profile.toml").write_text(COMPAT_TOML, encoding="utf-8")
-    result = runner.invoke(
-        check, [str(COMPAT_DEF_CLEAN), "--gameplan", str(GP_DEFENSE)]
-    )
-    assert result.exit_code == 1
-    assert "gameplan issue(s)" in result.output
-    assert "gameplan: gameplan play category Goal Line Run" in result.output
-
-
-@pytest.mark.usefixtures("league")
-def test_cli_gameplan_side_mismatch_exit_2(runner) -> None:
-    result = runner.invoke(check, [str(OFF1), "--gameplan", str(GP_DEFENSE)])
     assert result.exit_code == 2
-    assert "profile is offense but gameplan is defense" in result.output
-
-
-@pytest.mark.usefixtures("league")
-def test_cli_gameplan_mixed_sides_continues(runner) -> None:
-    """One gameplan, two profiles: the matching side is checked, the other is a
-    per-file side-mismatch error; the run continues and exits 2."""
-    result = runner.invoke(check, [str(OFF1), str(DEF1), "--gameplan", str(GP_OFFENSE)])
-    assert result.exit_code == 2
-    assert "gameplan issue(s)" in result.output  # OFF1 checked
-    assert "profile is defense but gameplan is offense" in result.output  # DEF1
-    assert "2 file(s) checked" in result.output
-
-
-@pytest.mark.usefixtures("league")
-def test_cli_gameplan_missing_file_exit_2(
-    runner, caplog: pytest.LogCaptureFixture
-) -> None:
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(
-            check,
-            [str(OFF1), "--gameplan", str(DATA / "no.pln")],
-        )
-    assert result.exit_code == 2
-    assert "no.pln" in caplog.text
-
-
-@pytest.mark.usefixtures("league")
-def test_cli_gameplan_bad_extension_exit_2(
-    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    bad = tmp_path / "plan.txt"
-    bad.write_bytes(b"\x00")
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(check, [str(OFF1), "--gameplan", str(bad)])
-    assert result.exit_code == 2
-    assert "not a .pln file" in caplog.text
-
-
-@pytest.mark.usefixtures("league")
-def test_cli_gameplan_malformed_exit_2(
-    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    bad = tmp_path / "broken.pln"
-    bad.write_bytes(b"\x00\x01\x02")
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(check, [str(OFF1), "--gameplan", str(bad)])
-    assert result.exit_code == 2
+    assert "No such option '--gameplan'" in result.output
 
 
 # ── packaging check (real subprocess) ─────────────────────────────────────────

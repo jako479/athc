@@ -1,7 +1,7 @@
 # check-ppp
 
 Check coaching profiles (`.prf`) with their gameplans (`.pln`) against the
-league rules, and check that each pair fits together. Meant to replace
+league rules, and check that each pair fits together. Replaced
 `profile check --gameplan`.
 
 ## Usage

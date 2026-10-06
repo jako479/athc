@@ -149,13 +149,8 @@ unless the command is given --league NAME.
    ------------------------------------------------------------------------
 
    Rules come from the league's rules\profile.toml. With no rules configured,
-   check reports an error and stops.
-
-   --gameplan pln_file also checks the profile's play categories against a .pln
-   gameplan: every category the profile uses (normal and special teams) must
-   have a custom play in the gameplan. It also reports gameplan categories the
-   profile never uses. The league's rules\profile.toml turns each direction on.
-   Profile and gameplan must be the same side (offense or defense).
+   check reports an error and stops. To check a profile together with its
+   gameplan, use check-ppp.
 
    Show help:
       athc profile check -h
@@ -163,7 +158,6 @@ unless the command is given --league NAME.
    Example terminal calls:
       athc profile check OFF1.prf
       athc profile check profiles\ -r --league PCFL
-      athc profile check OFF1.prf --gameplan OFF.pln
 
 
 9) profile copy  --  copy fields from a source .prf into targets

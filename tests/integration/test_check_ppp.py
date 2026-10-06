@@ -1,7 +1,7 @@
 """Integration tests for `athc check-ppp`.
 
-check-ppp prints exactly what `profile check` (with `--gameplan`) and
-`gameplan check` print, so its reports are compared to their committed goldens.
+check-ppp prints exactly what `profile check --gameplan` printed and what
+`gameplan check` prints, so its reports are compared to their committed goldens.
 Every rule, and the league file that pairs a directory's files, comes from the
 league folder.
 """
@@ -232,8 +232,8 @@ def test_cli_both_matches_existing_reports(
     count: int,
 ) -> None:
     """With both `[gameplan_compatibility]` settings on, as in the test rules:
-    profile report with its `gameplan:` lines (as `profile check --gameplan`),
-    then the gameplan report (as `gameplan check`), then one summary."""
+    profile report with its `gameplan:` lines (as `profile check --gameplan`
+    printed), then the gameplan report (as `gameplan check`), then one summary."""
     result = run(runner, prof, gameplan)
     assert result.exit_code == 1
     assert normalized(result, prof, gameplan) == (

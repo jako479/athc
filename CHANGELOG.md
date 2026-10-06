@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- profile: `check` dropped `--gameplan`; `check-ppp` checks a profile with its gameplan
 - check-ppp: checks every profile and gameplan pair the league's `.lg2` names in a folder, or a whole tree with `-r`
 - check-ppp: needs both a profile and a gameplan; one file alone is an error
 - athc: new `path` league setting, the folder that holds the league's files

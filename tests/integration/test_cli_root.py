@@ -162,7 +162,7 @@ def test_short_help_option_on_every_command(runner, path: tuple[str, ...]) -> No
             ["--season year", "--seed number", "--time-limit number"],
             ["INTEGER"],
         ),
-        (("profile", "check"), ["path...", "--gameplan pln_file"], ["PATH"]),
+        (("profile", "check"), ["path..."], ["PATH"]),
         (
             ("profile", "diff"),
             ["file1 file2", "--output file"],

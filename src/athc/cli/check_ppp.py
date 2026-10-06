@@ -1,8 +1,8 @@
 """`athc check-ppp` — validate a profile with its gameplan, and how they fit.
 
-Meant to replace `profile check --gameplan`. It shares no code with `profile
-check` or `gameplan check`: its reading, rules loading and reports live here,
-printed in their format.
+Replaced `profile check --gameplan`. It shares no code with `profile check` or
+`gameplan check`: its reading, rules loading and reports live here, printed in
+their format.
 """
 
 from __future__ import annotations

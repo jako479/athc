@@ -151,8 +151,7 @@ class ProfileRules:
     `audibles_allowed` omitted in the file defaults to True — no audibles check.
 
     The two `[gameplan_compatibility]` flags gate the compatibility checks
-    `profile check --gameplan` and `check-ppp` run; both default False — not
-    enforced.
+    `check-ppp` runs; both default False — not enforced.
 
     Every field is optional; an empty rule set enforces nothing.
     """
@@ -275,8 +274,7 @@ _ALLOWED_TOP_KEYS: Final[frozenset[str]] = frozenset(
         "defense",
     }
 )
-# Compatibility checks run by `profile check --gameplan` and `check-ppp`; each
-# is a boolean.
+# Compatibility checks run by `check-ppp`; each is a boolean.
 _ALLOWED_COMPAT_KEYS: Final[frozenset[str]] = frozenset(
     {
         "require_all_profile_categories_in_gameplan",

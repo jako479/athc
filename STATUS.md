@@ -161,7 +161,7 @@ Working. Checks profiles with their gameplans, and how they fit. Docs:
   mismatches still report. A side mismatch stops two-file mode; in a
   directory it is that pair's error line.
 
-Open: PCFL's `.lg2` doesn't exist yet · remove `profile check --gameplan`.
+Open: PCFL's `.lg2` doesn't exist yet.
 
 ## fbpro98_gameplan (library)
 
@@ -262,9 +262,8 @@ Working. Validates and compares `.prf` coaching profiles. Docs:
 
 - `check` takes its rules from the league folder (`rules\profile.toml`, or a
   `profile_rules` list in `league.ini`); there is no override.
-- Gameplan compatibility is checked both ways, fails `check` like any other
-  rule, and each direction is turned on in the rules file under
-  `[gameplan_compatibility]`.
+- `check` validates profiles only; checking a profile with its gameplan is
+  `check-ppp`'s job.
 - Substitution bounds cover every position group: QB pinned at 75/80, every
   other group but K capped at 95 out and 96-100 in.
 - Substitution rules take `min_`/`max_` bounds per side as well as exact
@@ -276,8 +275,7 @@ Working. Validates and compares `.prf` coaching profiles. Docs:
   `--output` extension.
 - `copy` writes each target in place with no backup.
 
-Open: `check --gameplan` moves to `athc check-ppp` · revisit `edit`/`copy`
-options.
+Open: revisit `edit`/`copy` options.
 
 ## scheduler — `generate-schedule`
 
@@ -322,9 +320,9 @@ construction, never pruned · then the quirk budget in
 ## Decisions
 
 - **check-ppp checks pairs only; `profile check` and `gameplan check` stay.**
-  check-ppp always takes a profile with its gameplan and replaces
-  `profile check --gameplan`; the two check commands stay for checking many
-  files of one kind.
+  check-ppp always takes a profile with its gameplan and replaced
+  `profile check --gameplan`, now removed; the two check commands stay for
+  checking many files of one kind.
 - **check-ppp pairs a folder's files from the league's `.lg2`.** The game's own
   league file already lists every team's eight files, so no team list is kept
   in config. Pairs match by file name in one folder at a time, since weeks and
@@ -346,9 +344,9 @@ construction, never pruned · then the quirk budget in
   Click only takes a root option before the command name, which read oddly.
 - **convert-pdb's workbook options are app-wide.** They stay in
   `[convert-pdb]`; only the play pool is per league.
-- **`profile check`'s compatibility rules live in the rules file, not the
-  code.** They are league rules like any other, so a league enables each
-  direction itself.
+- **check-ppp's compatibility rules live in the rules file, not the code.**
+  They are league rules like any other, so a league enables each direction
+  itself.
 - **`solver_workers` defaults to `"auto"`.** A seed reproduces only at the same
   thread count, so the report shows the count and it stays config-only.
 - **The config command is `reveal`, not `explorer`.** It opens the config dir

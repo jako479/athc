@@ -20,9 +20,8 @@ GP_OFFENSE = DATA / "offense.pln"
 GP_DEFENSE = DATA / "defense.pln"
 PLAYS = DATA / "plays"
 
-# profile check --gameplan: clean profiles that fully match the gameplans above.
+# check-ppp: a clean profile that fully matches offense.pln above.
 COMPAT_OFF_CLEAN = DATA / "compat_off_clean.prf"
-COMPAT_DEF_CLEAN = DATA / "compat_def_clean.prf"
 
 # check-ppp on a tree: the PNFL league file and a copy of its 2049 plans folder
 # (Denver's week 6 files, and the same files renamed to Las Vegas's names).

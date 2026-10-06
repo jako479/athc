@@ -13,7 +13,7 @@ src/athc/profile/          # tool logic (no Click)
 ├── model.py       # RuleName, Violation
 ├── rules.py       # ProfileRules, SituationRule, SubstitutionRule/PercentBound, load_rules, RulesFileError
 ├── validators.py  # validate_profile
-├── compat.py      # check_gameplan_compatibility + gameplan_extra_categories -> CompatIssue (profile vs .pln)
+├── compat.py      # check_gameplan_compatibility + gameplan_extra_categories -> CompatIssue (profile vs .pln; used by check-ppp)
 ├── diff.py        # diff_profiles, ProfileDiff + change types
 ├── display.py     # category / bucket labels for diff output
 └── writer.py      # ProfileWriter, ProfileTypeMismatchError (field copy)
@@ -63,20 +63,16 @@ configured ⇒ `check` logs an error and exits 2 (nothing to validate). See [../
 `validate_profile`, prints a head line plus one line per violation. Exit 0 clean
 / 1 violations / 2 I/O or no rules. Continues past per-file parse errors.
 
-`--gameplan FILE` (no short form) loads one `.pln` once
-(`fbpro98_gameplan.read_gameplan`; bad path / extension / parse aborts, exit 2)
-and runs `check_gameplan_compatibility(profile, gameplan)` per same-side file.
-`compat.py` maps each used profile category code to the gameplan's custom plays —
-normal codes (0x00–0x0F) to the 64 normal slots (resolved by `category_name`,
-defense collapsing pass directions), special codes (FG/PAT, punt, fakes) to the
-10 custom special slots; clock/random codes are skipped, and rules are not
-consulted here. A category with no custom play is a `CompatIssue`. The reverse,
-`gameplan_extra_categories`, reports gameplan custom-play categories the profile
-never weights, per gameplan category (defense pass directions stay collapsed,
-so those carry no `category_code`). Both directions are `CompatIssue`s, printed
-as `gameplan:` lines and counted toward exit 1, and each runs only when its
-`[gameplan_compatibility]` flag is set. A profile whose side differs from the
-gameplan is a per-file error (exit 2).
+`check` does not look at gameplans. `compat.py` is the profile-vs-gameplan
+logic that `athc check-ppp` runs ([../check_ppp/README.md](../check_ppp/README.md)):
+`check_gameplan_compatibility` maps each used profile category code to the
+gameplan's custom plays — normal codes (0x00–0x0F) to the 64 normal slots
+(resolved by `category_name`, defense collapsing pass directions), special codes
+(FG/PAT, punt, fakes) to the 10 custom special slots; clock/random codes are
+skipped, and rules are not consulted here. A category with no custom play is a
+`CompatIssue`. The reverse, `gameplan_extra_categories`, reports gameplan
+custom-play categories the profile never weights, per gameplan category (defense
+pass directions stay collapsed, so those carry no `category_code`).
 
 ## Diff
 
@@ -116,6 +112,6 @@ I/O (`fbpro98_profile`).
 
 ## Tests
 
-- `tests/integration/test_profile_{check,diff,copy}.py` — CLI end-to-end on real `.prf` files (`check` also covers `--gameplan` against real `.pln`).
+- `tests/integration/test_profile_{check,diff,copy}.py` — CLI end-to-end on real `.prf` files.
 - `tests/unit/profile/` — rules loader, validators, compat, diff model, display labels, writer.
 - Matrices: `tests/integration/README.md`, `tests/unit/profile/README.md`.

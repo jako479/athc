@@ -8,7 +8,7 @@ Validate and compare FbPro98 coaching profiles (`.prf`). Built on
 | Exit | Meaning |
 |---|---|
 | `0` | **Clean** — no violations or issues (`check`), identical (`diff`), done (`copy`). |
-| `1` | **Findings** — rule violations + gameplan compatibility issues (`check`), differences (`diff`), or a per-file failure (`copy`). |
+| `1` | **Findings** — rule violations (`check`), differences (`diff`), or a per-file failure (`copy`). |
 | `2` | **Error** — couldn't run: I/O, parse, side mismatch, or usage. |
 
 An **error** means the check couldn't run; a **finding** is a real problem to
@@ -21,26 +21,12 @@ rest.
 athc profile check OFF.prf
 athc profile check profiles\ -r
 athc profile check *.prf
-athc profile check OFF.prf --gameplan OFF.pln
 ```
 
 Each PATH is a `.prf` file, a directory (top level, or the whole tree with `-r`),
 or a glob. Each profile prints `OK` or its violations. Needs rules (below).
-
-`--gameplan FILE` (no short form) also checks the profile's compatibility with
-that gameplan. The rules file's `[gameplan_compatibility]` turns each
-compatibility check on:
-
-- `require_all_profile_categories_in_gameplan` — every category the profile
-  uses must have a custom play in the `.pln`.
-- `require_all_gameplan_categories_in_profile` — every category the `.pln` has
-  a custom play for must be used by the profile.
-
-Either one is a `gameplan:` line and a finding. Categories are the normal
-run/pass ones plus special teams (FG/PAT, punt, the fakes); clock and "random"
-have no custom plays, so they are skipped. Profile and gameplan must be the same
-side; a mismatch is an error. Gameplan rules are not checked (use
-`gameplan check`).
+To check a profile together with its gameplan, use
+[check-ppp](../check_ppp/README.md).
 
 ## diff
 

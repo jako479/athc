@@ -31,6 +31,7 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + rules; 
 |---|---|---|---|---|
 | No path given | — | usage error, exit 2 | `test_cli_requires_path` | ☑ |
 | `--rules` removed | option | exit 2; "No such option" | `test_cli_rules_option_removed` | ☑ |
+| `--gameplan` removed | option | exit 2; "No such option" | `test_cli_gameplan_option_rejected` | ☑ |
 | Violations | data + league | exit 1; "1 file(s) checked" | `test_cli_violations_exit_1` | ☑ |
 | Multiple files | data + league | exit 1; "2 file(s) checked" | `test_cli_multiple_files` | ☑ |
 | Directory / `-r` | tmp + league | exit 1; counts | `test_cli_directory` / `test_cli_recursive` | ☑ |
@@ -53,24 +54,6 @@ The "league" input is a selected league folder whose `rules/profile.toml` is the
 | Bad rules TOML | league `rules/profile.toml` bad | exit 2; "TOML parse error" | `test_cli_bad_rules_toml` | ☑ |
 | Missing listed rules file | `profile_rules` → absent file | exit 2; path named | `test_cli_missing_rules` | ☑ |
 | Malformed `athc.ini` | bad ini | exit 2 | `test_cli_malformed_ini` | ☑ |
-
-## `athc profile check` — `--gameplan` compatibility
-Real `TST-OFF1.prf`/`TST-DEF1.prf` + real `offense.pln`/`defense.pln`; clean `compat_{off,def}_clean.prf` fixtures for the exit-0 path. Goldens in `expected/compat_{offense,defense}.report.txt` (path normalized).
-| Case | Input | Expected | Test | Status |
-|---|---|---|---|---|
-| check_file offense reports compat | data | head "gameplan issue(s)"; GLR line; count 19 | `test_check_file_gameplan_offense_reports_compat` | ☑ |
-| check_file defense reports compat | data | FG/PAT special line; count 12 | `test_check_file_gameplan_defense_reports_compat` | ☑ |
-| check_file reverse counts | data | 4 extra `gameplan:` lines; count 12 | `test_check_file_gameplan_reverse_counts` | ☑ |
-| check_file clean both ways (mocked) | data | bare `(0, "... gameplan compatible")` | `test_check_file_gameplan_clean` | ☑ |
-| check_file reverse only fails | data | count 10; `0 violation(s), 10 gameplan issue(s)` | `test_check_file_gameplan_reverse_only_fails` | ☑ |
-| check_file side mismatch (both ways) | data | `(-1, "profile is X but gameplan is Y")` | `test_check_file_gameplan_side_mismatch` / `_defense` | ☑ |
-| **Golden report (real)** | data ↔ expected | byte-equal (path normalized) | `test_check_file_gameplan_matches_golden` `[P]` | ☑ |
-| CLI offense / defense | data + `--gameplan` | exit 1; compat line | `test_cli_gameplan_offense_exit_1` / `_defense_exit_1` | ☑ |
-| CLI clean (mocked) | clean + league with compat-only rules | exit 0; "gameplan compatible" | `test_cli_gameplan_clean_exit_0` | ☑ |
-| CLI reverse fails | clean + league with compat-only rules | exit 1; `gameplan:` line | `test_cli_gameplan_reverse_exit_1` | ☑ |
-| CLI side mismatch | data | exit 2; "profile is offense but gameplan is defense" | `test_cli_gameplan_side_mismatch_exit_2` | ☑ |
-| CLI mixed sides continues | 2 files, 1 gameplan | exit 2; both lines; "2 file(s) checked" | `test_cli_gameplan_mixed_sides_continues` | ☑ |
-| CLI gameplan missing / bad ext / malformed | tmp | exit 2; logged | `test_cli_gameplan_missing_file_exit_2` / `_bad_extension_exit_2` / `_malformed_exit_2` | ☑ |
 
 ## `athc profile check` — Packaging check (real subprocess)
 | Case | Input | Expected | Test | Status |
