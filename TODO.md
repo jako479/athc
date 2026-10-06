@@ -1,5 +1,6 @@
 # TODO
 
+- athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
 - athc: docs: API reference per library, one page each, under a shared index. Design: [docs/design/TODO/api-docs.md](docs/design/TODO/api-docs.md)
 - athc: logging: switch to the mainstream logging strategy (see Tamarack Habilitations)
 - playpool: check that each play's name matches its play category
