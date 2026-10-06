@@ -1,27 +1,46 @@
 # check-ppp
 
-Check one coaching profile (`.prf`) and/or one gameplan (`.pln`) against the
-league rules, and check that the two fit together. Meant to replace
-`profile check` and `gameplan check`.
+Check coaching profiles (`.prf`) with their gameplans (`.pln`) against the
+league rules, and check that each pair fits together. Meant to replace
+`profile check --gameplan`.
 
 ## Usage
 
 ```bash
 athc check-ppp OFF.prf OFF.pln
-athc check-ppp OFF.prf
-athc check-ppp OFF.pln --league PCFL
+athc check-ppp "plans\Denver (Brian)"
+athc check-ppp plans -r --league PCFL
 ```
 
-Pass one profile, one gameplan, or both, in either order; the extension tells
-them apart. The only option is `--league name`: the rules come from that
-league, or from `[athc] league` in `athc.ini`.
+- Two files: one profile and one gameplan, in either order; the extension
+  tells them apart. Both are required.
+- A directory: every pair the league file names whose two files are both
+  there. With `-r`, every folder in the tree, each on its own.
+
+The rules come from `--league name`, or from `[athc] league` in `athc.ini`.
+
+## Pairs from the league file
+
+`path` in `league.ini` names the folder that holds the league's
+files; the league's `.lg2` there is named after the league. For each
+team it lists four pairs: 1st-half offense profile and gameplan, 1st-half
+defense, 2nd-half offense, 2nd-half defense.
+
+- Matched by file name only, ignoring case; the `.lg2` folders don't matter.
+- Both files of a pair must be in the same folder.
+- Pairs with a file missing, files no pair names, and folders that can't be
+  read are skipped. With no pairs at all, it says so and exits 0.
+- Order: top folder first, then subfolders by name; inside a folder, the
+  `.lg2` order.
+- A gameplan used by two pairs (one plan for both halves) is reported once;
+  each profile still gets its own cross-check.
 
 ## What it checks
 
 - The profile, exactly as `profile check` does.
 - The gameplan, exactly as `gameplan check` does.
-- With both, the two must be the same side (offense or defense). The profile
-  rules' `[gameplan_compatibility]` settings then decide what fails:
+- The pair must be the same side (offense or defense). The profile rules'
+  `[gameplan_compatibility]` settings then decide what fails:
   - `require_all_profile_categories_in_gameplan` — every play category the
     profile uses must have a custom play in the gameplan; each one missing is
     a `gameplan:` line that fails the check. Off, it isn't checked.
@@ -30,14 +49,14 @@ league, or from `[athc] league` in `athc.ini`.
     `gameplan:` line that fails the check. Off, they are only
     `gameplan info:` lines that don't fail.
 
-The output is the same report lines those commands print: the profile, then
-the gameplan, then one summary line. Every error is reported in one run: a bad
-file does not hide the rest.
+The output is the same report lines those commands print: per pair, the
+profile, then the gameplan; then one summary line. Every error is reported in
+one run: a bad file does not hide the rest.
 
-A side mismatch, a missing or bad rules file, or any other setup error stops
-the rule checks and the summary for both files, as a setup error does in
-`gameplan check` and `profile check`; bad files and the mismatch are still
-reported.
+A missing or bad rules file, league file or other setup error stops the rule
+checks and the summary; bad files and side mismatches are still reported. With
+two files, a side mismatch stops the checks too; in a directory, it is that
+pair's error line and the other pairs are still checked.
 
 ## Results and exit codes
 
@@ -45,19 +64,19 @@ reported.
 |---|---|
 | `0` | **Clean** — no violations or issues. |
 | `1` | **Findings** — rule violations, or gameplan issues the league requires. |
-| `2` | **Error** — couldn't run: a missing, unreadable or wrong-type file, two files of one kind, a side mismatch, or a config or rules problem. |
+| `2` | **Error** — couldn't run: a bad argument, a missing, unreadable or wrong-type file, a side mismatch, or a config, rules or league file problem. |
 
-## Rules
+## Settings
 
 The same league files the two check commands read: `rules\profile.toml`,
-`rules\gameplan.toml`, `rules\playpool.toml` and `play_path` in `league.ini`.
-Only what the given files need is loaded. See [profile](../profile/README.md)
-and [gameplan](../gameplan/README.md).
+`rules\gameplan.toml`, `rules\playpool.toml` and `play_path` in
+`league.ini`, plus `path` for a directory. See
+[profile](../profile/README.md) and [gameplan](../gameplan/README.md).
 
 ## Code
 
 `src/athc/cli/check_ppp.py` is a leaf command. It takes nothing from
-`gameplan check` or `profile check`, since it replaces them: reading, rules
-loading and reports live in it. It uses the `profile` / `gameplan` libraries
-and the gameplan group's `build_pool`. Tests:
+`gameplan check` or `profile check`: reading, rules loading, pairing and
+reports live in it. It uses the `profile`, `gameplan` and `fbpro98_lg2`
+libraries and the gameplan group's `build_pool`. Tests:
 `tests/integration/test_check_ppp.py`.

@@ -71,8 +71,10 @@ def _unknown_league_args(command: click.Command, tmp_path: Path) -> list[str]:
         return ["Old Play", "New Play", str(GP_OFFENSE)]
     if command in (set_normals, set_specials):
         return [str(GP_OFFENSE), str(plays)]
-    if command in (profile_check, check_ppp):
+    if command is profile_check:
         return [str(OFF1)]
+    if command is check_ppp:
+        return [str(OFF1), str(GP_OFFENSE)]
     if command is convert_pdb:
         return [str(DATA / "2045-2047.pdb"), str(tmp_path / "out.xlsx")]
     return ["--season", "2048"]  # generate_schedule
@@ -166,7 +168,7 @@ def test_short_help_option_on_every_command(runner, path: tuple[str, ...]) -> No
             ["file1 file2", "--output file"],
             ["A.prf", "B.prf", "FILE"],
         ),
-        (("check-ppp",), ["file [file]"], ["FILE"]),
+        (("check-ppp",), ["path [path]"], ["PATH", "FIRST", "SECOND"]),
     ],
     ids=lambda v: " ".join(v) if isinstance(v, tuple) else "",
 )
@@ -198,6 +200,7 @@ USAGE_CASES = [
     ),
     (("autocontinue",), "athc autocontinue [-h] [--hot-corner | --no-hot-corner]"),
     (("check-playpool",), "athc check-playpool [-h] [--league name] [play_dir]"),
+    (("check-ppp",), "athc check-ppp [-h] [-r] [--league name] path [path]"),
     (
         ("convert-pdb",),
         "athc convert-pdb [-h] [-o pln_file] [-o2 pln_file] [-d pln_file] "

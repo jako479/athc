@@ -56,6 +56,12 @@ folder, for example:
    [league]
    play_path = D:\SIERRA\FBPRO98\PNFL\plays
 
+To check every profile and game plan in a folder with check-ppp, also set
+path to the folder that holds the league's files (like PNFL.lg2), for
+example:
+
+   path = D:\SIERRA\FBPRO98
+
 Each league is a folder under leagues\ with its league.ini, rules\ and
 standings\. athc ships two: PNFL and PCFL. To switch league, run:
 
@@ -90,7 +96,8 @@ That folder will contain:
                         documents every setting inline)
    docs\               this README plus per-command references
    leagues\PNFL\        the PNFL league:
-      league.ini           your plays folder (play_path)
+      league.ini           your plays folder (play_path) and league
+                           files folder (path)
       rules\               gameplan.toml, profile.toml, playpool.toml,
                            scheduler.toml
       standings\           <season>.league.ini for the scheduler

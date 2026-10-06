@@ -18,7 +18,7 @@ for it are not when the work happened.
 ```
 athc autocontinue               DONE
 athc check-playpool             DONE
-athc check-ppp                  DONE (single files)
+athc check-ppp                  DONE
 athc config edit                DONE
 athc config path                DONE
 athc config reveal              DONE
@@ -140,25 +140,28 @@ Open: maybe use `rules\playpool.toml` for counts by file name type (TODO).
 
 ## check-ppp
 
-Working. Checks one profile and/or one gameplan, and how they fit. Docs:
+Working. Checks profiles with their gameplans, and how they fit. Docs:
 [README](docs/check_ppp/README.md)
 
-- Takes one `.prf` and/or one `.pln`, in either order; the extension tells
-  them apart. The only option is `--league`: every rule comes from the league
-  folder.
+- Takes one `.prf` and one `.pln`, in either order (the extension tells them
+  apart), or a directory (`-r` for a tree). Both files are required.
+- In a directory, the league's `.lg2` (in the `path` folder) names each
+  team's four pairs; every pair with both files in one folder is checked,
+  matched by file name, ignoring case. Each folder of a tree stands alone. A
+  gameplan used for both halves reports once.
 - Each file is checked and printed exactly as `profile check` and
-  `gameplan check` do, with its own code, since those two will be removed. With
-  both files, they must be the same side, and the profile rules'
-  `[gameplan_compatibility]` settings decide what fails:
+  `gameplan check` do, with its own code. A pair must be the same side, and
+  the profile rules' `[gameplan_compatibility]` settings decide what fails:
   `require_all_profile_categories_in_gameplan` (on for PNFL and PCFL) and
   `require_all_gameplan_categories_in_profile` (off; unused gameplan
   categories are then only info lines).
-- Every input, config and file error is reported in one run. A side mismatch,
-  a rules error or another setup error stops the rule checks and the summary
-  for both files, but bad files and the mismatch still report.
+- An argument error stops the run before anything is read. Past that, every
+  config and file error is reported in one run: a rules, league file or other
+  setup error stops the rule checks and the summary, but bad files and
+  mismatches still report. A side mismatch stops two-file mode; in a
+  directory it is that pair's error line.
 
-Open: a directory of profiles and gameplans (pairing by team, 1st and 2nd
-halves) · replace `gameplan check` and `profile check`.
+Open: PCFL's `.lg2` doesn't exist yet · remove `profile check --gameplan`.
 
 ## fbpro98_gameplan (library)
 
@@ -174,6 +177,8 @@ Reads and writes `.pln` game plans. Docs:
 Reads the profile and game plan files each team uses from a league's `.lg2`.
 Docs: [spec](docs/fbpro98_lg2/specs/lg2.md)
 
+- Used by `check-ppp` to pair a folder's files; `path` in
+  `league.ini` names the folder that holds the file.
 - Team order is the league's `.lge` order (spec section 4).
 - Reader in, with unit tests; stock leagues are rejected.
 
@@ -225,8 +230,7 @@ Working. Validates and edits `.pln` game plans. Docs:
   files.
 - `set-normals`, `set-specials` and `replace-play` write in place with no backup.
 
-Open: `check` folds into one `athc check-ppp` · `replace-play` should take a list
-of plays for bulk swaps.
+Open: `replace-play` should take a list of plays for bulk swaps.
 
 ## pdbtoexcel — `convert-pdb`
 
@@ -272,7 +276,8 @@ Working. Validates and compares `.prf` coaching profiles. Docs:
   `--output` extension.
 - `copy` writes each target in place with no backup.
 
-Open: `check` folds into one `athc check-ppp` · revisit `edit`/`copy` options.
+Open: `check --gameplan` moves to `athc check-ppp` · revisit `edit`/`copy`
+options.
 
 ## scheduler — `generate-schedule`
 
@@ -316,12 +321,20 @@ construction, never pruned · then the quirk budget in
 
 ## Decisions
 
+- **check-ppp checks pairs only; `profile check` and `gameplan check` stay.**
+  check-ppp always takes a profile with its gameplan and replaces
+  `profile check --gameplan`; the two check commands stay for checking many
+  files of one kind.
+- **check-ppp pairs a folder's files from the league's `.lg2`.** The game's own
+  league file already lists every team's eight files, so no team list is kept
+  in config. Pairs match by file name in one folder at a time, since weeks and
+  seasons reuse the same names.
 - **check-ppp follows the `[gameplan_compatibility]` settings.** A profile
   category the gameplan lacks is the profile's error, so both settings stay in
   the profile rules. PNFL and PCFL require every profile category in the
   gameplan, and leave unused gameplan categories as info lines.
 - **check-ppp tells its files apart by extension.** Positional files of mixed
-  kinds, like gcc; a fixed order only works when both files are always given.
+  kinds, like gcc, so the order never matters.
 - **One folder per league, fixed file names inside.** The OBS / Kodi / Hugo
   shape; nothing lists the inner files in config, so adding a league is
   copying a folder.
@@ -333,12 +346,6 @@ construction, never pruned · then the quirk budget in
   Click only takes a root option before the command name, which read oddly.
 - **convert-pdb's workbook options are app-wide.** They stay in
   `[convert-pdb]`; only the play pool is per league.
-- **One `athc check-ppp` replaces `gameplan check` and `profile check`.**
-  It runs each file's own league rules and adds the compatibility checks when
-  it has a matching pair, so a league manager validates a submission in one
-  command. For now it takes one profile and/or one gameplan. To settle: how a
-  directory pairs many files of both types, and whether the two tools keep
-  their other subcommands.
 - **`profile check`'s compatibility rules live in the rules file, not the
   code.** They are league rules like any other, so a league enables each
   direction itself.

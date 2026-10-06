@@ -369,6 +369,7 @@ def test_release_selected_league_loads() -> None:
 def test_release_league_loads(name: str) -> None:
     cfg = load_league_config(name)
     assert cfg.values["play_path"]
+    assert cfg.values["path"]
     assert (cfg.dir / "standings").is_dir()
 
 

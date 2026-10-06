@@ -1,22 +1,28 @@
-"""`athc check-ppp` — validate one profile and/or one gameplan, and how they fit.
+"""`athc check-ppp` — validate a profile with its gameplan, and how they fit.
 
-Meant to replace `gameplan check` and `profile check`, so it takes nothing from
-those two commands: its reading, rules loading and reports live here, printed
-in their format.
+Meant to replace `profile check --gameplan`. It shares no code with `profile
+check` or `gameplan check`: its reading, rules loading and reports live here,
+printed in their format.
 """
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Sequence
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import click
 
 from athc.cli import CONTEXT_SETTINGS, AthcCommand, league_option
 from athc.cli.gameplan._common import build_pool
-from athc.config import ConfigFileError, LeagueError
+from athc.config import (
+    LEAGUE_FILE,
+    ConfigFileError,
+    LeagueError,
+    load_league_config,
+)
 from athc.fbpro98_gameplan import GamePlan, InvalidGamePlanError, read_gameplan
+from athc.fbpro98_lg2 import InvalidLg2Error, Lg2File, UnsupportedLg2Error, read_lg2
 from athc.fbpro98_profile import (
     InvalidProfileError,
     Profile,
@@ -42,50 +48,65 @@ from athc.profile import load_rules as load_profile_rule_files
 from athc.profile.config import load_config as load_profile_config
 
 PROG = "athc check-ppp"
+LEAGUE_PATH_KEY = "path"
 logger = logging.getLogger(__name__)
 
 
 @click.command(name="check-ppp", cls=AthcCommand, context_settings=CONTEXT_SETTINGS)
-@click.argument("first", metavar="file")
-@click.argument("second", metavar="[file]", required=False)
+@click.argument("first", metavar="path")
+@click.argument("second", metavar="[path]", required=False)
+@click.option(
+    "-r",
+    "--recursive",
+    is_flag=True,
+    help="Recurse into subdirectories of a directory path.",
+)
 @league_option
 @click.pass_context
 def check_ppp(
-    ctx: click.Context, first: str, second: str | None, league: str | None
+    ctx: click.Context,
+    first: str,
+    second: str | None,
+    recursive: bool,
+    league: str | None,
 ) -> None:
-    """Validate a .prf profile and/or a .pln gameplan against the league rules.
+    """Validate .prf profiles with their .pln gameplans against the league rules.
 
-    Pass one profile, one gameplan, or both, in either order; the extension
-    tells them apart. Each file is checked like `profile check` and `gameplan
-    check`. With both, they must be the same side, and the league's profile
-    rules decide whether profile categories with no custom play in the
-    gameplan, and gameplan categories the profile never uses, fail the check;
-    unused gameplan categories that don't fail are listed as info only.
+    Pass one profile and one gameplan, in either order (the extension tells
+    them apart), or a directory (the whole tree with -r). In a directory, the
+    league's .lg2 file, in the folder that path in league.ini names, says
+    which files go together (1st half offense profile with 1st half offense
+    gameplan, and so on); every pair whose two files are both in the same
+    folder is checked.
+
+    Each file is checked like `profile check` and `gameplan check`. A pair
+    must be the same side, and the league's profile rules decide whether
+    profile categories with no custom play in the gameplan, and gameplan
+    categories the profile never uses, fail the check; unused gameplan
+    categories that don't fail are listed as info only.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    if second is None:
+        ctx.exit(check_directory(first, league, recursive=recursive))
+    ctx.exit(check_pair(first, second, league))
 
-    profile_path, gameplan_path, input_errors = sort_inputs(
-        [first] if second is None else [first, second]
-    )
+
+def check_pair(first: str, second: str, league: str | None) -> int:
+    """Check one profile with one gameplan; return the exit code."""
+    profile_path, gameplan_path, input_errors = sort_inputs([first, second])
     for error in input_errors:
         logger.error("%s: %s", PROG, error)
-    if profile_path is None and gameplan_path is None:
-        ctx.exit(2)
+    if input_errors or profile_path is None or gameplan_path is None:
+        return 2  # both files are required, so neither is checked
 
     # A setup error never hides another error: every setup problem is logged,
     # and each file is still read and side-checked, which needs no rules. Like
     # `gameplan check` and `profile check`, though, a setup error or a side
     # mismatch stops every rule check and the summary, so no file is validated.
     logged: set[str] = set()
-    profile_rules = (
-        load_profile_rules(league, logged) if profile_path is not None else None
-    )
-    gameplan_setup = (
-        load_gameplan_setup(league, logged) if gameplan_path is not None else None
-    )
-    setup_failed = (profile_path is not None and profile_rules is None) or (
-        gameplan_path is not None and gameplan_setup is None
-    )
+    profile_rules = load_profile_rules(league, logged)
+    gameplan_setup = load_gameplan_setup(league, logged)
+    setup_failed = profile_rules is None or gameplan_setup is None
     if setup_failed:
         profile_rules = gameplan_setup = None
 
@@ -98,8 +119,137 @@ def check_ppp(
             click.echo(line)
         if mismatch is not None:
             click.echo(mismatch)
-        ctx.exit(2)
+        return 2
+    return summarize(reports)
 
+
+def check_directory(raw: str, league: str | None, *, recursive: bool) -> int:
+    """Check the league-file pairs in a directory (each folder of its tree
+    with `recursive`); return the exit code."""
+    directory = Path(raw)
+    if not directory.exists():
+        logger.error("%s: %s: path does not exist", PROG, raw)
+        return 2
+    if not directory.is_dir():
+        logger.error(
+            "%s: %s: not a directory; pass one profile and one gameplan, "
+            "or a directory",
+            PROG,
+            raw,
+        )
+        return 2
+
+    # Every setup problem is logged, as in two-file mode; the league file is
+    # what names the pairs, so without it there is nothing to check.
+    logged: set[str] = set()
+    profile_rules = load_profile_rules(league, logged)
+    gameplan_setup = load_gameplan_setup(league, logged)
+    lg2 = load_lg2(league, logged)
+    if lg2 is None:
+        return 2
+    pairs = find_pairs(directory, league_pairs(lg2), recursive=recursive)
+    setup_failed = profile_rules is None or gameplan_setup is None
+    if not pairs:
+        # Not an error: no file has to be there. A status line, so stdout.
+        scope = "tree" if recursive else "directory"
+        click.echo(
+            f"{raw}: no profile and gameplan pairs from the league file in {scope}"
+        )
+        return 2 if setup_failed else 0
+    if setup_failed:
+        profile_rules = gameplan_setup = None
+
+    reports: list[tuple[int, str]] = []
+    reported: set[Path] = set()  # gameplans with a line of their own already
+    for profile_path, gameplan_path in pairs:
+        pair_reports, mismatch = check_files(
+            profile_path,
+            profile_rules,
+            gameplan_path,
+            gameplan_setup,
+            report_gameplan=gameplan_path not in reported,
+        )
+        if mismatch is not None:
+            # This pair only: the league file paired them, not the user.
+            reports.append((-1, mismatch))
+            continue
+        reported.add(gameplan_path)
+        reports.extend(pair_reports)
+    if setup_failed:
+        # Nothing was validated: only unreadable-file and mismatch lines.
+        for _, line in reports:
+            click.echo(line)
+        return 2
+    return summarize(reports)
+
+
+def load_lg2(league: str | None, logged: set[str]) -> Lg2File | None:
+    """The league's `.lg2`, read from the folder `path` names (the file
+    is named after the league); None (already logged) when it can't load."""
+    try:
+        config = load_league_config(league)
+    except (ConfigFileError, LeagueError) as error:
+        _log_once(error, logged)
+        return None
+    folder = config.path(LEAGUE_PATH_KEY)
+    if folder is None:
+        logger.error(
+            "%s: no %s for the league; set %s in %s",
+            PROG,
+            LEAGUE_PATH_KEY,
+            LEAGUE_PATH_KEY,
+            config.dir / LEAGUE_FILE,
+        )
+        return None
+    try:
+        return read_lg2(config.name, folder)
+    except (OSError, InvalidLg2Error, UnsupportedLg2Error) as error:
+        logger.error("%s: %s", PROG, error)
+        return None
+
+
+def league_pairs(lg2: Lg2File) -> list[tuple[str, str]]:
+    """Every team's `(profile, gameplan)` file names, casefolded, in file
+    order: per team, 1st-half offense, 1st-half defense, 2nd-half offense,
+    2nd-half defense. Each pair once. The folders are dropped: they say where
+    the game reads the files, not where they are being checked."""
+    pairs: dict[tuple[str, str], None] = {}  # a dict keeps the first order
+    for team in lg2.teams:
+        for half in (team.first_half, team.second_half):
+            for pair in (half.offense, half.defense):
+                pairs.setdefault((_name(pair.profile), _name(pair.gameplan)), None)
+    return list(pairs)
+
+
+def find_pairs(
+    directory: Path, pairs: Sequence[tuple[str, str]], *, recursive: bool
+) -> list[tuple[Path, Path]]:
+    """The `(profile, gameplan)` paths of each name pair whose two files are
+    both in one folder, names matched ignoring case. Just `directory`, or with
+    `recursive` every folder in its tree: top first, then subfolders by name;
+    a folder that can't be read is skipped, as `os.walk` does. Inside a
+    folder, `pairs` order. Each folder stands alone, since weeks and seasons
+    reuse the same file names."""
+    found: list[tuple[Path, Path]] = []
+    for folder, subfolders, filenames in directory.walk():
+        subfolders.sort(key=str.casefold)  # in place: walk descends in this order
+        if not recursive:
+            subfolders.clear()
+        files = {name.casefold(): folder / name for name in filenames}
+        found.extend(
+            (files[profile], files[gameplan])
+            for profile, gameplan in pairs
+            if profile in files and gameplan in files
+        )
+    return found
+
+
+def _name(location: str) -> str:
+    return PureWindowsPath(location).name.casefold()
+
+
+def summarize(reports: Sequence[tuple[int, str]]) -> int:
+    """Print every report and the summary line; return the exit code."""
     total = files_with_violations = total_violations = io_errors = 0
     for count, line in reports:
         click.echo(line)
@@ -115,16 +265,16 @@ def check_ppp(
         f"{total} file(s) checked, {total_violations} violation(s) "
         f"across {files_with_violations} file(s)."
     )
-    if io_errors or input_errors:
-        ctx.exit(2)
-    ctx.exit(1 if total_violations else 0)
+    if io_errors:
+        return 2
+    return 1 if total_violations else 0
 
 
 def sort_inputs(paths: Sequence[str]) -> tuple[Path | None, Path | None, list[str]]:
     """Split the file arguments by extension into `(profile, gameplan, errors)`.
 
     A missing path, a non-file, another extension, or a second file of a kind
-    is an error; the files that pass are still checked.
+    is an error.
     """
     profile: Path | None = None
     gameplan: Path | None = None
@@ -142,7 +292,7 @@ def sort_inputs(paths: Sequence[str]) -> tuple[Path | None, Path | None, list[st
             gameplan = path
         elif suffix in (".prf", ".pln"):
             errors.append(
-                f"{raw}: second {suffix} file; pass one profile and/or one gameplan"
+                f"{raw}: second {suffix} file; pass one profile and one gameplan"
             )
         else:
             errors.append(f"{raw}: not a .prf or .pln file")
@@ -178,36 +328,38 @@ def load_gameplan_setup(
 
 
 def check_files(
-    profile_path: Path | None,
+    profile_path: Path,
     profile_rules: ProfileRules | None,
-    gameplan_path: Path | None,
+    gameplan_path: Path,
     gameplan_setup: tuple[Rules, PlayPool] | None,
+    *,
+    report_gameplan: bool = True,
 ) -> tuple[list[tuple[int, str]], str | None]:
     """Each file's `(count, line)`, profile first, plus the side-mismatch error
-    line. Every file is read, so a read error or mismatch reports even without
+    line. Both files are read, so a read error or mismatch reports even without
     rules. A file is validated only when its rules are given and the sides
-    match; the cross-check runs only on two readable files."""
-    prof = read_profile_file(profile_path) if profile_path is not None else None
-    gp = read_gameplan_file(gameplan_path) if gameplan_path is not None else None
+    match; the cross-check runs only on two readable files. Without
+    `report_gameplan` (a gameplan another pair already reported), the gameplan
+    is still read for the cross-check but gets no line of its own."""
+    prof = read_profile_file(profile_path)
+    gp = read_gameplan_file(gameplan_path)
     if (
-        profile_path is not None
-        and isinstance(prof, Profile)
+        isinstance(prof, Profile)
         and isinstance(gp, GamePlan)
         and (mismatch := side_mismatch(profile_path, prof, gp)) is not None
     ):
         return [], mismatch  # both read fine, so there is nothing else to report
 
     reports: list[tuple[int, str]] = []
-    if profile_path is not None:
-        if isinstance(prof, str):
-            reports.append((-1, prof))
-        elif isinstance(prof, Profile) and profile_rules is not None:
-            other = gp if isinstance(gp, GamePlan) else None
-            reports.append(profile_report(profile_path, prof, profile_rules, other))
-    if gameplan_path is not None:
+    if isinstance(prof, str):
+        reports.append((-1, prof))
+    elif profile_rules is not None:
+        other = gp if isinstance(gp, GamePlan) else None
+        reports.append(profile_report(profile_path, prof, profile_rules, other))
+    if report_gameplan:
         if isinstance(gp, str):
             reports.append((-1, gp))
-        elif isinstance(gp, GamePlan) and gameplan_setup is not None:
+        elif gameplan_setup is not None:
             reports.append(gameplan_report(gameplan_path, gp, *gameplan_setup))
     return reports, None
 

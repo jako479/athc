@@ -4,6 +4,14 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-06 — **check-ppp**: now always takes a profile with its gameplan,
+  and checks a whole folder or tree too. A team-to-file list in config was
+  dropped for the league's own `.lg2`, which already names each team's eight
+  files; a new `path` league setting names the folder that holds
+  it (`<league>.lg2`). Pairs match by file
+  name within one folder, since weeks and seasons reuse names. `profile check`
+  and `gameplan check` stay for checking many files of one kind; check-ppp
+  takes over `profile check --gameplan`.
 - 2026-10-06 — **athc**: `dev\` and `release\` moved under `config\` so the two
   config trees sit together. Tests, VS Code settings and docs follow; the
   release scripts were left alone.

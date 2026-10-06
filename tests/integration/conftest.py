@@ -24,6 +24,11 @@ PLAYS = DATA / "plays"
 COMPAT_OFF_CLEAN = DATA / "compat_off_clean.prf"
 COMPAT_DEF_CLEAN = DATA / "compat_def_clean.prf"
 
+# check-ppp on a tree: the PNFL league file and a copy of its 2049 plans folder
+# (Denver's week 6 files, and the same files renamed to Las Vegas's names).
+PNFL_LG2 = DATA / "PNFL.lg2"
+PPP_TREE = DATA / "ppp"
+
 
 @pytest.fixture
 def runner() -> CliRunner:

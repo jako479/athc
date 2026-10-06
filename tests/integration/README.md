@@ -373,23 +373,16 @@ In [test_profile_copy.py](test_profile_copy.py). Inputs: real `TST-OFF1/DEF1.prf
 
 # `athc check-ppp`
 
-In [test_check_ppp.py](test_check_ppp.py). Same real `.prf` / `.pln` / pool as `profile check` and `gameplan check`; every rule comes from a tmp league folder (`league` / `full_league` fixtures), since check-ppp has no options. Reports are compared to the existing `profile check` / `gameplan check` goldens in `expected/` (path normalized). Exit 0 clean / 1 findings / 2 error.
+In [test_check_ppp.py](test_check_ppp.py). Same real `.prf` / `.pln` / pool as `profile check` and `gameplan check`; every rule comes from a tmp league folder (`league` / `full_league` fixtures). Directory cases copy the TST files under their own names into tmp folders and build the `.lg2` from name pairs (`lg2_league`, `team`), so the goldens still apply. Reports are compared to the existing `profile check` / `gameplan check` goldens in `expected/` (path normalized). Exit 0 clean / 1 findings / 2 error.
 
 ## arguments
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| No file | — | usage error, exit 2 | `test_cli_requires_a_file` | ☑ |
-| Third file | 3 files | usage error, exit 2 | `test_cli_rejects_a_third_file` | ☑ |
-
-## one file
-| Case | Input | Expected | Test | Status |
-|---|---|---|---|---|
-| Profile only = `profile check` | data | exit 1; golden + summary | `test_cli_profile_only_matches_profile_check` `[P]` | ☑ |
-| Profile only clean (mocked) | data | exit 0; OK line | `test_cli_profile_only_clean_exit_0` | ☑ |
-| Profile only needs no gameplan config | league w/o play_path or gameplan rules | exit 1 | `test_cli_profile_only_needs_no_gameplan_config` | ☑ |
-| Gameplan only = `gameplan check` | data | exit 1; golden + summary | `test_cli_gameplan_only_matches_gameplan_check` `[P]` | ☑ |
-| Gameplan only clean (mocked) | data | exit 0; OK line | `test_cli_gameplan_only_clean_exit_0` | ☑ |
-| Gameplan only needs no profile rules | league w/o profile rules | exit 1 | `test_cli_gameplan_only_needs_no_profile_rules` | ☑ |
+| No path | — | usage error, exit 2 | `test_cli_requires_a_path` | ☑ |
+| One file | profile / gameplan alone | exit 2; "not a directory; pass one profile and one gameplan, or a directory"; no stdout | `test_cli_one_file_is_an_error` `[P]` | ☑ |
+| One missing path | tmp | exit 2; "path does not exist" | `test_cli_one_missing_path` | ☑ |
+| Third path | 3 files | usage error, exit 2 | `test_cli_rejects_a_third_path` | ☑ |
+| Usage line | `-h` | `[-h] [-r] [--league name] path [path]` | `test_usage_lists_each_option` (test_cli_root.py) | ☑ |
 
 ## both files
 | Case | Input | Expected | Test | Status |
@@ -403,19 +396,20 @@ In [test_check_ppp.py](test_check_ppp.py). Same real `.prf` / `.pln` / pool as `
 | Side mismatch, both ways | OFF1 + defense.pln / DEF1 + offense.pln | exit 2; mismatch line only, no checks, no summary | `test_cli_side_mismatch_stops_the_checks` `[P]` | ☑ |
 
 ## input and file errors
+Argument errors check nothing, since both files are required.
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Missing file | tmp | exit 2; "path does not exist"; no stdout | `test_cli_missing_file` | ☑ |
+| Missing file | tmp + offense.pln | exit 2; "path does not exist"; no stdout | `test_cli_missing_file` | ☑ |
 | Every input error reported | missing + `.txt` | both logged | `test_cli_reports_every_input_error` | ☑ |
-| Wrong extension | `.txt` | exit 2; "not a .prf or .pln file" | `test_cli_wrong_extension` | ☑ |
-| Directory | tmp dir | exit 2; "not a file" | `test_cli_directory_is_not_a_file` | ☑ |
+| Wrong extension | OFF1 + `.txt` | exit 2; "not a .prf or .pln file"; no stdout | `test_cli_wrong_extension` | ☑ |
+| Directory next to a file | tmp dir + offense.pln | exit 2; "not a file"; no stdout | `test_cli_directory_next_to_a_file_is_not_a_file` | ☑ |
 | Extension case-insensitive | `.PRF` + `.PLN` | exit 1 | `test_cli_extension_is_case_insensitive` | ☑ |
-| Second file of a kind | 2 `.prf` / 2 `.pln` | exit 2; first still checked | `test_cli_second_file_of_a_kind_is_an_error` `[P]` | ☑ |
-| Continues past bad input | OFF1 + `.txt` | exit 2; OFF1 golden | `test_cli_continues_past_bad_input` | ☑ |
-| Malformed `.prf` / `.pln` | tmp | exit 2; ERROR line | `test_cli_malformed_file` `[P]` | ☑ |
+| Second file of a kind | 2 `.prf` / 2 `.pln` | exit 2; "pass one profile and one gameplan"; no stdout | `test_cli_second_file_of_a_kind_is_an_error` `[P]` | ☑ |
+| Bad input checks nothing | OFF1 + `.txt` | exit 2; no stdout | `test_cli_bad_input_checks_nothing` | ☑ |
 | File of the other kind | profile as `.pln`, gameplan as `.prf` | exit 2; ERROR line | `test_cli_file_of_the_other_kind_is_an_error` `[P]` | ☑ |
 | Bad profile, gameplan still checked | tmp + data | exit 2; gameplan golden | `test_cli_bad_profile_still_checks_gameplan` | ☑ |
 | Bad gameplan, profile still checked | data + tmp | exit 2; profile golden, no cross-check | `test_cli_bad_gameplan_still_checks_profile` | ☑ |
+| Bad gameplan, clean profile (mocked) | data + tmp | exit 2; plain OK line, then ERROR line | `test_cli_bad_gameplan_clean_profile_is_ok` | ☑ |
 | Both unreadable | tmp | exit 2; both ERROR lines | `test_cli_both_unreadable_reports_both` | ☑ |
 
 ## league / rules config
@@ -433,11 +427,59 @@ In [test_check_ppp.py](test_check_ppp.py). Same real `.prf` / `.pln` / pool as `
 | Rule lists in `league.ini` | `profile_rules` + `gameplan_rules` | exit 1 | `test_cli_rule_lists_in_league_ini` | ☑ |
 | Listed rules file missing | `*_rules` → absent file | exit 2; path named | `test_cli_missing_listed_rules_file` `[P]` | ☑ |
 | Malformed `athc.ini` | bad ini | exit 2; athc.ini named | `test_cli_malformed_ini` | ☑ |
+| Two files need no `path` | `full_league` (none set) | every two-file case above | — | ☑ |
+
+## a directory: the league file's pairs
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Pairs in `.lg2` order, as two-file mode prints them | offense + defense pairs | exit 1; four goldens, offense first; "4 file(s)" | `test_dir_checks_each_pair_in_league_file_order` | ☑ |
+| Clean (mocked) | clean profile + offense.pln | exit 0; two OK lines + summary | `test_dir_clean_exit_0` | ☑ |
+| Teams in `.lg2` order | defense team, then offense team | defense goldens first | `test_dir_teams_in_league_file_order` | ☑ |
+| 2nd-half pairs | both pairs in 2nd-half slots | exit 1; "4 file(s)" | `test_dir_second_half_pairs` | ☑ |
+| Names ignore case | `.lg2` upper, file lower | exit 1; "2 file(s)" | `test_dir_names_ignore_case` | ☑ |
+| Half a pair is skipped | profile without its gameplan | only the other pair | `test_dir_half_a_pair_is_skipped` | ☑ |
+| Unlisted files ignored | extra `.prf` / `.pln` | only the listed pair | `test_dir_unlisted_files_are_ignored` | ☑ |
+| Shared gameplan once | one gameplan, two profiles | gameplan report once; 2nd profile's report = two-file mode's | `test_dir_shared_gameplan_is_reported_once` | ☑ |
+| Profile in two pairs | one profile, two gameplans | profile reported twice; "4 file(s)" | `test_dir_profile_in_two_pairs_is_reported_twice` | ☑ |
+| Same pair twice | two teams list it | checked once | `test_dir_same_pair_twice_is_checked_once` | ☑ |
+| `.lg2` folders ignored | other folder in `.lg2` | exit 1 | `test_dir_league_file_folders_are_ignored` | ☑ |
+| Subfolders not searched | pair in a subfolder | exit 0; stdout "no profile and gameplan pairs from the league file in directory"; nothing logged | `test_dir_subfolders_are_not_searched` | ☑ |
+| Empty directory | tmp | exit 0; "no … pairs" line | `test_dir_empty` | ☑ |
+| No pairs with a setup error | empty dir, no profile rules | exit 2; error logged; "no … pairs" line | `test_dir_no_pairs_with_a_setup_error_exits_2` | ☑ |
+| Unreadable directory | walk error | skipped silently, so the "no … pairs" line; exit 0 | `test_dir_unreadable_directory_has_no_pairs` | ☑ |
+| Side mismatch is that pair's error | OFF1 + defense.pln, then DEF1 + defense.pln | exit 2; mismatch line, DEF1 + defense goldens, summary | `test_dir_side_mismatch_is_that_pairs_error` | ☑ |
+| Unreadable file | broken.prf + offense.pln | exit 2; ERROR line + offense golden | `test_dir_unreadable_file` | ☑ |
+| Unreadable shared gameplan | two profiles, one broken.pln | exit 2; ERROR line once; both profiles reported | `test_dir_unreadable_shared_gameplan_is_reported_once` | ☑ |
+| Setup error | no profile rules | exit 2; only mismatch / ERROR lines; no summary | `test_dir_setup_error_prints_only_error_lines` | ☑ |
+| No league | empty config | exit 2; "no league selected" once | `test_dir_no_league` | ☑ |
+| No `path` | `full_league` | exit 2; "no path for the league; set path in <league.ini>" | `test_dir_no_path` | ☑ |
+| Every setup error reported | no profile rules, no `path` | both logged | `test_dir_reports_every_setup_error` | ☑ |
+| Bad league file | invalid bytes / old stock | exit 2; library message naming the file | `test_dir_bad_league_file` `[P]` | ☑ |
+| League file missing | `path` folder without `<league>.lg2` | exit 2; file named | `test_dir_league_file_missing` | ☑ |
+| Relative `path` | `lg2` folder inside the league folder | exit 1 | `test_dir_relative_path_is_in_the_league_folder` | ☑ |
+
+## a tree (`-r`)
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Pairs in subfolders | pair in `week1` | exit 1; "2 file(s)" | `test_tree_finds_pairs_in_subfolders` | ☑ |
+| Folder order | top, `_x`, `a week`, `a week\z`, `B week` | that order (by name, ignoring case; depth first), not the file system's | `test_tree_folder_order` | ☑ |
+| Pair split across folders | profile on top, gameplan in a subfolder | exit 0; "… in tree" line | `test_tree_pair_split_across_folders_is_not_found` | ☑ |
+| Unreadable subfolder | walk error on one folder | skipped silently; the rest checked; exit 1 | `test_tree_unreadable_folder_is_skipped` | ☑ |
+| `-r` with two files | OFF1 + offense.pln | ignored; exit 1 | `test_tree_flag_with_two_files_is_ignored` | ☑ |
+
+## real league data
+`data/PNFL.lg2` (the PNFL league file, copied in as the test league's) and `data/ppp/2049/Plans/`: Denver's week 6 files, and the same files renamed to Las Vegas's names (one gameplan per side for both halves).
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Every team folder | `-r data/ppp` | no ERROR; 8 Denver + 6 Las Vegas files in `.lg2` order | `test_real_tree_checks_every_team_folder` | ☑ |
+| Reads as two-file mode | `-r data/ppp` | each pair's lines = two-file mode's; shared gameplan once | `test_real_tree_reads_as_two_file_mode` | ☑ |
+| One team folder | `Denver (Brian)` | its 8 files | `test_real_team_folder_alone` | ☑ |
 
 ## --league and registration
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | `--league` beats `athc.ini` | two leagues | exit 1 | `test_league_flag_beats_athc_ini` | ☑ |
+| `--league` picks the `.lg2` too | two leagues, one folder, a `.lg2` named after each | the other league's pairs | `test_league_flag_picks_the_league_file` | ☑ |
 | `ATHC_LEAGUE` is ignored | env + folder, no `[athc] league` | exit 2; "no league selected" | `test_athc_league_env_is_ignored` | ☑ |
 | Unknown league | `--league NOPE` | exit 2; "not found" | `test_league_flag_unknown_folder` | ☑ |
 | Listed in `athc --help` | — | "check-ppp" shown | `test_root_help_lists_check_ppp` | ☑ |
@@ -568,7 +610,7 @@ In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.i
 |---|---|---|---|---|
 | At least one league ships | config/release/ | league folders found | `test_release_ships_leagues` | ☑ |
 | `[athc] league` names a shipped league | config/release/ | loads | `test_release_selected_league_loads` | ☑ |
-| Every league | config/release/ | play_path set; standings folder present | `test_release_league_loads` `[P]` | ☑ |
+| Every league | config/release/ | play_path and path set; standings folder present | `test_release_league_loads` `[P]` | ☑ |
 | `[autocontinue]` | config/release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
 | gameplan, every league | config/release/ | loads; playpool rules and rule files exist | `test_release_gameplan_config_loads` `[P]` | ☑ |
 | profile, every league | config/release/ | loads; rule files exist | `test_release_profile_config_loads` `[P]` | ☑ |

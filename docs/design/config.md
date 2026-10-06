@@ -47,13 +47,13 @@ One folder per league under the config dir; `athc.ini` holds only app-wide setti
 athc.ini                      app-wide settings + the selected league
 leagues\
   PNFL\
-    league.ini                per-league settings ([league] play_path, …)
+    league.ini                per-league settings ([league] play_path, path, …)
     rules\                    gameplan.toml, profile.toml, playpool.toml, scheduler.toml
     standings\                <season>.league.ini
   PCFL\                       same fixed names
 ```
 
-Fixed, well-known file names inside a league folder; nothing lists them in config. A league is any folder under `leagues\`; its name is the folder name. Per-league values that are not files (`play_path`; athc-admin's `db_path`, `log_dir`) go in `league.ini` under `[league]`; relative paths there resolve against the league folder.
+Fixed, well-known file names inside a league folder; nothing lists them in config. A league is any folder under `leagues\`; its name is the folder name. Per-league values that are not files in the league folder (`play_path`, the plays folder; `path`, the folder holding the league's files, each named after the league, which `check-ppp` reads for a directory; athc-admin's `db_path`, `log_dir`) go in `league.ini` under `[league]`; relative paths there resolve against the league folder.
 
 Precedent: OBS Studio (`basic/profiles/<Name>/basic.ini`), Kodi (`profiles/<name>/`), Hugo (`config/_default/` + `config/<env>/`).
 

@@ -1,5 +1,8 @@
 # TODO
 
+- athc: docs: explain each command's messages in the release docs ([command-messages](docs/design/TODO/command-messages.md))
+- profile: remove `check --gameplan` (check-ppp replaces it)
+- check-ppp: move `require_all_gameplan_categories_in_profile` from the profile rules to the gameplan rules
 - athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
 - athc: docs: API reference per library, one page each, under a shared index. Design: [docs/design/TODO/api-docs.md](docs/design/TODO/api-docs.md)
 - athc: logging: switch to the mainstream logging strategy (see Tamarack Habilitations)
@@ -12,9 +15,6 @@
 - athc: tests: add ruff's `PT` rule group (pytest style); 117 findings today, 111 auto-fixable under `--unsafe-fixes`
 - autocontinue: work with Dean to determine usability requirements
 - autocontinue: add halftime
-- check-ppp: plan how to handle a directory of PPPs with a mix of .prf and .pln (config file with each team's filenames?)
-- check-ppp: replace `gameplan check`
-- check-ppp: replace `profile check`
 - gameplan: evaluate whether wildcard paths through `collect_files` were added on purpose, per command
   - check
   - set-specials

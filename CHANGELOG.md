@@ -7,6 +7,9 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- check-ppp: checks every profile and gameplan pair the league's `.lg2` names in a folder, or a whole tree with `-r`
+- check-ppp: needs both a profile and a gameplan; one file alone is an error
+- athc: new `path` league setting, the folder that holds the league's files
 - fbpro98_lg2: reading a league's `.lg2` takes the league name and its folder; the library adds the extension
 - athc: the `dev\` and `release\` config folders moved under `config\`
 - check-ppp: follows the league's profile-vs-gameplan settings, renamed `require_all_profile_categories_in_gameplan` (on) and `require_all_gameplan_categories_in_profile` (off)
