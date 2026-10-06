@@ -75,6 +75,10 @@ high-level change completed alongside it gets its own line.
 - updated for the `PlayRef` rename
 - added the `.pln` game plan reader and writer
 
+## fbpro98_lg2
+
+- added the `.lg2` league file reader
+
 ## fbpro98_play
 
 - an unrecognized play category is an invalid `.ply` now (it was logged as an error); the play pool skips the file with a warning

@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-05. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-06. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -168,6 +168,13 @@ Reads and writes `.pln` game plans. Docs:
 - The `.pln` spec gained a whole-file map and a slot layout section of its own:
   86 offsets, slots 1-1 through 16-4, then the special plays.
 - Updated for the `PlayRef` rename.
+
+## fbpro98_lg2 (library)
+
+Reads the profile and game plan files each team uses from a league's `.lg2`.
+Docs: [spec](docs/fbpro98_lg2/specs/lg2.md)
+
+- Reader in, with unit tests; stock leagues are rejected.
 
 ## fbpro98_play (library)
 

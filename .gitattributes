@@ -9,6 +9,7 @@
 *.ply binary
 *.pln binary
 *.prf binary
+*.lg2 binary
 *.pdb binary
 *.bin binary
 

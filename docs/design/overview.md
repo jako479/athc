@@ -48,6 +48,7 @@ athc/
     # LIBRARIES (no CLI; importable by tools and by other libs)
     playpool/                  py.typed  pool.py  records.py
     fbpro98_gameplan/          py.typed  model.py  reader.py  writer.py
+    fbpro98_lg2/               py.typed  model.py  reader.py
     fbpro98_play/              py.typed  model.py  reader.py
     fbpro98_profile/           py.typed  model.py  reader.py  writer.py
 ```
