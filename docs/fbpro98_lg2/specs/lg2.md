@@ -1,44 +1,67 @@
 # .lg2 - Front Page Sports Football Pro '98 League File Format
 
-- **Status:** Draft (9 trailing bytes per team not yet reverse engineered)
+- **Status:** Draft (the 9 trailing bytes per team have no known meaning)
 - **Owner:** FBPro98 Lg2 Library
 - **Encoding:** Strings ASCII.
 
-A `.lg2` lists the coaching profile and game plan files each team in a league uses. It is named after its league (`PNFL.lg2`) and sits in the game folder. It comes in three layouts, each specified in full below: custom league (section 1), modern stock league (section 2), old stock league (section 3).
+A `.lg2` lists the coaching profile and game plan files each team in a league uses. It is named after its league (`PNFL.lg2`) and sits in the game folder. It comes in three layouts, each specified in full below: custom league (section 2), modern stock league (section 3), old stock league (section 4).
 
 ---
 
-## 1. Custom League
+## 1. Team Order
+
+- Teams come in the league's `.lge` team-number order, 1 first ([lge.md](../../fbpro98_lge/specs/lge.md)).
+- That is the `.lge` tree order: conference, then division, then the division's team list.
+- Verified by name for the custom league (`PNFL`) and the modern stock league (`NFLPI97R`); an old stock league's entries all carry the same filenames, so its order cannot be checked.
+- Team `n` of the `.lg2` is team `n` in every other league file: rosters, schedule, draft order and stats.
+
+---
+
+## 2. Custom League
 
 A league whose teams use the coaches' own files. Sample: `PNFL.lg2` (18 teams, 75,474 bytes).
 
-### 1.1 File Layout
+### 2.1 File Layout
 
 One team record per team, back to back, with no header or trailer. Total file length = `teams × 0x1061` (4193). The team count is not stored.
 
 | Offset |   Size | Name    | Description                      |
 | -----: | -----: | :------ | :------------------------------- |
-| 0x0000 | 0x1061 | team[0] | First team record (section 1.2)  |
-| 0x1061 | 0x1061 | team[1] | Second team record (section 1.2) |
+| 0x0000 | 0x1061 | team[0] | First team record (section 2.2)  |
+| 0x1061 | 0x1061 | team[1] | Second team record (section 2.2) |
 |    ... |    ... | ...     | One record per remaining team    |
 
-Team order is unknown.
+Team order is the league's `.lge` team order: team 1 first (see section 1).
 
-### 1.2 Team Record (0x1061 bytes)
+### 2.2 Team Record (0x1061 bytes)
 
 | Offset | Type       | Name    | Description                                          |
 | -----: | :--------- | :------ | :--------------------------------------------------- |
-| 0x0000 | file_entry | file[0] | 1st half offensive profile (section 1.3)             |
-| 0x020B | file_entry | file[1] | 1st half offensive game plan (section 1.3)           |
-| 0x0416 | file_entry | file[2] | 1st half defensive profile (section 1.3)             |
-| 0x0621 | file_entry | file[3] | 1st half defensive game plan (section 1.3)           |
-| 0x082C | file_entry | file[4] | 2nd half offensive profile (section 1.3)             |
-| 0x0A37 | file_entry | file[5] | 2nd half offensive game plan (section 1.3)           |
-| 0x0C42 | file_entry | file[6] | 2nd half defensive profile (section 1.3)             |
-| 0x0E4D | file_entry | file[7] | 2nd half defensive game plan (section 1.3)           |
-| 0x1058 | u8[9]      | unknown | Not reverse engineered; not needed to read the files |
+| 0x0000 | file_entry | file[0] | 1st half offensive profile (section 2.3)             |
+| 0x020B | file_entry | file[1] | 1st half offensive game plan (section 2.3)           |
+| 0x0416 | file_entry | file[2] | 1st half defensive profile (section 2.3)             |
+| 0x0621 | file_entry | file[3] | 1st half defensive game plan (section 2.3)           |
+| 0x082C | file_entry | file[4] | 2nd half offensive profile (section 2.3)             |
+| 0x0A37 | file_entry | file[5] | 2nd half offensive game plan (section 2.3)           |
+| 0x0C42 | file_entry | file[6] | 2nd half defensive profile (section 2.3)             |
+| 0x0E4D | file_entry | file[7] | 2nd half defensive game plan (section 2.3)           |
+| 0x1058 | trailer    | trailer | Unknown 9-byte entry (section 2.2.1)                 |
 
-### 1.3 File Entry (0x20B bytes)
+#### 2.2.1 Trailer (9 bytes)
+
+| Offset | Type | Name    | Description                |
+| -----: | :--- | :------ | :------------------------- |
+|   0x00 | u8   | unknown | `0` or `1`                 |
+|   0x01 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
+|   0x05 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
+
+Meaning unknown; nothing in the league's other files matches. Teams in `PNFL.lg2` outside the common values:
+
+- Byte: none, all `1`.
+- First u32: Las Vegas `0`; Pittsburgh, Atlanta, Green Bay `4`; the rest `2` or `3`.
+- Second u32: Pittsburgh `0`; Green Bay `5`; Jacksonville, Las Vegas, Chicago `4`; the rest `2` or `3`.
+
+### 2.3 File Entry (0x20B bytes)
 
 | Offset | Type        | Name     | Description                                                                                |
 | -----: | :---------- | :------- | :----------------------------------------------------------------------------------------- |
@@ -54,37 +77,51 @@ The file is `folder\filename` under the game folder. Bytes after each NUL are le
 
 ---
 
-## 2. Modern Stock League
+## 3. Modern Stock League
 
 A league whose teams use the game's stock files. Samples: `NFLPI96.LG2`, `NFLPI97.LG2`, `NFLPI97R.LG2` (30 teams, 125,790 bytes each).
 
-### 2.1 File Layout
+### 3.1 File Layout
 
 One team record per team, back to back, with no header or trailer. Total file length = `teams × 0x1061` (4193). The team count is not stored.
 
 | Offset |   Size | Name    | Description                      |
 | -----: | -----: | :------ | :------------------------------- |
-| 0x0000 | 0x1061 | team[0] | First team record (section 2.2)  |
-| 0x1061 | 0x1061 | team[1] | Second team record (section 2.2) |
+| 0x0000 | 0x1061 | team[0] | First team record (section 3.2)  |
+| 0x1061 | 0x1061 | team[1] | Second team record (section 3.2) |
 |    ... |    ... | ...     | One record per remaining team    |
 
-Team order is unknown.
+Team order is the league's `.lge` team order: team 1 first (see section 1).
 
-### 2.2 Team Record (0x1061 bytes)
+### 3.2 Team Record (0x1061 bytes)
 
 | Offset | Type       | Name    | Description                                          |
 | -----: | :--------- | :------ | :--------------------------------------------------- |
-| 0x0000 | file_entry | file[0] | 1st half offensive profile (section 2.3)             |
-| 0x020B | file_entry | file[1] | 1st half offensive game plan (section 2.3)           |
-| 0x0416 | file_entry | file[2] | 1st half defensive profile (section 2.3)             |
-| 0x0621 | file_entry | file[3] | 1st half defensive game plan (section 2.3)           |
-| 0x082C | file_entry | file[4] | 2nd half offensive profile (section 2.3)             |
-| 0x0A37 | file_entry | file[5] | 2nd half offensive game plan (section 2.3)           |
-| 0x0C42 | file_entry | file[6] | 2nd half defensive profile (section 2.3)             |
-| 0x0E4D | file_entry | file[7] | 2nd half defensive game plan (section 2.3)           |
-| 0x1058 | u8[9]      | unknown | Not reverse engineered; not needed to read the files |
+| 0x0000 | file_entry | file[0] | 1st half offensive profile (section 3.3)             |
+| 0x020B | file_entry | file[1] | 1st half offensive game plan (section 3.3)           |
+| 0x0416 | file_entry | file[2] | 1st half defensive profile (section 3.3)             |
+| 0x0621 | file_entry | file[3] | 1st half defensive game plan (section 3.3)           |
+| 0x082C | file_entry | file[4] | 2nd half offensive profile (section 3.3)             |
+| 0x0A37 | file_entry | file[5] | 2nd half offensive game plan (section 3.3)           |
+| 0x0C42 | file_entry | file[6] | 2nd half defensive profile (section 3.3)             |
+| 0x0E4D | file_entry | file[7] | 2nd half defensive game plan (section 3.3)           |
+| 0x1058 | trailer    | trailer | Unknown 9-byte entry (section 3.2.1)                 |
 
-### 2.3 File Entry (0x20B bytes)
+#### 3.2.1 Trailer (9 bytes)
+
+| Offset | Type | Name    | Description                |
+| -----: | :--- | :------ | :------------------------- |
+|   0x00 | u8   | unknown | `0` or `1`                 |
+|   0x01 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
+|   0x05 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
+
+Meaning unknown; nothing in the league's other files matches. Teams in `NFLPI97R.LG2` outside the common values:
+
+- Byte: Dolphins, Cowboys `0`; the rest `1`.
+- First u32: Buccaneers `5`; Ravens, Packers `4`; the rest `2` or `3`.
+- Second u32: Bears, Falcons `0`; Ravens, Oilers, Giants, Packers, Buccaneers `5`; Jaguars, Steelers, Raiders, Lions `4`; the rest `2` or `3`.
+
+### 3.3 File Entry (0x20B bytes)
 
 | Offset | Type        | Name     | Description                                                       |
 | -----: | :---------- | :------- | :---------------------------------------------------------------- |
@@ -100,37 +137,51 @@ The file is `STOCK\filename` under the game folder. `A\FBPRO97\STOCK` after the 
 
 ---
 
-## 3. Old Stock League
+## 4. Old Stock League
 
 A stock league from an older version of the game. Samples: `08_TEAMS.LG2` (8 teams, 33,544 bytes), `10_TEAMS.LG2`, `12_TEAMS.LG2`, `18_TEAMS.LG2`, `NFLPA92.LG2`, `NFLPA93.LG2`, `NFLPA93E.LG2`, `NFLPA94.LG2`, `NFLPA94E.LG2`, `NFLPI95.LG2`, `NFLPI95E.LG2`, `NFLPI96E.LG2`.
 
-### 3.1 File Layout
+### 4.1 File Layout
 
 One team record per team, back to back, with no header or trailer. Total file length = `teams × 0x1061` (4193). The team count is not stored.
 
 | Offset |   Size | Name    | Description                      |
 | -----: | -----: | :------ | :------------------------------- |
-| 0x0000 | 0x1061 | team[0] | First team record (section 3.2)  |
-| 0x1061 | 0x1061 | team[1] | Second team record (section 3.2) |
+| 0x0000 | 0x1061 | team[0] | First team record (section 4.2)  |
+| 0x1061 | 0x1061 | team[1] | Second team record (section 4.2) |
 |    ... |    ... | ...     | One record per remaining team    |
 
-Team order is unknown.
+Team order is the league's `.lge` team order: team 1 first (see section 1).
 
-### 3.2 Team Record (0x1061 bytes)
+### 4.2 Team Record (0x1061 bytes)
 
 | Offset | Type       | Name    | Description                                          |
 | -----: | :--------- | :------ | :--------------------------------------------------- |
-| 0x0000 | file_entry | file[0] | 1st half offensive profile (section 3.3)             |
-| 0x020B | file_entry | file[1] | 1st half offensive game plan (section 3.3)           |
-| 0x0416 | file_entry | file[2] | 1st half defensive profile (section 3.3)             |
-| 0x0621 | file_entry | file[3] | 1st half defensive game plan (section 3.3)           |
-| 0x082C | file_entry | file[4] | 2nd half offensive profile (section 3.3)             |
-| 0x0A37 | file_entry | file[5] | 2nd half offensive game plan (section 3.3)           |
-| 0x0C42 | file_entry | file[6] | 2nd half defensive profile (section 3.3)             |
-| 0x0E4D | file_entry | file[7] | 2nd half defensive game plan (section 3.3)           |
-| 0x1058 | u8[9]      | unknown | Not reverse engineered; not needed to read the files |
+| 0x0000 | file_entry | file[0] | 1st half offensive profile (section 4.3)             |
+| 0x020B | file_entry | file[1] | 1st half offensive game plan (section 4.3)           |
+| 0x0416 | file_entry | file[2] | 1st half defensive profile (section 4.3)             |
+| 0x0621 | file_entry | file[3] | 1st half defensive game plan (section 4.3)           |
+| 0x082C | file_entry | file[4] | 2nd half offensive profile (section 4.3)             |
+| 0x0A37 | file_entry | file[5] | 2nd half offensive game plan (section 4.3)           |
+| 0x0C42 | file_entry | file[6] | 2nd half defensive profile (section 4.3)             |
+| 0x0E4D | file_entry | file[7] | 2nd half defensive game plan (section 4.3)           |
+| 0x1058 | trailer    | trailer | Unknown 9-byte entry (section 4.2.1)                 |
 
-### 3.3 File Entry (0x20B bytes)
+#### 4.2.1 Trailer (9 bytes)
+
+| Offset | Type | Name    | Description                |
+| -----: | :--- | :------ | :------------------------- |
+|   0x00 | u8   | unknown | `0` or `1`                 |
+|   0x01 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
+|   0x05 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
+
+Meaning unknown; nothing in the league's other files matches. Teams in `08_TEAMS.LG2` outside the common values:
+
+- Byte: none, all `1`.
+- First u32: Calgary `4`; the rest `2` or `3`.
+- Second u32: none, all `2` or `3`.
+
+### 4.3 File Entry (0x20B bytes)
 
 | Offset | Type        | Name     | Description                                           |
 | -----: | :---------- | :------- | :---------------------------------------------------- |
@@ -143,28 +194,3 @@ The folder is empty: byte `0x000` is NUL. `SIERRA\FBPRO97` after it is leftover 
 0x0000  00 SIERRA\FBPRO97 00 00 ...   folder   = (empty)
 0x0105  OFF1.PRF 00 00 ...            filename = OFF1.PRF
 ```
-
----
-
-## 4. Reader Contract
-
-- API: `read_lg2(path)` → parsed `Lg2File`; `parse_lg2(buffer, path)` parses raw bytes.
-- Exposes: `teams`, each with `first_half` / `second_half` → `offense` / `defense` → `profile` / `gameplan`. Each is a string, `folder\filename` relative to the game folder, or just `filename` when the folder is empty.
-- Raises `InvalidLg2Error` when the file is empty or not a whole number of team records, a folder or filename field has no NUL, or a filename is empty.
-- Raises `UnsupportedLg2Error` when the first folder field starts with `STOCK\0A\FBPRO97\STOCK\0` (section 2) or with a NUL (section 3). Only the first entry decides.
-- Checks run in order: size, then stock, then fields.
-
----
-
-## 5. Validation & Test Vectors
-
-Fixtures: `PNFL.lg2` (custom), `NFLPI97.LG2` (modern stock), `08_TEAMS.LG2` (old stock). Tests pin three custom teams' files, reject both stock layouts, and check each limit on built bytes: file size, folder and filename field length, and empty filename.
-
----
-
-## 6. Open Questions
-
-- The 9 trailing bytes of each team record
-- Team order, and how it maps to the league's other files
-- Whether a custom league can mix in stock entries
-- Where the game looks for an old stock league's files

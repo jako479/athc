@@ -4,6 +4,13 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-06 — **league files**: reverse engineered the PNFL's other game
+  files to learn what sets the `.lg2` team order (the `.lge` tree order) and
+  what each file holds. Team and roster chunks use a running XOR key and the
+  player file a per-file byte table, so both got specs (`.lge`, `.pyr`), the
+  lg2 spec its team order, and a design doc lists every file type with its
+  masks and layout variants. Notes live in `docs/design/research/`, a
+  read-only decoder in `research/`.
 - 2026-10-06 — **check-ppp**: now follows the profile rules'
   `[gameplan_compatibility]` settings instead of ignoring them, so a league
   decides what fails. A profile category the gameplan lacks is the profile's

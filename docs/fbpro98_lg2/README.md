@@ -33,6 +33,14 @@ PureWindowsPath(team.first_half.offense.profile).name  # "JAGS-O1.prf"
 
 Locations are relative to the game folder. `parse_lg2(buffer)` is the bytes-in entry point; `read_lg2` wraps file I/O.
 
+## API
+
+- `read_lg2(path)` returns an `Lg2File`; `parse_lg2(buffer, path)` parses raw bytes, `path` only naming the source in errors.
+- `Lg2File.teams`: one `TeamFiles` per team, in the league's `.lge` order; `first_half` / `second_half` → `offense` / `defense` → `profile` / `gameplan`, each a string `folderilename` relative to the game folder, or just `filename` when the folder is empty.
+- `InvalidLg2Error`: empty file, a size that is not a whole number of team records, a folder or filename field without a NUL, or an empty filename.
+- `UnsupportedLg2Error`: a stock league, modern or old (next section).
+- Checks run in order: size, then stock, then fields.
+
 ## Unsupported variants
 
 Stock leagues raise `UnsupportedLg2Error`, judged by the first file entry:

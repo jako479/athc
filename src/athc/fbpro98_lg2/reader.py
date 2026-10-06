@@ -28,7 +28,7 @@ class UnsupportedLg2Error(ValueError):
 
     Both stock layouts are rejected: modern (folder `STOCK`) and old (empty
     folder). The check runs before the field checks. See specs/lg2.md
-    sections 2 and 3.
+    sections 3 and 4.
     """
 
 

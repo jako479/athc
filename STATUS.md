@@ -174,7 +174,18 @@ Reads and writes `.pln` game plans. Docs:
 Reads the profile and game plan files each team uses from a league's `.lg2`.
 Docs: [spec](docs/fbpro98_lg2/specs/lg2.md)
 
+- Team order is the league's `.lge` order (spec section 4).
 - Reader in, with unit tests; stock leagues are rejected.
+
+## fbpro98 league files (specs only)
+
+Reverse engineered from the PNFL's game files; no libraries yet. Docs:
+[overview](docs/design/fbpro98-files.md), [lge spec](docs/fbpro98_lge/specs/lge.md),
+[pyr spec](docs/fbpro98_pyr/specs/pyr.md), [notes](docs/design/research/pnfl-formats.md).
+
+- `.lge`, `.rst`, `.pyr`, `.PYF`, `.dft`, `.tmn` and `.lgc` decoded in full;
+  `.dat` stat records mostly.
+- `research/pnfl_decode.py` reads them all (stdlib, read-only).
 
 ## fbpro98_play (library)
 
