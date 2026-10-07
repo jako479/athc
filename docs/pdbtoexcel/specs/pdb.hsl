@@ -1,0 +1,71 @@
+/*****************************************************************************
+ * pdb.hsl - Structure definitions for the .pdb file format
+ *  
+ * Copyright (c) 2024 Brian Jacobs, All Rights Reserved
+ *
+ *****************************************************************************
+ * Revision History:
+ *  2024-03-22 - BAJ - Original
+ */
+
+#include "standard-types.hsl"
+
+#pragma displayname("WinLogStats PDB structures")
+#pragma fileextensions(".pdb")
+
+#pragma byteorder(little_endian)
+
+/*
+ * PLAY_DATA
+ */
+struct PLAY_DATA
+{
+  DWORD PlayType; 				// 0x00 // 0x00000000 Run
+										// 0x00000001 Pass
+										// 0x00000002 Special
+										// 0x00000003 Defense
+  BYTE TeamName[64];			// 0x04
+  BYTE PlayName[128];    		// 0x44
+  DWORD TotalYards;				// 0xC4 // OFFENSE
+  DWORD PlayCount;				// 0xC8 // OFFENSE and DEFENSE
+  DWORD PassCompletions;		// 0xCC // OFFENSE
+  DWORD Sacks;					// 0xD0	// 0x00000000 // OFFENSE/DEFENSE
+  DWORD Fumbles;				// 0xD4	// 0x00000000 // OFFENSE/DEFENSE
+  DWORD Interceptions;			// 0xD8	// 0x00000000 // OFFENSE/DEFENSE
+  DWORD TouchdownsOffense;		// 0xDC	// 0x00000000 // OFFENSE/DEFENSE
+  DWORD TouchdownsDefense;		// 0xE0	// 0x00000000 // OFFENSE/DEFENSE
+  DWORD RESERVED_1;				// 0xE4	// 0x00000000
+  DWORD RESERVED_2;				// 0xE8	// 0x00000000
+  DWORD PointsScored;			// 0xEC	// 0x00000000 // OFFENSE (by offense or defense) // IGNORE
+  DWORD RushPlaysAgainst;		// 0xF0	// 0x00000000 // DEFENSE
+  DWORD PassPlaysAgainst;		// 0xF4	// 0x00000000 // DEFENSE
+  DWORD RushYardsAllowed;		// 0xF8 // 0x00000000 // DEFENSE
+  DWORD PassYardsAllowed;		// 0xFC // 0x00000000 // DEFENSE
+								// 0xA0
+};
+
+struct SITUATION_DATA
+{
+  DWORD FirstDown;					// 0x00
+  DWORD SecondDown;					// 0x04
+  DWORD ThirdDown;					// 0x08
+  DWORD FourthDown;					// 0x0C
+									// 0x10
+};
+
+/*
+ * TENDENCY_DATA
+ */
+struct TENDENCY_DATA
+{
+  BYTE TeamName[64];					// 0x00
+  struct SITUATION_DATA RunZeroToOne;	// 0x40
+  struct SITUATION_DATA PassZeroToOne;	// 0x50
+  struct SITUATION_DATA RunTwoToFive;	// 0x60
+  struct SITUATION_DATA PassTwoToFive;	// 0x70
+  struct SITUATION_DATA RunSixToTen;	// 0x80
+  struct SITUATION_DATA PassSixToTen;	// 0x90
+  struct SITUATION_DATA RunTenPlus;		// 0xA0
+  struct SITUATION_DATA PassTenPlus;	// 0xB0
+										// 0xC0
+};

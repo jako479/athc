@@ -3,8 +3,8 @@
 league folder, plus the default category order.
 
 `play_path` / `playpool_rules` locate the play pool used to classify and (optionally)
-tag plays. Playpool rules resolve as the `playpool_rules` override, else the
-league's `rules\\playpool.toml`, else none. Category order — the row sort order and
+tag plays; both come from the league folder, and the rules are none when the
+league has no `rules\\playpool.toml`. Category order — the row sort order and
 the Options sheet — defaults to the game's own category vocabulary.
 """
 
@@ -59,32 +59,20 @@ def default_category_order() -> CategoryOrder:
     }
 
 
-def load_config(
-    league: str | None = None,
-    *,
-    play_path: str | None = None,
-    playpool_rules: Path | None = None,
-) -> Config:
+def load_config(league: str | None = None) -> Config:
     """Locate the play pool and read the workbook options.
 
-    `play_path` / `playpool_rules` (overrides, kept CWD-relative) win;
-    otherwise each comes from the league folder, resolved while either is
-    missing (LeagueError when it can't be), so `play_path` alone keeps the
-    league's playpool rules. A league folder without `play_path` yields "" and
-    the caller reports it; one without `rules\\playpool.toml` yields None. The
-    workbook options come from `[convert-pdb]` in `athc.ini` and need no league;
-    a missing key keeps its default, a non-boolean value is a ConfigFileError."""
-    if play_path is None or playpool_rules is None:
-        cfg = load_league_config(league)
-        if play_path is None:
-            resolved = cfg.path("play_path")
-            play_path = str(resolved) if resolved else ""
-        if playpool_rules is None:
-            playpool_rules = cfg.rules_file(PLAYPOOL_RULES_FILE)
+    `play_path` and the playpool rules come from the league folder (LeagueError
+    when no league can be resolved). A league folder without `play_path` yields
+    "" and the caller reports it; one without `rules\\playpool.toml` yields None.
+    The workbook options come from `[convert-pdb]` in `athc.ini`; a missing key
+    keeps its default, a non-boolean value is a ConfigFileError."""
+    cfg = load_league_config(league)
+    play_path = cfg.path("play_path")
     raw = load_athc_config().get(SECTION, {})
     return Config(
-        play_path=play_path,
-        playpool_rules=playpool_rules,
+        play_path=str(play_path) if play_path else "",
+        playpool_rules=cfg.rules_file(PLAYPOOL_RULES_FILE),
         calculate_percentages=_bool(raw, "calculate_percentages", True),
         include_category_worksheets=_bool(raw, "include_category_worksheets", False),
         exclude_sacks_from_pass_attempts=_bool(

@@ -1,10 +1,16 @@
-"""Integration tests for `athc convert-pdb`."""
+"""Integration tests for `athc convert-pdb`.
+
+To regenerate the golden workbook after an intentional change, run this module
+as a script: `python -m tests.integration.test_convert_pdb --bless`.
+"""
 
 from __future__ import annotations
 
 import ctypes
+import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from collections.abc import Callable
@@ -12,14 +18,23 @@ from pathlib import Path
 
 import openpyxl
 import pytest
+from click.testing import CliRunner
 
 from athc.cli.convert_pdb import convert_pdb
 from athc.pdbtoexcel import config as pdbtoexcel_config
 from athc.pdbtoexcel.pdb import PLAY_DATA
-from tests.conftest import LEAGUE
-from tests.integration.conftest import DATA
+from tests.conftest import LEAGUE, make_league_dir, write_config_file
+from tests.integration.conftest import (
+    DATA,
+    EXPECTED,
+    GP_DEFENSE,
+    GP_OFFENSE,
+    PLAYS,
+    POOL_RULES,
+)
 
 PDB = DATA / "2045-2047.pdb"
+GOLDEN = EXPECTED / "2045-2047.workbook.json"
 MakeLeague = Callable[..., Path]
 
 
@@ -184,14 +199,6 @@ def test_config_play_path_from_league_folder(make_league: MakeLeague) -> None:
     assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
 
 
-def test_config_both_overrides_need_no_league() -> None:
-    cfg = pdbtoexcel_config.load_config(
-        play_path="D:/plays", playpool_rules=Path("E:/r.toml")
-    )
-    assert cfg.play_path == "D:/plays"
-    assert cfg.playpool_rules == Path("E:/r.toml")
-
-
 def test_config_missing_play_path_is_empty(make_league: MakeLeague) -> None:
     make_league()
     assert pdbtoexcel_config.load_config(LEAGUE).play_path == ""
@@ -206,3 +213,78 @@ def test_cli_no_league_is_one_line_error(
         result = runner.invoke(convert_pdb, [str(pdb), str(tmp_path / "out.xlsx")])
     assert result.exit_code == 1
     assert "no league selected" in caplog.text
+
+
+# ── golden workbook ───────────────────────────────────────────────────────────
+# The real .pdb converted against the curated pool (with its playpool rules) and
+# both game plans, category worksheets on; every cell compared to the golden JSON.
+
+
+def _golden_league(config_dir: Path) -> None:
+    """Select a league under `config_dir` whose pool is `data/plays/` with its
+    playpool rules, and turn the category worksheets on."""
+    folder = make_league_dir(config_dir, LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
+    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
+    write_config_file(
+        config_dir,
+        f"[athc]\nleague = {LEAGUE}\n[convert-pdb]\ninclude_category_worksheets = true\n",
+    )
+
+
+def _convert_golden(runner: CliRunner, out: Path) -> None:
+    result = runner.invoke(
+        convert_pdb,
+        [str(PDB), str(out), "-o", str(GP_OFFENSE), "-d", str(GP_DEFENSE)],
+    )
+    assert result.exit_code == 0, result.output or repr(result.exception)
+
+
+def _workbook_cells(path: Path) -> dict[str, list[list[object]]]:
+    """Every sheet's cell values; floats rounded so the JSON round-trips exactly."""
+    wb = openpyxl.load_workbook(path)
+    return {
+        ws.title: [
+            [round(v, 6) if isinstance(v, float) else v for v in row]
+            for row in ws.iter_rows(values_only=True)
+        ]
+        for ws in wb.worksheets
+    }
+
+
+def _golden_text(cells: dict[str, list[list[object]]]) -> str:
+    """The golden JSON, one row per line so a diff shows the changed rows."""
+    sheets = ",\n".join(
+        f"{json.dumps(name)}: [\n" + ",\n".join(json.dumps(r) for r in rows) + "\n]"
+        for name, rows in cells.items()
+    )
+    return "{\n" + sheets + "\n}\n"
+
+
+def test_workbook_matches_golden(runner, config_dir: Path, tmp_path: Path) -> None:
+    _golden_league(config_dir)
+    out = tmp_path / "out.xlsx"
+    _convert_golden(runner, out)
+    assert _workbook_cells(out) == json.loads(GOLDEN.read_text(encoding="utf-8"))
+
+
+def _bless() -> None:
+    """Regenerate the golden workbook JSON from a fresh conversion."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as raw:
+        config_dir = Path(raw) / "config"
+        config_dir.mkdir()
+        os.environ["ATHC_CONFIG_DIR"] = str(config_dir)
+        _golden_league(config_dir)
+        out = Path(raw) / "out.xlsx"
+        _convert_golden(CliRunner(), out)
+        text = _golden_text(_workbook_cells(out))
+    GOLDEN.write_bytes(text.replace("\n", "\r\n").encode("utf-8"))
+    print(f"wrote {GOLDEN}")
+
+
+if __name__ == "__main__":
+    if "--bless" in sys.argv:
+        _bless()
+    else:
+        print("Pass --bless to regenerate the golden file.")

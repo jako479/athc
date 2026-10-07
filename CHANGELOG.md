@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- convert-pdb: the `.pdb` file spec and the master VBA workbooks came over from pnfl
+- tests: golden workbook test for `convert-pdb` — the real `.pdb` against the curated pool, every cell compared
 - check-ppp: `require_all_gameplan_categories_in_profile` moved from the profile rules to the gameplan rules' `[profile_compatibility]` section
 - profile: `check` dropped `--gameplan`; `check-ppp` checks a profile with its gameplan
 - check-ppp: checks every profile and gameplan pair the league's `.lg2` names in a folder, or a whole tree with `-r`

@@ -17,16 +17,10 @@ def convert_pdb(
     pln_offense: str | None = None,
     pln_defense_2: str | None = None,
     pln_offense_2: str | None = None,
-    play_path_override: str | None = None,
-    playpool_rules_override: Path | None = None,
     skip_calcs: bool = False,
 ) -> None:
     """Build an Excel workbook from a PDB and optional gameplan files."""
-    config = load_config(
-        league,
-        play_path=play_path_override,
-        playpool_rules=playpool_rules_override,
-    )
+    config = load_config(league)
     if not Path(config.play_path).is_dir():
         raise OSError(
             f"play path is not a directory: {config.play_path!r} "

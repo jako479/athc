@@ -9,7 +9,6 @@ import pytest
 
 from athc.config import ConfigFileError, LeagueError
 from athc.pdbtoexcel import default_category_order, load_config
-from athc.pdbtoexcel.config import Config
 from athc.pdbtoexcel.pdb import PLAY_DATA
 from tests.conftest import LEAGUE
 
@@ -35,11 +34,6 @@ def test_default_category_order_uses_game_names() -> None:
     )
 
 
-def _load_without_league() -> Config:
-    """Both overrides given, so no league is read."""
-    return load_config(play_path="D:/plays", playpool_rules=Path("E:\\r.toml"))
-
-
 def test_load_config_defaults(make_league: MakeLeague) -> None:
     make_league()  # league folder with no league.ini and no rules
     cfg = load_config(LEAGUE)
@@ -56,15 +50,12 @@ def test_load_config_from_league_folder(make_league: MakeLeague) -> None:
     assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
 
 
-def test_load_config_cli_overrides_win(make_league: MakeLeague) -> None:
-    folder = make_league(LEAGUE, "[league]\nplay_path = D:\\plays\n")
-    (folder / "rules" / "playpool.toml").write_text("", encoding="utf-8")
-    cfg = load_config(LEAGUE, play_path="E:\\other", playpool_rules=Path("E:\\r.toml"))
-    assert cfg.play_path == "E:\\other"
-    assert cfg.playpool_rules == Path("E:\\r.toml")
+def test_load_config_needs_a_league() -> None:
+    with pytest.raises(LeagueError, match="no league selected"):
+        load_config()
 
 
-# ── playpool rules: playpool_rules override > league rules\playpool.toml > None ──
+# ── playpool rules: league rules\playpool.toml > None ─────────────────────────
 
 
 def test_playpool_toml_next_to_athc_ini_is_ignored(
@@ -75,28 +66,12 @@ def test_playpool_toml_next_to_athc_ini_is_ignored(
     assert load_config(LEAGUE).playpool_rules is None
 
 
-def test_play_path_override_reads_league_rules(make_league: MakeLeague) -> None:
-    folder = make_league()
-    (folder / "rules" / "playpool.toml").write_text("", encoding="utf-8")
-    cfg = load_config(LEAGUE, play_path="D:/plays")
-    assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
-
-
-def test_play_path_override_needs_a_league() -> None:
-    with pytest.raises(LeagueError, match="no league selected"):
-        load_config(play_path="D:/plays")
-
-
-def test_cli_playpool_rules_wins(make_league: MakeLeague) -> None:
-    folder = make_league()
-    (folder / "rules" / "playpool.toml").write_text("", encoding="utf-8")
-    cfg = load_config(LEAGUE, playpool_rules=Path("E:\\r.toml"))
-    assert cfg.playpool_rules == Path("E:\\r.toml")
-
-
 def test_no_playpool_rules_anywhere_is_none(make_league: MakeLeague) -> None:
     make_league()
     assert load_config(LEAGUE).playpool_rules is None
+
+
+# ── workbook options from [convert-pdb] in athc.ini ───────────────────────────
 
 
 def test_load_config_reads_workbook_options(
@@ -118,15 +93,6 @@ def test_workbook_options_default_without_section(make_league: MakeLeague) -> No
     assert cfg.exclude_sacks_from_pass_attempts is True
 
 
-def test_workbook_options_need_no_league(write_config: WriteConfig) -> None:
-    # Both overrides skip league resolution; the athc.ini section is read anyway.
-    write_config(WORKBOOK_OPTIONS_INI)
-    cfg = _load_without_league()
-    assert cfg.calculate_percentages is False
-    assert cfg.include_category_worksheets is True
-    assert cfg.exclude_sacks_from_pass_attempts is False
-
-
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
@@ -141,19 +107,26 @@ def test_workbook_options_need_no_league(write_config: WriteConfig) -> None:
     ],
 )
 def test_workbook_option_accepts_configparser_booleans(
-    write_config: WriteConfig, raw: str, expected: bool
+    make_league: MakeLeague, write_config: WriteConfig, raw: str, expected: bool
 ) -> None:
+    make_league()
     write_config(f"[convert-pdb]\ncalculate_percentages = {raw}\n")
-    assert _load_without_league().calculate_percentages is expected
+    assert load_config(LEAGUE).calculate_percentages is expected
 
 
-def test_workbook_option_rejects_other_values(write_config: WriteConfig) -> None:
+def test_workbook_option_rejects_other_values(
+    make_league: MakeLeague, write_config: WriteConfig
+) -> None:
+    make_league()
     write_config("[convert-pdb]\ncalculate_percentages = maybe\n")
     with pytest.raises(ConfigFileError, match="calculate_percentages"):
-        _load_without_league()
+        load_config(LEAGUE)
 
 
-def test_calculate_total_stats_is_no_longer_read(write_config: WriteConfig) -> None:
+def test_calculate_total_stats_is_no_longer_read(
+    make_league: MakeLeague, write_config: WriteConfig
+) -> None:
     # Totals are always on; a leftover key is ignored, even with a bad value.
+    make_league()
     write_config("[convert-pdb]\ncalculate_total_stats = maybe\n")
-    assert not hasattr(_load_without_league(), "calculate_total_stats")
+    assert not hasattr(load_config(LEAGUE), "calculate_total_stats")

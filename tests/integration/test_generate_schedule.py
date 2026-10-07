@@ -21,6 +21,7 @@ import pytest
 
 from athc.cli import cli
 from athc.scheduler.config import load_league, load_scheduler_config
+from tests.conftest import make_league_dir
 from tests.integration.conftest import DATA, EXPECTED
 from tests.integration.schedule_validation import (
     game_keys,
@@ -89,9 +90,7 @@ def _single(directory: Path, pattern: str) -> Path:
 def _write_config(config_dir: Path, case: GoldenCase) -> None:
     """Install the league's committed standings + rules as its league folder in an
     athc config dir."""
-    folder = config_dir / "leagues" / case.league
-    (folder / "rules").mkdir(parents=True)
-    (folder / "standings").mkdir()
+    folder = make_league_dir(config_dir, case.league)
     shutil.copy(case.standings, folder / "standings" / f"{case.season}.league.ini")
     shutil.copy(case.rules, folder / "rules" / "scheduler.toml")
 

@@ -106,7 +106,6 @@ The "league" input is a selected league folder holding the test pool (`play_path
 | `gameplan_rules` list | base + overlay | exit 1 | `test_cli_gameplan_rules_list_layers_in_order` | ☑ |
 | Listed rules file missing | `gameplan_rules` → absent file | exit 2; path named | `test_cli_missing_listed_rules_file_is_reported` | ☑ |
 | League playpool rules apply | league | exit 1; "timed passes" | `test_cli_league_playpool_rules_apply` | ☑ |
-| `play_path` override keeps league playpool rules | `load_config(play_path=…)` | league's `rules/playpool.toml` | `test_load_config_play_path_alone_reads_league_playpool_rules` | ☑ |
 
 ## Packaging check (real subprocess)
 | Case | Input | Expected | Test | Status |
@@ -503,7 +502,7 @@ In [test_autocontinue.py](test_autocontinue.py). Config-driven (`athc.ini [autoc
 
 # `athc convert-pdb`
 
-In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`; a selected league with no rules whose `play_path` is an empty `tmp_path` folder, so the workbook builds with populated Tendencies and empty play sheets — full workbook content is covered by `tests/unit/pdbtoexcel/test_workbook_creation.py`. Output read back with openpyxl. Exit 0 ok / 1 input or I/O error / 2 usage.
+In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`. Most cases use a selected league with no rules whose `play_path` is an empty `tmp_path` folder, so the workbook builds with populated Tendencies and empty play sheets. **Golden regression**: the real `.pdb` converted against the curated `data/plays/` pool with `data/playpool_rules.toml`, both game plans (`-o`/`-d`) and the category worksheets on; every sheet's cells (read back with openpyxl, floats rounded to 6 places) must equal `expected/2045-2047.workbook.json`, one row per line. Regenerate with `python -m tests.integration.test_convert_pdb --bless`. Per-row behavior on constructed data is in `tests/unit/pdbtoexcel/test_workbook_creation.py`. Exit 0 ok / 1 input or I/O error / 2 usage.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -518,6 +517,7 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`;
 | Produces `.xlsm` | data + dir | exit 0; file written | `test_produces_xlsm` | ☑ |
 | `--skip-calcs` | data + dir | exit 0 | `test_skip_calcs` | ☑ |
 | Real subprocess `athc convert-pdb` | data + dir | exit 0; file written | `test_entry_point_subprocess` | ☑ |
+| Workbook matches golden | `.pdb` + `data/plays/` + playpool rules + `-o`/`-d` + category sheets | every cell equal to `expected/2045-2047.workbook.json` | `test_workbook_matches_golden` | ☑ |
 
 ---
 
@@ -597,7 +597,7 @@ In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.i
 | `[autocontinue]` | config/release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
 | gameplan, every league | config/release/ | loads; playpool rules and rule files exist | `test_release_gameplan_config_loads` `[P]` | ☑ |
 | profile, every league | config/release/ | loads; rule files exist | `test_release_profile_config_loads` `[P]` | ☑ |
-| convert-pdb, every league | config/release/ | loads; playpool rules exist; a `play_path` override alone gets the league's file | `test_release_convert_pdb_config_loads` `[P]` | ☑ |
+| convert-pdb, every league | config/release/ | loads; the league's `rules/playpool.toml` exists | `test_release_convert_pdb_config_loads` `[P]` | ☑ |
 | `[convert-pdb]` defaults | config/release/ | spelled out in `athc.ini` | `test_release_convert_pdb_defaults` | ☑ |
 | scheduler, every league | config/release/ | tunables load; every standings file resolves | `test_release_scheduler_files_load` `[P]` | ☑ |
 | `config/dev/` mirrors `config/release/` | both | same `athc.ini`, `league.ini`, rules and standings files | `test_dev_mirrors_release_layout` | ☑ |

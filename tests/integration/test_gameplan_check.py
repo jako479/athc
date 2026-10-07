@@ -15,7 +15,6 @@ import pytest
 from athc.cli.gameplan._common import collect_files
 from athc.cli.gameplan.check import check, check_file
 from athc.gameplan import load_rules
-from athc.gameplan.config import load_config
 from athc.playpool import load_rules as load_pool_rules
 from athc.playpool import read_play_pool
 from tests.conftest import LEAGUE
@@ -345,19 +344,6 @@ def test_cli_missing_listed_rules_file_is_reported(
         result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])
     assert result.exit_code == 2
     assert "gone.toml" in caplog.text
-
-
-def test_load_config_play_path_alone_reads_league_playpool_rules(
-    tmp_path: Path, make_league: MakeLeague, write_config: WriteConfig
-) -> None:
-    """A `play_path` override replaces only `play_path`; the playpool rules still
-    come from the league folder."""
-    folder = make_league(LEAGUE, f"[league]\nplay_path = {tmp_path / 'league-pool'}\n")
-    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
-    cfg = load_config(play_path=PLAYS)
-    assert cfg.play_path == PLAYS
-    assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
 
 
 @pytest.mark.usefixtures("league")

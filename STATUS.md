@@ -242,6 +242,9 @@ Working. Extracts a WinLogStats database into an Excel workbook. Docs:
 - The play pool and playpool rules come only from the league folder. The
   workbook always has the Total Stats team; the three other workbook options
   stay in `[convert-pdb]`.
+- The `.pdb` spec lives in `docs/pdbtoexcel/specs/`; the master VBA workbooks
+  in `src/athc/pdbtoexcel/excel-template/` (not shipped) rebuild the `.bin`
+  blocks. A golden workbook test pins the real `.pdb` output cell by cell.
 
 Note: a standalone port for testers lives outside this repo at
 `E:\PNFL\__My Projects\PdbToExcel_2.0`; re-sync it by hand when this package

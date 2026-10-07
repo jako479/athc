@@ -15,12 +15,14 @@ src/athc/pdbtoexcel/       # tool logic (no Click)
 ├── excel_workbook.py    # ExcelPdbWorkbook — xlsxwriter layouts + row writers
 ├── workbook_creator.py  # PdbWorkbookCreator — joins PDB stats to the play pool
 ├── main.py              # convert_pdb() orchestration
-└── resources/           # vbaProject*.bin — XLSM macro blocks (package data)
+├── resources/           # vbaProject*.bin — XLSM macro blocks (package data)
+└── excel-template/      # master .xlsm workbooks the .bin blocks are extracted from (not shipped)
 
 src/athc/cli/convert_pdb.py   # Click leaf command
 ```
 
-`specs/pdb.md` documents the on-disk byte layout.
+`specs/pdb.md` documents the on-disk byte layout; `specs/pdb.hexpat` (ImHex) and
+`specs/pdb.hsl` (Hex Workshop) are the matching patterns.
 
 ## What it does
 
@@ -47,13 +49,13 @@ src/athc/cli/convert_pdb.py   # Click leaf command
 ## Config
 
 The league folder `leagues\<NAME>\`: `play_path` from `league.ini` and the
-optional `rules\playpool.toml` (none when absent). `play_path` must resolve to a
-real directory at runtime. The workbook options (`calculate_percentages`,
-`include_category_worksheets`, `exclude_sacks_from_pass_attempts`) are app-wide
-settings in `[convert-pdb]` in
-`athc.ini`, read through `athc.config.load_config()` without resolving a league;
-a missing key takes the `Config` default, a non-boolean value is a
-`ConfigFileError`.
+optional `rules\playpool.toml` (none when absent). The league is always
+resolved; no command-line option replaces its play pool or rules. `play_path`
+must resolve to a real directory at runtime. The workbook options
+(`calculate_percentages`, `include_category_worksheets`,
+`exclude_sacks_from_pass_attempts`) are app-wide settings in `[convert-pdb]` in
+`athc.ini`, read through `athc.config.load_config()`; a missing key takes the
+`Config` default, a non-boolean value is a `ConfigFileError`.
 
 ## CLI
 
@@ -71,10 +73,13 @@ Extensions are validated (`.pdb` / `.xlsx`,`.xlsm` / `.pln`).
 ## Out of scope
 
 - Parsing `.ply` / `.pln` (delegated to `playpool` / `fbpro98_gameplan`).
-- Non-Excel output; rebuilding the VBA `.bin` blobs.
+- Non-Excel output. The VBA `.bin` blocks are rebuilt by hand from the
+  `excel-template/` workbooks; its README has the steps.
 
 ## Tests
 
 - `tests/unit/pdbtoexcel/` — PDB parsing (real fixture + snapshot), config, workbook
   creation (synthetic PDB + injected pool, read back with openpyxl).
-- `tests/integration/test_convert_pdb.py` — CLI end-to-end.
+- `tests/integration/test_convert_pdb.py` — CLI end-to-end, plus a golden
+  workbook: the real `.pdb` converted against the curated pool and game plans,
+  every cell compared to `expected/2045-2047.workbook.json`.

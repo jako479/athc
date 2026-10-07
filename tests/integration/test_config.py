@@ -406,9 +406,7 @@ def test_release_convert_pdb_config_loads(name: str) -> None:
 
     cfg = pdbtoexcel_config.load_config(name)
     assert cfg.playpool_rules is not None and cfg.playpool_rules.is_file()
-    # A play_path override alone still reads the league's rules\playpool.toml.
-    rules = pdbtoexcel_config.load_config(name, play_path="D:/plays").playpool_rules
-    assert rules == RELEASE / "leagues" / name / "rules" / "playpool.toml"
+    assert cfg.playpool_rules == RELEASE / "leagues" / name / "rules" / "playpool.toml"
 
 
 @pytest.mark.usefixtures("release_config_dir")

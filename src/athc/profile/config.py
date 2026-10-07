@@ -3,7 +3,6 @@ league folder."""
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,13 +17,9 @@ class Config:
     rule_files: tuple[Path, ...] = ()
 
 
-def load_config(
-    league: str | None = None, *, rule_files: Sequence[Path] | None = None
-) -> Config:
-    """Rule files for `profile check`: the `rule_files` override wins; else the
-    league folder's `profile_rules` list or fixed `rules\\profile.toml` (missing
-    -> no rules). LeagueError when no league can be resolved."""
-    if rule_files is not None:
-        return Config(rule_files=tuple(rule_files))
+def load_config(league: str | None = None) -> Config:
+    """Rule files for `profile check`: the league folder's `profile_rules` list
+    or fixed `rules\\profile.toml` (missing -> no rules). LeagueError when no
+    league can be resolved."""
     cfg = load_league_config(league)
     return Config(rule_files=cfg.rule_files(PROFILE_RULES_KEY, PROFILE_RULES_FILE))

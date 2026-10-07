@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from athc.config import LeagueConfig, load_league_config
+from athc.config import load_league_config
 
 GAMEPLAN_RULES_FILE = "gameplan.toml"
 PLAYPOOL_RULES_FILE = "playpool.toml"
@@ -26,43 +26,24 @@ class Config:
 
 
 def load_config(
-    league: str | None = None,
-    *,
-    play_path: Path | None = None,
-    playpool_rules: Path | None = None,
-    rule_files: Sequence[Path] | None = None,
+    league: str | None = None, *, rule_files: Sequence[Path] | None = None
 ) -> Config:
-    """Assemble the gameplan config from the league folder.
-
-    The `play_path` / `playpool_rules` / `rule_files` overrides win and stay
-    CWD-relative; the league is resolved only while a value still comes from it
-    (LeagueError when it can't be), so overriding `play_path` alone keeps the
-    league's playpool rules.
-    """
-    cfg: LeagueConfig | None = None
-
-    def league_cfg() -> LeagueConfig:
-        nonlocal cfg
-        if cfg is None:
-            cfg = load_league_config(league)
-        return cfg
-
+    """Assemble the gameplan config from the league folder (LeagueError when no
+    league can be resolved). `rule_files` replaces the league's gameplan rules
+    (`()` for none) for the commands that don't check gameplans."""
+    cfg = load_league_config(league)
+    play_path = cfg.path("play_path")
     if play_path is None:
-        resolved = league_cfg().path("play_path")
-        if resolved is None:
-            raise ConfigFileError(
-                "no play_path for the league; set play_path in "
-                f"{league_cfg().dir / 'league.ini'}"
-            )
-        play_path = resolved
-
+        raise ConfigFileError(
+            f"no play_path for the league; set play_path in {cfg.dir / 'league.ini'}"
+        )
     files = (
         tuple(rule_files)
         if rule_files is not None
-        else league_cfg().rule_files(GAMEPLAN_RULES_KEY, GAMEPLAN_RULES_FILE)
+        else cfg.rule_files(GAMEPLAN_RULES_KEY, GAMEPLAN_RULES_FILE)
     )
-
-    if playpool_rules is None:
-        playpool_rules = league_cfg().rules_file(PLAYPOOL_RULES_FILE)
-
-    return Config(play_path=play_path, playpool_rules=playpool_rules, rule_files=files)
+    return Config(
+        play_path=play_path,
+        playpool_rules=cfg.rules_file(PLAYPOOL_RULES_FILE),
+        rule_files=files,
+    )

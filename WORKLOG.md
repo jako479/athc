@@ -4,6 +4,16 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-06 — **convert-pdb**: compared against the last pnfl version and
+  brought over what never made the port: the `.pdb` spec
+  (`docs/pdbtoexcel/specs/`) and the master VBA workbooks (`excel-template/`,
+  verified to extract to the shipped `.bin` files). The config loaders for
+  gameplan, profile and convert-pdb lost the override arguments only the
+  removed `--play-path`, `--playpool-rules` and `--rules` options ever fed,
+  with their tests. A golden workbook test now pins the real `.pdb` converted
+  against the curated pool, since pnfl's real-file cell checks were replaced
+  by constructed-data tests at the port and nothing checked real numbers end
+  to end.
 - 2026-10-06 — **convert-pdb**: removed the `skip_totals` parameter and test
   case left behind when `--skip-totals` was dropped.
 - 2026-10-06 — **check-ppp**: `require_all_gameplan_categories_in_profile`
