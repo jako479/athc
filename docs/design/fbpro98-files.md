@@ -30,8 +30,8 @@ season 2049) and the stock leagues shipped with the game (1992-1997).
 ## League files (one set per league, in the game folder)
 
 - `.lge` league: name, base year, next player id, conferences, divisions,
-  teams (city, nickname, abbreviation, stadium, owner, uniform colors, uniform
-  set), rosters (player ids and jersey numbers per slot) and the schedule with
+  teams (team name, nickname, abbreviation, stadium, head coach, uniform
+  colors, uniform set), rosters (player ids and jersey numbers per slot) and the schedule with
   scores. Chunk tree, depth-first; team numbers 1..N follow it and key every
   other file. Team and roster chunks masked (below). Spec:
   [lge.md](../fbpro98_lge/specs/lge.md). No library. One layout in every
@@ -68,7 +68,9 @@ season 2049) and the stock leagues shipped with the game (1992-1997).
   play names with offsets; `.pln` stock plays point into the map.
 - `<TEAM>.DAT` + `<TEAM>.MAP` (`BRONCOS`, `49ERS`, ...): per-team stock
   playbooks, same pair.
-- `CITIES.DAT`: `CTL:` chunks; cities and stadiums.
+- `CITIES.DAT`: 128 city records (name, weather tables, stadium name and
+  type); the team chunk's city index points into it. Spec:
+  [cities.md](../fbpro98_cities/specs/cities.md).
 - `NAMEF.DAT`, `NAMEL.DAT`: NUL-separated first and last names for generated
   players.
 - `injury.dat`: offset table plus injury names ("Sprained ankle").

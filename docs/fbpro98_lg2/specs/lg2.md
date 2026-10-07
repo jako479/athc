@@ -25,35 +25,47 @@ A league whose teams use the coaches' own files. Sample: `PNFL.lg2` (18 teams, 7
 
 One team record per team, back to back, with no header or trailer. Total file length = `teams × 0x1061` (4193). The team count is not stored.
 
-| Offset |   Size | Name    | Description                      |
-| -----: | -----: | :------ | :------------------------------- |
-| 0x0000 | 0x1061 | team[0] | First team record (section 2.2)  |
-| 0x1061 | 0x1061 | team[1] | Second team record (section 2.2) |
-|    ... |    ... | ...     | One record per remaining team    |
+```
+team[0]
+  file[0..7]  folder + filename
+  trailer
+team[1]
+...
+```
+
+| Offset |   Size | Name    | Description                   | Section |
+| -----: | -----: | :------ | :---------------------------- | :------ |
+| 0x0000 | 0x1061 | team[0] | First team record             | 2.2     |
+| 0x1061 | 0x1061 | team[1] | Second team record            | 2.2     |
+|    ... |    ... | ...     | One record per remaining team | 2.2     |
 
 Team order is the league's `.lge` team order: team 1 first (see section 1).
 
 ### 2.2 Team Record (0x1061 bytes)
 
-| Offset | Type       | Name    | Description                                          |
-| -----: | :--------- | :------ | :--------------------------------------------------- |
-| 0x0000 | file_entry | file[0] | 1st half offensive profile (section 2.3)             |
-| 0x020B | file_entry | file[1] | 1st half offensive game plan (section 2.3)           |
-| 0x0416 | file_entry | file[2] | 1st half defensive profile (section 2.3)             |
-| 0x0621 | file_entry | file[3] | 1st half defensive game plan (section 2.3)           |
-| 0x082C | file_entry | file[4] | 2nd half offensive profile (section 2.3)             |
-| 0x0A37 | file_entry | file[5] | 2nd half offensive game plan (section 2.3)           |
-| 0x0C42 | file_entry | file[6] | 2nd half defensive profile (section 2.3)             |
-| 0x0E4D | file_entry | file[7] | 2nd half defensive game plan (section 2.3)           |
-| 0x1058 | trailer    | trailer | Unknown 9-byte entry (section 2.2.1)                 |
+Starts at `team index × 0x1061`.
+
+| Offset |   Size | Name    | Description                   | Section |
+| -----: | -----: | :------ | :---------------------------- | :------ |
+| 0x0000 |  0x20B | file[0] | 1st half offensive profile    | 2.3     |
+| 0x020B |  0x20B | file[1] | 1st half offensive game plan  | 2.3     |
+| 0x0416 |  0x20B | file[2] | 1st half defensive profile    | 2.3     |
+| 0x0621 |  0x20B | file[3] | 1st half defensive game plan  | 2.3     |
+| 0x082C |  0x20B | file[4] | 2nd half offensive profile    | 2.3     |
+| 0x0A37 |  0x20B | file[5] | 2nd half offensive game plan  | 2.3     |
+| 0x0C42 |  0x20B | file[6] | 2nd half defensive profile    | 2.3     |
+| 0x0E4D |  0x20B | file[7] | 2nd half defensive game plan  | 2.3     |
+| 0x1058 |      9 | trailer | Unknown 9-byte entry          | 2.2.1   |
 
 #### 2.2.1 Trailer (9 bytes)
 
-| Offset | Type | Name    | Description                |
-| -----: | :--- | :------ | :------------------------- |
-|   0x00 | u8   | unknown | `0` or `1`                 |
-|   0x01 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
-|   0x05 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
+Starts at 0x1058 of the team record.
+
+| Offset | Size | Type | Name    | Description                |
+| -----: | ---: | :--- | :------ | :------------------------- |
+|   0x00 |    1 | u8   | unknown | `0` or `1`                 |
+|   0x01 |    4 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
+|   0x05 |    4 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
 
 Meaning unknown; nothing in the league's other files matches. Teams in `PNFL.lg2` outside the common values:
 
@@ -63,10 +75,12 @@ Meaning unknown; nothing in the league's other files matches. Teams in `PNFL.lg2
 
 ### 2.3 File Entry (0x20B bytes)
 
-| Offset | Type        | Name     | Description                                                                                |
-| -----: | :---------- | :------- | :----------------------------------------------------------------------------------------- |
-|  0x000 | char[0x105] | folder   | NUL-terminated folder, relative to the game folder (e.g. `PNFL\2049\Plans\Denver (Brian)`) |
-|  0x105 | char[0x106] | filename | NUL-terminated filename (e.g. `DEN-OFF1.prf`)                                              |
+Starts at `entry index × 0x20B` of the team record.
+
+| Offset |  Size | Type        | Name     | Description                                                                                |
+| -----: | ----: | :---------- | :------- | :----------------------------------------------------------------------------------------- |
+|  0x000 | 0x105 | char[0x105] | folder   | NUL-terminated folder, relative to the game folder (e.g. `PNFL\2049\Plans\Denver (Brian)`) |
+|  0x105 | 0x106 | char[0x106] | filename | NUL-terminated filename (e.g. `DEN-OFF1.prf`)                                              |
 
 The file is `folder\filename` under the game folder. Bytes after each NUL are leftovers from an earlier, longer value and are ignored:
 
@@ -85,35 +99,47 @@ A league whose teams use the game's stock files. Samples: `NFLPI96.LG2`, `NFLPI9
 
 One team record per team, back to back, with no header or trailer. Total file length = `teams × 0x1061` (4193). The team count is not stored.
 
-| Offset |   Size | Name    | Description                      |
-| -----: | -----: | :------ | :------------------------------- |
-| 0x0000 | 0x1061 | team[0] | First team record (section 3.2)  |
-| 0x1061 | 0x1061 | team[1] | Second team record (section 3.2) |
-|    ... |    ... | ...     | One record per remaining team    |
+```
+team[0]
+  file[0..7]  folder + filename
+  trailer
+team[1]
+...
+```
+
+| Offset |   Size | Name    | Description                   | Section |
+| -----: | -----: | :------ | :---------------------------- | :------ |
+| 0x0000 | 0x1061 | team[0] | First team record             | 3.2     |
+| 0x1061 | 0x1061 | team[1] | Second team record            | 3.2     |
+|    ... |    ... | ...     | One record per remaining team | 3.2     |
 
 Team order is the league's `.lge` team order: team 1 first (see section 1).
 
 ### 3.2 Team Record (0x1061 bytes)
 
-| Offset | Type       | Name    | Description                                          |
-| -----: | :--------- | :------ | :--------------------------------------------------- |
-| 0x0000 | file_entry | file[0] | 1st half offensive profile (section 3.3)             |
-| 0x020B | file_entry | file[1] | 1st half offensive game plan (section 3.3)           |
-| 0x0416 | file_entry | file[2] | 1st half defensive profile (section 3.3)             |
-| 0x0621 | file_entry | file[3] | 1st half defensive game plan (section 3.3)           |
-| 0x082C | file_entry | file[4] | 2nd half offensive profile (section 3.3)             |
-| 0x0A37 | file_entry | file[5] | 2nd half offensive game plan (section 3.3)           |
-| 0x0C42 | file_entry | file[6] | 2nd half defensive profile (section 3.3)             |
-| 0x0E4D | file_entry | file[7] | 2nd half defensive game plan (section 3.3)           |
-| 0x1058 | trailer    | trailer | Unknown 9-byte entry (section 3.2.1)                 |
+Starts at `team index × 0x1061`.
+
+| Offset |   Size | Name    | Description                   | Section |
+| -----: | -----: | :------ | :---------------------------- | :------ |
+| 0x0000 |  0x20B | file[0] | 1st half offensive profile    | 3.3     |
+| 0x020B |  0x20B | file[1] | 1st half offensive game plan  | 3.3     |
+| 0x0416 |  0x20B | file[2] | 1st half defensive profile    | 3.3     |
+| 0x0621 |  0x20B | file[3] | 1st half defensive game plan  | 3.3     |
+| 0x082C |  0x20B | file[4] | 2nd half offensive profile    | 3.3     |
+| 0x0A37 |  0x20B | file[5] | 2nd half offensive game plan  | 3.3     |
+| 0x0C42 |  0x20B | file[6] | 2nd half defensive profile    | 3.3     |
+| 0x0E4D |  0x20B | file[7] | 2nd half defensive game plan  | 3.3     |
+| 0x1058 |      9 | trailer | Unknown 9-byte entry          | 3.2.1   |
 
 #### 3.2.1 Trailer (9 bytes)
 
-| Offset | Type | Name    | Description                |
-| -----: | :--- | :------ | :------------------------- |
-|   0x00 | u8   | unknown | `0` or `1`                 |
-|   0x01 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
-|   0x05 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
+Starts at 0x1058 of the team record.
+
+| Offset | Size | Type | Name    | Description                |
+| -----: | ---: | :--- | :------ | :------------------------- |
+|   0x00 |    1 | u8   | unknown | `0` or `1`                 |
+|   0x01 |    4 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
+|   0x05 |    4 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
 
 Meaning unknown; nothing in the league's other files matches. Teams in `NFLPI97R.LG2` outside the common values:
 
@@ -123,10 +149,12 @@ Meaning unknown; nothing in the league's other files matches. Teams in `NFLPI97R
 
 ### 3.3 File Entry (0x20B bytes)
 
-| Offset | Type        | Name     | Description                                                       |
-| -----: | :---------- | :------- | :---------------------------------------------------------------- |
-|  0x000 | char[0x105] | folder   | `"STOCK"`, NUL, `"A\FBPRO97\STOCK"`, NUL; the same in every entry |
-|  0x105 | char[0x106] | filename | NUL-terminated filename (e.g. `BILLSO1.PRF`)                      |
+Starts at `entry index × 0x20B` of the team record.
+
+| Offset |  Size | Type        | Name     | Description                                                       |
+| -----: | ----: | :---------- | :------- | :---------------------------------------------------------------- |
+|  0x000 | 0x105 | char[0x105] | folder   | `"STOCK"`, NUL, `"A\FBPRO97\STOCK"`, NUL; the same in every entry |
+|  0x105 | 0x106 | char[0x106] | filename | NUL-terminated filename (e.g. `BILLSO1.PRF`)                      |
 
 The file is `STOCK\filename` under the game folder. `A\FBPRO97\STOCK` after the first NUL is leftover text, not a real folder:
 
@@ -145,35 +173,47 @@ A stock league from an older version of the game. Samples: `08_TEAMS.LG2` (8 tea
 
 One team record per team, back to back, with no header or trailer. Total file length = `teams × 0x1061` (4193). The team count is not stored.
 
-| Offset |   Size | Name    | Description                      |
-| -----: | -----: | :------ | :------------------------------- |
-| 0x0000 | 0x1061 | team[0] | First team record (section 4.2)  |
-| 0x1061 | 0x1061 | team[1] | Second team record (section 4.2) |
-|    ... |    ... | ...     | One record per remaining team    |
+```
+team[0]
+  file[0..7]  folder + filename
+  trailer
+team[1]
+...
+```
+
+| Offset |   Size | Name    | Description                   | Section |
+| -----: | -----: | :------ | :---------------------------- | :------ |
+| 0x0000 | 0x1061 | team[0] | First team record             | 4.2     |
+| 0x1061 | 0x1061 | team[1] | Second team record            | 4.2     |
+|    ... |    ... | ...     | One record per remaining team | 4.2     |
 
 Team order is the league's `.lge` team order: team 1 first (see section 1).
 
 ### 4.2 Team Record (0x1061 bytes)
 
-| Offset | Type       | Name    | Description                                          |
-| -----: | :--------- | :------ | :--------------------------------------------------- |
-| 0x0000 | file_entry | file[0] | 1st half offensive profile (section 4.3)             |
-| 0x020B | file_entry | file[1] | 1st half offensive game plan (section 4.3)           |
-| 0x0416 | file_entry | file[2] | 1st half defensive profile (section 4.3)             |
-| 0x0621 | file_entry | file[3] | 1st half defensive game plan (section 4.3)           |
-| 0x082C | file_entry | file[4] | 2nd half offensive profile (section 4.3)             |
-| 0x0A37 | file_entry | file[5] | 2nd half offensive game plan (section 4.3)           |
-| 0x0C42 | file_entry | file[6] | 2nd half defensive profile (section 4.3)             |
-| 0x0E4D | file_entry | file[7] | 2nd half defensive game plan (section 4.3)           |
-| 0x1058 | trailer    | trailer | Unknown 9-byte entry (section 4.2.1)                 |
+Starts at `team index × 0x1061`.
+
+| Offset |   Size | Name    | Description                   | Section |
+| -----: | -----: | :------ | :---------------------------- | :------ |
+| 0x0000 |  0x20B | file[0] | 1st half offensive profile    | 4.3     |
+| 0x020B |  0x20B | file[1] | 1st half offensive game plan  | 4.3     |
+| 0x0416 |  0x20B | file[2] | 1st half defensive profile    | 4.3     |
+| 0x0621 |  0x20B | file[3] | 1st half defensive game plan  | 4.3     |
+| 0x082C |  0x20B | file[4] | 2nd half offensive profile    | 4.3     |
+| 0x0A37 |  0x20B | file[5] | 2nd half offensive game plan  | 4.3     |
+| 0x0C42 |  0x20B | file[6] | 2nd half defensive profile    | 4.3     |
+| 0x0E4D |  0x20B | file[7] | 2nd half defensive game plan  | 4.3     |
+| 0x1058 |      9 | trailer | Unknown 9-byte entry          | 4.2.1   |
 
 #### 4.2.1 Trailer (9 bytes)
 
-| Offset | Type | Name    | Description                |
-| -----: | :--- | :------ | :------------------------- |
-|   0x00 | u8   | unknown | `0` or `1`                 |
-|   0x01 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
-|   0x05 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
+Starts at 0x1058 of the team record.
+
+| Offset | Size | Type | Name    | Description                |
+| -----: | ---: | :--- | :------ | :------------------------- |
+|   0x00 |    1 | u8   | unknown | `0` or `1`                 |
+|   0x01 |    4 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
+|   0x05 |    4 | u32  | unknown | `0`-`5`, mostly `2` or `3` |
 
 Meaning unknown; nothing in the league's other files matches. Teams in `08_TEAMS.LG2` outside the common values:
 
@@ -183,10 +223,12 @@ Meaning unknown; nothing in the league's other files matches. Teams in `08_TEAMS
 
 ### 4.3 File Entry (0x20B bytes)
 
-| Offset | Type        | Name     | Description                                           |
-| -----: | :---------- | :------- | :---------------------------------------------------- |
-|  0x000 | char[0x105] | folder   | NUL, `"SIERRA\FBPRO97"`, NUL; the same in every entry |
-|  0x105 | char[0x106] | filename | NUL-terminated filename (e.g. `OFF1.PRF`)             |
+Starts at `entry index × 0x20B` of the team record.
+
+| Offset |  Size | Type        | Name     | Description                                           |
+| -----: | ----: | :---------- | :------- | :---------------------------------------------------- |
+|  0x000 | 0x105 | char[0x105] | folder   | NUL, `"SIERRA\FBPRO97"`, NUL; the same in every entry |
+|  0x105 | 0x106 | char[0x106] | filename | NUL-terminated filename (e.g. `OFF1.PRF`)             |
 
 The folder is empty: byte `0x000` is NUL. `SIERRA\FBPRO97` after it is leftover text:
 

@@ -10,21 +10,33 @@
 
 A `.ply` is a single `P95` block: an 8-byte header (`ID` + `size`) followed by `size` bytes of data. Total file length = `8 + size`. The parser rejects any block ID other than `"P95:"`.
 
-| Offset | Type    | Name             | Description                                                              |
-| -----: | :------ | :--------------- | :----------------------------------------------------------------------- |
-| 0x0000 | char[4] | ID               | `"P95:"`                                                                 |
-| 0x0004 | u32     | size             | Data size in bytes (everything after this field)                         |
-| 0x0008 | u16[11] | offsets          | Player record offsets, relative to `0x0008` (see section 2)              |
-| 0x001E | u8      | play_category    | Category byte supplied by the game; bit 0 = side of ball (see section 3) |
-| 0x001F | u8      | special_category | `0x00` = normal play, `0x01`–`0x0C` = special (see section 3)            |
-| 0x0020 | u8      | user_category    | User category byte; game category in bits 5–0 (see section 3)            |
-| 0x0021 | ...     | players          | 11 variable-length player records (see section 2)                        |
+```
+P95  play
+  header  ID + size
+  offsets[11]  one per player slot
+  play_category, special_category, user_category
+  player[0..10]  variable length
+    pre-snap, play and end-of-play logic-box sequences
+      commands
+```
+
+| Offset |   Size | Name             | Description                                                   | Section |
+| -----: | -----: | :--------------- | :------------------------------------------------------------ | :------ |
+| 0x0000 |      4 | ID               | `"P95:"`                                                      |         |
+| 0x0004 |      4 | size             | Data size in bytes (everything after this field)              |         |
+| 0x0008 |     22 | offsets          | 11 player record offsets (`u16`), relative to `0x0008`        | 2       |
+| 0x001E |      1 | play_category    | Category byte supplied by the game; bit 0 = side of ball      | 3       |
+| 0x001F |      1 | special_category | `0x00` = normal play, `0x01`–`0x0C` = special                 | 3       |
+| 0x0020 |      1 | user_category    | User category byte; game category in bits 5–0                 | 3       |
+| 0x0021 | varies | players          | 11 variable-length player records                             | 2       |
 
 The first offset is `0x0019` in every sampled real file, so the player records start at `0x0021`, directly after the category bytes.
 
 ---
 
 ## 2. Player Records
+
+Each record starts at `0x0008 + offsets[i]`; the first at 0x0021 in every sampled file.
 
 Each of the 11 offsets points to a variable-length player record. Offset index → player slot (from `ply.hsl`):
 
@@ -36,12 +48,12 @@ Each of the 11 offsets points to a variable-length player record. Offset index �
 
 Leading structure (per HSL):
 
-| Relative Offset | Type | Name     | Description             |
-| --------------: | :--- | :------- | :---------------------- |
-|         `+0x00` | u8   | rank     | Depth / rank            |
-|         `+0x01` | u8   | type     | Player record type      |
-|         `+0x02` | u16  | position | Position code           |
-|         `+0x04` | ...  | data     | Variable logic-box data |
+| Relative Offset |   Size | Type | Name     | Description             |
+| --------------: | -----: | :--- | :------- | :---------------------- |
+|         `+0x00` |      1 | u8   | rank     | Depth / rank            |
+|         `+0x01` |      1 | u8   | type     | Player record type      |
+|         `+0x02` |      2 | u16  | position | Position code           |
+|         `+0x04` | varies | ...  | data     | Variable logic-box data |
 
 Observed `type` values: `0x01` pre-snap, `0x02` after-snap, `0x04` kicking. Observed `position` codes: `0x20` QB, `0x12` C, `0x11` T, `0x10` G, `0x81` TE, `0x80` WR, `0x42` HB.
 
@@ -49,27 +61,29 @@ Observed `type` values: `0x01` pre-snap, `0x02` after-snap, `0x04` kicking. Obse
 
 Each player contains pre-snap, middle-of-play, and end-of-play logic-box sequences:
 
-| Relative Offset | Type | Name         | Description                   |
-| --------------: | :--- | :----------- | :---------------------------- |
-|         `+0x00` | u16  | numLogic     | Logic-box sequence number     |
-|         `+0x02` | u16  | x            | X coordinate / field value    |
-|         `+0x04` | u16  | y            | Y coordinate / field value    |
-|         `+0x06` | u16  | commandCount | Number of commands            |
-|         `+0x08` | ...  | commands     | Variable-length command array |
+| Relative Offset |   Size | Type | Name         | Description                   |
+| --------------: | -----: | :--- | :----------- | :---------------------------- |
+|         `+0x00` |      2 | u16  | numLogic     | Logic-box sequence number     |
+|         `+0x02` |      2 | u16  | x            | X coordinate / field value    |
+|         `+0x04` |      2 | u16  | y            | Y coordinate / field value    |
+|         `+0x06` |      2 | u16  | commandCount | Number of commands            |
+|         `+0x08` | varies | ...  | commands     | Variable-length command array |
 
 ### 2.3 Commands (partial)
 
-| Relative Offset | Type | Name | Description                |
-| --------------: | :--- | :--- | :------------------------- |
-|         `+0x00` | u16  | type | Command type               |
-|         `+0x02` | u16  | x    | Command data / field value |
-|         `+0x04` | u16  | y    | Command data / field value |
+| Relative Offset | Size | Type | Name | Description                |
+| --------------: | ---: | :--- | :--- | :------------------------- |
+|         `+0x00` |    2 | u16  | type | Command type               |
+|         `+0x02` |    2 | u16  | x    | Command data / field value |
+|         `+0x04` |    2 | u16  | y    | Command data / field value |
 
 Command type values are not yet reverse engineered.
 
 ---
 
 ## 3. Play Categories
+
+Starts at 0x001E.
 
 The three category bytes at `0x001E`–`0x0020` classify a play.
 

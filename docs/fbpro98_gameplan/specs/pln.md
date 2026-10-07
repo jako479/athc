@@ -10,7 +10,18 @@
 
 A `.pln` is three blocks in order: **G95** (offsets and play records), **J95** (summary counts), **S98** (stock map filename). Each block begins with a header: `ID (4 bytes)` + `size (4 bytes)`. `size` is the data length excluding the 8 bytes of `ID+size`.
 
-| Offset          |     Size | Block | Region                            | Section |
+```
+G95  index + play records
+  header  ID + size
+  audible
+  offsets[86]  one per play slot
+  play records  one per filled slot, custom or stock
+J95  summary counts
+S98  stock map filename
+pad  defense only
+```
+
+| Offset          |     Size | Name  | Description                       | Section |
 | :-------------- | -------: | :---- | :-------------------------------- | :------ |
 | 0x0000          |        8 | G95   | Header: `ID` + `size`             | 2.1     |
 | 0x0008          |        4 | G95   | `audible`                         | 2.1     |
@@ -24,32 +35,40 @@ A `.pln` is three blocks in order: **G95** (offsets and play records), **J95** (
 
 ## 2. Block: G95 — Index + Play Records
 
+Starts at 0x0000.
+
 ### 2.1 Header (12 bytes)
 
-| Offset | Type    | Name    | Description                                      |
-| -----: | :------ | :------ | :----------------------------------------------- |
-| 0x0000 | char[4] | ID      | `"G95:"`                                         |
-| 0x0004 | u32     | size    | Data size in bytes (everything after this field) |
-| 0x0008 | u8[4]   | audible | Audible play indices; always `00 01 02 03`       |
+Starts at 0x0000.
+
+| Offset | Size | Type    | Name    | Description                                      |
+| -----: | ---: | :------ | :------ | :----------------------------------------------- |
+| 0x0000 |    4 | char[4] | ID      | `"G95:"`                                         |
+| 0x0004 |    4 | u32     | size    | Data size in bytes (everything after this field) |
+| 0x0008 |    4 | u8[4]   | audible | Audible play indices; always `00 01 02 03`       |
 
 Total G95 block length = `8 + size`. The reader rejects any `audible` ≠ `00 01 02 03`.
 
 ### 2.2 Offsets Table (172 bytes)
 
-| Offset | Type    | Name    | Description                             |
-| -----: | :------ | :------ | :-------------------------------------- |
-| 0x000C | u16[86] | offsets | Play record offsets; `0x0000` = no play |
+Starts at 0x000C.
+
+| Offset | Size | Type    | Name    | Description                             |
+| -----: | ---: | :------ | :------ | :-------------------------------------- |
+| 0x000C |  172 | u16[86] | offsets | Play record offsets; `0x0000` = no play |
 
 Always 86 entries, in both offensive and defensive game plans. Offsets are relative to byte `0x0C` (end of G95 header). The first play record begins at byte `0xB8` (12 header + 172 offsets). Which play each offset points to is in section 3.
 
 ### 2.3 Play Record (variable size)
 
-| Offset | Type | Name             | Description                                                                   |
-| -----: | :--- | :--------------- | :---------------------------------------------------------------------------- |
-|   0x00 | u8   | stock_flag       | `0` = custom play, `1` = stock play                                           |
-|   0x01 | u8   | play_category    | Play attribute; value semantics owned by the `.ply` format                    |
-|   0x02 | u8   | special_category | Play attribute; `0x00` = normal play, `0x01`–`0x0C` = special (see section 3) |
-|   0x03 | u8   | user_category    | Play attribute; value semantics owned by the `.ply` format                    |
+Records are packed from 0x00B8; each one is reached through the offsets table (section 2.2).
+
+| Offset | Size | Type | Name             | Description                                                                   |
+| -----: | ---: | :--- | :--------------- | :---------------------------------------------------------------------------- |
+|   0x00 |    1 | u8   | stock_flag       | `0` = custom play, `1` = stock play                                           |
+|   0x01 |    1 | u8   | play_category    | Play attribute; value semantics owned by the `.ply` format                    |
+|   0x02 |    1 | u8   | special_category | Play attribute; `0x00` = normal play, `0x01`–`0x0C` = special (see section 3) |
+|   0x03 |    1 | u8   | user_category    | Play attribute; value semantics owned by the `.ply` format                    |
 
 In special plays, `play_category` and `user_category` are set per profile: `1` for offense, `0` for defense.
 
@@ -57,17 +76,17 @@ Trailing fields after the 4-byte header depend on `stock_flag`:
 
 If `stock_flag = 0` (custom play):
 
-| Offset | Type | Name     | Description                                                                 |
-| -----: | :--- | :------- | :-------------------------------------------------------------------------- |
-|   0x04 | cstr | filename | NUL-terminated ASCII play file path (`cstr` = ASCII bytes ending in `0x00`) |
+| Offset |   Size | Type | Name     | Description                                                                 |
+| -----: | -----: | :--- | :------- | :-------------------------------------------------------------------------- |
+|   0x04 | varies | cstr | filename | NUL-terminated ASCII play file path (`cstr` = ASCII bytes ending in `0x00`) |
 
 If `stock_flag = 1` (stock play):
 
-| Offset | Type    | Name       | Description                           |
-| -----: | :------ | :--------- | :------------------------------------ |
-|   0x04 | char[8] | play_name  | Fixed 8-byte ASCII name (NUL-padded)  |
-|   0x0C | u32     | map_offset | Opaque pointer into unknown game file |
-|   0x10 | u16     | map_size   | Opaque size into unknown game file    |
+| Offset | Size | Type    | Name       | Description                           |
+| -----: | ---: | :------ | :--------- | :------------------------------------ |
+|   0x04 |    8 | char[8] | play_name  | Fixed 8-byte ASCII name (NUL-padded)  |
+|   0x0C |    4 | u32     | map_offset | Opaque pointer into unknown game file |
+|   0x10 |    2 | u16     | map_size   | Opaque size into unknown game file    |
 
 `map_offset` / `map_size` reference the external `STOCK98.MAP` file; the gameplan library carries them through unchanged on round-trip.
 
@@ -131,21 +150,27 @@ There are no defensive clock plays, so offsets 84 and 85 are always `0x0000`. Ca
 
 ## 4. Block: J95 — Summary Counts
 
+Starts at `8 + G95.size`.
+
 ### 4.1 Header (8 bytes)
 
-| Offset | Type    | Name | Description            |
-| -----: | :------ | :--- | :--------------------- |
-| 0x0000 | char[4] | ID   | `"J95:"`               |
-| 0x0004 | u32     | size | Data size (always `7`) |
+Starts at `8 + G95.size`.
+
+| Offset | Size | Type    | Name | Description            |
+| -----: | ---: | :------ | :--- | :--------------------- |
+| 0x0000 |    4 | char[4] | ID   | `"J95:"`               |
+| 0x0004 |    4 | u32     | size | Data size (always `7`) |
 
 ### 4.2 Data (7 bytes)
 
-| Offset | Type | Name              | Description                       |
-| -----: | :--- | :---------------- | :-------------------------------- |
-|     +0 | u8   | profile_type      | `0` = DEFENSE, `1` = OFFENSE      |
-|     +1 | u16  | num_custom_plays  | Count of custom (non-stock) plays |
-|     +3 | u16  | num_stock_plays   | Count of stock plays              |
-|     +5 | u16  | num_special_plays | Count of special plays            |
+Starts at `16 + G95.size`.
+
+| Offset | Size | Type | Name              | Description                       |
+| -----: | ---: | :--- | :---------------- | :-------------------------------- |
+|     +0 |    1 | u8   | profile_type      | `0` = DEFENSE, `1` = OFFENSE      |
+|     +1 |    2 | u16  | num_custom_plays  | Count of custom (non-stock) plays |
+|     +3 |    2 | u16  | num_stock_plays   | Count of stock plays              |
+|     +5 |    2 | u16  | num_special_plays | Count of special plays            |
 
 These counts must be recomputed from the G95 play records when writing.
 
@@ -153,20 +178,28 @@ These counts must be recomputed from the G95 play records when writing.
 
 ## 5. Block: S98 — Stock Map Filename
 
+Starts at `23 + G95.size`.
+
 ### 5.1 Header (8 bytes)
 
-| Offset | Type    | Name | Description                                      |
-| -----: | :------ | :--- | :----------------------------------------------- |
-| 0x0000 | char[4] | ID   | `"S98:"`                                         |
-| 0x0004 | u32     | size | Data size in bytes (everything after this field) |
+Starts at `23 + G95.size`.
+
+| Offset | Size | Type    | Name | Description                                      |
+| -----: | ---: | :------ | :--- | :----------------------------------------------- |
+| 0x0000 |    4 | char[4] | ID   | `"S98:"`                                         |
+| 0x0004 |    4 | u32     | size | Data size in bytes (everything after this field) |
 
 ### 5.2 Data
+
+Starts at `31 + G95.size`.
 
 ASCII `"STOCK98.MAP"` followed by a single NUL (`0x00`). Total data size: 12 bytes.
 
 ---
 
 ## 6. File Size Parity
+
+The pad, when present, starts at `43 + G95.size`.
 
 Total file size: **even** for offense, **odd** for defense. FbPro98's file-open dialog filters by parity. Writer pads defense files with a trailing `\x00` when needed.
 

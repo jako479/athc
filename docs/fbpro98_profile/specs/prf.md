@@ -9,11 +9,21 @@
 ## 1. Container Overview
 
 ```
-F95 (8 + 0x3C9D = 0x3CA5 bytes)
-I95 (8 + 0x0A   = 0x0012 bytes)
-trailer (1 byte for offense, 2 bytes for defense)
-EOF
+F95  coaching profile data
+  substitution settings
+  category weights
+  field goal range
+  PAT category weights
+  use audibles
+I95  profile metadata
+trailer
 ```
+
+| Offset |   Size | Name    | Description                                          | Section |
+| -----: | -----: | :------ | :--------------------------------------------------- | :------ |
+| 0x0000 | 0x3CA5 | F95     | Coaching profile data: 8-byte header + 0x3C9D bytes  | 2       |
+| 0x3CA5 |   0x12 | I95     | Profile metadata: 8-byte header + 10 bytes           | 3       |
+| 0x3CB7 | 1 or 2 | trailer | 1 byte for offense, 2 bytes for defense              | 5       |
 
 Each block: `ID (4 bytes)` + `size (4 bytes)` + data, where `size` excludes the 8-byte header.
 
@@ -23,12 +33,14 @@ Profiles can also be saved with embedded game plans (G95/J95/S98 trios after I95
 
 ## 2. Block: F95 — Coaching Profile Data
 
+Starts at 0x0000; the data offsets in 2.2-2.6 count from the first data byte at 0x0008.
+
 ### 2.1 Header (8 bytes)
 
-| Offset | Type    | Name | Description                                       |
-| -----: | :------ | :--- | :------------------------------------------------ |
-| 0x0000 | char[4] | ID   | `"F95:"`                                          |
-| 0x0004 | u32     | size | Data size in bytes (always `0x3C9D` = 15517 dec.) |
+| Offset | Size | Type    | Name | Description                                       |
+| -----: | ---: | :------ | :--- | :------------------------------------------------ |
+| 0x0000 |    4 | char[4] | ID   | `"F95:"`                                          |
+| 0x0004 |    4 | u32     | size | Data size in bytes (always `0x3C9D` = 15517 dec.) |
 
 Data layout: substitutions → category weights → FG range → PAT category weights → `use_audibles`.
 
@@ -36,24 +48,24 @@ Data layout: substitutions → category weights → FG range → PAT category we
 
 8 position groups × paired `out_percent` / `in_percent`. All 32 bytes physically present in both offense and defense profiles. Within a group: `0 ≤ out_percent ≤ in_percent ≤ 100`.
 
-| Offset | Type | Name           | Description               | Editable in |
-| -----: | :--- | :------------- | :------------------------ | :---------- |
-|   0x00 | u16  | ol_out_percent | Offensive linemen `out` % | OFFENSE     |
-|   0x02 | u16  | ol_in_percent  | Offensive linemen `in` %  | OFFENSE     |
-|   0x04 | u16  | qb_out_percent | Quarterbacks `out` %      | OFFENSE     |
-|   0x06 | u16  | qb_in_percent  | Quarterbacks `in` %       | OFFENSE     |
-|   0x08 | u16  | rb_out_percent | Running backs `out` %     | OFFENSE     |
-|   0x0A | u16  | rb_in_percent  | Running backs `in` %      | OFFENSE     |
-|   0x0C | u16  | wr_out_percent | Receivers `out` %         | OFFENSE     |
-|   0x0E | u16  | wr_in_percent  | Receivers `in` %          | OFFENSE     |
-|   0x10 | u16  | dl_out_percent | Defensive linemen `out` % | DEFENSE     |
-|   0x12 | u16  | dl_in_percent  | Defensive linemen `in` %  | DEFENSE     |
-|   0x14 | u16  | lb_out_percent | Linebackers `out` %       | DEFENSE     |
-|   0x16 | u16  | lb_in_percent  | Linebackers `in` %        | DEFENSE     |
-|   0x18 | u16  | db_out_percent | Defensive backs `out` %   | DEFENSE     |
-|   0x1A | u16  | db_in_percent  | Defensive backs `in` %    | DEFENSE     |
-|   0x1C | u16  | k_out_percent  | Kickers `out` %           | OFFENSE     |
-|   0x1E | u16  | k_in_percent   | Kickers `in` %            | OFFENSE     |
+| Offset | Size | Type | Name           | Description               | Editable in |
+| -----: | ---: | :--- | :------------- | :------------------------ | :---------- |
+|   0x00 |    2 | u16  | ol_out_percent | Offensive linemen `out` % | OFFENSE     |
+|   0x02 |    2 | u16  | ol_in_percent  | Offensive linemen `in` %  | OFFENSE     |
+|   0x04 |    2 | u16  | qb_out_percent | Quarterbacks `out` %      | OFFENSE     |
+|   0x06 |    2 | u16  | qb_in_percent  | Quarterbacks `in` %       | OFFENSE     |
+|   0x08 |    2 | u16  | rb_out_percent | Running backs `out` %     | OFFENSE     |
+|   0x0A |    2 | u16  | rb_in_percent  | Running backs `in` %      | OFFENSE     |
+|   0x0C |    2 | u16  | wr_out_percent | Receivers `out` %         | OFFENSE     |
+|   0x0E |    2 | u16  | wr_in_percent  | Receivers `in` %          | OFFENSE     |
+|   0x10 |    2 | u16  | dl_out_percent | Defensive linemen `out` % | DEFENSE     |
+|   0x12 |    2 | u16  | dl_in_percent  | Defensive linemen `in` %  | DEFENSE     |
+|   0x14 |    2 | u16  | lb_out_percent | Linebackers `out` %       | DEFENSE     |
+|   0x16 |    2 | u16  | lb_in_percent  | Linebackers `in` %        | DEFENSE     |
+|   0x18 |    2 | u16  | db_out_percent | Defensive backs `out` %   | DEFENSE     |
+|   0x1A |    2 | u16  | db_in_percent  | Defensive backs `in` %    | DEFENSE     |
+|   0x1C |    2 | u16  | k_out_percent  | Kickers `out` %           | OFFENSE     |
+|   0x1E |    2 | u16  | k_in_percent   | Kickers `in` %            | OFFENSE     |
 
 The UI exposes only the offense groups (OL, QB, RB, WR, K) when editing an offense profile and only the defense groups (DL, LB, DB) for defense. Non-editable groups hold the game's default `80/90` (`0x50 / 0x5A`). Readers expose all eight; writers preserve disk bytes for non-editable groups (initialize to `80/90` for new profiles).
 
@@ -63,14 +75,14 @@ The UI exposes only the offense groups (OL, QB, RB, WR, K) when editing an offen
 
 #### 2.3.1 Category Weights Record (6 bytes)
 
-| Offset | Type | Name           | Description                                           |
-| -----: | :--- | :------------- | :---------------------------------------------------- |
-|   0x00 | u8   | play_category1 | First play category — see section 2.3.2               |
-|   0x01 | u8   | weight1        | Weight `0–10` plus Stop-Clock bit — see section 2.3.3 |
-|   0x02 | u8   | play_category2 | Second play category                                  |
-|   0x03 | u8   | weight2        | Weight `0–10`                                         |
-|   0x04 | u8   | play_category3 | Third play category                                   |
-|   0x05 | u8   | weight3        | Weight `0–10`                                         |
+| Offset | Size | Type | Name           | Description                                           |
+| -----: | ---: | :--- | :------------- | :---------------------------------------------------- |
+|   0x00 |    1 | u8   | play_category1 | First play category — see section 2.3.2               |
+|   0x01 |    1 | u8   | weight1        | Weight `0–10` plus Stop-Clock bit — see section 2.3.3 |
+|   0x02 |    1 | u8   | play_category2 | Second play category                                  |
+|   0x03 |    1 | u8   | weight2        | Weight `0–10`                                         |
+|   0x04 |    1 | u8   | play_category3 | Third play category                                   |
+|   0x05 |    1 | u8   | weight3        | Weight `0–10`                                         |
 
 Three weighted play-category picks for the situation at this position. The AI selects one category (weighted by `weightN`) then chooses a play whose `play_category` matches — same enum as `PlayInPlan.play_category` in [pln.md section 2.3](../../fbpro98_gameplan/specs/pln.md#23-play-record-variable-size).
 
@@ -150,9 +162,9 @@ Records are laid out by minutes-remaining (slowest-changing), then down, then ya
 
 ### 2.4 Field Goal Range (1 byte, data offset `0x3B30`)
 
-| Offset | Type | Name             | Description                               |
-| -----: | :--- | :--------------- | :---------------------------------------- |
-| 0x3B30 | u8   | field_goal_range | Maximum FG attempt distance, yards `5–50` |
+| Offset | Size | Type | Name             | Description                               |
+| -----: | ---: | :--- | :--------------- | :---------------------------------------- |
+| 0x3B30 |    1 | u8   | field_goal_range | Maximum FG attempt distance, yards `5–50` |
 
 ### 2.5 PAT Category Weights (360 bytes, data offset `0x3B31`)
 
@@ -175,9 +187,9 @@ Records are laid out by minutes-remaining (slowest-changing), then point-spread 
 
 ### 2.6 Use Audibles (4 bytes, data offset `0x3C99`)
 
-| Offset | Type | Name         | Description                            |
-| -----: | :--- | :----------- | :------------------------------------- |
-| 0x3C99 | u32  | use_audibles | `0` = audibles disabled, `1` = enabled |
+| Offset | Size | Type | Name         | Description                            |
+| -----: | ---: | :--- | :----------- | :------------------------------------- |
+| 0x3C99 |    4 | u32  | use_audibles | `0` = audibles disabled, `1` = enabled |
 
 End of F95 data at offset `0x3C9D` (file offset `0x3CA5`).
 
@@ -185,28 +197,32 @@ End of F95 data at offset `0x3C9D` (file offset `0x3CA5`).
 
 ## 3. Block: I95 — Profile Metadata
 
+Starts at 0x3CA5; its data at 0x3CAD.
+
 ### 3.1 Header (8 bytes)
 
-| Offset | Type    | Name | Description                        |
-| -----: | :------ | :--- | :--------------------------------- |
-| 0x0000 | char[4] | ID   | `"I95:"`                           |
-| 0x0004 | u32     | size | Data size in bytes (always `0x0A`) |
+| Offset | Size | Type    | Name | Description                        |
+| -----: | ---: | :------ | :--- | :--------------------------------- |
+| 0x0000 |    4 | char[4] | ID   | `"I95:"`                           |
+| 0x0004 |    4 | u32     | size | Data size in bytes (always `0x0A`) |
 
 ### 3.2 Data (10 bytes)
 
-| Offset | Type | Name                 | Description                                                    |
-| -----: | :--- | :------------------- | :------------------------------------------------------------- |
-|     +0 | u8   | profile_type         | `0` = DEFENSE, `1` = OFFENSE                                   |
-|     +1 | u16  | reserved             | Always `0x0000`                                                |
-|     +3 | u8   | field_goal_range     | Yards `5–50`; mirrors F95's `field_goal_range`                 |
-|     +4 | u16  | num_game_plan_blocks | Count of embedded game plans; supported profiles have `0` here |
-|     +6 | u32  | use_audibles         | `0` or `1`; mirrors F95's `use_audibles`                       |
+| Offset | Size | Type | Name                 | Description                                                    |
+| -----: | ---: | :--- | :------------------- | :------------------------------------------------------------- |
+|     +0 |    1 | u8   | profile_type         | `0` = DEFENSE, `1` = OFFENSE                                   |
+|     +1 |    2 | u16  | reserved             | Always `0x0000`                                                |
+|     +3 |    1 | u8   | field_goal_range     | Yards `5–50`; mirrors F95's `field_goal_range`                 |
+|     +4 |    2 | u16  | num_game_plan_blocks | Count of embedded game plans; supported profiles have `0` here |
+|     +6 |    4 | u32  | use_audibles         | `0` or `1`; mirrors F95's `use_audibles`                       |
 
 `field_goal_range` and `use_audibles` are stored redundantly in F95 and I95; readers reject mismatches. `num_game_plan_blocks ≠ 0` signals the embedded-game-plans variant (section 4).
 
 ---
 
 ## 4. Embedded Game Plans (Detected and Rejected)
+
+When present, the extra blocks start at 0x3CB7, where the trailer would be.
 
 Profiles saved with embedded game plans append one G95/J95/S98 trio per plan after I95. This library rejects that variant.
 
@@ -217,6 +233,8 @@ Profiles saved with embedded game plans append one G95/J95/S98 trio per plan aft
 ---
 
 ## 5. Trailer
+
+Starts at 0x3CB7.
 
 Every profile ends with **1 byte (offense)** or **2 bytes (defense)** so the total file size has the parity FbPro98's file-open dialog uses to filter by profile type:
 
