@@ -7,10 +7,8 @@
 - [ ] convert-pdb: complete integration into athc
 - [ ] convert-pdb: clear sort instructions on Options page
 - [ ] convert-pdb: remove hidden setting `include_category_worksheets = false` from athc.ini
-- [ ] profile-copy: copy Sub %
-- [ ] profile-copy: copy PATs
-- [ ] profile-copy: copy Stop Clock setting
-- [ ] profile-copy: copy 4th downs?
+- [ ] profile: copy: copy PATs
+- [ ] playpool: convert from `check-playpool` to `playpool check`
 - [ ] athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
 - [ ] athc: CLI: confirm mainstream CLI strategy (see Tamarack Habilitations)
 - [ ] athc: Logging: switch to the mainstream logging strategy w/ color (see Tamarack Habilitations)
@@ -21,8 +19,11 @@
   - [ ] clear user documentation
   - [ ] list of commands
   - [ ] explain each command's messages in the release docs ([command-messages](docs/design/TODO/command-messages.md))
-- [ ] installer
-- [ ] release (steps?)
+- [ ] build a PyInstaller-built installer (exe); replacing the `install.bat` + wheel zip and uv prereq
+- [ ] RELEASE!!!
+  - [ ] upload installer to Google Drive
+  - [ ] post in forum
+  - [ ] send email
 
 ## 2.0.0
 
@@ -30,7 +31,6 @@
 - gameplan-check: rule for excluded files [ME ONLY?]
 - playpool-check: check that each play's name matches its play category
 - playpool-check: count plays by file name type
-- athc: install through a PyInstaller-built installer (exe), replacing the `install.bat` + wheel zip and the uv prerequisite
 - athc: cli: wire logging in the `cli()` group callback — `RichHandler` on stderr, `click.style` on stdout; drop the 15 per-command `basicConfig` calls. Design: [docs/design/logging.md](docs/design/logging.md)
 - athc: tests: add ruff's `PT` rule group (pytest style); 117 findings today, 111 auto-fixable under `--unsafe-fixes`
 - autocontinue: work with Dean to determine usability requirements
