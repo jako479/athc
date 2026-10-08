@@ -35,7 +35,7 @@ def test_default_category_order_uses_game_names() -> None:
 
 
 def test_load_config_defaults(make_league: MakeLeague) -> None:
-    make_league()  # league folder with no league.ini and no rules
+    make_league()  # league folder with no league.toml and no rules
     cfg = load_config(LEAGUE)
     assert cfg.play_path == ""
     assert cfg.playpool_rules is None
@@ -43,7 +43,7 @@ def test_load_config_defaults(make_league: MakeLeague) -> None:
 
 
 def test_load_config_from_league_folder(make_league: MakeLeague) -> None:
-    folder = make_league(LEAGUE, "[league]\nplay_path = D:\\plays\n")
+    folder = make_league(LEAGUE, "[league]\nplay_path = 'D:\\plays'\n")
     (folder / "playpool.toml").write_text("", encoding="utf-8")
     cfg = load_config(LEAGUE)
     assert cfg.play_path == "D:\\plays"

@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 from fractions import Fraction
+from functools import partial
 from pathlib import Path
 
 import pytest
 
-from athc.gameplan import load_rules
+from athc.fbpro98_play import CategoryLabels
+from athc.gameplan import load_rules as _load_rules
 from athc.gameplan.rules import RulesFileError
-from tests.conftest import shipped_files, shipped_id
+from tests.conftest import PNFL_LABELS, shipped_files, shipped_id
+
+# Every test loads with the PNFL labels unless it says otherwise.
+load_rules = partial(_load_rules, labels=PNFL_LABELS)
 
 # A minimal valid rule set to append sections onto.
 MINIMAL = "schema_version = 1\n"
@@ -51,6 +56,32 @@ def test_unknown_offense_label(tmp_path: Path) -> None:
 def test_unknown_defense_label(tmp_path: Path) -> None:
     text = MINIMAL + "[defense.Nonsense]\nrequired = true\nmin_count = 1\n"
     with pytest.raises(RulesFileError, match="not a defense category label"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_league_label_section_needs_the_league_labels(tmp_path: Path) -> None:
+    with pytest.raises(RulesFileError, match="not an offense category label"):
+        _load_rules([write(tmp_path, MINIMAL + OFF_SECTION)], labels=CategoryLabels())
+
+
+def test_game_name_section_loads_without_league_labels(tmp_path: Path) -> None:
+    text = MINIMAL + '[offense."Run Middle"]\nrequired = true\n'
+    rules = _load_rules([write(tmp_path, text)], labels=CategoryLabels())
+    assert "Run Middle" in rules.offense_categories
+
+
+def test_game_name_section_rejected_when_league_labels_it(tmp_path: Path) -> None:
+    text = MINIMAL + '[offense."Run Middle"]\nrequired = true\n'
+    with pytest.raises(RulesFileError, match="not an offense category label") as exc:
+        load_rules([write(tmp_path, text)])
+    # The message lists the valid labels: the league's `RM`, not the game name.
+    assert "'RM'" in str(exc.value)
+    assert "'Run Middle'" not in str(exc.value)
+
+
+def test_unknown_label_message_lists_the_league_labels(tmp_path: Path) -> None:
+    text = MINIMAL + "[defense.Nonsense]\nrequired = true\n"
+    with pytest.raises(RulesFileError, match="'RunDazzle'"):
         load_rules([write(tmp_path, text)])
 
 

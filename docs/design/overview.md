@@ -13,11 +13,11 @@ athc/
   config/
     dev/                                 # dev config (ATHC_CONFIG_DIR), mirrors release\
       athc.ini
-      leagues/                           # per-league league.ini, rule TOMLs, standings\
+      leagues/                           # per-league league.toml, rule TOMLs, standings\
     release/                             # source for end-user release bundle
       docs/                              # user-facing docs (README, COMMANDS, ...)
       athc.ini                           # example config
-      leagues/                           # per-league league.ini, rule TOMLs, standings\
+      leagues/                           # per-league league.toml, rule TOMLs, standings\
       install.bat                        # end-user install script
       release-build.ps1                  # builds wheel + assembles zip into ../dist/
   src/athc/
@@ -80,7 +80,7 @@ Each library's `docs/<lib>/README.md` is its quickstart and API reference: Featu
 ## Config handling
 
 - Single shared INI file at `%LOCALAPPDATA%\athc\athc.ini`, read by `configparser`.
-- `athc.ini` holds app-wide sections (`[athc]`, `[autocontinue]`, `[convert-pdb]`); everything per-league lives in `leagues\<NAME>\` (`league.ini`, rule TOMLs, `standings\`).
+- `athc.ini` holds app-wide sections (`[athc]`, `[autocontinue]`, `[convert-pdb]`); everything per-league lives in `leagues\<NAME>\` (`league.toml`, rule TOMLs, `standings\`).
 - Each tool owns its own `config.py` with a `Config` dataclass; missing keys/sections fall back to in-code defaults.
 - `--league NAME` on a league-aware command overrides `[athc] league` for one run; `athc config set league NAME` stores the default.
 - `athc config path | edit | reveal` locate, edit, and reveal `athc.ini` (no `[config]` section); see [config.md](config.md#editing-the-config).

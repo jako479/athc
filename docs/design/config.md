@@ -5,7 +5,7 @@ Deploy mechanics (install/upgrade overwrite rules) live in [installer.md](instal
 
 ## Format and location
 
-- **Format**: INI via stdlib `configparser`. Chosen over TOML for non-dev-user familiarity (`.ini` files have been a Windows convention for decades; users are comfortable editing them in Notepad).
+- **Format**: `athc.ini` is INI via stdlib `configparser` (a Windows convention users edit in Notepad). Each league's `league.toml` is TOML via stdlib `tomllib`: it nests the category tables, quotes keys with spaces, carries comments, and is the format of the league's rule files.
 - **Path**: `%LOCALAPPDATA%\athc\athc.ini` (resolved via `platformdirs.user_config_path("athc", appauthor=False)`).
 
 ### Why stdlib over a third-party config library
@@ -47,7 +47,7 @@ One folder per league under the config dir; `athc.ini` holds only app-wide setti
 athc.ini                      app-wide settings + the selected league
 leagues\
   PNFL\
-    league.ini                per-league settings ([league] play_path, path, …)
+    league.toml               per-league settings ([league] path, play_path, …; [categories.*] labels)
     gameplan.toml             rule files, one per tool
     profile.toml
     playpool.toml
@@ -56,7 +56,9 @@ leagues\
   PCFL\                       same fixed names
 ```
 
-Fixed, well-known file names inside a league folder; nothing lists them in config. A league is any folder under `leagues\`; its name is the folder name. Per-league values that are not files in the league folder (`play_path`, the plays folder; `path`, the folder holding the league's files, each named after the league, which `check-ppp` reads for a directory; athc-admin's `db_path`, `log_dir`) go in `league.ini` under `[league]`; relative paths there resolve against the league folder.
+Fixed, well-known file names inside a league folder; nothing lists them in config. A league is any folder under `leagues\`; its name is the folder name. Per-league values that are not files in the league folder (`play_path`, the plays folder; `path`, the folder holding the league's files, each named after the league, which `check-ppp` reads for a directory; athc-admin's `db_path`, `log_dir`) go in `league.toml` under `[league]`; relative paths there resolve against the league folder.
+
+A league's short names for the game's play categories are the `[categories.offense]` and `[categories.defense]` tables of `league.toml`, keyed by the game's category name (`"Run Right" = "RR"`). The shipped files list every category of each side in the game's order, the unlabeled ones commented out. The gameplan rule files name categories by these labels (game name where the league has none), the play pool recognizes category folders by them, and `replace-play` prints them. Special-teams categories have no labels. A key that is not a category of its side, an empty or repeated label, or a label equal to a category name of its side is a `ConfigFileError`. Code: `CategoryLabels` in `athc.fbpro98_play`, carried as `LeagueConfig.categories`.
 
 Precedent: OBS Studio (`basic/profiles/<Name>/basic.ini`), Kodi (`profiles/<name>/`), Hugo (`config/_default/` + `config/<env>/`).
 
@@ -79,13 +81,13 @@ exclude_sacks_from_pass_attempts = true
 
 `[athc] league` is edited by hand or with `athc config set league NAME`, which validates the folder and rewrites the file through ConfigUpdater so comments survive (`configparser` drops them on write).
 
-An unreadable `athc.ini` or `league.ini` raises `ConfigFileError`; a missing or unknown league raises `LeagueError`.
+An unreadable `athc.ini` or `league.toml` (including a wrong value type or a bad category label) raises `ConfigFileError`; a missing or unknown league raises `LeagueError`.
 
 Log level is not a setting ([logging.md](logging.md#handler-setup)).
 
 ## Rule files
 
-Each tool reads its one fixed file from the league folder. An optional multi-line list in `league.ini` (`gameplan_rules`, `profile_rules`) replaces it with an ordered set, later files overriding earlier ones. No command-line option overrides the league's rules or play pool. Rule files are league data only; there is no shared default outside the league folders.
+Each tool reads its one fixed file from the league folder. An optional array in `league.toml` (`gameplan_rules`, `profile_rules`) replaces it with an ordered set, later files overriding earlier ones. No command-line option overrides the league's rules or play pool. Rule files are league data only; there is no shared default outside the league folders.
 
 ## Multi-league selection
 
@@ -103,27 +105,30 @@ Each tool owns its `config.py`:
 
 ```python
 # athc/gameplan/config.py
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from athc.config import load_league_config
+from athc.fbpro98_play import CategoryLabels
 
 @dataclass(frozen=True)
 class Config:
     play_path: Path
     rule_files: tuple[Path, ...] = ()
+    categories: CategoryLabels = field(default_factory=CategoryLabels)
 
 def load(league: str | None = None) -> Config:
     cfg = load_league_config(league)  # LeagueError if no league resolvable
     return Config(
         play_path=cfg.path("play_path"),
         rule_files=cfg.rule_files("gameplan_rules", "gameplan.toml"),
+        categories=cfg.categories,
     )
 ```
 
 - `Config` is a frozen dataclass with typed defaults.
-- `load()` asks the resolved `LeagueConfig` for what the tool needs: `path(key)` for a value in `league.ini`, `rules_file(name)` / `rule_files(key, default)` for rule files in the league folder.
-- Missing file or key → dataclass defaults. Type conversion is the tool's responsibility — `configparser` returns everything as strings.
+- `load()` asks the resolved `LeagueConfig` for what the tool needs: `path(key)` for a value in `league.toml`, `rules_file(name)` / `rule_files(key, default)` for rule files in the league folder, `categories` for the league's labels.
+- Missing file or key → dataclass defaults. `[league]` values are strings or arrays of strings; the loader rejects anything else. `athc.ini` values come back as strings from `configparser`, so type conversion there is the tool's responsibility.
 
 ## In-code defaults are authoritative
 

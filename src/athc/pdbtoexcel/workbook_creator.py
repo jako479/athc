@@ -65,7 +65,9 @@ class PdbWorkbookCreator:
     ) -> PdbWorkbookCreator:
         """Build all dependencies from file paths. Tests call `__init__` with fakes."""
         rules = load_rules(config.playpool_rules) if config.playpool_rules else None
-        play_pool = read_play_pool(config.play_path, rules=rules)
+        play_pool = read_play_pool(
+            config.play_path, rules=rules, labels=config.categories
+        )
         pdb = PDB(str(pdb_filename))
         pdb.convert_invalid_play_data(play_pool)
         return cls(

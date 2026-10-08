@@ -11,7 +11,7 @@ Run tools from any terminal (Command Prompt or PowerShell):
    athc <group> <subcommand> --help   show help for one subcommand
 
 Settings live in athc.ini (the file documents every option inline). Each league
-is a folder under leagues\ next to it: league.ini (play_path, path), rule files
+is a folder under leagues\ next to it: league.toml (path, play_path, category names), rule files
 (gameplan.toml, profile.toml, playpool.toml, scheduler.toml) and standings\
 (<season>.league.ini). League-aware tools use the league named by [athc] league
 unless the command is given --league NAME.
@@ -205,7 +205,7 @@ unless the command is given --league NAME.
    Checks a .prf coaching profile with its .pln game plan: one of each, in
    either order (the extension tells them apart), or every pair in a folder
    (a whole tree with -r). For a folder, the league's FbPro98 .lg2 file, in
-   the folder that path in league.ini names, says which files go together:
+   the folder that path in league.toml names, says which files go together:
    1st-half offense profile with 1st-half offense game plan, and so on. Each
    pair whose two files are in the same folder is checked; other files are
    ignored. A game plan used for both halves is reported once.
@@ -231,7 +231,8 @@ unless the command is given --league NAME.
     ------------------------------------------------------------------------
 
    Checks every play under the league's play_path, or under a folder you
-   give instead (then no league is needed); --league picks another league.
+   give instead (then no league is needed, though a configured league still
+   names the category folders); --league picks another league.
    Reports plays in a folder that doesn't match the play file, duplicate play
    names, and invalid play files -- the same warnings other commands show
    when they load the play pool. Ends with a count of plays

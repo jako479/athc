@@ -64,7 +64,7 @@ src/athc/cli/convert_pdb.py   # Click leaf command
 
 ## Config
 
-The league folder `leagues\<NAME>\`: `play_path` from `league.ini` and the
+The league folder `leagues\<NAME>\`: `play_path` and the category labels from `league.toml` and the
 optional `playpool.toml` (none when absent). The league is always
 resolved; no command-line option replaces its play pool or rules. `play_path`
 must resolve to a real directory at runtime. The workbook options

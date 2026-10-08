@@ -1,5 +1,6 @@
 """Library for parsing a Front Page Sports Football Pro '98 play file (.ply)."""
 
+from athc.fbpro98_play.labels import CategoryLabels
 from athc.fbpro98_play.model import (
     UNKNOWN_CATEGORY,
     DefensiveCategory,
@@ -9,7 +10,6 @@ from athc.fbpro98_play.model import (
     PlayFile,
     SpecialDefensiveCategory,
     SpecialOffensiveCategory,
-    category_by_short,
     resolve_category,
 )
 from athc.fbpro98_play.reader import (
@@ -20,6 +20,7 @@ from athc.fbpro98_play.reader import (
 
 __all__ = [
     "UNKNOWN_CATEGORY",
+    "CategoryLabels",
     "DefensiveCategory",
     "InvalidPlayFileError",
     "OffensiveCategory",
@@ -28,7 +29,6 @@ __all__ = [
     "PlayerHeader",
     "SpecialDefensiveCategory",
     "SpecialOffensiveCategory",
-    "category_by_short",
     "parse_play",
     "read_play",
     "resolve_category",

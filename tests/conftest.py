@@ -14,12 +14,65 @@ from pathlib import Path
 
 import pytest
 
+from athc.fbpro98_play import CategoryLabels
+
 ROOT = Path(__file__).resolve().parents[1]
 
 # Test league folder names. athc never cares what a league is called; tests that
 # need two leagues use both.
 LEAGUE = "test_league"
 OTHER_LEAGUE = "other_league"
+
+# The PNFL labels. Real league names are fine in fixtures; they are data, not
+# league-aware logic.
+PNFL_OFFENSE: dict[str, str] = {
+    "Run Right": "RR",
+    "Pass Short Right": "PSR",
+    "Run Left": "RL",
+    "Pass Short Left": "PSL",
+    "Run Middle": "RM",
+    "Pass Short Middle": "PSM",
+    "Razzle Dazzle Pass": "PRD",
+    "Pass Medium Right": "PMR",
+    "Pass Medium Left": "PML",
+    "Pass Medium Middle": "PMM",
+    "Pass Long Right": "PLR",
+    "Goal Line Run": "GLR",
+    "Goal Line Pass": "GLP",
+}
+PNFL_DEFENSE: dict[str, str] = {
+    "Run Right": "RunRight",
+    "Pass Short": "PassShort",
+    "Run Left": "RunLeft",
+    "Run Middle": "RunMiddle",
+    "Run Dazzle": "RunDazzle",
+    "Pass Dazzle": "PassDazzle",
+    "Pass Medium": "PassMedium",
+    "Pass Long": "PassLong",
+    "Goal Line Run": "GLrun",
+    "Goal Line Pass": "GLpass",
+}
+PNFL_LABELS = CategoryLabels.from_tables(PNFL_OFFENSE, PNFL_DEFENSE)
+
+
+def _categories_table(side: str, labels: dict[str, str]) -> str:
+    lines = "".join(f'"{name}" = "{label}"\n' for name, label in labels.items())
+    return f"[categories.{side}]\n{lines}"
+
+
+# The `[categories.*]` tables of a test league.toml: the PNFL labels.
+CATEGORIES_TOML = _categories_table("offense", PNFL_OFFENSE) + _categories_table(
+    "defense", PNFL_DEFENSE
+)
+
+
+def league_toml(play_path: Path | str | None = None, *, labels: bool = True) -> str:
+    """A league.toml body: `play_path` when given and, by default, the PNFL
+    category labels."""
+    body = "[league]\n"
+    if play_path is not None:
+        body += f"play_path = '{play_path}'\n"
+    return body + (CATEGORIES_TOML if labels else "")
 
 
 def shipped_files(pattern: str) -> list[Path]:
@@ -49,7 +102,7 @@ def config_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def write_config_file(config_dir: Path, body: str, name: str = "athc.ini") -> Path:
-    """Write raw INI (dedented, leading newline stripped) to `config_dir/name`.
+    """Write a raw config file (dedented, leading newline stripped) to `config_dir/name`.
     Plain function so golden `--bless` scripts can use it outside pytest."""
     path = config_dir / name
     path.write_text(textwrap.dedent(body).lstrip("\n"), encoding="utf-8")
@@ -60,12 +113,12 @@ def make_league_dir(
     config_dir: Path, name: str = LEAGUE, body: str | None = None
 ) -> Path:
     """Create `leagues/<name>/` (with `standings/`) under `config_dir`,
-    write `league.ini` from `body` when given, and return the folder."""
+    write `league.toml` from `body` when given, and return the folder."""
     folder = config_dir / "leagues" / name
     folder.mkdir(parents=True)
     (folder / "standings").mkdir()
     if body is not None:
-        write_config_file(folder, body, "league.ini")
+        write_config_file(folder, body, "league.toml")
     return folder
 
 

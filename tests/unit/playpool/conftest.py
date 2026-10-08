@@ -18,6 +18,7 @@ import pytest
 
 from athc.fbpro98_play import PlayFile
 from athc.playpool import PlayPool, PlaypoolRules, load_rules, read_play_pool
+from tests.conftest import PNFL_LABELS
 
 DATA = Path(__file__).resolve().parent / "data"
 PLAYS = DATA / "plays"
@@ -84,7 +85,7 @@ def arbitrary_tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.fixture(scope="session")
 def league_pool(rules: PlaypoolRules) -> PlayPool:
-    return read_play_pool(PLAYS, rules=rules)
+    return read_play_pool(PLAYS, rules=rules, labels=PNFL_LABELS)
 
 
 @pytest.fixture(scope="session")

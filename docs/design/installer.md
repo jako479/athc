@@ -21,12 +21,12 @@ All files deploy into `%LOCALAPPDATA%\athc\`.
 | File | First install | Reinstall |
 |---|---|---|
 | `athc.ini` | seeded | **preserved** (user edits survive) |
-| `leagues\<NAME>\league.ini` | seeded | **preserved** |
+| `leagues\<NAME>\league.toml` | seeded | **preserved** |
 | `leagues\<NAME>\standings\*.league.ini` | seeded | **preserved** (commish edits survive) |
-| `leagues<NAME>*.toml` | created | overwritten |
+| `leagues\<NAME>\*.toml` (rule files; not `league.toml`) | created | overwritten |
 | `docs\*.txt` | created | overwritten |
 
-The seeded `athc.ini` selects PNFL; the only value a user must edit is `play_path` in `leagues\PNFL\league.ini` (their FbPro98 plays folder), plus `path` (the folder holding their league's files) to run `check-ppp` on a folder. `athc.ini` is a single self-documenting file — every setting is commented inline; there's no separate `.example` reference (the pgcli/mycli model). Layout: [config.md](config.md#layout).
+The seeded `athc.ini` selects PNFL; the only value a user must edit is `play_path` in `leagues\PNFL\league.toml` (their FbPro98 plays folder), plus `path` (the folder holding their league's files) to run `check-ppp` on a folder. `athc.ini` is a single self-documenting file — every setting is commented inline; there's no separate `.example` reference (the pgcli/mycli model). Layout: [config.md](config.md#layout).
 
 The wheel goes into a uv-managed tool venv; executables on PATH at `%USERPROFILE%\.local\bin\`.
 

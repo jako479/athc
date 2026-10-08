@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- playpool: `check` on a given folder still uses the configured league's category names for its folders; with no league, folder names are not checked
+- config: league settings moved from `league.ini` to `league.toml`; a league's short names for the play categories live there under `[categories.offense]` / `[categories.defense]`, no longer in code
 - playpool: `check-playpool` became `playpool check`, a command group like `gameplan` and `profile`
 - profile: `copy --pat-logic` copies the PAT play-calling table into the targets
 - athc: the file specs hold only the file layout, its validity rules and open questions; each library's README documents its API, indexed in the architecture overview

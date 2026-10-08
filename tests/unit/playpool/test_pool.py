@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from athc.fbpro98_play import CategoryLabels
 from athc.playpool import (
     DefensiveFront,
     DefensivePlay,
@@ -19,6 +20,7 @@ from athc.playpool import (
     read_play_pool,
 )
 from athc.playpool.pool import folder_warnings
+from tests.conftest import PNFL_LABELS
 from tests.unit.playpool.conftest import PLAYS, MakePlay
 
 ALL_POOLS = ["league_pool", "flat_pool", "arbitrary_pool"]
@@ -116,14 +118,14 @@ def test_no_warnings_on_consistent_trees(
     """League-layout plays match their folders; the others have no recognized folders."""
     root = PLAYS if tree == "league" else request.getfixturevalue(f"{tree}_tree")
     with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
-        read_play_pool(root)
+        read_play_pool(root, labels=PNFL_LABELS)
     assert "play in" not in caplog.text  # no side/category mismatch warnings
 
 
 def test_invalid_skipped(caplog: pytest.LogCaptureFixture) -> None:
     assert (PLAYS / "Offense" / "PML" / "PS7Xmids.ply").is_file()
     with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
-        pool = read_play_pool(PLAYS)
+        pool = read_play_pool(PLAYS, labels=PNFL_LABELS)
     assert "Skipping invalid play file" in caplog.text and "PS7Xmids" in caplog.text
     assert pool.find_by_name("PS7Xmids") is None
 
@@ -135,7 +137,7 @@ def test_flat_play_classified_from_file(
     src = next(PLAYS.glob("**/AF21rm12.ply"))  # offensive Run Middle
     shutil.copy(src, tmp_path / "loose.ply")
     with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
-        play = read_play_pool(tmp_path).find_by_name("loose")
+        play = read_play_pool(tmp_path, labels=PNFL_LABELS).find_by_name("loose")
     assert isinstance(play, OffensivePlay)
     assert play.category.long == "Run Middle"
     assert "play in" not in caplog.text
@@ -153,7 +155,7 @@ def test_wrong_side_folder_file_wins_and_warns(
     dst.mkdir(parents=True)
     shutil.copy(src, dst / "AF32gp02.ply")
     with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
-        play = read_play_pool(tmp_path).find_by_name("AF32gp02")
+        play = read_play_pool(tmp_path, labels=PNFL_LABELS).find_by_name("AF32gp02")
     assert isinstance(play, DefensivePlay)  # file wins
     assert (
         "Defensive play in the offense tree: Offense/Screens/AF32gp02.ply"
@@ -170,7 +172,7 @@ def test_wrong_category_folder_warns(
     dst.mkdir(parents=True)
     shutil.copy(src, dst / "AF2AshtZ.ply")
     with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
-        play = read_play_pool(tmp_path).find_by_name("AF2AshtZ")
+        play = read_play_pool(tmp_path, labels=PNFL_LABELS).find_by_name("AF2AshtZ")
     assert isinstance(play, OffensivePlay)
     assert play.category.long == "Pass Short Middle"
     assert (
@@ -189,19 +191,19 @@ def _copy_play(name: str, folder: Path) -> None:
 
 def test_no_issues_when_consistent(tmp_path: Path) -> None:
     _copy_play("AF2AshtZ", tmp_path / "Offense" / "PSM")
-    assert read_play_pool(tmp_path).issues == []
+    assert read_play_pool(tmp_path, labels=PNFL_LABELS).issues == []
 
 
 def test_category_mismatch_is_an_issue(tmp_path: Path) -> None:
     _copy_play("AF2AshtZ", tmp_path / "Offense" / "PML")
-    assert read_play_pool(tmp_path).issues == [
+    assert read_play_pool(tmp_path, labels=PNFL_LABELS).issues == [
         "Pass Short Middle play in a Pass Medium Left folder: Offense/PML/AF2AshtZ.ply"
     ]
 
 
 def test_wrong_side_is_an_issue(tmp_path: Path) -> None:
     _copy_play("AF32gp02", tmp_path / "Offense")
-    assert read_play_pool(tmp_path).issues == [
+    assert read_play_pool(tmp_path, labels=PNFL_LABELS).issues == [
         "Defensive play in the offense tree: Offense/AF32gp02.ply"
     ]
 
@@ -209,14 +211,14 @@ def test_wrong_side_is_an_issue(tmp_path: Path) -> None:
 def test_duplicate_name_is_an_issue(tmp_path: Path) -> None:
     _copy_play("AF21rm12", tmp_path / "a")
     _copy_play("AF21rm12", tmp_path / "b")
-    assert read_play_pool(tmp_path).issues == [
+    assert read_play_pool(tmp_path, labels=PNFL_LABELS).issues == [
         "Duplicate play name 'AF21rm12'; last loaded wins"
     ]
 
 
 def test_invalid_file_is_an_issue(tmp_path: Path) -> None:
     (tmp_path / "bad.ply").write_bytes(b"\x00\x01\x02")
-    issues = read_play_pool(tmp_path).issues
+    issues = read_play_pool(tmp_path, labels=PNFL_LABELS).issues
     assert len(issues) == 1
     assert issues[0].startswith("Skipping invalid play file: ")
     assert "bad.ply" in issues[0]
@@ -229,7 +231,7 @@ def test_issues_match_the_logged_warnings(
     _copy_play("AF21rm12", tmp_path / "a")
     _copy_play("AF21rm12", tmp_path / "b")
     with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
-        pool = read_play_pool(tmp_path)
+        pool = read_play_pool(tmp_path, labels=PNFL_LABELS)
     logged = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     assert len(pool.issues) == 2
     assert pool.issues == logged
@@ -240,31 +242,31 @@ def test_issues_match_the_logged_warnings(
 
 def test_warn_defensive_play_in_offense_tree(make_play: MakePlay) -> None:
     play = make_play("X", play_category=0x00, user_category=0x02)  # defense
-    w = folder_warnings("Offense/PMR/Screens/X.ply", play)
+    w = folder_warnings("Offense/PMR/Screens/X.ply", play, PNFL_LABELS)
     assert w == ["Defensive play in the offense tree: Offense/PMR/Screens/X.ply"]
 
 
 def test_warn_offensive_play_in_defense_tree(make_play: MakePlay) -> None:
     play = make_play("X", play_category=0x01, user_category=0x09)  # offense
-    w = folder_warnings("Defense/34RunLeft/X.ply", play)
+    w = folder_warnings("Defense/34RunLeft/X.ply", play, PNFL_LABELS)
     assert w == ["Offensive play in the defense tree: Defense/34RunLeft/X.ply"]
 
 
 def test_warn_special_play_in_side_tree(make_play: MakePlay) -> None:
     play = make_play("X", special_category=0x02)  # special teams
-    w = folder_warnings("Defense/X.ply", play)
+    w = folder_warnings("Defense/X.ply", play, PNFL_LABELS)
     assert w == ["Special-teams play in the defense tree: Defense/X.ply"]
 
 
 def test_warn_offense_category_mismatch(make_play: MakePlay) -> None:
     play = make_play("X", play_category=0x01, user_category=0x07)  # Pass Short Left
-    w = folder_warnings("Offense/PML/X.ply", play)
+    w = folder_warnings("Offense/PML/X.ply", play, PNFL_LABELS)
     assert w == ["Pass Short Left play in a Pass Medium Left folder: Offense/PML/X.ply"]
 
 
 def test_warn_defense_category_mismatch(make_play: MakePlay) -> None:
     play = make_play("X", play_category=0x00, user_category=0x22)  # Pass Long
-    w = folder_warnings("Defense/RunLeft/X.ply", play)
+    w = folder_warnings("Defense/RunLeft/X.ply", play, PNFL_LABELS)
     assert w == ["Pass Long play in a Run Left folder: Defense/RunLeft/X.ply"]
 
 
@@ -272,20 +274,20 @@ def test_warn_user_specific_in_category_folder(make_play: MakePlay) -> None:
     """A User Specific play warns as a plain category mismatch (its category
     never matches a folder)."""
     play = make_play("X", play_category=0x01, user_category=0xFF)  # User Specific
-    w = folder_warnings("Offense/PML/X.ply", play)
+    w = folder_warnings("Offense/PML/X.ply", play, PNFL_LABELS)
     assert w == ["User Specific play in a Pass Medium Left folder: Offense/PML/X.ply"]
 
 
 def test_wrong_side_reported_alone(make_play: MakePlay) -> None:
     """Side mismatch suppresses the (cross-side) category mismatch."""
     play = make_play("X", play_category=0x00, user_category=0x02)  # defense, Pass Short
-    w = folder_warnings("Offense/PML/X.ply", play)
+    w = folder_warnings("Offense/PML/X.ply", play, PNFL_LABELS)
     assert w == ["Defensive play in the offense tree: Offense/PML/X.ply"]
 
 
 def test_no_warn_when_consistent(make_play: MakePlay) -> None:
     play = make_play("X", play_category=0x01, user_category=0x17)  # Pass Medium Left
-    assert folder_warnings("Offense/PML/X.ply", play) == []
+    assert folder_warnings("Offense/PML/X.ply", play, PNFL_LABELS) == []
 
 
 @pytest.mark.parametrize("rel", ["X.ply", "Offense/X.ply", "alpha/beta/X.ply"])
@@ -293,4 +295,41 @@ def test_no_warn_loose_or_unrecognized(make_play: MakePlay, rel: str) -> None:
     """No category folder (loose, side root, or unrecognized) → no warning, even
     for a User Specific play that has no valid category folder anywhere."""
     play = make_play("X", play_category=0x01, user_category=0xFF)  # User Specific
-    assert folder_warnings(rel, play) == []
+    assert folder_warnings(rel, play, PNFL_LABELS) == []
+
+
+def test_no_labels_means_no_category_folders(make_play: MakePlay) -> None:
+    """Without league labels a PNFL category folder is just a folder."""
+    play = make_play("X", play_category=0x01, user_category=0x07)  # Pass Short Left
+    assert folder_warnings("Offense/PML/X.ply", play, CategoryLabels()) == []
+
+
+def test_shared_label_resolves_to_the_plays_side(make_play: MakePlay) -> None:
+    """`RR` names Run Right on both sides: each side's Run Right sits in it quietly."""
+    labels = CategoryLabels.from_tables({"Run Right": "RR"}, {"Run Right": "RR"})
+    offense = make_play("X", play_category=0x01, user_category=0x01)
+    defense = make_play("X", play_category=0x00, user_category=0x00)
+    assert folder_warnings("RR/X.ply", offense, labels) == []
+    assert folder_warnings("RR/X.ply", defense, labels) == []
+    pass_play = make_play("X", play_category=0x00, user_category=0x02)  # Pass Short
+    assert folder_warnings("RR/X.ply", pass_play, labels) == [
+        "Pass Short play in a Run Right folder: RR/X.ply"
+    ]
+
+
+def test_other_sides_label_still_warns_wrong_side(make_play: MakePlay) -> None:
+    """A folder named with the other side's label is that side's tree."""
+    play = make_play("X", play_category=0x00, user_category=0x02)  # defense
+    assert folder_warnings("PML/X.ply", play, PNFL_LABELS) == [
+        "Defensive play in the offense tree: PML/X.ply"
+    ]
+
+
+def test_front_prefix_uses_defense_labels(make_play: MakePlay) -> None:
+    play = make_play("X", play_category=0x00, user_category=0x22)  # Pass Long
+    assert folder_warnings("34RunLeft/X.ply", play, PNFL_LABELS) == [
+        "Pass Long play in a Run Left folder: 34RunLeft/X.ply"
+    ]
+    assert (
+        folder_warnings("34PML/X.ply", play, PNFL_LABELS) == []
+    )  # not a defense label

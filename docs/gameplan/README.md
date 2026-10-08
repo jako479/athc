@@ -63,8 +63,8 @@ athc gameplan replace-play OLDRUN NEWRUN plans/ -r # swap one play for another
 
 The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.md)), picked by `--league` / `[athc] league`:
 
-- `gameplan.toml` — the rules (or a `gameplan_rules` list in `league.ini`, later files layering over earlier).
-- `league.ini` `play_path` (pool dir) and `playpool.toml` (optional filename-filter TOML).
+- `gameplan.toml` — the rules (or a `gameplan_rules` array in `league.toml`, later files layering over earlier).
+- `league.toml` `play_path` (pool dir), its `[categories.*]` labels, and `playpool.toml` (optional filename-filter TOML).
 
 `check` reads all of these from the league folder only. No rules resolvable ⇒ exit 2 (nothing to validate).
 

@@ -20,8 +20,8 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Default order uses game names | — | run/pass/defense game cats; no overlap | `test_default_category_order_uses_game_names` | ☑ |
-| Defaults (league folder, no league.ini) | folder | play_path ""; options True; rules None | `test_load_config_defaults` | ☑ |
-| From the league folder | `league.ini` + `playpool.toml` | play_path / playpool_rules resolved | `test_load_config_from_league_folder` | ☑ |
+| Defaults (league folder, no league.toml) | folder | play_path ""; options True; rules None | `test_load_config_defaults` | ☑ |
+| From the league folder | `league.toml` + `playpool.toml` | play_path / playpool_rules resolved | `test_load_config_from_league_folder` | ☑ |
 | Needs a league | no league selected | `LeagueError` | `test_load_config_needs_a_league` | ☑ |
 | `playpool.toml` next to athc.ini ignored | `<config dir>/playpool.toml`, no league file | `None` | `test_playpool_toml_next_to_athc_ini_is_ignored` | ☑ |
 | No rules anywhere | folder only | `None` | `test_no_playpool_rules_anywhere_is_none` | ☑ |

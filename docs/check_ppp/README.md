@@ -21,7 +21,7 @@ The rules come from `--league name`, or from `[athc] league` in `athc.ini`.
 
 ## Pairs from the league file
 
-`path` in `league.ini` names the folder that holds the league's
+`path` in `league.toml` names the folder that holds the league's
 files; the league's `.lg2` there is named after the league. For each
 team it lists four pairs: 1st-half offense profile and gameplan, 1st-half
 defense, 2nd-half offense, 2nd-half defense.
@@ -72,7 +72,7 @@ pair's error line and the other pairs are still checked.
 
 The same league files the two check commands read: `profile.toml`,
 `gameplan.toml`, `playpool.toml` and `play_path` in
-`league.ini`, plus `path` for a directory. See
+`league.toml`, plus `path` for a directory. See
 [profile](../profile/README.md) and [gameplan](../gameplan/README.md).
 
 ## Code

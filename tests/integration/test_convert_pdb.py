@@ -46,7 +46,7 @@ def league(
     plays = tmp_path / "plays"
     plays.mkdir()
     write_config(f"[athc]\nleague = {LEAGUE}\n")
-    return make_league(LEAGUE, f"[league]\nplay_path = {plays}\n")
+    return make_league(LEAGUE, f"[league]\nplay_path = '{plays}'\n")
 
 
 # ── extension / usage validation (exit 2) ─────────────────────────────────────
@@ -111,7 +111,7 @@ def test_play_path_not_a_directory_exit_1(
     not_a_dir = tmp_path / "notdir.txt"
     not_a_dir.write_text("x", encoding="utf-8")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
-    make_league(LEAGUE, f"[league]\nplay_path = {not_a_dir}\n")
+    make_league(LEAGUE, f"[league]\nplay_path = '{not_a_dir}'\n")
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(convert_pdb, [str(PDB), str(tmp_path / "o.xlsx")])
     assert result.exit_code == 1
@@ -167,7 +167,7 @@ def test_skip_calcs(runner, tmp_path: Path) -> None:
 def test_entry_point_subprocess(
     make_league: MakeLeague, config_dir: Path, tmp_path: Path
 ) -> None:
-    make_league(LEAGUE, f"[league]\nplay_path = {tmp_path}\n")
+    make_league(LEAGUE, f"[league]\nplay_path = '{tmp_path}'\n")
     env = {**os.environ, "ATHC_CONFIG_DIR": str(config_dir)}
     out = tmp_path / "out.xlsx"
     result = subprocess.run(
@@ -192,7 +192,7 @@ def test_entry_point_subprocess(
 
 
 def test_config_play_path_from_league_folder(make_league: MakeLeague) -> None:
-    folder = make_league(LEAGUE, "[league]\nplay_path = plays\n")
+    folder = make_league(LEAGUE, "[league]\nplay_path = 'plays'\n")
     (folder / "playpool.toml").write_text("", encoding="utf-8")
     cfg = pdbtoexcel_config.load_config(LEAGUE)
     assert cfg.play_path == str(folder / "plays")
@@ -223,7 +223,7 @@ def test_cli_no_league_is_one_line_error(
 def _golden_league(config_dir: Path) -> None:
     """Select a league under `config_dir` whose pool is `data/plays/` with its
     playpool rules, and turn the category worksheets on."""
-    folder = make_league_dir(config_dir, LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
+    folder = make_league_dir(config_dir, LEAGUE, f"[league]\nplay_path = '{PLAYS}'\n")
     shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config_file(
         config_dir,

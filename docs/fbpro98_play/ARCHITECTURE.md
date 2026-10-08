@@ -24,13 +24,16 @@ src/athc/fbpro98_play/
   - Properties: `is_offensive`, `is_defensive`, `is_special_teams`
 - Names play categories: four per-side enums (`OffensiveCategory`, `DefensiveCategory`,
   `SpecialOffensiveCategory`, `SpecialDefensiveCategory`), each member carrying its
-  `code`, `short` (league label) and `long` (game name), plus `is_run`/`is_pass`.
-  `short` falls back to `long` where a league has no abbreviation.
+  `code` and `long` (game name), plus `is_run`/`is_pass`.
   `resolve_category(play_category, special_category, user_category)` and
   `PlayFile.category` name a category from the raw bytes; `category_name` is `category.long`.
   An unrecognized code resolves to `UNKNOWN_CATEGORY` (never `None`); `read_play`
-  rejects the file. `category_by_short(label)` resolves a league short label back
-  to its category (`None` if the label isn't one).
+  rejects the file.
+- Holds a league's category labels: `CategoryLabels` (`labels.py`), built from the
+  `[categories.offense]` / `[categories.defense]` tables of `league.toml` by
+  `CategoryLabels.from_tables` (ValueError on a bad entry). `label(category)` is the
+  league label, else the game name; `offense_by_label` / `defense_by_label` resolve a
+  label within one side. Special-teams categories never have labels.
 - Validates structural correctness of `.ply` bytes
 
 ## What this package assumes

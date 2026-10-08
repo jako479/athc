@@ -16,7 +16,7 @@ from pathlib import Path
 
 from athc.config import ConfigFileError, load_league_config
 from athc.config import load_config as load_athc_config
-from athc.fbpro98_play import DefensiveCategory, OffensiveCategory
+from athc.fbpro98_play import CategoryLabels, DefensiveCategory, OffensiveCategory
 from athc.pdbtoexcel.pdb import PLAY_DATA
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -40,6 +40,7 @@ class Config:
     category_order: CategoryOrder = field(
         default_factory=lambda: default_category_order()
     )
+    categories: CategoryLabels = field(default_factory=CategoryLabels)
 
 
 def get_runtime_path(filename: str) -> Path:
@@ -78,6 +79,7 @@ def load_config(league: str | None = None) -> Config:
         exclude_sacks_from_pass_attempts=_bool(
             raw, "exclude_sacks_from_pass_attempts", True
         ),
+        categories=cfg.categories,
     )
 
 

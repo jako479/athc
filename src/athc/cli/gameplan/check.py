@@ -56,10 +56,18 @@ def check(
         logger.error("%s: %s", PROG, error)
         ctx.exit(2)
 
-    rules = resolve_rules(config.rule_files, prog=PROG, logger=logger)
+    rules = resolve_rules(
+        config.rule_files, config.categories, prog=PROG, logger=logger
+    )
     if rules is None:
         ctx.exit(2)
-    pool = build_pool(config.play_path, config.playpool_rules, prog=PROG, logger=logger)
+    pool = build_pool(
+        config.play_path,
+        config.playpool_rules,
+        config.categories,
+        prog=PROG,
+        logger=logger,
+    )
     if pool is None:
         ctx.exit(2)
 

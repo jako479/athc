@@ -59,13 +59,11 @@ validate afterward with `check`.
 
 Rules are **not** built in — they are the league folder's `profile.toml`
 (`leagues\<NAME>\` under the config dir, picked by `--league` /
-`[athc] league`). To layer several files, list them in `league.ini`:
+`[athc] league`). To layer several files, list them in `league.toml`:
 
-```ini
+```toml
 [league]
-profile_rules =
-    profile.toml
-    house-rules.toml
+profile_rules = ['profile.toml', 'house-rules.toml']
 ```
 
 Later files layer over earlier. With no rules configured,

@@ -339,7 +339,7 @@ def test_cli_league_flag_picks_folder(runner, make_league: MakeLeague) -> None:
 def test_cli_profile_rules_list_relative_to_league_folder(
     runner, make_league: MakeLeague
 ) -> None:
-    folder = make_league(LEAGUE, "[league]\nprofile_rules =\n    mine.toml\n")
+    folder = make_league(LEAGUE, "[league]\nprofile_rules = ['mine.toml']\n")
     shutil.copy(RULES_TOML, folder / "mine.toml")
     assert runner.invoke(check, [str(OFF1), "--league", LEAGUE]).exit_code == 1
 
@@ -348,7 +348,7 @@ def test_cli_rules_layering(runner, make_league: MakeLeague) -> None:
     # A profile_rules list layers files in order; the overlay is read last.
     folder = make_league(
         LEAGUE,
-        "[league]\nprofile_rules =\n    base.toml\n    overlay.toml\n",
+        "[league]\nprofile_rules = ['base.toml', 'overlay.toml']\n",
     )
     shutil.copy(RULES_TOML, folder / "base.toml")
     (folder / "overlay.toml").write_text("min_categories = 3\n", encoding="utf-8")
@@ -369,7 +369,7 @@ def test_cli_missing_rules(
     runner, make_league: MakeLeague, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     missing = tmp_path / "no-such-rules.toml"
-    make_league(LEAGUE, f"[league]\nprofile_rules =\n    {missing}\n")
+    make_league(LEAGUE, f"[league]\nprofile_rules = ['{missing}']\n")
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(check, [str(OFF1), "--league", LEAGUE])
     assert result.exit_code == 2

@@ -2,8 +2,9 @@
 
 Defines the types the reader produces (PlayerHeader, PlayFile) and the play
 categories: four per-side enums (offense, defense, special-offense,
-special-defense), each member carrying its on-disk code, a short league label,
-and the long game name. `resolve_category` names a category from raw bytes.
+special-defense), each member carrying its on-disk code and the long game name
+(league labels live in `labels.py`). `resolve_category` names a category from
+raw bytes.
 """
 
 from __future__ import annotations
@@ -14,17 +15,14 @@ from pathlib import Path
 
 
 class PlayCategory:
-    """A play category: on-disk `code`, a `short` league label, and the `long`
-    game name. Subclassed by the four per-side category enums. `short` falls back
-    to `long` for categories with no league abbreviation."""
+    """A play category: on-disk `code` and the `long` game name. Subclassed by
+    the four per-side category enums."""
 
     code: int
-    short: str
     long: str
 
-    def __init__(self, code: int, short: str, long: str) -> None:
+    def __init__(self, code: int, long: str) -> None:
         self.code = code
-        self.short = short
         self.long = long
 
     @property
@@ -39,72 +37,72 @@ class PlayCategory:
 class OffensiveCategory(PlayCategory, Enum):
     """Offensive play categories, keyed by `user_category`."""
 
-    RUN_RIGHT = (0x01, "RR", "Run Right")
-    PASS_SHORT_RIGHT = (0x03, "PSR", "Pass Short Right")
-    RUN_LEFT = (0x05, "RL", "Run Left")
-    PASS_SHORT_LEFT = (0x07, "PSL", "Pass Short Left")
-    RUN_MIDDLE = (0x09, "RM", "Run Middle")
-    PASS_SHORT_MIDDLE = (0x0B, "PSM", "Pass Short Middle")
-    RAZZLE_DAZZLE_RUN = (0x0D, "Razzle Dazzle Run", "Razzle Dazzle Run")
-    RAZZLE_DAZZLE_PASS = (0x0F, "PRD", "Razzle Dazzle Pass")
-    PASS_MEDIUM_RIGHT = (0x13, "PMR", "Pass Medium Right")
-    PASS_MEDIUM_LEFT = (0x17, "PML", "Pass Medium Left")
-    PASS_MEDIUM_MIDDLE = (0x1B, "PMM", "Pass Medium Middle")
-    PASS_LONG_RIGHT = (0x23, "PLR", "Pass Long Right")
-    PASS_LONG_LEFT = (0x27, "Pass Long Left", "Pass Long Left")
-    PASS_LONG_MIDDLE = (0x2B, "Pass Long Middle", "Pass Long Middle")
-    GOAL_LINE_RUN = (0x31, "GLR", "Goal Line Run")
-    GOAL_LINE_PASS = (0x33, "GLP", "Goal Line Pass")
-    USER_SPECIFIC = (0xFF, "User Specific", "User Specific")
+    RUN_RIGHT = (0x01, "Run Right")
+    PASS_SHORT_RIGHT = (0x03, "Pass Short Right")
+    RUN_LEFT = (0x05, "Run Left")
+    PASS_SHORT_LEFT = (0x07, "Pass Short Left")
+    RUN_MIDDLE = (0x09, "Run Middle")
+    PASS_SHORT_MIDDLE = (0x0B, "Pass Short Middle")
+    RAZZLE_DAZZLE_RUN = (0x0D, "Razzle Dazzle Run")
+    RAZZLE_DAZZLE_PASS = (0x0F, "Razzle Dazzle Pass")
+    PASS_MEDIUM_RIGHT = (0x13, "Pass Medium Right")
+    PASS_MEDIUM_LEFT = (0x17, "Pass Medium Left")
+    PASS_MEDIUM_MIDDLE = (0x1B, "Pass Medium Middle")
+    PASS_LONG_RIGHT = (0x23, "Pass Long Right")
+    PASS_LONG_LEFT = (0x27, "Pass Long Left")
+    PASS_LONG_MIDDLE = (0x2B, "Pass Long Middle")
+    GOAL_LINE_RUN = (0x31, "Goal Line Run")
+    GOAL_LINE_PASS = (0x33, "Goal Line Pass")
+    USER_SPECIFIC = (0xFF, "User Specific")
 
 
 class DefensiveCategory(PlayCategory, Enum):
     """Defensive play categories, keyed by `user_category`."""
 
-    RUN_RIGHT = (0x00, "RunRight", "Run Right")
-    PASS_SHORT = (0x02, "PassShort", "Pass Short")
-    RUN_LEFT = (0x04, "RunLeft", "Run Left")
-    RUN_MIDDLE = (0x08, "RunMiddle", "Run Middle")
-    RUN_DAZZLE = (0x0C, "RunDazzle", "Run Dazzle")
-    PASS_DAZZLE = (0x0E, "PassDazzle", "Pass Dazzle")
-    PASS_MEDIUM = (0x12, "PassMedium", "Pass Medium")
-    PASS_LONG = (0x22, "PassLong", "Pass Long")
-    GOAL_LINE_RUN = (0x30, "GLrun", "Goal Line Run")
-    GOAL_LINE_PASS = (0x32, "GLpass", "Goal Line Pass")
-    USER_SPECIFIC = (0xFE, "User Specific", "User Specific")
+    RUN_RIGHT = (0x00, "Run Right")
+    PASS_SHORT = (0x02, "Pass Short")
+    RUN_LEFT = (0x04, "Run Left")
+    RUN_MIDDLE = (0x08, "Run Middle")
+    RUN_DAZZLE = (0x0C, "Run Dazzle")
+    PASS_DAZZLE = (0x0E, "Pass Dazzle")
+    PASS_MEDIUM = (0x12, "Pass Medium")
+    PASS_LONG = (0x22, "Pass Long")
+    GOAL_LINE_RUN = (0x30, "Goal Line Run")
+    GOAL_LINE_PASS = (0x32, "Goal Line Pass")
+    USER_SPECIFIC = (0xFE, "User Specific")
 
 
 class SpecialOffensiveCategory(PlayCategory, Enum):
     """Kicking-side special-teams categories, keyed by `special_category`.
     11 and 12 are the clock plays, which exist only on offense."""
 
-    FIELD_GOAL_PAT = (0x01, "Field Goal/PAT", "Field Goal/PAT")
-    KICKOFF = (0x02, "Kickoff", "Kickoff")
-    PUNT = (0x03, "Punt", "Punt")
-    ONSIDE_KICK = (0x04, "Onside Kick", "Onside Kick")
-    FAKE_FG_RUN = (0x05, "Fake FG Run", "Fake FG Run")
-    FAKE_FG_PASS = (0x06, "Fake FG Pass", "Fake FG Pass")
-    FAKE_PUNT_RUN = (0x07, "Fake Punt Run", "Fake Punt Run")
-    FAKE_PUNT_PASS = (0x08, "Fake Punt Pass", "Fake Punt Pass")
-    FREE_KICK = (0x09, "Free Kick", "Free Kick")
-    SQUIB_KICK = (0x0A, "Squib Kick", "Squib Kick")
-    RUN_CLOCK = (0x0B, "Run Clock", "Run Clock")
-    STOP_CLOCK = (0x0C, "Stop Clock", "Stop Clock")
+    FIELD_GOAL_PAT = (0x01, "Field Goal/PAT")
+    KICKOFF = (0x02, "Kickoff")
+    PUNT = (0x03, "Punt")
+    ONSIDE_KICK = (0x04, "Onside Kick")
+    FAKE_FG_RUN = (0x05, "Fake FG Run")
+    FAKE_FG_PASS = (0x06, "Fake FG Pass")
+    FAKE_PUNT_RUN = (0x07, "Fake Punt Run")
+    FAKE_PUNT_PASS = (0x08, "Fake Punt Pass")
+    FREE_KICK = (0x09, "Free Kick")
+    SQUIB_KICK = (0x0A, "Squib Kick")
+    RUN_CLOCK = (0x0B, "Run Clock")
+    STOP_CLOCK = (0x0C, "Stop Clock")
 
 
 class SpecialDefensiveCategory(PlayCategory, Enum):
     """Receiving-side special-teams categories, keyed by `special_category`."""
 
-    FIELD_GOAL_PAT_DEFENSE = (0x01, "Field Goal/PAT Defense", "Field Goal/PAT Defense")
-    KICK_RETURN = (0x02, "Kick Return", "Kick Return")
-    PUNT_RETURN = (0x03, "Punt Return", "Punt Return")
-    ONSIDE_RETURN = (0x04, "Onside Return", "Onside Return")
-    FAKE_FG_RUN_DEFENSE = (0x05, "Fake FG Run Defense", "Fake FG Run Defense")
-    FAKE_FG_PASS_DEFENSE = (0x06, "Fake FG Pass Defense", "Fake FG Pass Defense")
-    FAKE_PUNT_RUN_DEFENSE = (0x07, "Fake Punt Run Defense", "Fake Punt Run Defense")
-    FAKE_PUNT_PASS_DEFENSE = (0x08, "Fake Punt Pass Defense", "Fake Punt Pass Defense")
-    FREE_KICK_RETURN = (0x09, "Free Kick Return", "Free Kick Return")
-    SQUIB_RETURN = (0x0A, "Squib Return", "Squib Return")
+    FIELD_GOAL_PAT_DEFENSE = (0x01, "Field Goal/PAT Defense")
+    KICK_RETURN = (0x02, "Kick Return")
+    PUNT_RETURN = (0x03, "Punt Return")
+    ONSIDE_RETURN = (0x04, "Onside Return")
+    FAKE_FG_RUN_DEFENSE = (0x05, "Fake FG Run Defense")
+    FAKE_FG_PASS_DEFENSE = (0x06, "Fake FG Pass Defense")
+    FAKE_PUNT_RUN_DEFENSE = (0x07, "Fake Punt Run Defense")
+    FAKE_PUNT_PASS_DEFENSE = (0x08, "Fake Punt Pass Defense")
+    FREE_KICK_RETURN = (0x09, "Free Kick Return")
+    SQUIB_RETURN = (0x0A, "Squib Return")
 
 
 _OFFENSE_BY_CODE = {c.code: c for c in OffensiveCategory}
@@ -112,7 +110,7 @@ _DEFENSE_BY_CODE = {c.code: c for c in DefensiveCategory}
 _SPECIAL_OFFENSE_BY_CODE = {c.code: c for c in SpecialOffensiveCategory}
 _SPECIAL_DEFENSE_BY_CODE = {c.code: c for c in SpecialDefensiveCategory}
 
-UNKNOWN_CATEGORY = PlayCategory(-1, "Unknown", "Unknown")
+UNKNOWN_CATEGORY = PlayCategory(-1, "Unknown")
 """Returned for a play whose category code isn't recognized."""
 
 
@@ -136,27 +134,6 @@ def resolve_category(
     return (
         table.get(user_category) or table.get(user_category & 0x3F) or UNKNOWN_CATEGORY
     )
-
-
-def _build_by_short() -> dict[str, PlayCategory]:
-    result: dict[str, PlayCategory] = {}
-    for member in OffensiveCategory:
-        if member.short != member.long:
-            result[member.short] = member
-    for member in DefensiveCategory:
-        if member.short != member.long:
-            result[member.short] = member
-    return result
-
-
-# League short label -> offense/defense category (real abbreviations only; the two
-# sides' shorts don't collide). Categories with no league label are excluded.
-_BY_SHORT = _build_by_short()
-
-
-def category_by_short(short: str) -> PlayCategory | None:
-    """The offense/defense category with this league short label, or None."""
-    return _BY_SHORT.get(short)
 
 
 @dataclass(frozen=True, slots=True)

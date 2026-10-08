@@ -15,7 +15,7 @@ import pytest
 from click.testing import Result
 
 from athc.cli.playpool.check import check
-from tests.conftest import LEAGUE, OTHER_LEAGUE
+from tests.conftest import LEAGUE, OTHER_LEAGUE, league_toml
 from tests.integration.conftest import PLAYS
 
 WriteConfig = Callable[..., Path]
@@ -39,7 +39,15 @@ def clean_tree(root: Path) -> Path:
 
 
 def league_with(make_league: MakeLeague, name: str, play_path: Path) -> Path:
-    return make_league(name, f"[league]\nplay_path = {play_path}\n")
+    return make_league(name, f"[league]\nplay_path = '{play_path}'\n")
+
+
+@pytest.fixture
+def labeled_league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
+    """The selected league with the PNFL category names and no play_path: a given
+    play_dir still gets its folders named by the league."""
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    return make_league(LEAGUE, league_toml())
 
 
 # ── findings ──────────────────────────────────────────────────────────────────
@@ -52,6 +60,7 @@ def test_clean_exit_0(runner, tmp_path: Path) -> None:
     assert result.stdout == f"1 play(s) checked in '{root}', 0 issue(s).\n"
 
 
+@pytest.mark.usefixtures("labeled_league")
 def test_issues_print_word_for_word_exit_1(runner, tmp_path: Path) -> None:
     root = tmp_path / "plays"
     copy_play(root / "Defense" / "34RunMiddle")
@@ -66,6 +75,44 @@ def test_issues_print_word_for_word_exit_1(runner, tmp_path: Path) -> None:
     assert lines[2:] == ["", f"2 play(s) checked in '{root}', 2 issue(s)."]
 
 
+def test_dir_with_unknown_league_option_exit_2(
+    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A league the user names must exist, folder or not."""
+    root = clean_tree(tmp_path / "plays")
+    with caplog.at_level(logging.ERROR):
+        result = run(runner, root, "--league", "NOPE")
+    assert result.exit_code == 2
+    assert "league 'NOPE' not found" in caplog.text
+
+
+def test_dir_with_malformed_league_toml_exit_2(
+    runner,
+    tmp_path: Path,
+    make_league: MakeLeague,
+    write_config: WriteConfig,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A broken league file is reported even when a folder is given."""
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    folder = make_league(LEAGUE, "[league\nbroken")
+    root = clean_tree(tmp_path / "plays")
+    with caplog.at_level(logging.ERROR):
+        result = run(runner, root)
+    assert result.exit_code == 2
+    assert str(folder / "league.toml") in caplog.text
+
+
+def test_dir_without_league_knows_no_category_folders(runner, tmp_path: Path) -> None:
+    """No league configured: a given play_dir is still checked, but no folder
+    name means a category, so a misfiled play is not a finding."""
+    root = tmp_path / "plays"
+    copy_play(root / "Defense" / "34RunMiddle")
+    result = run(runner, root)
+    assert result.exit_code == 0
+    assert result.stdout == f"1 play(s) checked in '{root}', 0 issue(s).\n"
+
+
 def test_invalid_file_is_an_issue(runner, tmp_path: Path) -> None:
     root = tmp_path / "plays"
     root.mkdir()
@@ -77,6 +124,7 @@ def test_invalid_file_is_an_issue(runner, tmp_path: Path) -> None:
     assert lines[1:] == ["", f"0 play(s) checked in '{root}', 1 issue(s)."]
 
 
+@pytest.mark.usefixtures("labeled_league")
 def test_issues_not_logged_twice(
     runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -147,7 +195,7 @@ def test_league_without_play_path_exit_2(
     assert result.exit_code == 2
     assert (
         "athc playpool check: no play_path for the league; "
-        f"set play_path in {folder / 'league.ini'}"
+        f"set play_path in {folder / 'league.toml'}"
     ) in caplog.text
 
 
@@ -170,7 +218,7 @@ def test_read_error_exit_2(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    def fail(root: Path, *, rules: object) -> None:
+    def fail(root: Path, *, rules: object, labels: object) -> None:
         raise PermissionError("access denied")
 
     monkeypatch.setattr("athc.cli.gameplan._common.read_play_pool", fail)

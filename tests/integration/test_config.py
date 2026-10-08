@@ -1,7 +1,7 @@
 """Direct tests for `athc.config` league resolution — the shared resolver every
 `--league` tool calls.
 
-`load_league_config` reads `config_dir()/athc.ini` and `leagues/<NAME>/league.ini`,
+`load_league_config` reads `config_dir()/athc.ini` and `leagues/<NAME>/league.toml`,
 so per testing-integration.md these live in the integration tier (unit tests never
 read config). Covered once here rather than per command. A league is a folder under
 `leagues/`; `[athc] league` in athc.ini names the one used when no flag is given.
@@ -31,7 +31,8 @@ from athc.config import (
     resolve_league,
     resolve_path,
 )
-from tests.conftest import LEAGUE, OTHER_LEAGUE
+from athc.fbpro98_play import CategoryLabels
+from tests.conftest import CATEGORIES_TOML, LEAGUE, OTHER_LEAGUE, PNFL_LABELS
 
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
@@ -41,14 +42,14 @@ MakeLeague = Callable[..., Path]
 
 
 def test_resolves_explicit_league_arg(make_league: MakeLeague) -> None:
-    make_league(LEAGUE, "[league]\nplay_path = D:/p\n")
+    make_league(LEAGUE, "[league]\nplay_path = 'D:/p'\n")
     assert load_league(LEAGUE)["play_path"] == "D:/p"
 
 
 def test_resolves_from_configured_league(
     make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
-    make_league(LEAGUE, "[league]\nplay_path = D:/p\n")
+    make_league(LEAGUE, "[league]\nplay_path = 'D:/p'\n")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     assert load_league()["play_path"] == "D:/p"
 
@@ -57,7 +58,7 @@ def test_resolves_from_configured_league(
 
 
 def test_resolve_league_returns_the_explicit_name(make_league: MakeLeague) -> None:
-    make_league(LEAGUE, "[league]\nplay_path = D:/p\n")
+    make_league(LEAGUE, "[league]\nplay_path = 'D:/p'\n")
     assert resolve_league(LEAGUE) == LEAGUE
 
 
@@ -85,20 +86,20 @@ def test_resolve_league_errors_on_unknown_name(make_league: MakeLeague) -> None:
 
 
 def test_league_config_names_folder(make_league: MakeLeague, config_dir: Path) -> None:
-    make_league(LEAGUE, "[league]\nplay_path = D:/p\n")
+    make_league(LEAGUE, "[league]\nplay_path = 'D:/p'\n")
     cfg = load_league_config(LEAGUE)
     assert cfg.name == LEAGUE
     assert cfg.dir == config_dir / "leagues" / LEAGUE
     assert cfg.values == {"play_path": "D:/p"}
 
 
-def test_missing_league_ini_gives_empty_values(make_league: MakeLeague) -> None:
+def test_missing_league_toml_gives_empty_values(make_league: MakeLeague) -> None:
     make_league()  # folder only
     assert load_league_config(LEAGUE).values == {}
 
 
 def test_path_resolves_relative_against_league_dir(make_league: MakeLeague) -> None:
-    folder = make_league(LEAGUE, "[league]\nplay_path = plays\nabs = D:/x\n")
+    folder = make_league(LEAGUE, "[league]\nplay_path = 'plays'\nabs = 'D:/x'\n")
     cfg = load_league_config(LEAGUE)
     assert cfg.path("play_path") == folder / "plays"
     assert cfg.path("abs") == Path("D:/x")
@@ -134,7 +135,7 @@ def test_rule_files_default_empty_when_fixed_file_missing(
 def test_rule_files_list_replaces_default_in_order(make_league: MakeLeague) -> None:
     folder = make_league(
         LEAGUE,
-        "[league]\ngameplan_rules =\n    base.toml\n    D:\\house.toml\n",
+        "[league]\ngameplan_rules = ['base.toml', 'D:\\house.toml']\n",
     )
     (folder / "gameplan.toml").write_text("", encoding="utf-8")
     cfg = load_league_config(LEAGUE)
@@ -214,21 +215,18 @@ def test_malformed_athc_ini_errors(
     assert str(ini) in str(exc.value)
 
 
-def test_percent_in_league_ini_is_config_file_error(make_league: MakeLeague) -> None:
-    # `%LOCALAPPDATA%\plays` is the native Windows idiom; configparser sees a
-    # broken `%(...)s` interpolation. It must surface as a ConfigFileError naming
-    # the file, not as a raw configparser error.
-    folder = make_league(LEAGUE, "[league]\nplay_path = %LOCALAPPDATA%\\plays\n")
-    with pytest.raises(ConfigFileError) as exc:
-        load_league(LEAGUE)
-    assert str(folder / "league.ini") in str(exc.value)
+def test_percent_in_league_toml_is_literal(make_league: MakeLeague) -> None:
+    # TOML has no %-interpolation, so a native Windows `%LOCALAPPDATA%` path
+    # loads as written.
+    make_league(LEAGUE, "[league]\nplay_path = '%LOCALAPPDATA%\\plays'\n")
+    assert load_league(LEAGUE)["play_path"] == "%LOCALAPPDATA%\\plays"
 
 
-def test_malformed_league_ini_errors(make_league: MakeLeague) -> None:
+def test_malformed_league_toml_errors(make_league: MakeLeague) -> None:
     folder = make_league(LEAGUE, "[league\nbroken")
     with pytest.raises(ConfigFileError) as exc:
         load_league(LEAGUE)
-    assert str(folder / "league.ini") in str(exc.value)
+    assert str(folder / "league.toml") in str(exc.value)
 
 
 def test_available_leagues_lists_folders_only(
@@ -255,15 +253,104 @@ def test_resolve_path_absolute_is_unchanged() -> None:
     assert resolve_path("D:\\rules\\x.toml") == Path("D:\\rules\\x.toml")
 
 
-# ── %(key)s interpolation inside league.ini ──
+# ── [league] value types ──
 
 
-def test_interpolation_within_league_ini(make_league: MakeLeague) -> None:
-    make_league(
-        LEAGUE,
-        f"[league]\nleague_root = D:/Leagues/{LEAGUE}\nplay_path = %(league_root)s/plays\n",
-    )
-    assert load_league(LEAGUE)["play_path"] == f"D:/Leagues/{LEAGUE}/plays"
+def test_no_interpolation_in_league_toml(make_league: MakeLeague) -> None:
+    body = "[league]\nleague_root = 'D:/x'\nplay_path = '%(league_root)s/plays'\n"
+    make_league(LEAGUE, body)
+    assert load_league(LEAGUE)["play_path"] == "%(league_root)s/plays"
+
+
+def test_league_list_is_kept_apart_from_values(make_league: MakeLeague) -> None:
+    make_league(LEAGUE, "[league]\nplay_path = 'D:/p'\ngameplan_rules = ['a.toml']\n")
+    cfg = load_league_config(LEAGUE)
+    assert cfg.values == {"play_path": "D:/p"}
+    assert cfg.lists == {"gameplan_rules": ("a.toml",)}
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "[league]\nplay_path = 1\n",
+        "[league]\ngameplan_rules = ['a.toml', 1]\n",
+        "[league]\nplay_path = { x = 1 }\n",
+    ],
+)
+def test_league_value_wrong_type_errors(make_league: MakeLeague, body: str) -> None:
+    folder = make_league(LEAGUE, body)
+    with pytest.raises(ConfigFileError) as exc:
+        load_league_config(LEAGUE)
+    assert "expected a string or an array of strings" in str(exc.value)
+    assert str(folder / "league.toml") in str(exc.value)
+
+
+def test_path_rejects_an_array_value(make_league: MakeLeague) -> None:
+    folder = make_league(LEAGUE, "[league]\nplay_path = ['D:/p']\n")
+    cfg = load_league_config(LEAGUE)
+    with pytest.raises(ConfigFileError, match="play_path: expected a string") as exc:
+        cfg.path("play_path")
+    assert str(folder / "league.toml") in str(exc.value)
+
+
+def test_rule_files_rejects_a_string_value(make_league: MakeLeague) -> None:
+    folder = make_league(LEAGUE, "[league]\ngameplan_rules = 'house.toml'\n")
+    cfg = load_league_config(LEAGUE)
+    with pytest.raises(
+        ConfigFileError, match="gameplan_rules: expected an array of strings"
+    ) as exc:
+        cfg.rule_files("gameplan_rules", "gameplan.toml")
+    assert str(folder / "league.toml") in str(exc.value)
+
+
+def test_league_section_not_a_table_errors(make_league: MakeLeague) -> None:
+    make_league(LEAGUE, "league = 1\n")
+    with pytest.raises(ConfigFileError, match=r"\[league\] must be a table"):
+        load_league_config(LEAGUE)
+
+
+# ── [categories] → CategoryLabels ──
+
+
+def test_categories_load(make_league: MakeLeague) -> None:
+    make_league(LEAGUE, "[league]\nplay_path = 'D:/p'\n" + CATEGORIES_TOML)
+    assert load_league_config(LEAGUE).categories == PNFL_LABELS
+
+
+def test_categories_absent_is_no_labels(make_league: MakeLeague) -> None:
+    make_league(LEAGUE, "[league]\nplay_path = 'D:/p'\n")
+    assert load_league_config(LEAGUE).categories == CategoryLabels()
+
+
+def test_one_side_only_loads(make_league: MakeLeague) -> None:
+    make_league(LEAGUE, '[categories.defense]\n"Run Left" = "RunLeft"\n')
+    cfg = load_league_config(LEAGUE)
+    assert cfg.categories.offense == {}
+    assert cfg.categories.defense_by_label("RunLeft") is not None
+
+
+@pytest.mark.parametrize(
+    ("body", "message"),
+    [
+        ('[categories.offense]\n"Run Rite" = "RR"\n', "not a game category name"),
+        ('[categories.offense]\n"Run Right" = ""\n', "non-empty string"),
+        ('[categories.offense]\n"Run Right" = 1\n', "non-empty string"),
+        (
+            '[categories.offense]\n"Run Right" = "RR"\n"Run Left" = "RR"\n',
+            "already used",
+        ),
+        ('[categories.defense]\n"Run Right" = "Run Left"\n', "is a game category name"),
+        ("[categories]\noffense = 1\n", r"\[categories.offense\] must be a table"),
+        ("categories = 1\n", r"\[categories\] must be a table"),
+    ],
+)
+def test_categories_errors_name_the_file(
+    make_league: MakeLeague, body: str, message: str
+) -> None:
+    folder = make_league(LEAGUE, body)
+    with pytest.raises(ConfigFileError, match=message) as exc:
+        load_league_config(LEAGUE)
+    assert str(folder / "league.toml") in str(exc.value)
 
 
 # ── athc config command group: path / edit / reveal ──
@@ -370,6 +457,7 @@ def test_release_league_loads(name: str) -> None:
     cfg = load_league_config(name)
     assert cfg.values["play_path"]
     assert cfg.values["path"]
+    assert cfg.categories.offense and cfg.categories.defense
     assert (cfg.dir / "standings").is_dir()
 
 
@@ -388,6 +476,17 @@ def test_release_gameplan_config_loads(name: str) -> None:
     cfg = gameplan_config.load_config(name)
     assert cfg.playpool_rules is not None and cfg.playpool_rules.is_file()
     assert cfg.rule_files and all(p.is_file() for p in cfg.rule_files)
+
+
+@pytest.mark.usefixtures("release_config_dir")
+@pytest.mark.parametrize("name", SHIPPED_LEAGUES)
+def test_release_gameplan_rules_load_with_the_league_labels(name: str) -> None:
+    from athc.gameplan import config as gameplan_config
+    from athc.gameplan import load_rules
+
+    cfg = gameplan_config.load_config(name)
+    rules = load_rules(cfg.rule_files, labels=cfg.categories)
+    assert "Run Middle" in rules.offense_categories
 
 
 @pytest.mark.usefixtures("release_config_dir")
@@ -441,7 +540,7 @@ def test_dev_mirrors_release_layout() -> None:
     def shipped(root: Path) -> set[Path]:
         patterns = (
             "athc.ini",
-            "leagues/*/league.ini",
+            "leagues/*/league.toml",
             "leagues/*/*.toml",
             "leagues/*/standings/*.league.ini",
         )

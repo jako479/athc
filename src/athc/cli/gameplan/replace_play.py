@@ -19,7 +19,7 @@ from athc.fbpro98_gameplan import (
     read_gameplan,
     write_gameplan,
 )
-from athc.fbpro98_play import resolve_category
+from athc.fbpro98_play import CategoryLabels, resolve_category
 from athc.gameplan.config import ConfigFileError, load_config
 from athc.gameplan.writer import build_custom_play
 
@@ -29,11 +29,12 @@ PROG = "athc gameplan replace-play"
 logger = logging.getLogger(__name__)
 
 
-def _short(play: PlayRef) -> str:
-    """Short game-category label for a slot's play (e.g. `RL`, `Field Goal/PAT`)."""
-    return resolve_category(
-        play.play_category, play.special_category, play.user_category
-    ).short
+def _label(play: PlayRef, labels: CategoryLabels) -> str:
+    """The league's label for a slot's play category (e.g. `RL`); game name when
+    the league has none (`Field Goal/PAT`)."""
+    return labels.label(
+        resolve_category(play.play_category, play.special_category, play.user_category)
+    )
 
 
 def _slot_label(index: int) -> str:
@@ -42,21 +43,26 @@ def _slot_label(index: int) -> str:
 
 
 def format_replacement_lines(
-    path: Path, normal_hits: Hits, special_hits: Hits, entry: CustomPlayRef
+    path: Path,
+    normal_hits: Hits,
+    special_hits: Hits,
+    entry: CustomPlayRef,
+    labels: CategoryLabels,
 ) -> list[str]:
     """Lines for the replaced play. Normal hits collapse to one line, slots bracketed
     in order at the end: `<file>: 'OLD' (cat) replaced with 'NEW' (cat) [1-3][4-2]`
     (a play can fill many normal slots). Special: `<file>: Replaced 'OLD' (cat) in
     special slot N with 'NEW' (cat)` (a play fills only one special slot)."""
-    new = f"'{entry.name}' ({_short(entry)})"
+    new = f"'{entry.name}' ({_label(entry, labels)})"
     lines: list[str] = []
     if normal_hits:
         slots = "".join(f"[{_slot_label(i)}]" for i, _ in normal_hits)
         old = normal_hits[0][1]  # same play in every hit; first is representative
-        old_desc = f"'{old.name}' ({_short(old)})"
+        old_desc = f"'{old.name}' ({_label(old, labels)})"
         lines.append(f"{path}: {old_desc} replaced with {new} {slots}")
     lines += [
-        f"{path}: Replaced '{old.name}' ({_short(old)}) in special slot {n} with {new}"
+        f"{path}: Replaced '{old.name}' ({_label(old, labels)}) in special slot {n} "
+        f"with {new}"
         for n, old in special_hits
     ]
     return lines
@@ -84,7 +90,7 @@ def replace_in_gameplan(
 
 
 def _replace_one(
-    path: Path, target: str, entry: CustomPlayRef
+    path: Path, target: str, entry: CustomPlayRef, labels: CategoryLabels
 ) -> tuple[str, list[str], int]:
     """Apply the replacement to one .pln. Returns `(status, lines, count)`; status is
     'updated', 'absent', or 'failed', and `lines` are the stdout lines for it."""
@@ -99,7 +105,7 @@ def _replace_one(
     write_gameplan(updated, path)
     return (
         "updated",
-        format_replacement_lines(path, normal_hits, special_hits, entry),
+        format_replacement_lines(path, normal_hits, special_hits, entry, labels),
         count,
     )
 
@@ -136,12 +142,14 @@ def replace_play(
     # Pool needs no playpool rules: replace-play uses each play's category bytes, not
     # the filename-derived attributes those rules add.
     try:
-        pool_path = load_config(league).play_path
+        config = load_config(league, rule_files=())
     except (ConfigFileError, ValueError, OSError) as error:
         logger.error("%s: %s", PROG, error)
         ctx.exit(2)
 
-    pool = build_pool(pool_path, None, prog=PROG, logger=logger)
+    pool = build_pool(
+        config.play_path, None, config.categories, prog=PROG, logger=logger
+    )
     if pool is None:
         ctx.exit(2)
 
@@ -162,7 +170,7 @@ def replace_play(
     single_file = Path(path).is_file()
     updated = failed = replaced_total = 0
     for file in files:
-        status, lines, count = _replace_one(file, play, entry)
+        status, lines, count = _replace_one(file, play, entry, config.categories)
         for line in lines:
             click.echo(line)
         if status == "updated":

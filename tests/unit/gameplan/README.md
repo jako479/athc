@@ -6,13 +6,17 @@ One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `league
 
 ## rules.py — `load_rules`
 
-### Short-name labels
+### Section labels (league labels from league.toml, else game names)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Offense label → full name | tmp | `[offense.RM]` → "Run Middle" | `test_offense_short_label_maps_to_full_name` | ☑ |
 | Defense label → full name | tmp | `[defense.RunDazzle]` → "Run Dazzle" | `test_defense_short_label_maps_to_full_name` | ☑ |
 | Unknown offense label | tmp | "not an offense category label" | `test_unknown_offense_label` | ☑ |
 | Unknown defense label | tmp | "not a defense category label" | `test_unknown_defense_label` | ☑ |
+| League label without league labels | `CategoryLabels()` + `[offense.RM]` | "not an offense category label" | `test_league_label_section_needs_the_league_labels` | ☑ |
+| Game name without league labels | `CategoryLabels()` + `[offense."Run Middle"]` | loads | `test_game_name_section_loads_without_league_labels` | ☑ |
+| Game name of a labeled category | PNFL + `[offense."Run Middle"]` | "not an offense category label" | `test_game_name_section_rejected_when_league_labels_it` | ☑ |
+| Unknown-label message lists league labels | PNFL + `[defense.Nonsense]` | message contains `'RunDazzle'` | `test_unknown_label_message_lists_the_league_labels` | ☑ |
 | Game-name labels load | tmp | `[offense."Pass Long Left"]` etc. (4) | `test_offense_game_name_label_loads` `[P]` | ☑ |
 | `User Specific` on both sides | tmp | offense and defense rules both load | `test_user_specific_label_loads_on_each_side` | ☑ |
 | Game-name label on wrong side | tmp | "not a defense category label" | `test_game_name_label_on_wrong_side_is_rejected` | ☑ |

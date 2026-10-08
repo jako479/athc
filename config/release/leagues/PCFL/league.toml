@@ -1,0 +1,49 @@
+# PCFL league settings. Rules live here (gameplan.toml, profile.toml,
+# playpool.toml, scheduler.toml) and season standings in standings\
+# (<season>.league.ini). Reinstalling never overwrites this file.
+
+[league]
+# Needed for check-ppp on a directory -- the folder that holds this
+# league's files (PCFL.lg2 and the rest).
+path = 'E:\SIERRA\FbPro98'
+# REQUIRED for gameplan/profile/convert-pdb -- your FbPro98 league plays folder.
+play_path = 'E:\SIERRA\FbPro98\PCFL'
+# Optional: ordered rule files replacing the fixed gameplan.toml / profile.toml;
+# later files layer over earlier ones.
+# gameplan_rules = ['gameplan.toml']
+# profile_rules = ['profile.toml']
+
+# The league's short names for the game's play categories, as the rule files
+# and the play-pool folders use them. A category with no league name is
+# commented out and goes by its game name.
+[categories.offense]
+"Run Right" = "RR"
+"Pass Short Right" = "PSR"
+"Run Left" = "RL"
+"Pass Short Left" = "PSL"
+"Run Middle" = "RM"
+"Pass Short Middle" = "PSM"
+# "Razzle Dazzle Run" = ""
+"Razzle Dazzle Pass" = "PRD"
+"Pass Medium Right" = "PMR"
+"Pass Medium Left" = "PML"
+"Pass Medium Middle" = "PMM"
+"Pass Long Right" = "PLR"
+# "Pass Long Left" = ""
+# "Pass Long Middle" = ""
+"Goal Line Run" = "GLR"
+"Goal Line Pass" = "GLP"
+# "User Specific" = ""
+
+[categories.defense]
+"Run Right" = "RunRight"
+"Pass Short" = "PassShort"
+"Run Left" = "RunLeft"
+"Run Middle" = "RunMiddle"
+"Run Dazzle" = "RunDazzle"
+"Pass Dazzle" = "PassDazzle"
+"Pass Medium" = "PassMedium"
+"Pass Long" = "PassLong"
+"Goal Line Run" = "GLrun"
+"Goal Line Pass" = "GLpass"
+# "User Specific" = ""

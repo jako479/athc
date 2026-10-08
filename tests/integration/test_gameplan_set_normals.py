@@ -11,7 +11,7 @@ import pytest
 
 from athc.cli.gameplan.set_normals import set_normals
 from athc.fbpro98_gameplan import CustomPlayRef, PlayRef, read_gameplan
-from tests.conftest import LEAGUE
+from tests.conftest import LEAGUE, league_toml
 from tests.integration.conftest import GP_OFFENSE, PLAYS, POOL_RULES
 
 NORMAL = "OR45RL01"  # a real normal offense play in the pool
@@ -23,7 +23,7 @@ WriteConfig = Callable[..., Path]
 @pytest.fixture(autouse=True)
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league: the curated test pool and its playpool rules."""
-    folder = make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
+    folder = make_league(LEAGUE, league_toml(PLAYS))
     shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     return folder
@@ -191,8 +191,8 @@ def test_missing_pln(runner, tmp_path: Path) -> None:
 
 
 def test_invalid_play_path(runner, league: Path, tmp_path: Path, caplog) -> None:
-    (league / "league.ini").write_text(
-        f"[league]\nplay_path = {tmp_path / 'missing'}\n", encoding="utf-8"
+    (league / "league.toml").write_text(
+        league_toml(tmp_path / "missing"), encoding="utf-8"
     )
     p = _copy(tmp_path)
     inp = _input(tmp_path, NORMAL + "\n")

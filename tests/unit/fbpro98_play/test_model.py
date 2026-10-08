@@ -17,7 +17,6 @@ from athc.fbpro98_play import (
     PlayFile,
     SpecialDefensiveCategory,
     SpecialOffensiveCategory,
-    category_by_short,
     resolve_category,
 )
 
@@ -121,23 +120,14 @@ def test_category_returns_enum_member():
     assert play.category_name == play.category.long == "Pass Short Right"
 
 
-def test_short_and_long_names():
-    assert OffensiveCategory.PASS_SHORT_RIGHT.short == "PSR"
+def test_long_is_the_game_name():
     assert OffensiveCategory.PASS_SHORT_RIGHT.long == "Pass Short Right"
-    assert DefensiveCategory.RUN_LEFT.short == "RunLeft"
     assert DefensiveCategory.RUN_LEFT.long == "Run Left"
+    assert SpecialOffensiveCategory.PUNT.long == "Punt"
 
 
-def test_short_falls_back_to_long_without_league_name():
-    for c in (
-        OffensiveCategory.PASS_LONG_LEFT,
-        OffensiveCategory.PASS_LONG_MIDDLE,
-        OffensiveCategory.RAZZLE_DAZZLE_RUN,
-        OffensiveCategory.USER_SPECIFIC,
-    ):
-        assert c.short == c.long
-    for special in SpecialOffensiveCategory:  # special teams have no short labels
-        assert special.short == special.long
+def test_category_has_no_league_label():
+    assert not hasattr(OffensiveCategory.PASS_SHORT_RIGHT, "short")
 
 
 def test_is_run_is_pass():
@@ -170,10 +160,3 @@ def test_clock_categories_are_offense_only():
     # Defense has no clock plays, so the same bytes on the defense side are unknown.
     assert resolve_category(0x00, 0x0B, 0x00) is UNKNOWN_CATEGORY
     assert resolve_category(0x00, 0x0C, 0x00) is UNKNOWN_CATEGORY
-
-
-def test_category_by_short():
-    assert category_by_short("PSR") is OffensiveCategory.PASS_SHORT_RIGHT
-    assert category_by_short("RunLeft") is DefensiveCategory.RUN_LEFT
-    assert category_by_short("Pass Long Left") is None  # no league abbreviation
-    assert category_by_short("nope") is None

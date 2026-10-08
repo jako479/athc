@@ -24,7 +24,7 @@ from athc.fbpro98_gameplan import (
     read_gameplan,
     write_gameplan,
 )
-from tests.conftest import LEAGUE
+from tests.conftest import LEAGUE, PNFL_LABELS, league_toml
 from tests.integration.conftest import GP_DEFENSE, GP_OFFENSE, PLAYS
 
 MakeLeague = Callable[..., Path]
@@ -35,7 +35,7 @@ WriteConfig = Callable[..., Path]
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league; its play_path is the curated test pool."""
     write_config(f"[athc]\nleague = {LEAGUE}\n")
-    return make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
+    return make_league(LEAGUE, league_toml(PLAYS))
 
 
 # Real plays in the curated pool (and, for OR45RL01, in offense.pln slot 1-1).
@@ -224,7 +224,11 @@ def test_replace_wrong_side_raises() -> None:
 
 def test_format_lines_normal_slot() -> None:
     line = format_replacement_lines(
-        Path("OFF.pln"), [(0, _onorm("OLDRUN"))], [], _onorm("NEWRUN", 0x09)
+        Path("OFF.pln"),
+        [(0, _onorm("OLDRUN"))],
+        [],
+        _onorm("NEWRUN", 0x09),
+        PNFL_LABELS,
     )
     assert line == ["OFF.pln: 'OLDRUN' (RL) replaced with 'NEWRUN' (RM) [1-1]"]
 
@@ -233,14 +237,14 @@ def test_format_lines_multiple_normal_slots() -> None:
     """Many normal hits collapse to one line, slots bracketed in order."""
     dup = _onorm("DUP", 0x09)
     line = format_replacement_lines(
-        Path("OFF.pln"), [(2, dup), (13, dup)], [], _onorm("NEW", 0x09)
+        Path("OFF.pln"), [(2, dup), (13, dup)], [], _onorm("NEW", 0x09), PNFL_LABELS
     )
     assert line == ["OFF.pln: 'DUP' (RM) replaced with 'NEW' (RM) [1-3][4-2]"]
 
 
 def test_format_lines_special_slot() -> None:
     line = format_replacement_lines(
-        Path("OFF.pln"), [], [(1, _ospec("OLDFG", 1))], _ospec("NEWFG", 1)
+        Path("OFF.pln"), [], [(1, _ospec("OLDFG", 1))], _ospec("NEWFG", 1), PNFL_LABELS
     )
     assert line == [
         "OFF.pln: Replaced 'OLDFG' (Field Goal/PAT) in special slot 1 "
@@ -311,6 +315,22 @@ def test_cli_single_file_replaces_normal(runner, tmp_path: Path) -> None:
     assert result.output.count("replaced with") == 1  # all slots in one line
     assert (
         f"'OLDRUN' (RL) replaced with '{NORMAL_REPL}' (RM) [1-1][2-2][16-4]"
+        in result.output
+    )
+
+
+def test_cli_output_uses_game_names_without_league_labels(
+    runner, league: Path, tmp_path: Path
+) -> None:
+    (league / "league.toml").write_text(
+        league_toml(PLAYS, labels=False), encoding="utf-8"
+    )
+    old = _onorm("OLDRUN")
+    p = _write(_offense_gameplan(normals={0: old}), tmp_path)
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, str(p)])
+    assert result.exit_code == 0
+    assert (
+        f"'OLDRUN' (Run Left) replaced with '{NORMAL_REPL}' (Run Middle) [1-1]"
         in result.output
     )
 
@@ -456,8 +476,8 @@ def test_cli_malformed_pln_exit_1(runner, tmp_path: Path) -> None:
 def test_cli_invalid_play_path_exit_2(
     runner, league: Path, tmp_path: Path, caplog
 ) -> None:
-    (league / "league.ini").write_text(
-        f"[league]\nplay_path = {tmp_path / 'missing'}\n", encoding="utf-8"
+    (league / "league.toml").write_text(
+        league_toml(tmp_path / "missing"), encoding="utf-8"
     )
     p = _copy_offense(tmp_path)
     with caplog.at_level(logging.ERROR, logger="athc.cli.gameplan.replace_play"):

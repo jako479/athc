@@ -64,12 +64,23 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_ply()` = 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | `PlayFile.category` → enum member | PlayFile | member; `category_name == category.long` | `test_category_returns_enum_member` | ☑ |
-| `short` / `long` names | enum | `PSR` / `Pass Short Right`; `RunLeft` / `Run Left` | `test_short_and_long_names` | ☑ |
-| `short` falls back to `long` (no league label) | enum | Pass Long L/M, Razzle Dazzle Run, User Specific, all special | `test_short_falls_back_to_long_without_league_name` | ☑ |
+| `long` is the game name | enum | `Pass Short Right`; `Run Left`; `Punt` | `test_long_is_the_game_name` | ☑ |
+| No league label on the enum | enum | no `short` attribute (labels are `CategoryLabels`) | `test_category_has_no_league_label` | ☑ |
 | `is_run` / `is_pass` from the long name | enum | run/pass/neither | `test_is_run_is_pass` | ☑ |
 | `resolve_category` picks side + special table | bytes | offense/defense/special-off/special-def; clock `0x0B`/`0x0C` offense only | `test_resolve_category_picks_side_and_special`, `test_clock_categories_are_offense_only` | ☑ |
 | `resolve_category` mask + unknown | bytes | `0xC9`→Run Middle, `0xFF`→User Specific, `0x3F`→`UNKNOWN_CATEGORY` | `test_resolve_category_mask_and_unknown` | ☑ |
-| `category_by_short` (league label → category) | str | `PSR`→PSR, `RunLeft`→Run Left, fallback/unknown→None | `test_category_by_short` | ☑ |
+
+## labels.py — `CategoryLabels` (a league's offense/defense labels)
+
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Tables → members | game name → label | `offense` / `defense` keyed by enum member | `test_from_tables_maps_game_names_to_members` | ☑ |
+| `label()` | labeled / unlabeled / special | league label; game name; game name | `test_label_is_league_label_else_game_name` | ☑ |
+| No labels | `CategoryLabels()` | game names; `*_by_label` → None | `test_no_labels_uses_game_names_everywhere` | ☑ |
+| `*_by_label` per side | label, other side's label, game name | member; None; None | `test_by_label_resolves_within_its_side` | ☑ |
+| Same label both sides | `RR` offense + defense | each side resolves its own | `test_same_label_on_both_sides_is_allowed` | ☑ |
+| Label equals other side's game name | defense `"Pass Short Right"` | accepted | `test_label_may_equal_the_other_sides_game_name` | ☑ |
+| Rejected tables | unknown key; non-string / empty / blank label; own-side game name; duplicate | `ValueError` naming the entry | `test_from_tables_rejects` `[P]` | ☑ |
 
 ## schema.py
 

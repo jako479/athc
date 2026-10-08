@@ -49,20 +49,20 @@ FIRST-TIME SETUP
 ----------------
 
 athc ships configured for PNFL out of the box. The one thing you must
-set is your plays folder: open leagues\PNFL\league.ini in your settings
+set is your plays folder: open leagues\PNFL\league.toml in your settings
 folder (see below) and set play_path to your FbPro98 league plays
 folder, for example:
 
    [league]
-   play_path = D:\SIERRA\FBPRO98\PNFL\plays
+   play_path = 'D:\SIERRA\FBPRO98\PNFL\plays'
 
 To check every profile and game plan in a folder with check-ppp, also set
 path to the folder that holds the league's files (like PNFL.lg2), for
 example:
 
-   path = D:\SIERRA\FBPRO98
+   path = 'D:\SIERRA\FBPRO98'
 
-Each league is a folder under leagues\ with its league.ini, rule files
+Each league is a folder under leagues\ with its league.toml, rule files
 (*.toml) and standings\. athc ships two: PNFL and PCFL. To switch league, run:
 
    athc config set league PCFL
@@ -96,8 +96,8 @@ That folder will contain:
                         documents every setting inline)
    docs\               this README plus per-command references
    leagues\PNFL\        the PNFL league:
-      league.ini           your plays folder (play_path) and league
-                           files folder (path)
+      league.toml          your plays folder (play_path), league files
+                           folder (path) and the league's category names
       gameplan.toml        league rules, one file per tool
       profile.toml
       playpool.toml
@@ -112,11 +112,11 @@ What survives reinstalls:
    athc.ini             YES -- your edits are preserved on every reinstall.
                         Delete it to have install.bat seed a fresh PNFL
                         starter copy on the next run.
-   leagues\*\league.ini YES -- preserved
+   leagues\*\league.toml YES -- preserved
    leagues\*\standings\ YES -- preserved (files are only added, never replaced)
    docs\                overwritten every install
-   leagues\*\*.toml     overwritten every install (copy a file before editing
-                        your own league's rules)
+   leagues\*\*.toml     rule files, overwritten every install (league.toml is
+                        kept; copy a rule file before editing your own)
 
 When a new version adds a tool with new settings:
    The new tool runs with sensible defaults out of the box -- you do

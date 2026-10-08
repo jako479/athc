@@ -50,8 +50,8 @@ Loading reports every problem at once (`RulesFileError.errors`); any error abort
 
 ## Config
 
-`leagues\<NAME>\profile.toml`, or a `profile_rules` list in the league's
-`league.ini` (one path per line); the league comes from `--league` /
+`leagues\<NAME>\profile.toml`, or a `profile_rules` array in the league's
+`league.toml`; the league comes from `--league` /
 `[athc] league` (config found via `ATHC_CONFIG_DIR` / the default
 config dir; no `--config` flag). `check` has no rules override. No rules
 configured ⇒ `check` logs an error and exits 2 (nothing to validate). See [../design/config.md](../design/config.md).

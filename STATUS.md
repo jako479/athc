@@ -41,10 +41,12 @@ athc profile diff               DONE
 
 Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
+- A league's category labels come from `league.toml` (`CategoryLabels`); the
+  category enum carries only codes and game names.
 - A file spec holds only the layout, its validity rules and open questions; a
   library's API is in its README, indexed in
   [docs/design/overview.md](docs/design/overview.md).
-- A league's rule files sit beside its `league.ini`; there is no `rules\`
+- A league's rule files sit beside its `league.toml`; there is no `rules\`
   subfolder.
 - Tests never name a real league: test leagues get neutral names, rules come
   from the tests' own files, and shipped-file tests run once per league folder.
@@ -55,11 +57,11 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   `athc config set league NAME`, which rewrites `athc.ini` and keeps its
   comments. `--league NAME` on a league-aware command overrides it for one run
   (`athc profile check OFF1.prf --league PCFL`, like `aws s3 ls --profile x`).
-- Rule layering stays: a `gameplan_rules` / `profile_rules` list in
-  `league.ini` replaces the fixed file.
+- Rule layering stays: a `gameplan_rules` / `profile_rules` array in
+  `league.toml` replaces the fixed file.
 - Rule files live only in league folders; there is no shared default
   `playpool.toml` next to `athc.ini`.
-- The installer ships the tree below; `league.ini` and standings survive a
+- The installer ships the tree below; `league.toml` and standings survive a
   reinstall, rule files are replaced.
 - Unreadable config files, blank or unknown league names and a missing league
   each stop with a one-line message. No old-layout compatibility code: nothing
@@ -72,7 +74,7 @@ Config tree, identical in `config\dev\`, `config\release\` and the installed
 athc.ini                      [athc] league, [autocontinue], [convert-pdb]
 leagues\
   PNFL\
-    league.ini                [league] play_path (dev also db_path)
+    league.toml               [league] path, play_path (dev also db_path); [categories.*]
     gameplan.toml
     profile.toml
     playpool.toml
@@ -80,7 +82,7 @@ leagues\
     standings\
       2045.league.ini … 2049.league.ini
   PCFL\
-    league.ini                [league] play_path, db_path
+    league.toml               [league] path, play_path (dev also db_path); [categories.*]
     gameplan.toml
     profile.toml
     playpool.toml
@@ -174,7 +176,7 @@ Reads the profile and game plan files each team uses from a league's `.lg2`.
 Docs: [spec](docs/fbpro98_lg2/specs/lg2.md)
 
 - Used by `check-ppp` to pair a folder's files; `path` in
-  `league.ini` names the folder that holds the file.
+  `league.toml` names the folder that holds the file.
 - Team order is the league's `.lge` order (spec section 1).
 - Reader in, with unit tests; stock leagues are rejected.
 
@@ -222,7 +224,7 @@ Working. Validates and edits `.pln` game plans. Docs:
 - A written play path starts with the play pool's folder name, so each league's
   gameplans point at its own plays.
 - Rules and the play pool come from the league folder (`gameplan.toml`,
-  `playpool.toml`, `play_path` in `league.ini`); `check` has no overrides.
+  `playpool.toml`, `play_path` in `league.toml`); `check` has no overrides.
 - Attribute caps take a count, ratio or percent form — one form per attribute,
   so a league writes its rule the way the league states it. Naming two forms
   for one attribute is a rules-file error.
@@ -263,7 +265,8 @@ Docs: [README](docs/playpool/README.md),
 - `check-playpool` became `playpool check`, a command group like `gameplan`
   and `profile`.
 - `check` reads the league's `play_path`, or a folder given on the command
-  line (then no league is read). `playpool.toml` is not used.
+  line (a league is then optional; one that resolves still names the category
+  folders). `playpool.toml` is not used.
 - `check` prints the warnings pool loading already logs, word for word, as
   findings: plays in a folder that contradicts the file, duplicate names,
   invalid files.
@@ -282,7 +285,7 @@ Working. Validates and compares `.prf` coaching profiles. Docs:
 - `check` defaults to the current directory when no path is given, like
   `grep -r` and `find`.
 - `check` takes its rules from the league folder (`profile.toml`, or a
-  `profile_rules` list in `league.ini`); there is no override.
+  `profile_rules` array in `league.toml`); there is no override.
 - `check` validates profiles only; checking a profile with its gameplan is
   `check-ppp`'s job.
 - Substitution bounds cover every position group: QB pinned at 75/80, every

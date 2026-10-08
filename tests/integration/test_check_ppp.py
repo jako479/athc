@@ -22,7 +22,7 @@ from click.testing import Result
 from athc.cli import cli
 from athc.cli.check_ppp import check_ppp
 from athc.fbpro98_lg2.schema import FILENAME_SIZE, FOLDER_SIZE, TEAM_TRAILER_SIZE
-from tests.conftest import LEAGUE, OTHER_LEAGUE
+from tests.conftest import CATEGORIES_TOML, LEAGUE, OTHER_LEAGUE
 from tests.integration.conftest import (
     COMPAT_OFF_CLEAN,
     DEF1,
@@ -60,8 +60,8 @@ def league(make_league: MakeLeague) -> BuildLeague:
         path: Path | str | None = None,
     ) -> Path:
         settings = [("play_path", play_path), ("path", path)]
-        lines = [f"{key} = {value}\n" for key, value in settings if value]
-        body = "[league]\n" + "".join(lines) if lines else None
+        lines = [f"{key} = '{value}'\n" for key, value in settings if value]
+        body = "[league]\n" + "".join(lines) + CATEGORIES_TOML if lines else None
         folder = make_league(name, body)
         for source, target in (
             (profile_rules, "profile.toml"),
@@ -750,15 +750,15 @@ def test_cli_bad_playpool_rules(
     assert result.stdout == ""
 
 
-def test_cli_rule_lists_in_league_ini(
+def test_cli_rule_lists_in_league_toml(
     runner, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
     """`profile_rules` / `gameplan_rules` lists replace the fixed files."""
     folder = make_league(
         LEAGUE,
-        f"[league]\nplay_path = {PLAYS}\n"
-        "profile_rules =\n    my-profile.toml\n"
-        "gameplan_rules =\n    my-gameplan.toml\n",
+        f"[league]\nplay_path = '{PLAYS}'\n"
+        "profile_rules = ['my-profile.toml']\n"
+        "gameplan_rules = ['my-gameplan.toml']\n" + CATEGORIES_TOML,
     )
     shutil.copy(RULES_TOML, folder / "my-profile.toml")
     shutil.copy(GP_RULES, folder / "my-gameplan.toml")
@@ -778,8 +778,8 @@ def test_cli_missing_listed_rules_file(
     key: str,
 ) -> None:
     folder = league()
-    (folder / "league.ini").write_text(
-        f"[league]\nplay_path = {PLAYS}\n{key} =\n    gone.toml\n",
+    (folder / "league.toml").write_text(
+        f"[league]\nplay_path = '{PLAYS}'\n{key} = ['gone.toml']\n" + CATEGORIES_TOML,
         encoding="utf-8",
     )
     write_config(f"[athc]\nleague = {LEAGUE}\n")
@@ -1122,7 +1122,7 @@ def test_dir_no_path(
     assert result.exit_code == 2
     assert (
         "athc check-ppp: no path for the league; set path in "
-        f"{full_league / 'league.ini'}" in caplog.text
+        f"{full_league / 'league.toml'}" in caplog.text
     )
     assert result.stdout == ""
 

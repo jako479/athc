@@ -1,0 +1,36 @@
+[league]
+path = 'E:\SIERRA\FbPro98'
+play_path = 'E:\SIERRA\FbPro98\PNFL'
+db_path = 'E:\PNFL\Game Log Database\49W4\pnfl_athc.db'
+
+[categories.offense]
+"Run Right" = "RR"
+"Pass Short Right" = "PSR"
+"Run Left" = "RL"
+"Pass Short Left" = "PSL"
+"Run Middle" = "RM"
+"Pass Short Middle" = "PSM"
+# "Razzle Dazzle Run" = ""
+"Razzle Dazzle Pass" = "PRD"
+"Pass Medium Right" = "PMR"
+"Pass Medium Left" = "PML"
+"Pass Medium Middle" = "PMM"
+"Pass Long Right" = "PLR"
+# "Pass Long Left" = ""
+# "Pass Long Middle" = ""
+"Goal Line Run" = "GLR"
+"Goal Line Pass" = "GLP"
+# "User Specific" = ""
+
+[categories.defense]
+"Run Right" = "RunRight"
+"Pass Short" = "PassShort"
+"Run Left" = "RunLeft"
+"Run Middle" = "RunMiddle"
+"Run Dazzle" = "RunDazzle"
+"Pass Dazzle" = "PassDazzle"
+"Pass Medium" = "PassMedium"
+"Pass Long" = "PassLong"
+"Goal Line Run" = "GLrun"
+"Goal Line Pass" = "GLpass"
+# "User Specific" = ""

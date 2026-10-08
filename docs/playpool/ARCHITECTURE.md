@@ -63,9 +63,9 @@ when it hits ANY of `suffix_any` / `regex_any` / `include` and NONE of
 `suffix_none` / `regex_none` / `exclude` (vetoes win). Unknown section/key, bad
 regex, or wrong types raise `RulesFileError`; the loader reports every problem at
 once (`RulesFileError.errors`) and any error aborts the caller (the gameplan
-command, exit 2). PNFL category folders are matched against the league short
-labels on `fbpro98_play`'s category enum (via `category_by_short`); only these
-filename filters are league data. The shipped set is
+command, exit 2). Category folders are matched against the league's labels
+(`CategoryLabels`, passed to `read_play_pool` / `folder_warnings`), the play's
+own side first; the filename filters and the labels are league data. The shipped set is
 `config/release/leagues/PNFL/playpool.toml`.
 
 ## What this package enforces / does NOT do

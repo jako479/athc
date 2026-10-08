@@ -24,7 +24,7 @@ def convert_pdb(
     if not Path(config.play_path).is_dir():
         raise OSError(
             f"play path is not a directory: {config.play_path!r} "
-            f"(set play_path in the league's league.ini)"
+            f"(set play_path in the league's league.toml)"
         )
 
     creator = PdbWorkbookCreator.from_config(

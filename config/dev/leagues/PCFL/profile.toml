@@ -1,5 +1,5 @@
 # PCFL coaching-profile rules. Read automatically as leagues\<NAME>\profile.toml;
-# to layer several files, list them under profile_rules in league.ini.
+# to layer several files, list them under profile_rules in league.toml.
 # Source: https://pnfl.biz/messageboard/viewtopic.php?f=18&t=28
 
 audibles_allowed = false # if false, profiles must save with audibles off

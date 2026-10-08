@@ -61,7 +61,7 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 
 ## pool.py — `folder_warnings` (recognized league folder vs the play file)
 
-Warning = `<reason>: <path-from-pool-root>`. Wrong side reported alone; category checked only when the side matches; unrecognized folders never warn.
+Warning = `<reason>: <path-from-pool-root>`. Wrong side reported alone; category checked only when the side matches; unrecognized folders never warn. Category folders are the league's labels (`CategoryLabels`); the play's own side is looked up first.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -76,3 +76,7 @@ Warning = `<reason>: <path-from-pool-root>`. Wrong side reported alone; category
 | Wrong side suppresses category warning | rel | side warning only | `test_wrong_side_reported_alone` | ☑ |
 | Consistent folder | rel | no warning | `test_no_warn_when_consistent` | ☑ |
 | Loose / side-root / unrecognized (incl. User Specific) | rel | no warning | `test_no_warn_loose_or_unrecognized` `[P]` | ☑ |
+| No league labels | `CategoryLabels()`, `Offense/PML` | no warning (folder unrecognized) | `test_no_labels_means_no_category_folders` | ☑ |
+| Label shared by both sides | `RR` offense + defense | each side's Run Right quiet; other category warns | `test_shared_label_resolves_to_the_plays_side` | ☑ |
+| Other side's label | defense play in `PML/` | side warning | `test_other_sides_label_still_warns_wrong_side` | ☑ |
+| `34`/`43` prefix uses defense labels | `34RunLeft`, `34PML` | category warning; unrecognized | `test_front_prefix_uses_defense_labels` | ☑ |

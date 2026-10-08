@@ -17,7 +17,7 @@ from athc.cli.gameplan.check import check, check_file
 from athc.gameplan import load_rules
 from athc.playpool import load_rules as load_pool_rules
 from athc.playpool import read_play_pool
-from tests.conftest import LEAGUE
+from tests.conftest import CATEGORIES_TOML, LEAGUE, PNFL_LABELS, league_toml
 from tests.integration.conftest import (
     EXPECTED,
     GP_DEFENSE,
@@ -27,8 +27,10 @@ from tests.integration.conftest import (
     POOL_RULES,
 )
 
-RULES = load_rules([str(GP_RULES)])
-POOL = read_play_pool(str(PLAYS), rules=load_pool_rules(str(POOL_RULES)))
+RULES = load_rules([str(GP_RULES)], labels=PNFL_LABELS)
+POOL = read_play_pool(
+    str(PLAYS), rules=load_pool_rules(str(POOL_RULES)), labels=PNFL_LABELS
+)
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
 
@@ -36,7 +38,7 @@ MakeLeague = Callable[..., Path]
 @pytest.fixture
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league: the test pool, its playpool rules and gameplan rules."""
-    folder = make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
+    folder = make_league(LEAGUE, league_toml(PLAYS))
     shutil.copy(GP_RULES, folder / "gameplan.toml")
     shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
@@ -291,8 +293,8 @@ def test_cli_continues_past_bad(runner, tmp_path: Path) -> None:
 def test_cli_missing_play_path(
     runner, league: Path, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    (league / "league.ini").write_text(
-        f"[league]\nplay_path = {tmp_path / 'nope'}\n", encoding="utf-8"
+    (league / "league.toml").write_text(
+        league_toml(tmp_path / "nope"), encoding="utf-8"
     )
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(check, [str(GP_OFFENSE)])
@@ -312,7 +314,7 @@ def test_cli_bad_playpool_rules(
 def test_cli_no_rules_in_league_folder(
     runner, make_league: MakeLeague, caplog: pytest.LogCaptureFixture
 ) -> None:
-    make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
+    make_league(LEAGUE, league_toml(PLAYS))
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])
     assert result.exit_code == 2
@@ -342,7 +344,7 @@ def test_cli_resolves_from_league_folder(
     runner, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
     # No flags: league from athc.ini, everything else from its league folder.
-    folder = make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
+    folder = make_league(LEAGUE, league_toml(PLAYS))
     shutil.copy(GP_RULES, folder / "gameplan.toml")
     shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
@@ -357,8 +359,8 @@ def test_cli_gameplan_rules_list_layers_in_order(
     # A gameplan_rules list replaces the fixed file; the overlay is read last.
     folder = make_league(
         LEAGUE,
-        f"[league]\nplay_path = {PLAYS}\n"
-        f"gameplan_rules =\n    {GP_RULES}\n    overlay.toml\n",
+        f"[league]\nplay_path = '{PLAYS}'\n"
+        f"gameplan_rules = ['{GP_RULES}', 'overlay.toml']\n" + CATEGORIES_TOML,
     )
     shutil.copy(POOL_RULES, folder / "playpool.toml")
     (folder / "overlay.toml").write_text("", encoding="utf-8")
@@ -372,7 +374,8 @@ def test_cli_missing_listed_rules_file_is_reported(
 ) -> None:
     make_league(
         LEAGUE,
-        f"[league]\nplay_path = {PLAYS}\ngameplan_rules =\n    gone.toml\n",
+        f"[league]\nplay_path = '{PLAYS}'\ngameplan_rules = ['gone.toml']\n"
+        + CATEGORIES_TOML,
     )
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])

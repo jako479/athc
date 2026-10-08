@@ -1,5 +1,5 @@
 # PNFL gameplan rules. Read automatically as leagues\<NAME>\gameplan.toml;
-# to layer several files, list them under gameplan_rules in league.ini.
+# to layer several files, list them under gameplan_rules in league.toml.
 # Sources: https://pnfl.biz/messageboard/viewtopic.php?f=16&t=14 (offense)
 #          https://pnfl.biz/messageboard/viewtopic.php?f=16&t=15 (defense)
 #

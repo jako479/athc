@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path, PureWindowsPath
 
 import click
@@ -84,7 +85,7 @@ def check_ppp(
 
     Pass one profile and one gameplan, in either order (the extension tells
     them apart), or a directory (the whole tree with -r). In a directory, the
-    league's .lg2 file, in the folder that path in league.ini names, says
+    league's .lg2 file, in the folder that path in league.toml names, says
     which files go together (1st half offense profile with 1st half offense
     gameplan, and so on); every pair whose two files are both in the same
     folder is checked.
@@ -327,9 +328,19 @@ def load_gameplan_setup(
     except ValueError as error:  # league, athc.ini and play_path errors alike
         _log_once(error, logged)
         return None
-    rules = _load_rules(config.rule_files, load_gameplan_rule_files, "gameplan.toml")
+    rules = _load_rules(
+        config.rule_files,
+        partial(load_gameplan_rule_files, labels=config.categories),
+        "gameplan.toml",
+    )
     # Built even when the rules failed, so a bad pool is reported in the same run.
-    pool = build_pool(config.play_path, config.playpool_rules, prog=PROG, logger=logger)
+    pool = build_pool(
+        config.play_path,
+        config.playpool_rules,
+        config.categories,
+        prog=PROG,
+        logger=logger,
+    )
     if rules is None or pool is None:
         return None
     return rules, pool

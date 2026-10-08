@@ -1,10 +1,11 @@
 """Gameplan validation rules and their TOML loader.
 
-No rules ship with the package. `load_rules(paths)` parses one or more external
-TOML files into a `Rules` value; later files layer over earlier ones (per-category
-replace, scalar overwrite). Categories are keyed by short label — offense uses
-codes (`[offense.PSL]`), defense uses words (`[defense.RunDazzle]`); a category
-with no league abbreviation uses its game name, quoted (`[offense."Pass Long Left"]`).
+No rules ship with the package. `load_rules(paths, labels=...)` parses one or
+more external TOML files into a `Rules` value; later files layer over earlier
+ones (per-category replace, scalar overwrite). Categories are keyed by the
+league's label from league.toml (`[offense.PSL]`, `[defense.RunDazzle]`); a
+category the league does not label uses its game name, quoted
+(`[offense."Pass Long Left"]`).
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from athc.fbpro98_play import (
+    CategoryLabels,
     DefensiveCategory,
     OffensiveCategory,
     SpecialOffensiveCategory,
@@ -92,16 +94,22 @@ _DEFENSE_CATEGORIES: Final[frozenset[str]] = frozenset(
     c.long for c in DefensiveCategory
 )
 
-# [offense.X] / [defense.X] section labels: every category's short label. Where a
-# category has no league abbreviation the label is its game name (quoted in TOML).
-_OFFENSE_BY_LABEL: Final[Mapping[str, OffensiveCategory]] = {
-    c.short: c for c in OffensiveCategory
-}
-_DEFENSE_BY_LABEL: Final[Mapping[str, DefensiveCategory]] = {
-    c.short: c for c in DefensiveCategory
-}
-_OFFENSE_LABELS: Final[list[str]] = sorted(_OFFENSE_BY_LABEL)
-_DEFENSE_LABELS: Final[list[str]] = sorted(_DEFENSE_BY_LABEL)
+
+@dataclass(frozen=True, slots=True)
+class _SectionLabels:
+    """[offense.X] / [defense.X] section labels for one league: each category's
+    league label, else its game name."""
+
+    offense: Mapping[str, OffensiveCategory]
+    defense: Mapping[str, DefensiveCategory]
+
+    @classmethod
+    def from_labels(cls, labels: CategoryLabels) -> _SectionLabels:
+        return cls(
+            {labels.label(c): c for c in OffensiveCategory},
+            {labels.label(c): c for c in DefensiveCategory},
+        )
+
 
 # Special-category name -> code byte.
 _SPECIAL_CATEGORY_BY_NAME: Final[Mapping[str, int]] = {
@@ -163,8 +171,9 @@ class _MergedData:
     defense: dict[str, DefenseCategoryRule] = field(default_factory=dict)
 
 
-def load_rules(paths: Iterable[Path | str]) -> Rules:
-    """Load one or more TOML rules files and merge them into a `Rules`.
+def load_rules(paths: Iterable[Path | str], *, labels: CategoryLabels) -> Rules:
+    """Load one or more TOML rules files and merge them into a `Rules`. `labels`
+    are the league's category labels, the section names a file may use.
 
     Files merge in order: top-level scalars/lists overwrite; per-category rules
     overwrite per category key.
@@ -173,6 +182,7 @@ def load_rules(paths: Iterable[Path | str]) -> Rules:
     if not path_list:
         raise RulesFileError("at least one rules file is required")
 
+    sections = _SectionLabels.from_labels(labels)
     merged = _MergedData()
     errors: list[str] = []
     for path in path_list:
@@ -181,7 +191,7 @@ def load_rules(paths: Iterable[Path | str]) -> Rules:
         except RulesFileError as e:
             errors.extend(e.errors)
             continue
-        _merge_file(merged, data, errors, source=path)
+        _merge_file(merged, data, errors, source=path, sections=sections)
 
     if errors:
         raise RulesFileError(errors)
@@ -210,7 +220,12 @@ def _attempt(errors: list[str], fn: Callable[[], Any]) -> tuple[Any, bool]:
 
 
 def _merge_file(
-    merged: _MergedData, data: Mapping[str, Any], errors: list[str], *, source: Path
+    merged: _MergedData,
+    data: Mapping[str, Any],
+    errors: list[str],
+    *,
+    source: Path,
+    sections: _SectionLabels,
 ) -> None:
     """Apply one parsed TOML document onto `merged`, collecting every problem."""
     _attempt(
@@ -277,7 +292,7 @@ def _merge_file(
         val, ok = _attempt(
             errors,
             lambda label=label, section=section: _build_offense_section(
-                label, section, source
+                label, section, source, sections.offense
             ),
         )
         if ok:
@@ -287,7 +302,7 @@ def _merge_file(
         val, ok = _attempt(
             errors,
             lambda label=label, section=section: _build_defense_section(
-                label, section, source
+                label, section, source, sections.defense
             ),
         )
         if ok:
@@ -317,25 +332,31 @@ def _merge_profile_compatibility(
 
 
 def _build_offense_section(
-    label: str, section: Mapping[str, Any], source: Path
+    label: str,
+    section: Mapping[str, Any],
+    source: Path,
+    by_label: Mapping[str, OffensiveCategory],
 ) -> tuple[str, OffenseCategoryRule]:
-    member = _OFFENSE_BY_LABEL.get(label)
+    member = by_label.get(label)
     if member is None:
         raise RulesFileError(
             f"{source}: [offense.{label}]: not an offense category label. "
-            f"Valid: {_OFFENSE_LABELS}"
+            f"Valid: {sorted(by_label)}"
         )
     return member.long, _build_offense_rule(label, member, section, source)
 
 
 def _build_defense_section(
-    label: str, section: Mapping[str, Any], source: Path
+    label: str,
+    section: Mapping[str, Any],
+    source: Path,
+    by_label: Mapping[str, DefensiveCategory],
 ) -> tuple[str, DefenseCategoryRule]:
-    member = _DEFENSE_BY_LABEL.get(label)
+    member = by_label.get(label)
     if member is None:
         raise RulesFileError(
             f"{source}: [defense.{label}]: not a defense category label. "
-            f"Valid: {_DEFENSE_LABELS}"
+            f"Valid: {sorted(by_label)}"
         )
     return member.long, _build_defense_rule(label, section, source)
 

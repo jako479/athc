@@ -11,6 +11,7 @@ from pathlib import Path
 import click
 
 from athc.fbpro98_gameplan import GamePlan, PlayRef
+from athc.fbpro98_play import CategoryLabels
 from athc.gameplan import Rules, RulesFileError, load_rules
 from athc.playpool import PlayPool, read_play_pool
 from athc.playpool import RulesFileError as PoolRulesFileError
@@ -117,10 +118,15 @@ def find_in_gameplan(
 
 
 def resolve_rules(
-    rule_files: Iterable[Path], *, prog: str, logger: logging.Logger
+    rule_files: Iterable[Path],
+    labels: CategoryLabels,
+    *,
+    prog: str,
+    logger: logging.Logger,
 ) -> Rules | None:
-    """Load gameplan rules from `rule_files`; return None (a hard error for the
-    caller) when none are configured or loading fails."""
+    """Load gameplan rules from `rule_files` with the league's category
+    `labels`; return None (a hard error for the caller) when none are configured
+    or loading fails."""
     files = list(rule_files)
     if not files:
         logger.error(
@@ -130,7 +136,7 @@ def resolve_rules(
         )
         return None
     try:
-        return load_rules(files)
+        return load_rules(files, labels=labels)
     except RulesFileError as error:
         for line in error.errors:
             logger.error("%s: %s", prog, line)
@@ -143,19 +149,21 @@ def resolve_rules(
 def build_pool(
     play_path: Path,
     playpool_rules: Path | None,
+    labels: CategoryLabels,
     *,
     prog: str,
     logger: logging.Logger,
 ) -> PlayPool | None:
-    """Build a PlayPool from `play_path` (each play classified from its file).
-    Optional `playpool_rules` is the playpool filename-filter TOML; returns None
-    on a missing directory or unreadable rules file."""
+    """Build a PlayPool from `play_path` (each play classified from its file) with
+    the league's category `labels` naming its folders. Optional `playpool_rules`
+    is the playpool filename-filter TOML; returns None on a missing directory or
+    unreadable rules file."""
     if not play_path.is_dir():
         logger.error("%s: play path '%s' is not a directory", prog, play_path)
         return None
     try:
         rules = load_pool_rules(playpool_rules) if playpool_rules else None
-        return read_play_pool(play_path, rules=rules)
+        return read_play_pool(play_path, rules=rules, labels=labels)
     except PoolRulesFileError as error:
         for line in error.errors:
             logger.error("%s: %s", prog, line)

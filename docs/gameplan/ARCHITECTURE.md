@@ -42,7 +42,7 @@ No rules ship inside the package. `load_rules(paths)` parses one or more externa
 - Aggregate counts over the 64 normal slots: min/max plays per game category + per-category attribute caps; required special categories (1-12, clock categories included); disallowed categories; optional `custom_special_play_required` (categories 1-10, the ones with a custom slot).
 - `[profile_compatibility]` — `require_all_gameplan_categories_in_profile`, read only by `athc check-ppp` ([../check_ppp/README.md](../check_ppp/README.md)); `validate_gameplan` ignores it.
 
-Section labels are short category labels — `[offense.RM]` (Run Middle), `[defense.RunDazzle]` (Run Dazzle); a category with no league abbreviation is labeled by its game name, quoted (`[offense."Pass Long Left"]`, `[defense."User Specific"]`). Every per-category key is optional (`required` defaults false, `min_count` 0), but a section must set at least one. The loader rejects unknown labels, and subkeys applied to the wrong category type. `disallowed_offensive_categories` / `disallowed_defensive_categories` list full category names a gameplan must not contain.
+Section labels are the league's category labels from `league.toml` (`load_rules(paths, labels=...)`) — `[offense.RM]` (Run Middle), `[defense.RunDazzle]` (Run Dazzle); a category the league does not label is named by its game name, quoted (`[offense."Pass Long Left"]`, `[defense."User Specific"]`). Every per-category key is optional (`required` defaults false, `min_count` 0), but a section must set at least one. The loader rejects unknown labels, and subkeys applied to the wrong category type. `disallowed_offensive_categories` / `disallowed_defensive_categories` list full category names a gameplan must not contain.
 
 Each capped attribute (`qb_draws`, `rollouts`, `timed`, `two_dl`) takes one of three forms — `max_<attr>_count` (whole plays), `max_<attr>_ratio` (`"1/2"`, an exact `Fraction`) or `max_<attr>_percent` (whole number 0-100). A section may set at most one form per attribute; a second is a rules-file error. Ratio and percent compare the exact play ratio, so nothing rounds.
 
@@ -54,8 +54,8 @@ Each league's rule set is `config/release/leagues/<NAME>/gameplan.toml` — data
 
 The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.md)), chosen by `--league` / `[athc] league`:
 
-- `gameplan.toml` — the rules (or a `gameplan_rules` list in `league.ini`, one path per line, later files layering over earlier).
-- `league.ini` `play_path` (play pool dir) and `playpool.toml` (optional filename-filter TOML).
+- `gameplan.toml` — the rules (or a `gameplan_rules` array in `league.toml`, later files layering over earlier).
+- `league.toml` `play_path` (play pool dir), its `[categories.*]` labels, and `playpool.toml` (optional filename-filter TOML).
 
 `check` reads all of these from the league folder only. With no rules resolvable there's nothing to validate → log an error, exit 2.
 

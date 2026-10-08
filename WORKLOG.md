@@ -8,6 +8,14 @@ Where things stand now: [STATUS.md](STATUS.md).
   play pool is a command group like `gameplan` and `profile`, the
   resource-then-verb shape of `git remote add` and `docker container ls`;
   `check-ppp` stays flat because it spans all three file types.
+- 2026-10-07 — **config, fbpro98_play, gameplan, playpool**: the league's
+  category labels were baked into the category enum, so every league got
+  PNFL's names. They now come from the league's settings file, which became
+  `league.toml` (TOML nests the two category tables and quotes keys with
+  spaces); rule sections, play-pool folders and `replace-play` output resolve
+  through `CategoryLabels`. `playpool check` on a given folder still reads a
+  configured league for its category names. `athc.ini` and the standings
+  files stay INI.
 - 2026-10-07 — **file specs, library READMEs**: the Reader and Writer
   Contract, Validation & Test Vectors and Status lines left every file spec,
   as the `.lg2` spec had done the day before; a spec now holds only the

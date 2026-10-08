@@ -25,10 +25,10 @@ Plays are grouped by their **game** category (e.g. "Pass Short Left").
 The league folder `leagues\<NAME>\` (picked by `--league` /
 `[athc] league`; see [../design/config.md](../design/config.md)):
 
-```ini
-; leagues\PNFL\league.ini
+```toml
+# leagues\PNFL\league.toml
 [league]
-play_path = E:\SIERRA\FbPro98\PNFL
+play_path = 'E:\SIERRA\FbPro98\PNFL'
 ```
 
 `play_path` (the `.ply` pool, required) plus the optional `playpool.toml`
