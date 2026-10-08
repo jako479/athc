@@ -28,7 +28,6 @@ athc/
     # CLI WIRING (Click decorators; no tool logic)
     cli/
       __init__.py                        # AthcGroup + main() + shared decorators
-      check_playpool.py                  # athc check-playpool (leaf)
       check_ppp.py                       # athc check-ppp (leaf)
       generate_schedule.py               # athc generate-schedule (leaf)
       convert_pdb.py                     # athc convert-pdb (leaf)
@@ -39,6 +38,9 @@ athc/
       profile/                           # athc profile ... (group with leaves)
         __init__.py
         check.py, copy.py, diff.py
+      playpool/                          # athc playpool ... (group with leaves)
+        __init__.py
+        check.py
       config/                            # athc config ... (group with leaves)
         __init__.py
         path.py, edit.py, reveal.py
@@ -50,7 +52,7 @@ athc/
     pdbtoexcel/      config.py  core.py
     autocontinue/    config.py  core.py  images/
 
-    # LIBRARIES (no CLI; importable by tools and by other libs)
+    # LIBRARIES (importable by tools and by other libs; playpool also has a CLI)
     playpool/                  py.typed  pool.py  records.py
     fbpro98_gameplan/          py.typed  model.py  reader.py  writer.py
     fbpro98_lg2/               py.typed  model.py  reader.py

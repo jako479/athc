@@ -1,4 +1,4 @@
-"""Integration tests for `athc check-playpool`.
+"""Integration tests for `athc playpool check`.
 
 The command loads the play pool the way convert-pdb does and prints the pool's
 own warnings, word for word, as its findings.
@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 from click.testing import Result
 
-from athc.cli.check_playpool import check_playpool
+from athc.cli.playpool.check import check
 from tests.conftest import LEAGUE, OTHER_LEAGUE
 from tests.integration.conftest import PLAYS
 
@@ -25,7 +25,7 @@ PLAY = "CC31rl5m"  # defensive Run Left
 
 
 def run(runner, *args: Path | str) -> Result:
-    return runner.invoke(check_playpool, [str(a) for a in args])
+    return runner.invoke(check, [str(a) for a in args])
 
 
 def copy_play(folder: Path, name: str = PLAY) -> None:
@@ -131,7 +131,7 @@ def test_no_league_exit_2(runner, caplog: pytest.LogCaptureFixture) -> None:
         result = run(runner)
     assert result.exit_code == 2
     assert result.stdout == ""
-    assert "athc check-playpool: no league selected" in caplog.text
+    assert "athc playpool check: no league selected" in caplog.text
 
 
 def test_league_without_play_path_exit_2(
@@ -146,7 +146,7 @@ def test_league_without_play_path_exit_2(
         result = run(runner)
     assert result.exit_code == 2
     assert (
-        "athc check-playpool: no play_path for the league; "
+        "athc playpool check: no play_path for the league; "
         f"set play_path in {folder / 'league.ini'}"
     ) in caplog.text
 
@@ -160,7 +160,7 @@ def test_play_dir_not_a_directory_exit_2(
     assert result.exit_code == 2
     assert result.stdout == ""
     assert (
-        f"athc check-playpool: play path '{missing}' is not a directory" in caplog.text
+        f"athc playpool check: play path '{missing}' is not a directory" in caplog.text
     )
 
 
@@ -177,4 +177,4 @@ def test_read_error_exit_2(
     with caplog.at_level(logging.ERROR):
         result = run(runner, clean_tree(tmp_path / "plays"))
     assert result.exit_code == 2
-    assert "athc check-playpool: access denied" in caplog.text
+    assert "athc playpool check: access denied" in caplog.text

@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-07. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-08. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -17,7 +17,6 @@ for it are not when the work happened.
 
 ```
 athc autocontinue               DONE
-athc check-playpool             DONE
 athc check-ppp                  DONE
 athc config edit                DONE
 athc config path                DONE
@@ -32,6 +31,7 @@ athc gameplan replace-play      DONE
 athc gameplan set-normals       DONE
 athc gameplan set-specials      DONE
 athc generate-schedule          DONE
+athc playpool check             DONE
 athc profile check              DONE
 athc profile copy               DONE
 athc profile diff               DONE
@@ -129,17 +129,6 @@ Working. Docs: [README](docs/autocontinue/README.md) ·
 - Hot-corner toggle, focus checks and halftime assets added.
 
 Open: halftime handling itself.
-
-## check-playpool
-
-Working. Checks the play pool. Docs: [README](docs/check_playpool/README.md)
-
-- Reads the league's `play_path`, or a folder given on the command line (then
-  no league is read). `playpool.toml` is not used.
-- Prints the warnings pool loading already logs, word for word, as findings:
-  plays in a folder that contradicts the file, duplicate names, invalid files.
-
-Open: maybe use `playpool.toml` for counts by file name type (TODO).
 
 ## check-ppp
 
@@ -265,15 +254,24 @@ Note: a standalone port for testers lives outside this repo at
 `E:\PNFL\__My Projects\PdbToExcel_2.0`; re-sync it by hand when this package
 changes.
 
-## playpool (library)
+## playpool
 
-Working. Backs `gameplan` and `convert-pdb`. Docs:
-[README](docs/playpool/README.md),
+Working. Backs `gameplan` and `convert-pdb`; `playpool check` checks the pool.
+Docs: [README](docs/playpool/README.md),
 [ARCHITECTURE](docs/playpool/ARCHITECTURE.md)
 
+- `check-playpool` became `playpool check`, a command group like `gameplan`
+  and `profile`.
+- `check` reads the league's `play_path`, or a folder given on the command
+  line (then no league is read). `playpool.toml` is not used.
+- `check` prints the warnings pool loading already logs, word for word, as
+  findings: plays in a folder that contradicts the file, duplicate names,
+  invalid files.
 - The `PlayRecord` family renamed to `Play`.
 - Plays are classified from the play file, with the user category
   authoritative; folder categories only add attributes.
+
+Open: maybe use `playpool.toml` for counts by file name type (TODO).
 
 ## profile
 

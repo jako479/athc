@@ -1,4 +1,4 @@
-"""`athc check-playpool` — check the play pool for misfiled, duplicate and
+"""`athc playpool check` — check the play pool for misfiled, duplicate and
 invalid plays."""
 
 from __future__ import annotations
@@ -8,25 +8,22 @@ from pathlib import Path
 
 import click
 
-from athc.cli import CONTEXT_SETTINGS, AthcCommand, league_option
+from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.gameplan._common import build_pool
+from athc.cli.playpool import playpool
 from athc.config import load_league_config
 
-PROG = "athc check-playpool"
+PROG = "athc playpool check"
 logger = logging.getLogger(__name__)
 
 
-@click.command(
-    name="check-playpool", cls=AthcCommand, context_settings=CONTEXT_SETTINGS
-)
+@playpool.command(name="check", context_settings=CONTEXT_SETTINGS)
 @click.argument(
     "play_dir", metavar="[play_dir]", required=False, type=click.Path(path_type=Path)
 )
 @league_option
 @click.pass_context
-def check_playpool(
-    ctx: click.Context, play_dir: Path | None, league: str | None
-) -> None:
+def check(ctx: click.Context, play_dir: Path | None, league: str | None) -> None:
     """Check the play pool: plays in the wrong folder, duplicate play names, and
     invalid play files.
 

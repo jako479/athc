@@ -156,7 +156,7 @@ Production users never set the var; the default `%LOCALAPPDATA%\athc` wins.
 
 ## Cross-cutting options: `--league`
 
-`--league name` is an option on each league-aware command (`gameplan check` / `replace-play` / `set-normals` / `set-specials`, `profile check`, `check-ppp`, `check-playpool`, `convert-pdb`, `generate-schedule`), so it goes after the command name like any other option: `athc gameplan check plan.pln --league PCFL`. That matches `aws s3 ls --profile x` and `kubectl get --context x`. It is not on the root group because Click only takes a group's options before the subcommand name. Commands that never read league data don't have it.
+`--league name` is an option on each league-aware command (`gameplan check` / `replace-play` / `set-normals` / `set-specials`, `profile check`, `check-ppp`, `playpool check`, `convert-pdb`, `generate-schedule`), so it goes after the command name like any other option: `athc gameplan check plan.pln --league PCFL`. That matches `aws s3 ls --profile x` and `kubectl get --context x`. It is not on the root group because Click only takes a group's options before the subcommand name. Commands that never read league data don't have it.
 
 A shared decorator keeps the option uniform:
 
@@ -198,7 +198,7 @@ problem in the input, distinct from the command failing to run. Per-tool specifi
 are in each tool's `ARCHITECTURE.md`.
 
 **Commands with a findings tier** — `gameplan check`, `profile check`,
-`check-ppp`, `check-playpool`, `profile diff`, `find-play`, and the multi-file editors `set-specials`,
+`check-ppp`, `playpool check`, `profile diff`, `find-play`, and the multi-file editors `set-specials`,
 `replace-play`, and `profile copy`. They follow the grep/diff convention:
 
 | Exit | Meaning |

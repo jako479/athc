@@ -1,6 +1,6 @@
 # playpool
 
-Library for building a league's play pool from a folder of Front Page Sports Football Pro '98 play (`.ply`) files, each classified from its own bytes.
+Library + CLI for a league's play pool: builds it from a folder of Front Page Sports Football Pro '98 play (`.ply`) files, each classified from its own bytes, and checks it with `athc playpool check`.
 
 ## Features
 
@@ -40,6 +40,41 @@ Without rules, the filename-derived attributes stay off.
 - `Play`: `name`, `play_file` (the parsed `PlayFile`), `file_path`, `category` (an `fbpro98_play` enum member), `play_category`, `special_category`, `user_category`; `to_dict()`. `OffensivePlay` adds `screen`, `rollout`, `qb_draw`, `pass_logic` (`PassLogic.TIMED` / `CHECK_RECEIVERS`); `DefensivePlay` adds `defensive_front` (`DefensiveFront.THREE_FOUR` / `FOUR_THREE` / `TWO_DL`); `SpecialTeamsPlay` adds nothing.
 - `load_rules(path)` parses a rules TOML into a `PlaypoolRules`; `build_rules(data, *, source)` builds one from a mapping. `PlaypoolRules`: `timed`, `rollout`, `qb_draw`, each a `FilenameFilter` whose `matches(name)` is true when the name hits any of `suffix_any` / `regex_any` / `include` and none of `suffix_none` / `regex_none` / `exclude`.
 - `RulesFileError`: an unreadable or malformed rules file; `errors` lists every problem found.
+
+## CLI
+
+`athc playpool check` checks the play pool for problems: plays in the wrong
+folder, duplicate play names, and invalid play files.
+
+```bash
+athc playpool check
+athc playpool check E:\SIERRA\FbPro98\PNFL
+athc playpool check --league PCFL
+```
+
+With no folder, it checks the league's `play_path` (from `--league`, or
+`[athc] league` in `athc.ini`). A given folder needs no league.
+
+It checks the same things pool loading checks for every other command, with
+the same messages:
+
+- A play in a PNFL folder that contradicts its file (wrong side or category).
+- A play name used more than once.
+- A `.ply` file that isn't a valid play file.
+
+Each problem prints on its own line, then one summary line with the number of
+plays checked and issues found.
+
+| Exit | Meaning |
+|---|---|
+| `0` | **Clean** — no issues. |
+| `1` | **Findings** — one or more issues. |
+| `2` | **Error** — couldn't run: no league, no `play_path`, a missing folder, or a file or folder the system can't read. |
+
+`src/athc/cli/playpool/check.py` is the leaf command of the
+`src/athc/cli/playpool/` group. It loads the pool with the gameplan group's
+`build_pool`, and the library keeps its warnings in `PlayPool.issues`. Tests:
+`tests/integration/test_playpool_check.py`.
 
 ## Testing
 

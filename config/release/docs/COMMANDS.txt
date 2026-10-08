@@ -227,7 +227,7 @@ unless the command is given --league NAME.
       athc check-ppp plans\ -r
 
 
-12) check-playpool  --  check the play pool for misfiled and duplicate plays
+12) playpool check  --  check the play pool for misfiled and duplicate plays
     ------------------------------------------------------------------------
 
    Checks every play under the league's play_path, or under a folder you
@@ -238,12 +238,12 @@ unless the command is given --league NAME.
    checked and issues found.
 
    Show help:
-      athc check-playpool -h
+      athc playpool check -h
 
    Example terminal calls:
-      athc check-playpool
-      athc check-playpool E:\SIERRA\FbPro98\PNFL
-      athc check-playpool --league PCFL
+      athc playpool check
+      athc playpool check E:\SIERRA\FbPro98\PNFL
+      athc playpool check --league PCFL
 
 
 13) convert-pdb  --  WinLogStats stats (.pdb) into Excel
@@ -316,7 +316,7 @@ EXIT CODES
    0 always means success. The meaning of 1 and 2 depends on the command.
 
    Checks and comparisons -- gameplan check, profile check, check-ppp,
-   check-playpool, profile diff, find-play, and the bulk editors
+   playpool check, profile diff, find-play, and the bulk editors
    set-specials, replace-play, and profile copy:
       0   clean -- nothing to report
       1   ran, but found problems (violations, play pool issues,

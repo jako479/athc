@@ -135,7 +135,7 @@ class PlayPool:
         self.offensive_plays: list[OffensivePlay] = []
         self.defensive_plays: list[DefensivePlay] = []
         self.special_teams_plays: list[SpecialTeamsPlay] = []
-        # Kept as well as logged, so a caller like check-playpool can print and
+        # Kept as well as logged, so a caller like playpool check can print and
         # count them as findings.
         self.issues: list[str] = []
         self._plays_by_name: dict[str, Play] = {}

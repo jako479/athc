@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- playpool: `check-playpool` became `playpool check`, a command group like `gameplan` and `profile`
 - profile: `copy --pat-logic` copies the PAT play-calling table into the targets
 - athc: the file specs hold only the file layout, its validity rules and open questions; each library's README documents its API, indexed in the architecture overview
 - athc: the file specs name fields in prose and keep code font for what is stored in the file
@@ -78,10 +79,6 @@ high-level change completed alongside it gets its own line.
 - hot-corner toggle, focus checks, halftime images
 - added the `autocontinue` command
 
-## check-playpool
-
-- added the `check-playpool` command: plays in the wrong folder, duplicate play names and invalid play files, from the league's play path or a given folder
-
 ## check-ppp
 
 - takes its own `--league name`; help shows `file [file]`
@@ -124,6 +121,7 @@ high-level change completed alongside it gets its own line.
 
 ## playpool
 
+- added the `check-playpool` command: plays in the wrong folder, duplicate play names and invalid play files, from the league's play path or a given folder
 - README with quickstart and API
 - renamed the `PlayRecord` family to `Play`; play attributes come from the pool's folder categories
 - added the play pool package

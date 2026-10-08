@@ -199,7 +199,8 @@ USAGE_CASES = [
         "[--time-limit number] [--league name]",
     ),
     (("autocontinue",), "athc autocontinue [-h] [--hot-corner | --no-hot-corner]"),
-    (("check-playpool",), "athc check-playpool [-h] [--league name] [play_dir]"),
+    (("playpool",), "athc playpool [-h] command [args]..."),
+    (("playpool", "check"), "athc playpool check [-h] [--league name] [play_dir]"),
     (("check-ppp",), "athc check-ppp [-h] [-r] [--league name] path [path]"),
     (
         ("convert-pdb",),

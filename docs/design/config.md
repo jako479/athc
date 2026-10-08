@@ -89,7 +89,7 @@ Each tool reads its one fixed file from the league folder. An optional multi-lin
 
 ## Multi-league selection
 
-`--league name` is an option on each league-aware command (`gameplan check` / `replace-play` / `set-normals` / `set-specials`, `profile check`, `check-ppp`, `check-playpool`, `convert-pdb`, `generate-schedule`), placed after the command name: `athc profile check OFF1.prf --league PCFL`. Other commands don't have it. The shared option is in [cli.md](cli.md#cross-cutting-options---league).
+`--league name` is an option on each league-aware command (`gameplan check` / `replace-play` / `set-normals` / `set-specials`, `profile check`, `check-ppp`, `playpool check`, `convert-pdb`, `generate-schedule`), placed after the command name: `athc profile check OFF1.prf --league PCFL`. Other commands don't have it. The shared option is in [cli.md](cli.md#cross-cutting-options---league).
 
 **Selection priority** (highest wins):
 

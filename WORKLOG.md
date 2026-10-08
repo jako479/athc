@@ -4,6 +4,10 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-08 — **playpool**: `check-playpool` became `playpool check`, so the
+  play pool is a command group like `gameplan` and `profile`, the
+  resource-then-verb shape of `git remote add` and `docker container ls`;
+  `check-ppp` stays flat because it spans all three file types.
 - 2026-10-07 — **file specs, library READMEs**: the Reader and Writer
   Contract, Validation & Test Vectors and Status lines left every file spec,
   as the `.lg2` spec had done the day before; a spec now holds only the

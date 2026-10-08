@@ -39,7 +39,7 @@ src/athc/playpool/
   category with no PNFL folder (`User Specific`, Pass Long Left/Middle, Razzle
   Dazzle Run) warns only when filed inside a category folder, not when loose.
 - Keeps every warning it logs (folder mismatches, duplicate names, invalid
-  files) in `PlayPool.issues`, word for word, so `check-playpool` can print
+  files) in `PlayPool.issues`, word for word, so `playpool check` can print
   and count them.
 
 ## Records — fixed, typed attributes
