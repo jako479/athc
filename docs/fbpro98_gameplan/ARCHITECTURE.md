@@ -19,14 +19,14 @@ src/athc/fbpro98_gameplan/
 
 - Parses `.pln` files into a typed in-memory model
 - Validates structural correctness of the bytes (block magics, sizes, offsets, parity)
-- Validates semantic correctness of the model (slot counts, profile-vs-clock-plays, special-slot type/category alignment)
+- Validates semantic correctness of the model (slot counts, stock-only clock categories by side, special-slot type/category alignment)
 - Serializes a `GamePlan` back to bytes that round-trip identically
 - Exposes a frozen, type-safe model for downstream consumers
 
 ## What this package assumes
 
 - Input files come from FbPro '98 or another producer that follows the `.pln` format
-- All callers respect the immutability of `GamePlan` and use `with_normal_plays` / `with_custom_special_plays` for updates
+- All callers respect the immutability of `GamePlan` and use `with_normal_plays` / `with_custom_special_plays` for updates; special slots are read as `special_plays[category - 1].custom` / `.stock`
 
 ## What this package enforces
 
@@ -37,22 +37,21 @@ Structural (raise `InvalidGamePlanError`):
 - Play offsets within G95 record region; play headers/bodies not truncated
 - Custom play filenames null-terminated
 - `stock_flag` ∈ {0, 1}; `profile_type` ∈ {0, 1}
+- Every play's category bytes resolve to a known category (`fbpro98_play.resolve_category`)
 - J95 declared counts match actual play counts
 - S98 data = `STOCK98.MAP\0`
 - File-size parity (offense even, defense odd)
 
 Model (raise `ValueError` via `__post_init__`):
-- Exact slot counts: 64 normal, 20 special, 2 clock
-- Offense requires both clock plays; defense forbids them
-- Even special-slot indices hold `CustomPlayRef | None`; odd hold `StockPlayRef | None`
-- Special-slot `special_category` matches slot index
+- Exact slot counts: 64 normal, 12 special (`SpecialSlot(custom, stock)`, one per category)
+- `custom` is `CustomPlayRef | None` and `stock` is `StockPlayRef | None`, each with `special_category` equal to its category
+- Categories 11 (Run Clock) and 12 (Stop Clock) are stock-only: `custom` is None; offense requires their `stock`, defense forbids it
 - Normal-slot plays have `special_category == 0`
-- Clock slots have `special_category == 11` (spike) and `12` (kneel)
 - Play `play_category` parity matches profile (offense odd, defense even)
 
 Mutation methods (raise `ValueError`):
 - `with_normal_plays` accepts ≤ 64 entries
-- `with_custom_special_plays` rejects out-of-range or duplicate categories
+- `with_custom_special_plays` rejects a category outside 1-10 or a duplicate category
 
 ## What this package does NOT do
 

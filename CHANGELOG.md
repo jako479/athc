@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- gameplan: rules can name every play category, game-name labels like `[offense."Pass Long Left"]` and `"Run Clock"` / `"Stop Clock"` as required specials; a `.pln` with an unrecognized play category is rejected as corrupt
 - convert-pdb: the `.pdb` file spec and the master VBA workbooks came over from pnfl
 - tests: golden workbook test for `convert-pdb` — the real `.pdb` against the curated pool, every cell compared
 - check-ppp: `require_all_gameplan_categories_in_profile` moved from the profile rules to the gameplan rules' `[profile_compatibility]` section

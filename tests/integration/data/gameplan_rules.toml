@@ -2,7 +2,7 @@
 
 # Special teams that must each have a play assigned. Valid names:
 #   "Field Goal/PAT" "Kickoff" "Punt" "Onside Kick" "Fake FG Run" "Fake FG Pass"
-#   "Fake Punt Run" "Fake Punt Pass" "Free Kick" "Squib Kick"
+#   "Fake Punt Run" "Fake Punt Pass" "Free Kick" "Squib Kick" "Run Clock" "Stop Clock"
 required_special_categories = [
     "Field Goal/PAT",
     "Kickoff",

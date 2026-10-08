@@ -3,7 +3,8 @@
 No rules ship with the package. `load_rules(paths)` parses one or more external
 TOML files into a `Rules` value; later files layer over earlier ones (per-category
 replace, scalar overwrite). Categories are keyed by short label — offense uses
-codes (`[offense.PSL]`), defense uses words (`[defense.RunDazzle]`).
+codes (`[offense.PSL]`), defense uses words (`[defense.RunDazzle]`); a category
+with no league abbreviation uses its game name, quoted (`[offense."Pass Long Left"]`).
 """
 
 from __future__ import annotations
@@ -19,7 +20,6 @@ from athc.fbpro98_play import (
     DefensiveCategory,
     OffensiveCategory,
     SpecialOffensiveCategory,
-    category_by_short,
 )
 
 
@@ -92,13 +92,16 @@ _DEFENSE_CATEGORIES: Final[frozenset[str]] = frozenset(
     c.long for c in DefensiveCategory
 )
 
-# Valid [offense.X] / [defense.X] section labels (the league short labels).
-_OFFENSE_LABELS: Final[list[str]] = sorted(
-    c.short for c in OffensiveCategory if c.short != c.long
-)
-_DEFENSE_LABELS: Final[list[str]] = sorted(
-    c.short for c in DefensiveCategory if c.short != c.long
-)
+# [offense.X] / [defense.X] section labels: every category's short label. Where a
+# category has no league abbreviation the label is its game name (quoted in TOML).
+_OFFENSE_BY_LABEL: Final[Mapping[str, OffensiveCategory]] = {
+    c.short: c for c in OffensiveCategory
+}
+_DEFENSE_BY_LABEL: Final[Mapping[str, DefensiveCategory]] = {
+    c.short: c for c in DefensiveCategory
+}
+_OFFENSE_LABELS: Final[list[str]] = sorted(_OFFENSE_BY_LABEL)
+_DEFENSE_LABELS: Final[list[str]] = sorted(_DEFENSE_BY_LABEL)
 
 # Special-category name -> code byte.
 _SPECIAL_CATEGORY_BY_NAME: Final[Mapping[str, int]] = {
@@ -316,8 +319,8 @@ def _merge_profile_compatibility(
 def _build_offense_section(
     label: str, section: Mapping[str, Any], source: Path
 ) -> tuple[str, OffenseCategoryRule]:
-    member = category_by_short(label)
-    if not isinstance(member, OffensiveCategory):
+    member = _OFFENSE_BY_LABEL.get(label)
+    if member is None:
         raise RulesFileError(
             f"{source}: [offense.{label}]: not an offense category label. "
             f"Valid: {_OFFENSE_LABELS}"
@@ -328,8 +331,8 @@ def _build_offense_section(
 def _build_defense_section(
     label: str, section: Mapping[str, Any], source: Path
 ) -> tuple[str, DefenseCategoryRule]:
-    member = category_by_short(label)
-    if not isinstance(member, DefensiveCategory):
+    member = _DEFENSE_BY_LABEL.get(label)
+    if member is None:
         raise RulesFileError(
             f"{source}: [defense.{label}]: not a defense category label. "
             f"Valid: {_DEFENSE_LABELS}"

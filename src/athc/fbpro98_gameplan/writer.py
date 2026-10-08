@@ -70,11 +70,21 @@ def build_gameplan_bytes(gameplan: GamePlan) -> bytes:
     return output
 
 
+def _special_records(gameplan: GamePlan) -> list[PlayRef | None]:
+    """The 22 special offsets in file order: (custom, stock) for each category
+    with a custom slot, then the stock play of each clock category."""
+    records: list[PlayRef | None] = []
+    for category, slot in enumerate(gameplan.special_plays, start=1):
+        if category in GamePlan.CUSTOM_SPECIAL_CATEGORIES:
+            records.append(slot.custom)
+        records.append(slot.stock)
+    return records
+
+
 def _build_g95(gameplan: GamePlan) -> bytes:
     all_plays: list[PlayRef | None] = [
         *gameplan.normal_plays,
-        *gameplan.special_plays,
-        *gameplan.clock_plays,
+        *_special_records(gameplan),
     ]
     offsets_table_start = G95_HEADER.size + G95_AUDIBLE.size
     records_base = offsets_table_start + G95_OFFSETS_TABLE.size
@@ -112,7 +122,7 @@ def _build_play(play: PlayRef) -> bytes:
 def _build_j95(gameplan: GamePlan) -> bytes:
     num_custom = sum(1 for p in gameplan.normal_plays if isinstance(p, CustomPlayRef))
     num_stock = sum(1 for p in gameplan.normal_plays if isinstance(p, StockPlayRef))
-    num_special = sum(1 for p in gameplan.special_plays if isinstance(p, CustomPlayRef))
+    num_special = sum(1 for s in gameplan.special_plays if s.custom is not None)
     return J95_HEADER.pack(ID_J95, J95_PLAN_DATA.size) + J95_PLAN_DATA.pack(
         gameplan.profile_type, num_custom, num_stock, num_special
     )

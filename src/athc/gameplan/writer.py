@@ -155,6 +155,12 @@ def _resolve_special_line(
         )
         return None
     cat = pf.special_category
+    if cat not in GamePlan.CUSTOM_SPECIAL_CATEGORIES:
+        violations.append(
+            f"Special play '{name}' at line {line_no} is in special category {cat}, "
+            "which has no custom slot"
+        )
+        return None
     if cat in seen_categories:
         violations.append(
             f"Special play '{name}' at line {line_no} targets special category {cat}, "

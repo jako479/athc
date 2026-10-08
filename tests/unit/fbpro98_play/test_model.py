@@ -162,6 +162,16 @@ def test_resolve_category_mask_and_unknown():
     assert resolve_category(0x01, 0x00, 0x3F) is UNKNOWN_CATEGORY
 
 
+def test_clock_categories_are_offense_only():
+    assert resolve_category(0x01, 0x0B, 0x00) is SpecialOffensiveCategory.RUN_CLOCK
+    assert resolve_category(0x01, 0x0C, 0x00) is SpecialOffensiveCategory.STOP_CLOCK
+    assert SpecialOffensiveCategory.RUN_CLOCK.long == "Run Clock"
+    assert SpecialOffensiveCategory.STOP_CLOCK.long == "Stop Clock"
+    # Defense has no clock plays, so the same bytes on the defense side are unknown.
+    assert resolve_category(0x00, 0x0B, 0x00) is UNKNOWN_CATEGORY
+    assert resolve_category(0x00, 0x0C, 0x00) is UNKNOWN_CATEGORY
+
+
 def test_category_by_short():
     assert category_by_short("PSR") is OffensiveCategory.PASS_SHORT_RIGHT
     assert category_by_short("RunLeft") is DefensiveCategory.RUN_LEFT

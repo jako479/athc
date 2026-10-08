@@ -98,7 +98,7 @@ Coaches assign plays to slots. The Game Plan Editor shows the normal slots as a 
 
 The offsets are fixed: offsets 0–63 always correspond to game plan slots `1-1` through `16-4`, row-major, and offsets 64–85 always correspond to the special slots, keyed by `special_category` (`0x01`–`0x0C`). Defensive game plans have no clock plays, so their offsets 84 and 85 are always `0x0000`.
 
-An empty slot has its offset zeroed and contributes no play record. The play records are packed back-to-back regardless of any empty slots. Normal and non-stock special slots are optional; the 10 stock specials are always present.
+An empty slot has its offset zeroed and contributes no play record. The play records are packed back-to-back regardless of any empty slots. Normal and non-stock special slots are optional; the stock specials are always present (10 on defense, 12 on offense with the two clock plays).
 
 ### 3.1 Offensive Game Plans (86 slots)
 
@@ -213,6 +213,7 @@ Reader raises `InvalidGamePlanError` for:
 - Truncated play record
 - Missing NUL on custom play filename
 - `stock_flag ∉ {0, 1}`
+- Play category bytes that no category table recognizes (see ply.md section 3)
 - `profile_type ∉ {0, 1}`
 - `audible` bytes ≠ `00 01 02 03`
 - J95 counts don't match parsed records

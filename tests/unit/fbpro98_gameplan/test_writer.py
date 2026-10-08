@@ -7,7 +7,6 @@ import pytest
 
 from athc.fbpro98_gameplan import (
     CustomPlayRef,
-    StockPlayRef,
     build_gameplan_bytes,
     read_gameplan,
     write_gameplan,
@@ -93,25 +92,14 @@ def test_round_trip_preserves_normal_plays(tmp_path: Path) -> None:
 
 
 def test_special_plays_preserved(tmp_path: Path) -> None:
+    """Frozen dataclasses compare every field, map_offset / map_size included."""
     pln_path = _copy_fixture(OFFENSE_PATH, tmp_path)
     original = read_gameplan(pln_path)
 
     write_gameplan(original.with_normal_plays([_make_play("TEST01")]), pln_path)
     reloaded = read_gameplan(pln_path)
 
-    for i in range(reloaded.NUMBER_SPECIAL_SLOTS):
-        orig_play = original.special_plays[i]
-        new_play = reloaded.special_plays[i]
-        if orig_play is None:
-            assert new_play is None
-        else:
-            assert new_play is not None
-            assert new_play.name == orig_play.name
-            assert type(new_play) is type(orig_play)
-            if isinstance(orig_play, StockPlayRef):
-                assert isinstance(new_play, StockPlayRef)
-                assert new_play.map_offset == orig_play.map_offset
-                assert new_play.map_size == orig_play.map_size
+    assert reloaded.special_plays == original.special_plays
 
 
 def test_empty_slots_produce_zero_offset(tmp_path: Path) -> None:

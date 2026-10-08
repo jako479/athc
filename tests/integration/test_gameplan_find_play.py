@@ -16,6 +16,7 @@ from athc.fbpro98_gameplan import (
     CustomPlayRef,
     GamePlan,
     ProfileType,
+    SpecialSlot,
     StockPlayRef,
     write_gameplan,
 )
@@ -32,23 +33,15 @@ MISSING = "NOSUCHPLAYXX"
 
 
 def _empty_offense_gameplan() -> GamePlan:
-    clock_a = CustomPlayRef(
-        filename="plays\\CLOCK11.PLY",
-        play_category=1,
-        special_category=11,
-        user_category=0,
-    )
-    clock_b = CustomPlayRef(
-        filename="plays\\CLOCK12.PLY",
-        play_category=1,
-        special_category=12,
-        user_category=0,
-    )
+    slots = [SpecialSlot() for _ in range(GamePlan.NUMBER_SPECIAL_CATEGORIES)]
+    for category in (11, 12):
+        slots[category - 1] = SpecialSlot(
+            stock=StockPlayRef(f"CLOCK{category}", 0, 0, 1, category, 0)
+        )
     return GamePlan(
         profile_type=ProfileType.OFFENSE,
         normal_plays=tuple([None] * 64),
-        special_plays=tuple([None] * 20),
-        clock_plays=(clock_a, clock_b),
+        special_plays=tuple(slots),
     )
 
 
@@ -60,9 +53,9 @@ def _set_normal_slots(gp: GamePlan, *placements: tuple[int, CustomPlayRef]) -> G
 
 
 def _set_custom_special(gp: GamePlan, category: int, play: CustomPlayRef) -> GamePlan:
-    """Place `play` in the custom slot for `category` (1-10); index = (category - 1) * 2."""
+    """Place `play` in the custom slot of `category` (1-10)."""
     specials = list(gp.special_plays)
-    specials[(category - 1) * 2] = play
+    specials[category - 1] = replace(specials[category - 1], custom=play)
     return replace(gp, special_plays=tuple(specials))
 
 
@@ -164,7 +157,7 @@ def test_find_skips_stock_special_slots() -> None:
         user_category=0,
     )
     specials = list(gp.special_plays)
-    specials[1] = stock  # odd index = stock slot
+    specials[0] = SpecialSlot(stock=stock)  # category 1's stock slot
     gp = replace(gp, special_plays=tuple(specials))
     assert find_in_gameplan(gp, "STOCKFG") == ([], [])
 

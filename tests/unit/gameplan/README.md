@@ -13,6 +13,12 @@ One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `league
 | Defense label → full name | tmp | `[defense.RunDazzle]` → "Run Dazzle" | `test_defense_short_label_maps_to_full_name` | ☑ |
 | Unknown offense label | tmp | "not an offense category label" | `test_unknown_offense_label` | ☑ |
 | Unknown defense label | tmp | "not a defense category label" | `test_unknown_defense_label` | ☑ |
+| Game-name labels load | tmp | `[offense."Pass Long Left"]` etc. (4) | `test_offense_game_name_label_loads` `[P]` | ☑ |
+| `User Specific` on both sides | tmp | offense and defense rules both load | `test_user_specific_label_loads_on_each_side` | ☑ |
+| Game-name label on wrong side | tmp | "not a defense category label" | `test_game_name_label_on_wrong_side_is_rejected` | ☑ |
+| Unknown-label message lists game names | tmp | message contains "Pass Long Left" | `test_unknown_label_message_lists_game_name_labels` | ☑ |
+| Clock names in `required_special_categories` | tmp | → `{11, 12}` | `test_required_special_accepts_clock_categories` | ☑ |
+| Unknown name in `required_special_categories` | tmp | "unknown name 'Spike'" | `test_required_special_rejects_unknown_name` | ☑ |
 
 ### min_count / max_count
 | Case | Input | Expected | Test | Status |
@@ -83,6 +89,13 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 |---|---|---|---|---|
 | Every shipped league's rules load | shipped | loads | `test_shipped_rules_load` `[P]` | ☑ |
 
+## writer.py — `apply_special_plays`
+
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Special category 11 play (no custom slot) | make | `InvalidPlayInputError` "which has no custom slot" | `test_special_play_without_custom_slot_is_rejected` | ☑ |
+| Special category 10 play (last custom slot) | make | placed in slot 10 | `test_special_play_in_last_custom_category_is_accepted` | ☑ |
+
 ## validators.py — `validate_gameplan`
 
 Constructed gameplan + pool (records carry typed playpool attributes). Each side has its own harness; offense gameplans also carry the two required clock plays.
@@ -121,6 +134,9 @@ Constructed gameplan + pool (records carry typed playpool attributes). Each side
 |---|---|---|---|---|
 | Required special missing | make | `SPECIAL_CATEGORY_REQUIRED` | `test_special_category_required_fires` | ☑ |
 | Stock-only special | make | `CUSTOM_SPECIAL_PLAY_REQUIRED` | `test_custom_special_play_required_fires` | ☑ |
+| Required clock category on offense | make | no `SPECIAL_CATEGORY_REQUIRED` (stock clock plays present) | `test_required_clock_category_satisfied_on_offense` | ☑ |
+| Required clock category on defense | make | `SPECIAL_CATEGORY_REQUIRED` | `test_required_clock_category_fires_on_defense` | ☑ |
+| Clock categories exempt from custom-required | make | no `CUSTOM_SPECIAL_PLAY_REQUIRED` | `test_custom_special_play_required_ignores_clock_categories` | ☑ |
 
 ### Resolution (both sides)
 | Case | Input | Expected | Test | Status |

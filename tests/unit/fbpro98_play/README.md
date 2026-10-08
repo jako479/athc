@@ -67,7 +67,7 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_ply()` = 
 | `short` / `long` names | enum | `PSR` / `Pass Short Right`; `RunLeft` / `Run Left` | `test_short_and_long_names` | ☑ |
 | `short` falls back to `long` (no league label) | enum | Pass Long L/M, Razzle Dazzle Run, User Specific, all special | `test_short_falls_back_to_long_without_league_name` | ☑ |
 | `is_run` / `is_pass` from the long name | enum | run/pass/neither | `test_is_run_is_pass` | ☑ |
-| `resolve_category` picks side + special table | bytes | offense/defense/special-off/special-def | `test_resolve_category_picks_side_and_special` | ☑ |
+| `resolve_category` picks side + special table | bytes | offense/defense/special-off/special-def; clock `0x0B`/`0x0C` offense only | `test_resolve_category_picks_side_and_special`, `test_clock_categories_are_offense_only` | ☑ |
 | `resolve_category` mask + unknown | bytes | `0xC9`→Run Middle, `0xFF`→User Specific, `0x3F`→`UNKNOWN_CATEGORY` | `test_resolve_category_mask_and_unknown` | ☑ |
 | `category_by_short` (league label → category) | str | `PSR`→PSR, `RunLeft`→Run Left, fallback/unknown→None | `test_category_by_short` | ☑ |
 

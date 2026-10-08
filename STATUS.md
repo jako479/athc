@@ -169,6 +169,9 @@ Open: PCFL's `.lg2` doesn't exist yet.
 Reads and writes `.pln` game plans. Docs:
 [spec](docs/fbpro98_gameplan/specs/pln.md)
 
+- One typed custom/stock slot per special category 1-12; the clock categories
+  (11 Run Clock, 12 Stop Clock) are stock-only and offense-only. A play whose
+  category bytes are unrecognized is a reader error.
 - The `.pln` spec gained a whole-file map and a slot layout section of its own:
   86 offsets, slots 1-1 through 16-4, then the special plays.
 - Updated for the `PlayRef` rename.
@@ -198,6 +201,8 @@ Reverse engineered from the PNFL's game files; no libraries yet. Docs:
 
 Reads `.ply` play files. Docs: [spec](docs/fbpro98_play/specs/ply.md)
 
+- The special-teams enum includes the two clock categories, Run Clock (`0x0B`)
+  and Stop Clock (`0x0C`).
 - The `.ply` spec gained a whole-file map and its categories were split into
   sections.
 - Play category is an enum with short and long forms, resolved from the play
@@ -216,6 +221,9 @@ Reads and writes `.prf` coaching profiles. Docs:
 Working. Validates and edits `.pln` game plans. Docs:
 [README](docs/gameplan/README.md) · [rules](config/release/leagues/PNFL/rules/gameplan.toml)
 
+- Rules can name every category: the five without a league abbreviation use
+  their quoted game name (`[offense."Pass Long Left"]`), and Run Clock / Stop
+  Clock may be required specials.
 - A written play path starts with the play pool's folder name, so each league's
   gameplans point at its own plays.
 - Rules and the play pool come from the league folder (`rules\gameplan.toml`,

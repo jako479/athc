@@ -78,7 +78,7 @@ def replace_in_gameplan(
         normals[i] = entry
     specials = list(gp.special_plays)
     for category, _ in special_hits:
-        specials[(category - 1) * 2] = entry  # custom slot for category = even index
+        specials[category - 1] = replace(specials[category - 1], custom=entry)
     updated = replace(gp, normal_plays=tuple(normals), special_plays=tuple(specials))
     return updated, normal_hits, special_hits
 

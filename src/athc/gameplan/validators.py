@@ -308,13 +308,11 @@ def _validate_disallowed(
 def _validate_special_categories(
     gameplan: GamePlan, required: frozenset[int]
 ) -> list[Violation]:
-    """Each required special category must have a custom or stock play set.
-    special_plays = (custom_1, stock_1, ..., custom_10, stock_10)."""
+    """Each required special category (1-12) must have a custom or stock play."""
     violations: list[Violation] = []
     for category in sorted(required):
-        custom = gameplan.special_plays[(category - 1) * 2]
-        stock = gameplan.special_plays[(category - 1) * 2 + 1]
-        if custom is None and stock is None:
+        slot = gameplan.special_plays[category - 1]
+        if slot.custom is None and slot.stock is None:
             violations.append(
                 Violation(
                     RuleName.SPECIAL_CATEGORY_REQUIRED,
@@ -325,12 +323,12 @@ def _validate_special_categories(
 
 
 def _validate_custom_special_plays(gameplan: GamePlan) -> list[Violation]:
-    """If a special category is populated, its custom slot must be set."""
+    """A populated special category must use its custom slot. Only categories
+    that have one are checked; the clock categories are stock-only."""
     violations: list[Violation] = []
-    for category in range(1, 11):
-        custom = gameplan.special_plays[(category - 1) * 2]
-        stock = gameplan.special_plays[(category - 1) * 2 + 1]
-        if stock is not None and custom is None:
+    for category in GamePlan.CUSTOM_SPECIAL_CATEGORIES:
+        slot = gameplan.special_plays[category - 1]
+        if slot.stock is not None and slot.custom is None:
             violations.append(
                 Violation(
                     RuleName.CUSTOM_SPECIAL_PLAY_REQUIRED,

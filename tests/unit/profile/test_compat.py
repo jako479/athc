@@ -5,7 +5,7 @@ which categories are used and which custom plays exist.
 
 from __future__ import annotations
 
-from athc.fbpro98_gameplan import CustomPlayRef, GamePlan, StockPlayRef
+from athc.fbpro98_gameplan import CustomPlayRef, GamePlan, SpecialSlot, StockPlayRef
 from athc.fbpro98_gameplan import ProfileType as GamePlanType
 from athc.fbpro98_play import (
     DefensiveCategory,
@@ -48,15 +48,6 @@ OFF_GOAL_LINE_RUN = 0x31
 DEF_PASS_LONG = 0x22  # collapses long left/middle/right
 DEF_GOAL_LINE_PASS = 0x32
 
-_CLOCK = (
-    CustomPlayRef(
-        "C1.PLY", play_category=0x01, special_category=11, user_category=0x09
-    ),
-    CustomPlayRef(
-        "C2.PLY", play_category=0x01, special_category=12, user_category=0x09
-    ),
-)
-
 
 def weights(c1: int, w1: int, c2: int, w2: int, c3: int, w3: int) -> CategoryWeights:
     return CategoryWeights(c1, w1, c2, w2, c3, w3)
@@ -98,16 +89,20 @@ def make_gameplan(
         CustomPlayRef(f"N{i}.PLY", parity, 0, uc) for i, uc in enumerate(normal)
     )
     normal_plays = plays + (None,) * (64 - len(plays))
-    slots: list[CustomPlayRef | StockPlayRef | None] = [None] * 20
+    slots = [SpecialSlot() for _ in range(GamePlan.NUMBER_SPECIAL_CATEGORIES)]
     for s in special:
-        slots[(s - 1) * 2] = CustomPlayRef(f"SP{s}.PLY", parity, s, 0)
+        slots[s - 1] = SpecialSlot(custom=CustomPlayRef(f"SP{s}.PLY", parity, s, 0))
     for s in stock_special:
-        slots[(s - 1) * 2 + 1] = StockPlayRef(f"ST{s}", 0, 0, parity, s, 0)
+        slots[s - 1] = SpecialSlot(stock=StockPlayRef(f"ST{s}", 0, 0, parity, s, 0))
+    if offense:
+        for s in (11, 12):
+            slots[s - 1] = SpecialSlot(
+                stock=StockPlayRef(f"CLOCK{s}", 0, 0, parity, s, 0)
+            )
     return GamePlan(
         profile_type=GamePlanType.OFFENSE if offense else GamePlanType.DEFENSE,
         normal_plays=normal_plays,
         special_plays=tuple(slots),
-        clock_plays=_CLOCK if offense else (None, None),
     )
 
 

@@ -19,6 +19,8 @@ from athc.fbpro98_gameplan import (
     GamePlan,
     PlayRef,
     ProfileType,
+    SpecialSlot,
+    StockPlayRef,
     read_gameplan,
     write_gameplan,
 )
@@ -48,13 +50,8 @@ MISSING = "NOSUCHPLAYXX"
 # ── constructed-gameplan helpers ──────────────────────────────────────────────
 
 
-def _clock(category: int) -> CustomPlayRef:
-    return CustomPlayRef(
-        filename=f"plays\\CLOCK{category}.PLY",
-        play_category=1,
-        special_category=category,
-        user_category=0,
-    )
+def _clock(category: int) -> SpecialSlot:
+    return SpecialSlot(stock=StockPlayRef(f"CLOCK{category}", 0, 0, 1, category, 0))
 
 
 def _onorm(name: str, user_category: int = 0x05) -> CustomPlayRef:
@@ -105,20 +102,17 @@ def _build(
     normal_slots: list[PlayRef | None] = [None] * 64
     for index, play in (normals or {}).items():
         normal_slots[index] = play
-    special_slots: list[PlayRef | None] = [None] * 20
+    special_slots = [SpecialSlot() for _ in range(GamePlan.NUMBER_SPECIAL_CATEGORIES)]
     for category, play in (specials or {}).items():
-        special_slots[(category - 1) * 2] = play
-    # Offense requires both clock slots filled; defense requires neither.
-    clock = (
-        (_clock(11), _clock(12))
-        if profile_type is ProfileType.OFFENSE
-        else (None, None)
-    )
+        special_slots[category - 1] = SpecialSlot(custom=play)
+    # Offense requires both stock clock plays; defense has none.
+    if profile_type is ProfileType.OFFENSE:
+        for category in (11, 12):
+            special_slots[category - 1] = _clock(category)
     return GamePlan(
         profile_type=profile_type,
         normal_plays=tuple(normal_slots),
         special_plays=tuple(special_slots),
-        clock_plays=clock,
     )
 
 

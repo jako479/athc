@@ -12,7 +12,7 @@ from fractions import Fraction
 from pathlib import Path
 
 from athc.fbpro98_gameplan import GamePlan, ProfileType
-from athc.fbpro98_gameplan.model import CustomPlayRef, StockPlayRef
+from athc.fbpro98_gameplan.model import CustomPlayRef, SpecialSlot, StockPlayRef
 from athc.fbpro98_play import PlayFile
 from athc.gameplan import RuleName, validate_gameplan
 from athc.gameplan.rules import DefenseCategoryRule, OffenseCategoryRule, Rules
@@ -59,13 +59,16 @@ def make_pool(records: Iterable[DefensivePlay]) -> PlayPool:
     return pool
 
 
+def empty_specials() -> tuple[SpecialSlot, ...]:
+    return tuple(SpecialSlot() for _ in range(GamePlan.NUMBER_SPECIAL_CATEGORIES))
+
+
 def defense_gameplan(names: list[str]) -> GamePlan:
     normal = tuple(make_play(n) for n in names) + (None,) * (64 - len(names))
     return GamePlan(
         profile_type=ProfileType.DEFENSE,
         normal_plays=normal,
-        special_plays=(None,) * 20,
-        clock_plays=(None, None),
+        special_plays=empty_specials(),
     )
 
 
@@ -260,13 +263,14 @@ def make_off_play(name: str, *, user_category: int) -> CustomPlayRef:
     )
 
 
-# Clock plays are required for offense gameplans (special categories 11 and 12).
-_CLOCK_PLAYS = (
-    CustomPlayRef(filename="CLOCK1.PLY", play_category=0x01, special_category=11,
-               user_category=OFF_RUN_MIDDLE),
-    CustomPlayRef(filename="CLOCK2.PLY", play_category=0x01, special_category=12,
-               user_category=OFF_RUN_MIDDLE),
-)  # fmt: skip
+def offense_specials() -> tuple[SpecialSlot, ...]:
+    """Empty slots plus the stock clock plays every offense gameplan carries."""
+    slots = list(empty_specials())
+    for category in (11, 12):
+        slots[category - 1] = SpecialSlot(
+            stock=StockPlayRef(f"CLOCK{category}", 0, 0, 0x01, category, 0x00)
+        )
+    return tuple(slots)
 
 
 def offense_gameplan(plays: list[CustomPlayRef]) -> GamePlan:
@@ -274,8 +278,7 @@ def offense_gameplan(plays: list[CustomPlayRef]) -> GamePlan:
     return GamePlan(
         profile_type=ProfileType.OFFENSE,
         normal_plays=normal,
-        special_plays=(None,) * 20,
-        clock_plays=_CLOCK_PLAYS,
+        special_plays=offense_specials(),
     )
 
 
@@ -504,14 +507,35 @@ def test_special_category_required_fires() -> None:
 
 def test_custom_special_play_required_fires() -> None:
     """With custom_special_play_required, a stock-only special slot is flagged."""
-    # custom_1 unset, stock_1 set (category 1).
-    stock = StockPlayRef("STOCK1", 0, 0, 0x00, 1, 0x00)
-    specials = (None, stock) + (None,) * 18
+    slots = list(empty_specials())
+    slots[0] = SpecialSlot(stock=StockPlayRef("STOCK1", 0, 0, 0x00, 1, 0x00))
     gp = GamePlan(
         profile_type=ProfileType.DEFENSE,
         normal_plays=(None,) * 64,
-        special_plays=specials,
-        clock_plays=(None, None),
+        special_plays=tuple(slots),
     )
     rules = def_rules(custom_special_play_required=True)
     assert RuleName.CUSTOM_SPECIAL_PLAY_REQUIRED in fired(gp, rules, make_pool([]))
+
+
+def test_required_clock_category_satisfied_on_offense() -> None:
+    """Every offense gameplan carries both stock clock plays, so requiring them passes."""
+    gp = offense_gameplan([])
+    rules = off_rules(required_special_categories=frozenset({11, 12}))
+    assert RuleName.SPECIAL_CATEGORY_REQUIRED not in fired(gp, rules, make_off_pool([]))
+
+
+def test_required_clock_category_fires_on_defense() -> None:
+    """Defense has no clock plays; a league requiring Stop Clock is told so."""
+    gp = defense_gameplan([])
+    rules = def_rules(required_special_categories=frozenset({12}))
+    assert RuleName.SPECIAL_CATEGORY_REQUIRED in fired(gp, rules, make_pool([]))
+
+
+def test_custom_special_play_required_ignores_clock_categories() -> None:
+    """Clock categories are stock-only, so their stock plays never trip the rule."""
+    gp = offense_gameplan([])
+    rules = off_rules(custom_special_play_required=True)
+    assert RuleName.CUSTOM_SPECIAL_PLAY_REQUIRED not in fired(
+        gp, rules, make_off_pool([])
+    )

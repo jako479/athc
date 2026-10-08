@@ -7,14 +7,17 @@ declared counts, file-size parity by profile type).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from os import PathLike
 from pathlib import Path
+from typing import cast
 
 from athc.fbpro98_gameplan.model import (
     CustomPlayRef,
     GamePlan,
     PlayRef,
     ProfileType,
+    SpecialSlot,
     StockPlayRef,
 )
 from athc.fbpro98_gameplan.schema import (
@@ -32,6 +35,7 @@ from athc.fbpro98_gameplan.schema import (
     S98_EXPECTED_DATA,
     S98_HEADER,
 )
+from athc.fbpro98_play import UNKNOWN_CATEGORY, resolve_category
 
 StrPath = str | PathLike[str]
 
@@ -51,9 +55,9 @@ def read_gameplan(path: StrPath) -> GamePlan:
 
     Raises:
         InvalidGamePlanError: If the file is not a structurally valid .pln (bad
-            block IDs, mismatched sizes, truncated structure, J95 counts that
-            don't match the parsed plays, or wrong file-size parity for the
-            profile type).
+            block IDs, mismatched sizes, truncated structure, a play whose
+            category bytes are unrecognized, J95 counts that don't match the
+            parsed plays, or wrong file-size parity for the profile type).
         ValueError: If the parsed data violates a GamePlan invariant in
             __post_init__ (e.g., a special slot holds a play with the wrong
             `special_category`).
@@ -78,8 +82,9 @@ def parse_gameplan(buffer: bytes, path: StrPath = "<buffer>") -> GamePlan:
     Raises:
         InvalidGamePlanError: If the buffer does not contain a valid G95+J95+S98
             block sequence. Triggered by wrong block IDs, mismatched sizes,
-            truncated structure, J95 counts that disagree with the parsed plays,
-            or wrong file-size parity for the profile type.
+            truncated structure, a play whose category bytes are unrecognized,
+            J95 counts that disagree with the parsed plays, or wrong file-size
+            parity for the profile type.
         ValueError: If the parsed data violates a GamePlan invariant in
             __post_init__.
     """
@@ -94,18 +99,31 @@ def parse_gameplan(buffer: bytes, path: StrPath = "<buffer>") -> GamePlan:
     _validate_parity(len(buffer), profile_type, file_path)
 
     n_normal = GamePlan.NUMBER_NORMAL_PLAYS
-    n_special = GamePlan.NUMBER_SPECIAL_SLOTS
     return GamePlan(
         profile_type=profile_type,
         normal_plays=tuple(plays_by_slot[:n_normal]),
-        special_plays=tuple(plays_by_slot[n_normal : n_normal + n_special]),
-        clock_plays=(
-            plays_by_slot[n_normal + n_special],
-            plays_by_slot[n_normal + n_special + 1],
-        ),
+        special_plays=_special_slots(plays_by_slot[n_normal:]),
         audible=audible,
         map_filename=map_filename,
     )
+
+
+def _special_slots(plays: Sequence[PlayRef | None]) -> tuple[SpecialSlot, ...]:
+    """Offsets 64-85 as one SpecialSlot per category: a (custom, stock) pair for
+    each category with a custom slot, then one stock entry per clock category.
+    Types are asserted by the model, not here."""
+    paired = len(GamePlan.CUSTOM_SPECIAL_CATEGORIES) * 2
+    slots = [
+        SpecialSlot(
+            custom=cast("CustomPlayRef | None", plays[i]),
+            stock=cast("StockPlayRef | None", plays[i + 1]),
+        )
+        for i in range(0, paired, 2)
+    ]
+    slots.extend(
+        SpecialSlot(stock=cast("StockPlayRef | None", play)) for play in plays[paired:]
+    )
+    return tuple(slots)
 
 
 def _parse_g95(buffer: bytes, path: Path) -> tuple[int, bytes, list[PlayRef | None]]:
@@ -163,6 +181,14 @@ def _parse_play(buffer: bytes, start: int, end: int, slot: int, path: Path) -> P
     stock_flag, play_category, special_category, user_category = (
         G95_PLAY_HEADER.unpack_from(buffer, start)
     )
+    category = resolve_category(play_category, special_category, user_category)
+    if category is UNKNOWN_CATEGORY:
+        raise InvalidGamePlanError(
+            f"Unrecognized play category at slot {slot} "
+            f"(play_category=0x{play_category:02X}, "
+            f"special_category=0x{special_category:02X}, "
+            f"user_category=0x{user_category:02X}) in {path}"
+        )
     body_start = start + G95_PLAY_HEADER.size
 
     if stock_flag == 0:
@@ -263,7 +289,6 @@ def _validate_j95_counts(
 ) -> None:
     declared_custom, declared_stock, declared_special = declared
     n_normal = GamePlan.NUMBER_NORMAL_PLAYS
-    n_special = GamePlan.NUMBER_SPECIAL_SLOTS
     actual_custom = sum(
         1 for p in plays_by_slot[:n_normal] if isinstance(p, CustomPlayRef)
     )
@@ -271,9 +296,7 @@ def _validate_j95_counts(
         1 for p in plays_by_slot[:n_normal] if isinstance(p, StockPlayRef)
     )
     actual_special = sum(
-        1
-        for p in plays_by_slot[n_normal : n_normal + n_special]
-        if isinstance(p, CustomPlayRef)
+        1 for p in plays_by_slot[n_normal:] if isinstance(p, CustomPlayRef)
     )
     if (declared_custom, declared_stock, declared_special) != (
         actual_custom,

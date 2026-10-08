@@ -5,6 +5,7 @@ from athc.fbpro98_gameplan.model import (
     GamePlan,
     PlayRef,
     ProfileType,
+    SpecialSlot,
     StockPlayRef,
 )
 from athc.fbpro98_gameplan.reader import (
@@ -23,6 +24,7 @@ __all__ = [
     "InvalidGamePlanError",
     "PlayRef",
     "ProfileType",
+    "SpecialSlot",
     "StockPlayRef",
     "build_gameplan_bytes",
     "parse_gameplan",

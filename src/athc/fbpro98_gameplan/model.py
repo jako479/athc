@@ -1,16 +1,17 @@
 """In-memory data model for FbPro98 .pln gameplan files.
 
 Defines the immutable types that the reader produces and the writer consumes:
-ProfileType, CustomPlayRef, StockPlayRef, and the top-level GamePlan dataclass.
+ProfileType, CustomPlayRef, StockPlayRef, SpecialSlot, and the top-level GamePlan
+dataclass.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, replace
 from enum import IntEnum
 from pathlib import PureWindowsPath
-from typing import ClassVar, cast
+from typing import ClassVar
 
 
 class ProfileType(IntEnum):
@@ -36,7 +37,8 @@ class CustomPlayRef:
     (odd = offense/kicking, even = defense/receiving)."""
 
     special_category: int
-    """Special-teams category; 0 = not special teams, 1-10 = the ten ST categories."""
+    """Special-teams category; 0 = not special teams, 1-12 = the special-teams
+    categories (11 Run Clock and 12 Stop Clock are offense-only stock plays)."""
 
     user_category: int
     """User category byte; bits 5-0 = play category, bits 7-6 vary."""
@@ -69,7 +71,8 @@ class StockPlayRef:
     (odd = offense/kicking, even = defense/receiving)."""
 
     special_category: int
-    """Special-teams category; 0 = not special teams, 1-10 = the ten ST categories."""
+    """Special-teams category; 0 = not special teams, 1-12 = the special-teams
+    categories (11 Run Clock and 12 Stop Clock are offense-only stock plays)."""
 
     user_category: int
     """User category byte; bits 5-0 = play category, bits 7-6 vary."""
@@ -84,45 +87,47 @@ PlayRef = CustomPlayRef | StockPlayRef
 
 
 @dataclass(frozen=True, slots=True)
+class SpecialSlot:
+    """One special-teams category's two slots: the coach's `custom` play and the
+    game's `stock` play. Categories 11-12 (Run Clock, Stop Clock) have no custom
+    slot on disk, so their `custom` is always None."""
+
+    custom: CustomPlayRef | None = None
+    stock: StockPlayRef | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class GamePlan:
     """Full in-memory representation of a `.pln` gameplan file.
 
     See specs/pln.md for the on-disk binary format. Construction validates
     structural invariants (slot counts, side-of-ball consistency, special-
-    category alignment, file-size parity) via __post_init__; ValueError is
-    raised for any violation.
+    category alignment, stock-only clock categories) via __post_init__;
+    ValueError is raised for any violation.
     """
 
     NUMBER_NORMAL_PLAYS: ClassVar[int] = 64
-    """Number of normal (non-special, non-clock) play slots."""
+    """Number of normal (non-special) play slots."""
 
-    NUMBER_SPECIAL_SLOTS: ClassVar[int] = 20
-    """Number of special-teams slots (10 categories x 2 custom/stock)."""
+    NUMBER_SPECIAL_CATEGORIES: ClassVar[int] = 12
+    """Special-teams categories 1-12; `special_plays` has one slot per category."""
 
-    NUMBER_SPECIAL_CATEGORIES: ClassVar[int] = 10
-    """Number of distinct special-teams categories (kickoff, punt, FG, etc.)."""
-
-    NUMBER_CLOCK_SLOTS: ClassVar[int] = 2
-    """Number of clock-management slots (offense only; categories 11 and 12)."""
+    CUSTOM_SPECIAL_CATEGORIES: ClassVar[range] = range(1, 11)
+    """Categories that have a custom slot. 11 (Run Clock) and 12 (Stop Clock)
+    are stock-only and exist only in offense gameplans."""
 
     NUMBER_PLAY_SLOTS: ClassVar[int] = 86
-    """Total slot count in the G95 offsets table (64 normal + 20 special + 2 clock)."""
+    """Total slot count in the G95 offsets table (64 normal + 22 special)."""
 
     profile_type: ProfileType
-    """Whether this gameplan is for offense or defense. Determines clock-slot
+    """Whether this gameplan is for offense or defense. Determines clock-category
     population and file-size parity."""
 
     normal_plays: tuple[PlayRef | None, ...]
     """The 64 normal play slots. None indicates an unused slot."""
 
-    special_plays: tuple[PlayRef | None, ...]
-    """The 20 special-teams slots, paired by category: (custom_1, stock_1,
-    custom_2, stock_2, ..., custom_10, stock_10). Even indices hold CustomPlayRef
-    or None; odd indices hold StockPlayRef or None."""
-
-    clock_plays: tuple[PlayRef | None, PlayRef | None]
-    """The 2 clock-management slots. Both must be populated for offense
-    gameplans; both must be None for defense gameplans."""
+    special_plays: tuple[SpecialSlot, ...]
+    """One SpecialSlot per special-teams category; index = category - 1."""
 
     audible: bytes = b"\x00\x01\x02\x03"
     """Four-byte audible play reference stored in the G95 block."""
@@ -137,62 +142,25 @@ class GamePlan:
                 f"normal_plays must have exactly {self.NUMBER_NORMAL_PLAYS} "
                 f"entries, got {len(self.normal_plays)}"
             )
-        if len(self.special_plays) != self.NUMBER_SPECIAL_SLOTS:
+        if len(self.special_plays) != self.NUMBER_SPECIAL_CATEGORIES:
             raise ValueError(
-                f"special_plays must have exactly {self.NUMBER_SPECIAL_SLOTS} "
+                f"special_plays must have exactly {self.NUMBER_SPECIAL_CATEGORIES} "
                 f"entries, got {len(self.special_plays)}"
             )
-        if len(self.clock_plays) != self.NUMBER_CLOCK_SLOTS:
-            raise ValueError(
-                f"clock_plays must have exactly {self.NUMBER_CLOCK_SLOTS} "
-                f"entries, got {len(self.clock_plays)}"
-            )
 
-        if self.is_offense and any(p is None for p in self.clock_plays):
-            raise ValueError("Offense gameplans require both clock plays")
-        if self.is_defense and any(p is not None for p in self.clock_plays):
-            raise ValueError("Defense gameplans must not have clock plays")
-
-        for i, play in enumerate(self.special_plays):
-            if play is None:
-                continue
-            if i % 2 == 0 and not isinstance(play, CustomPlayRef):
-                raise ValueError(
-                    f"Special slot {i} (non-stock) must be CustomPlayRef or None, "
-                    f"got {type(play).__name__}"
-                )
-            if i % 2 == 1 and not isinstance(play, StockPlayRef):
-                raise ValueError(
-                    f"Special slot {i} (stock) must be StockPlayRef or None, "
-                    f"got {type(play).__name__}"
-                )
-            expected_category = i // 2 + 1
-            if play.special_category != expected_category:
-                raise ValueError(
-                    f"Special slot {i} expects play with "
-                    f"special_category={expected_category}, "
-                    f"got special_category={play.special_category}"
-                )
+        for category, slot in enumerate(self.special_plays, start=1):
+            self._check_slot(category, slot)
 
         expected_parity = 1 if self.is_offense else 0
-        for label, plays in (
-            ("normal", self.normal_plays),
-            ("special", self.special_plays),
-            ("clock", self.clock_plays),
-        ):
-            for i, play in enumerate(plays):
-                if play is None:
-                    continue
-                if play.play_category % 2 != expected_parity:
-                    play_side = (
-                        "offensive" if play.play_category % 2 == 1 else "defensive"
-                    )
-                    gp_side = "OFFENSE" if expected_parity == 1 else "DEFENSE"
-                    raise ValueError(
-                        f"{label.capitalize()} slot {i}: play has {play_side} "
-                        f"play_category=0x{play.play_category:02X}, "
-                        f"but profile_type is {gp_side}"
-                    )
+        for label, play in self._filled_plays():
+            if play.play_category % 2 != expected_parity:
+                play_side = "offensive" if play.play_category % 2 == 1 else "defensive"
+                gp_side = "OFFENSE" if expected_parity == 1 else "DEFENSE"
+                raise ValueError(
+                    f"{label}: play has {play_side} "
+                    f"play_category=0x{play.play_category:02X}, "
+                    f"but profile_type is {gp_side}"
+                )
 
         for i, play in enumerate(self.normal_plays):
             if play is None:
@@ -204,16 +172,56 @@ class GamePlan:
                     f"only non-special-teams plays allowed in normal slots"
                 )
 
-        clock_special_categories = (11, 12)
-        for i, play in enumerate(self.clock_plays):
-            if play is None:
-                continue
-            expected = clock_special_categories[i]
-            if play.special_category != expected:
+    def _check_slot(self, category: int, slot: SpecialSlot) -> None:
+        # Runtime type checks stay: callers can smuggle the wrong ref type past
+        # the annotations (the tests do), and the writer trusts these fields.
+        if slot.custom is not None:
+            if not isinstance(slot.custom, CustomPlayRef):
                 raise ValueError(
-                    f"Clock slot {i} expects play with special_category={expected}, "
-                    f"got special_category={play.special_category}"
+                    f"Special category {category}: custom must be CustomPlayRef "
+                    f"or None, got {type(slot.custom).__name__}"
                 )
+            if slot.custom.special_category != category:
+                raise ValueError(
+                    f"Special category {category}: custom play has "
+                    f"special_category={slot.custom.special_category}"
+                )
+        if slot.stock is not None:
+            if not isinstance(slot.stock, StockPlayRef):
+                raise ValueError(
+                    f"Special category {category}: stock must be StockPlayRef "
+                    f"or None, got {type(slot.stock).__name__}"
+                )
+            if slot.stock.special_category != category:
+                raise ValueError(
+                    f"Special category {category}: stock play has "
+                    f"special_category={slot.stock.special_category}"
+                )
+        if category in self.CUSTOM_SPECIAL_CATEGORIES:
+            return
+        if slot.custom is not None:
+            raise ValueError(
+                f"Special category {category} is stock-only; custom must be None"
+            )
+        if self.is_offense and slot.stock is None:
+            raise ValueError(
+                f"Offense gameplans require a stock play in special category {category}"
+            )
+        if self.is_defense and slot.stock is not None:
+            raise ValueError(
+                f"Defense gameplans must not have a play in special category {category}"
+            )
+
+    def _filled_plays(self) -> Iterator[tuple[str, PlayRef]]:
+        """Every filled play with the label error messages use for it."""
+        for i, play in enumerate(self.normal_plays):
+            if play is not None:
+                yield f"Normal slot {i}", play
+        for category, slot in enumerate(self.special_plays, start=1):
+            if slot.custom is not None:
+                yield f"Special category {category} custom", slot.custom
+            if slot.stock is not None:
+                yield f"Special category {category} stock", slot.stock
 
     @property
     def is_offense(self) -> bool:
@@ -227,20 +235,10 @@ class GamePlan:
 
     @property
     def custom_special_plays(self) -> tuple[CustomPlayRef | None, ...]:
-        """The 10 custom (user-authored) special-teams slots, in special_category
-        order (1-10). Derived view over the even indices of `special_plays`."""
+        """The custom play of each category in `CUSTOM_SPECIAL_CATEGORIES`, in
+        category order (ten entries)."""
         return tuple(
-            cast("CustomPlayRef | None", self.special_plays[i])
-            for i in range(0, self.NUMBER_SPECIAL_SLOTS, 2)
-        )
-
-    @property
-    def stock_special_plays(self) -> tuple[StockPlayRef | None, ...]:
-        """The 10 stock special-teams slots, in special_category order (1-10).
-        Derived view over the odd indices of `special_plays`; read-only."""
-        return tuple(
-            cast("StockPlayRef | None", self.special_plays[i])
-            for i in range(1, self.NUMBER_SPECIAL_SLOTS, 2)
+            self.special_plays[c - 1].custom for c in self.CUSTOM_SPECIAL_CATEGORIES
         )
 
     def with_normal_plays(self, plays: Sequence[PlayRef | None]) -> GamePlan:
@@ -271,42 +269,47 @@ class GamePlan:
     def with_custom_special_plays(
         self, plays: Iterable[CustomPlayRef | None]
     ) -> GamePlan:
-        """Return a new GamePlan with `plays` written into the 10 custom
-        special-teams slots.
+        """Return a new GamePlan with `plays` written into the custom slots of
+        categories 1-10.
 
-        Each play is placed into the slot dictated by its own `special_category`
-        (1-10). Order doesn't matter. None entries in `plays` are ignored. Slots
-        not covered by any play are cleared. The 10 stock special-teams slots
-        (odd indices of the underlying `special_plays` tuple) are preserved.
+        Each play is placed into the category dictated by its own
+        `special_category`. Order doesn't matter. None entries are ignored.
+        Categories not covered by any play have their custom slot cleared. Every
+        stock slot, the clock categories included, is preserved.
 
         Args:
             plays: Iterable of CustomPlayRef (or None) values; each play's
-                `special_category` selects its destination slot.
+                `special_category` selects its destination category.
 
         Returns:
             A new GamePlan with the updated custom special-teams slots.
 
         Raises:
-            ValueError: If any play's `special_category` is outside 1-10, or if
-                two plays target the same category.
+            ValueError: If any play's `special_category` is outside
+                `CUSTOM_SPECIAL_CATEGORIES`, or if two plays target the same
+                category.
         """
-        slots: list[CustomPlayRef | None] = [None] * self.NUMBER_SPECIAL_CATEGORIES
+        first = self.CUSTOM_SPECIAL_CATEGORIES[0]
+        last = self.CUSTOM_SPECIAL_CATEGORIES[-1]
+        customs: dict[int, CustomPlayRef] = {}
         for play in plays:
             if play is None:
                 continue
-            if not 1 <= play.special_category <= self.NUMBER_SPECIAL_CATEGORIES:
+            if play.special_category not in self.CUSTOM_SPECIAL_CATEGORIES:
                 raise ValueError(
                     f"Play has special_category={play.special_category}, "
-                    f"must be 1..{self.NUMBER_SPECIAL_CATEGORIES}"
+                    f"must be {first}..{last}"
                 )
-            idx = play.special_category - 1
-            if slots[idx] is not None:
+            if play.special_category in customs:
                 raise ValueError(
                     f"Two custom special plays target "
                     f"special_category={play.special_category}"
                 )
-            slots[idx] = play
-        new_special: list[PlayRef | None] = list(self.special_plays)
-        for category_index, play in enumerate(slots):
-            new_special[category_index * 2] = play
-        return replace(self, special_plays=tuple(new_special))
+            customs[play.special_category] = play
+        new_special = tuple(
+            replace(slot, custom=customs.get(category))
+            if category in self.CUSTOM_SPECIAL_CATEGORIES
+            else slot
+            for category, slot in enumerate(self.special_plays, start=1)
+        )
+        return replace(self, special_plays=new_special)

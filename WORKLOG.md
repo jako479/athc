@@ -4,6 +4,14 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-06 — **gameplan**: every play category is now supported, so only a
+  league's rules decide what a plan may hold. The two clock categories (Run
+  Clock, Stop Clock) joined the play-category enum, and the `.pln` model keeps
+  one typed custom/stock slot per special category 1-12 instead of an
+  interleaved 20-tuple plus separate clock plays, so no consumer does index
+  arithmetic. Rules sections name the five categories without a league
+  abbreviation by their game name, and a `.pln` with an unrecognized play
+  category is rejected as corrupt.
 - 2026-10-06 — **convert-pdb**: compared against the last pnfl version and
   brought over what never made the port: the `.pdb` spec
   (`docs/pdbtoexcel/specs/`) and the master VBA workbooks (`excel-template/`,

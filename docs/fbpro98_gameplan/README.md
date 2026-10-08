@@ -6,7 +6,7 @@ Library for reading and writing Front Page Sports Football Pro '98 gameplan (`.p
 
 - `.pln` reader and writer
 - Typed `CustomPlayRef` / `StockPlayRef` models
-- Normal (64), special-teams (20), clock (2) slots
+- Normal (64) and special-teams (12 categories, custom + stock) slots
 - In-memory codec (`parse_gameplan` / `build_gameplan_bytes`)
 - Structural validation (`InvalidGamePlanError`)
 
@@ -27,10 +27,10 @@ plan = read_gameplan("DEN-OGP1.pln")
 
 print(plan.profile_type, plan.is_offense)
 
-# Three fixed-length tuples mirror the file structure:
+# Two fixed-length tuples mirror the file structure:
 # - normal_plays: 64 slots (None for empty)
-# - special_plays: 20 slots (10 non-stock + 10 stock interleaved)
-# - clock_plays: 2 slots (offense only)
+# - special_plays: 12 SpecialSlot(custom, stock), one per special category;
+#   11 Run Clock and 12 Stop Clock are stock-only (offense only)
 for slot, play in enumerate(plan.normal_plays):
     if play is not None:
         print(slot, play.name)
@@ -60,9 +60,9 @@ updated = plan.with_normal_plays(new_normals)
 write_gameplan(updated, "DEN-OGP1.pln")
 ```
 
-`with_normal_plays` returns a new `GamePlan` with only the normal-play slots replaced; special-teams and clock plays are preserved. J95 counts and parity padding are recomputed by `write_gameplan`.
+`with_normal_plays` returns a new `GamePlan` with only the normal-play slots replaced; special-teams slots are preserved. J95 counts and parity padding are recomputed by `write_gameplan`.
 
-For special-teams updates, `with_custom_special_plays(plays)` places each `CustomPlayRef` into the slot dictated by its own `special_category` (1-10); uncovered slots are cleared, order doesn't matter, out-of-range or duplicate category raises `ValueError`. The 10 stock special-teams slots are immutable through the API.
+For special-teams updates, `with_custom_special_plays(plays)` places each `CustomPlayRef` into the category dictated by its own `special_category` (1-10); uncovered custom slots are cleared, order doesn't matter, out-of-range or duplicate category raises `ValueError`. Stock slots, the clock categories included, are immutable through the API.
 
 ### In-memory codec
 

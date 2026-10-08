@@ -11,6 +11,7 @@ from athc.fbpro98_gameplan import (
     InvalidGamePlanError,
     PlayRef,
     ProfileType,
+    SpecialSlot,
     StockPlayRef,
     parse_gameplan,
     read_gameplan,
@@ -69,6 +70,14 @@ def _first_custom_record_offset(data: bytes | bytearray) -> tuple[int, int]:
     pytest.skip("Fixture does not contain a custom play record")
 
 
+def _record_offset(data: bytes | bytearray, slot: int) -> int:
+    """Absolute offset of the play record in `slot`; skips when the slot is empty."""
+    offsets = struct.unpack_from("<86H", data, 12)
+    if offsets[slot] == 0:
+        pytest.skip(f"Fixture slot {slot} is empty")
+    return 12 + offsets[slot]
+
+
 def _g95_end(data: bytes | bytearray) -> int:
     _, g95_size = G95_HEADER.unpack_from(data, 0)
     return G95_HEADER.size + g95_size
@@ -109,12 +118,15 @@ def test_offense_custom_special_plays_match_expected() -> None:
     )
 
 
-def test_offense_clock_plays_both_present() -> None:
+def test_offense_clock_categories_hold_stock_plays() -> None:
     plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    assert plan.clock_plays[0] is not None
-    assert plan.clock_plays[1] is not None
-    assert plan.clock_plays[0].special_category == 11
-    assert plan.clock_plays[1].special_category == 12
+    run_clock = plan.special_plays[10]
+    stop_clock = plan.special_plays[11]
+    assert run_clock.custom is None and stop_clock.custom is None
+    assert run_clock.stock is not None and run_clock.stock.name == "RUNCLOCK"
+    assert stop_clock.stock is not None and stop_clock.stock.name == "STOPCLOK"
+    assert run_clock.stock.special_category == 11
+    assert stop_clock.stock.special_category == 12
 
 
 def test_offense_normal_plays_have_special_category_zero() -> None:
@@ -131,22 +143,19 @@ def test_offense_normal_plays_have_offensive_play_category() -> None:
             assert play.play_category % 2 == 1
 
 
-def test_offense_special_plays_alternate_custom_and_stock() -> None:
+def test_offense_special_slots_are_typed() -> None:
     plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    for i, play in enumerate(plan.special_plays):
-        if play is None:
-            continue
-        if i % 2 == 0:
-            assert isinstance(play, CustomPlayRef)
-        else:
-            assert isinstance(play, StockPlayRef)
+    for slot in plan.special_plays:
+        assert slot.custom is None or isinstance(slot.custom, CustomPlayRef)
+        assert slot.stock is None or isinstance(slot.stock, StockPlayRef)
 
 
-def test_offense_special_plays_carry_correct_category() -> None:
+def test_offense_special_slots_carry_their_category() -> None:
     plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    for i, play in enumerate(plan.special_plays):
-        if play is not None:
-            assert play.special_category == i // 2 + 1
+    for category, slot in enumerate(plan.special_plays, start=1):
+        for play in (slot.custom, slot.stock):
+            if play is not None:
+                assert play.special_category == category
 
 
 # ---------- defense fixture: full data assertions ----------
@@ -180,9 +189,10 @@ def test_defense_custom_special_plays_match_expected() -> None:
     )
 
 
-def test_defense_has_no_clock_plays() -> None:
+def test_defense_clock_categories_are_empty() -> None:
     plan = read_gameplan(_require_fixture(DEFENSE_PATH))
-    assert plan.clock_plays == (None, None)
+    assert plan.special_plays[10] == SpecialSlot()
+    assert plan.special_plays[11] == SpecialSlot()
 
 
 def test_defense_normal_plays_have_defensive_play_category() -> None:
@@ -205,10 +215,7 @@ def test_parse_gameplan_from_buffer_matches_read_gameplan() -> None:
     from_buffer = parse_gameplan(buffer)
     from_file = read_gameplan(OFFENSE_PATH)
     assert _slot_names(from_buffer.normal_plays) == _slot_names(from_file.normal_plays)
-    assert _slot_names(from_buffer.special_plays) == _slot_names(
-        from_file.special_plays
-    )
-    assert _slot_names(from_buffer.clock_plays) == _slot_names(from_file.clock_plays)
+    assert from_buffer.special_plays == from_file.special_plays
     assert from_buffer.profile_type == from_file.profile_type
 
 
@@ -217,36 +224,16 @@ def test_gameplan_normal_plays_has_64_entries() -> None:
     assert len(plan.normal_plays) == 64
 
 
-def test_gameplan_special_plays_has_20_entries() -> None:
+def test_gameplan_special_plays_has_12_entries() -> None:
     plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    assert len(plan.special_plays) == 20
-
-
-def test_gameplan_clock_plays_has_2_entries() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    assert len(plan.clock_plays) == 2
+    assert len(plan.special_plays) == 12
 
 
 def test_gameplan_custom_special_plays_view_has_10_entries() -> None:
     plan = read_gameplan(_require_fixture(OFFENSE_PATH))
     assert len(plan.custom_special_plays) == 10
-
-
-def test_gameplan_stock_special_plays_view_has_10_entries() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    assert len(plan.stock_special_plays) == 10
-
-
-def test_gameplan_custom_special_plays_view_only_returns_custom_or_none() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
     for play in plan.custom_special_plays:
         assert play is None or isinstance(play, CustomPlayRef)
-
-
-def test_gameplan_stock_special_plays_view_only_returns_stock_or_none() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    for play in plan.stock_special_plays:
-        assert play is None or isinstance(play, StockPlayRef)
 
 
 def test_custom_play_name_strips_directory_and_extension() -> None:
@@ -434,4 +421,41 @@ def test_file_too_small_for_s98_raises(tmp_path):
     gameplan_path = tmp_path / "no_s98.pln"
     gameplan_path.write_bytes(truncated)
     with pytest.raises(InvalidGamePlanError, match="too small to contain S98"):
+        read_gameplan(gameplan_path)
+
+
+# ---------- play categories ----------
+
+
+def test_unrecognized_play_category_raises(tmp_path):
+    data = _load_fixture_bytes(OFFENSE_PATH)
+    slot, record_offset = _first_used_slot_offset(data)
+    # Only a normal slot resolves by user_category; specials ignore that byte.
+    assert slot < GamePlan.NUMBER_NORMAL_PLAYS
+    data[record_offset + 3] = 0x3F  # user_category no table knows
+    gameplan_path = tmp_path / "bad_category.pln"
+    gameplan_path.write_bytes(data)
+    with pytest.raises(
+        InvalidGamePlanError, match=f"Unrecognized play category at slot {slot}"
+    ):
+        read_gameplan(gameplan_path)
+
+
+def test_custom_play_in_clock_slot_raises(tmp_path):
+    """A clock slot holding a custom record is a model violation, not a crash."""
+    data = _load_fixture_bytes(OFFENSE_PATH)
+    # Turn the Run Clock stock record (slot 84) into a custom record: stock_flag 0.
+    # Its body then reads as a filename up to the first NUL inside map_offset, and
+    # its special_category stays 11. Bump the J95 special count so the count check
+    # passes and the model gets to judge the slot.
+    data[_record_offset(data, 84)] = 0
+    j95_special = _g95_end(data) + J95_HEADER.size + 5  # after type u8 + 2 x u16
+    struct.pack_into(
+        "<H", data, j95_special, struct.unpack_from("<H", data, j95_special)[0] + 1
+    )
+    gameplan_path = tmp_path / "custom_clock.pln"
+    gameplan_path.write_bytes(data)
+    with pytest.raises(
+        ValueError, match="Special category 11: stock must be StockPlayRef"
+    ):
         read_gameplan(gameplan_path)

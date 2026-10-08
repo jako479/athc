@@ -54,6 +54,53 @@ def test_unknown_defense_label(tmp_path: Path) -> None:
         load_rules([write(tmp_path, text)])
 
 
+@pytest.mark.parametrize(
+    "label",
+    ["Pass Long Left", "Pass Long Middle", "Razzle Dazzle Run", "User Specific"],
+)
+def test_offense_game_name_label_loads(tmp_path: Path, label: str) -> None:
+    """Categories without a league abbreviation are labeled by their game name."""
+    text = MINIMAL + f'[offense."{label}"]\nmax_count = 0\n'
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.offense_categories[label].max_count == 0
+
+
+def test_user_specific_label_loads_on_each_side(tmp_path: Path) -> None:
+    text = (
+        MINIMAL
+        + '[offense."User Specific"]\nmax_count = 0\n'
+        + '[defense."User Specific"]\nmax_count = 1\n'
+    )
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.offense_categories["User Specific"].max_count == 0
+    assert rules.defense_categories["User Specific"].max_count == 1
+
+
+def test_game_name_label_on_wrong_side_is_rejected(tmp_path: Path) -> None:
+    text = MINIMAL + '[defense."Pass Long Left"]\nmax_count = 0\n'
+    with pytest.raises(RulesFileError, match="not a defense category label"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_unknown_label_message_lists_game_name_labels(tmp_path: Path) -> None:
+    text = MINIMAL + "[offense.ZZZ]\nmax_count = 0\n"
+    with pytest.raises(RulesFileError, match="Pass Long Left"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_required_special_accepts_clock_categories(tmp_path: Path) -> None:
+    text = MINIMAL + 'required_special_categories = ["Run Clock", "Stop Clock"]\n'
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.required_special_categories == frozenset({11, 12})
+
+
+def test_required_special_rejects_unknown_name(tmp_path: Path) -> None:
+    """One past the twelve known names: a name no special category has."""
+    text = MINIMAL + 'required_special_categories = ["Spike"]\n'
+    with pytest.raises(RulesFileError, match="unknown name 'Spike'"):
+        load_rules([write(tmp_path, text)])
+
+
 # ── min_count / max_count ─────────────────────────────────────────────────────
 
 

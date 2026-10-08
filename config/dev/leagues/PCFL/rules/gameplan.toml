@@ -21,12 +21,15 @@
 #   max_<attr>_percent = <int>   whole number 0-100, no % sign
 #
 # Valid OFFENSE labels:  GLR RL RM RR  GLP PRD PLR  PML PMM PMR  PSL PSM PSR
+#                        "Razzle Dazzle Run" "Pass Long Left" "Pass Long Middle"
+#                        "User Specific"   (game names, quoted)
 # Valid DEFENSE labels:  GLrun RunDazzle RunLeft RunMiddle RunRight
 #                        GLpass PassDazzle PassLong PassMedium PassShort
+#                        "User Specific"   (game name, quoted)
 
 # Special teams that must each have a play assigned. Valid names:
 #   "Field Goal/PAT" "Kickoff" "Punt" "Onside Kick" "Fake FG Run" "Fake FG Pass"
-#   "Fake Punt Run" "Fake Punt Pass" "Free Kick" "Squib Kick"
+#   "Fake Punt Run" "Fake Punt Pass" "Free Kick" "Squib Kick" "Run Clock" "Stop Clock"
 required_special_categories = [
     "Field Goal/PAT",
     "Kickoff",

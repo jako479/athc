@@ -75,7 +75,8 @@ class DefensiveCategory(PlayCategory, Enum):
 
 
 class SpecialOffensiveCategory(PlayCategory, Enum):
-    """Kicking-side special-teams categories, keyed by `special_category`."""
+    """Kicking-side special-teams categories, keyed by `special_category`.
+    11 and 12 are the clock plays, which exist only on offense."""
 
     FIELD_GOAL_PAT = (0x01, "Field Goal/PAT", "Field Goal/PAT")
     KICKOFF = (0x02, "Kickoff", "Kickoff")
@@ -87,6 +88,8 @@ class SpecialOffensiveCategory(PlayCategory, Enum):
     FAKE_PUNT_PASS = (0x08, "Fake Punt Pass", "Fake Punt Pass")
     FREE_KICK = (0x09, "Free Kick", "Free Kick")
     SQUIB_KICK = (0x0A, "Squib Kick", "Squib Kick")
+    RUN_CLOCK = (0x0B, "Run Clock", "Run Clock")
+    STOP_CLOCK = (0x0C, "Stop Clock", "Stop Clock")
 
 
 class SpecialDefensiveCategory(PlayCategory, Enum):

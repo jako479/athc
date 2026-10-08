@@ -24,7 +24,7 @@ from athc.playpool import PlayPool
 
 PROG = "athc gameplan set-specials"
 logger = logging.getLogger(__name__)
-SPECIAL_COUNT = GamePlan.NUMBER_SPECIAL_CATEGORIES
+SPECIAL_COUNT = len(GamePlan.CUSTOM_SPECIAL_CATEGORIES)
 
 
 def validate_special_input(lines: Sequence[str], pool: PlayPool) -> list[str]:

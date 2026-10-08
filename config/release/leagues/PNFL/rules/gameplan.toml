@@ -5,7 +5,7 @@
 
 # Special teams that must each have a play assigned. Valid names:
 #   "Field Goal/PAT" "Kickoff" "Punt" "Onside Kick" "Fake FG Run" "Fake FG Pass"
-#   "Fake Punt Run" "Fake Punt Pass" "Free Kick" "Squib Kick"
+#   "Fake Punt Run" "Fake Punt Pass" "Free Kick" "Squib Kick" "Run Clock" "Stop Clock"
 required_special_categories = [
     "Field Goal/PAT",
     "Kickoff",
@@ -49,6 +49,7 @@ require_all_gameplan_categories_in_profile = false  # every category the gamepla
 #   max_<attr>_percent = <int>   whole number 0-100, no % sign
 #
 # Labels: GLR RL RM RR  GLP PRD PLR PML PMM PMR  PSL PSM PSR
+#         "Razzle Dazzle Run" "Pass Long Left" "Pass Long Middle" "User Specific"
 
 [offense.RM]
 required = true
@@ -125,6 +126,7 @@ max_timed_ratio = "1/2"
 
 # ── Defense ───────────────────────────────────────────────────────────────────
 # Labels: GLrun RunDazzle RunLeft RunMiddle RunRight  GLpass PassDazzle PassLong PassMedium PassShort
+#         "User Specific"
 
 [defense.RunLeft]
 required = true
