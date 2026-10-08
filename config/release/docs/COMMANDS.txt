@@ -25,13 +25,15 @@ unless the command is given --league NAME.
    side and category come from the play file, so any folder layout works; the
    PNFL layout (Offense/Defense/Special with category subfolders) is optional and
    only adds play attributes and misfiled-play warnings. With no gameplan rules
-   configured, check reports an error and stops.
+   configured, check reports an error and stops. With no path, every .pln in
+   the current folder is checked (the whole tree with -r).
 
    Show help:
       athc gameplan check --help
 
    Example terminal calls:
       athc gameplan check offense.pln
+      athc gameplan check
       athc gameplan check plans\ -r
       athc gameplan check offense.pln --league PCFL
 
@@ -79,12 +81,15 @@ unless the command is given --league NAME.
    'OR45RL01' found in slots 1-3, 16-2; special-teams hits add the category,
    e.g. 'BCFGPAT' found in special slot 1 (Field Goal/PAT). No pool setup
    needed -- the category is read from the .pln. A file without the play
-   prints `not found`; a directory/tree ends with a per-play summary.
+   prints `not found`; a directory/tree ends with a per-play summary. With
+   just a play name, every .pln in the current folder is searched; with two
+   or more arguments the last is always the file or folder.
 
    Show help:
       athc gameplan find-play -h
 
    Example terminal calls:
+      athc gameplan find-play OR45RL01
       athc gameplan find-play OR45RL01 offense.pln
       athc gameplan find-play OR45RL01 BCFGPAT plans\ -r
 
@@ -149,14 +154,16 @@ unless the command is given --league NAME.
    ------------------------------------------------------------------------
 
    Rules come from the league's profile.toml. With no rules configured,
-   check reports an error and stops. To check a profile together with its
-   gameplan, use check-ppp.
+   check reports an error and stops. With no path, every .prf in the current
+   folder is checked (the whole tree with -r). To check a profile together
+   with its gameplan, use check-ppp.
 
    Show help:
       athc profile check -h
 
    Example terminal calls:
       athc profile check OFF1.prf
+      athc profile check
       athc profile check profiles\ -r --league PCFL
 
 

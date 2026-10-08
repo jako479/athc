@@ -61,7 +61,7 @@ The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.
 
 ## check
 
-`athc gameplan check PATH...` walks the PATHs, builds one `PlayPool` from `play_path` (plus optional playpool rules), loads the gameplan `Rules`, and runs `validate_gameplan(read_gameplan(file), rules, pool)` per `.pln`. Exit `0` = clean, `1` = violations, `2` = usage/config error.
+`athc gameplan check [PATH]...` walks the PATHs (the current directory when none is given), builds one `PlayPool` from `play_path` (plus optional playpool rules), loads the gameplan `Rules`, and runs `validate_gameplan(read_gameplan(file), rules, pool)` per `.pln`. Exit `0` = clean, `1` = violations, `2` = usage/config error.
 
 ## list-normals / list-specials
 
@@ -69,7 +69,7 @@ The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.
 
 ## find-play
 
-`athc gameplan find-play play... path` searches one or more case-insensitive names across the normal + custom-special slots of each `.pln` (file, directory, or tree with `-r`); stock specials and clock plays are skipped. Normal hits read `'NAME' found in slots G-C, G-C` (`slot` for one); a custom-special hit reads `'NAME' found in special slot N (long-cat)`. Every file missing a play prints `not found`; directory/tree mode adds a per-play summary footer. Exit codes follow grep: `0` = at least one play found, `1` = none found, `2` = I/O error.
+`athc gameplan find-play play... [path]` searches one or more case-insensitive names across the normal + custom-special slots of each `.pln` (file, directory, or tree with `-r`); a single argument is a play searched in the current directory, and with two or more the last is always the path. Stock specials and clock plays are skipped. Normal hits read `'NAME' found in slots G-C, G-C` (`slot` for one); a custom-special hit reads `'NAME' found in special slot N (long-cat)`. Every file missing a play prints `not found`; directory/tree mode adds a per-play summary footer. Exit codes follow grep: `0` = at least one play found, `1` = none found, `2` = I/O error.
 
 ## set-normals / set-specials
 

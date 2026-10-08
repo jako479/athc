@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- gameplan: `check` and `find-play` work on the current folder when no path is given
+- profile: `check` works on the current folder when no path is given
 - config: a league's rule files sit next to its league.ini; the rules\ subfolder is gone
 - gameplan: rules can name every play category, game-name labels like `[offense."Pass Long Left"]` and `"Run Clock"` / `"Stop Clock"` as required specials; a `.pln` with an unrecognized play category is rejected as corrupt
 - convert-pdb: the `.pdb` file spec and the master VBA workbooks came over from pnfl

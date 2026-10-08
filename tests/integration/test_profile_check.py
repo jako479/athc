@@ -180,8 +180,46 @@ def test_check_file_matches_golden(path: Path) -> None:
 # ── command (CliRunner) ───────────────────────────────────────────────────────
 
 
-def test_cli_requires_path(runner) -> None:
-    assert runner.invoke(check, []).exit_code == 2
+@pytest.mark.usefixtures("league")
+def test_cli_no_path_checks_current_directory(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    shutil.copy2(OFF1, profiles / "off.prf")
+    shutil.copy2(DEF1, profiles / "def.prf")
+    monkeypatch.chdir(profiles)
+    result = runner.invoke(check, [])
+    assert result.exit_code == 1
+    assert "2 file(s) checked" in result.output
+
+
+@pytest.mark.usefixtures("league")
+def test_cli_no_path_recursive(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    profiles = tmp_path / "profiles"
+    (profiles / "sub").mkdir(parents=True)
+    shutil.copy2(OFF1, profiles / "sub" / "off.prf")
+    monkeypatch.chdir(profiles)
+    result = runner.invoke(check, ["-r"])
+    assert result.exit_code == 1
+    assert "1 file(s) checked" in result.output
+
+
+def test_cli_no_path_empty_directory(
+    runner,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    monkeypatch.chdir(profiles)
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(check, [])
+    assert result.exit_code == 2
+    assert ".: no .prf files in directory" in caplog.text
 
 
 def test_cli_rules_option_removed(runner) -> None:

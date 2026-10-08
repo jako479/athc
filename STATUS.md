@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-06. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-07. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -221,6 +221,9 @@ Reads and writes `.prf` coaching profiles. Docs:
 Working. Validates and edits `.pln` game plans. Docs:
 [README](docs/gameplan/README.md) · [rules](config/release/leagues/PNFL/gameplan.toml)
 
+- `check` and `find-play` default to the current directory when no path is
+  given, like `grep -r` and `find`; `find-play` only does so with a single
+  argument, since with two or more the last is always the path.
 - Rules can name every category: the five without a league abbreviation use
   their quoted game name (`[offense."Pass Long Left"]`), and Run Clock / Stop
   Clock may be required specials.
@@ -273,6 +276,8 @@ Working. Backs `gameplan` and `convert-pdb`. Docs:
 Working. Validates and compares `.prf` coaching profiles. Docs:
 [README](docs/profile/README.md) · [rules](config/release/leagues/PNFL/profile.toml)
 
+- `check` defaults to the current directory when no path is given, like
+  `grep -r` and `find`.
 - `check` takes its rules from the league folder (`profile.toml`, or a
   `profile_rules` list in `league.ini`); there is no override.
 - `check` validates profiles only; checking a profile with its gameplan is

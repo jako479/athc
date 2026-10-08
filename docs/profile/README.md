@@ -19,12 +19,14 @@ rest.
 
 ```bash
 athc profile check OFF.prf
+athc profile check
 athc profile check profiles\ -r
 athc profile check *.prf
 ```
 
 Each PATH is a `.prf` file, a directory (top level, or the whole tree with `-r`),
-or a glob. Each profile prints `OK` or its violations. Needs rules (below).
+or a glob; with no PATH, the current directory. Each profile prints `OK` or its
+violations. Needs rules (below).
 To check a profile together with its gameplan, use
 [check-ppp](../check_ppp/README.md).
 

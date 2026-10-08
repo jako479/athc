@@ -58,8 +58,8 @@ configured ⇒ `check` logs an error and exits 2 (nothing to validate). See [../
 
 ## Check
 
-`athc profile check PATH... [-r]` — each PATH a `.prf` file, directory, or glob
-(`-r` recurses a directory). Reads each via `fbpro98_profile.read_profile`, runs
+`athc profile check [PATH]... [-r]` — each PATH a `.prf` file, directory, or glob
+(`-r` recurses a directory; no PATH means the current directory). Reads each via `fbpro98_profile.read_profile`, runs
 `validate_profile`, prints a head line plus one line per violation. Exit 0 clean
 / 1 violations / 2 I/O or no rules. Continues past per-file parse errors.
 

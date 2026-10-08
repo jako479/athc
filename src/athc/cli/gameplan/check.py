@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @gameplan.command(name="check", context_settings=CONTEXT_SETTINGS)
-@click.argument("paths", nargs=-1, required=True, metavar="path...")
+@click.argument("paths", nargs=-1, required=False, metavar="[path]...")
 @click.option(
     "-r",
     "--recursive",
@@ -38,10 +38,12 @@ def check(
     """Validate one or more .pln gameplans against the league's rules.
 
     Each path is a .pln file, a directory (top level, or the whole tree with -r),
-    or a glob.
+    or a glob. With no path, the current directory is checked.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
+    if not paths:
+        paths = (".",)
     files, path_errors = collect_files(paths, suffix=".pln", recursive=recursive)
     for error in path_errors:
         logger.error("%s: %s", PROG, error)

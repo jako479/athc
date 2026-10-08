@@ -29,7 +29,7 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + rules; 
 ## `athc profile check` — command (CliRunner)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| No path given | — | usage error, exit 2 | `test_cli_requires_path` | ☑ |
+| No path given | cwd + league | current directory checked; `-r` recurses; empty dir exit 2 naming `.` | `test_cli_no_path_checks_current_directory` / `test_cli_no_path_recursive` / `test_cli_no_path_empty_directory` | ☑ |
 | `--rules` removed | option | exit 2; "No such option" | `test_cli_rules_option_removed` | ☑ |
 | `--gameplan` removed | option | exit 2; "No such option" | `test_cli_gameplan_option_rejected` | ☑ |
 | Violations | data + league | exit 1; "1 file(s) checked" | `test_cli_violations_exit_1` | ☑ |
@@ -82,7 +82,7 @@ Same eight cases as profile (single / top level / recursive / missing / non-`.pl
 ## command (CliRunner)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| No PATH given | — | usage error, exit 2 | `test_cli_requires_path` | ☑ |
+| No PATH given | cwd + league | current directory checked; `-r` recurses; empty dir exit 2 naming `.` | `test_cli_no_path_checks_current_directory` / `test_cli_no_path_recursive` / `test_cli_no_path_empty_directory` | ☑ |
 | Removed options rejected | `--play-path`, `--playpool-rules`, `--rules` | exit 2; "No such option" | `test_cli_removed_options_are_rejected` `[P]` | ☑ |
 | Violations | data + league | exit 1; "1 file(s) checked" | `test_cli_violations_exit_1` | ☑ |
 | Multiple files | data + league | exit 1; "2 file(s) checked" | `test_cli_multiple_files` | ☑ |
@@ -167,7 +167,9 @@ In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find
 ## command (CliRunner)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| No args / single arg | — | usage error, exit 2 | `test_cli_requires_args` / `test_cli_single_arg_is_rejected` | ☑ |
+| No args | — | usage error, exit 2 | `test_cli_requires_args` | ☑ |
+| Single arg = play, path defaults to cwd; `-r`; empty dir | tmp (cwd) | hit + summary; recursive hit; exit 2 naming `.` | `test_cli_single_arg_searches_current_directory` / `test_cli_single_arg_recursive` / `test_cli_single_arg_empty_directory_exit_2` | ☑ |
+| Two args: last is always the path | tmp (cwd) | exit 2; "path does not exist" | `test_cli_two_args_last_is_the_path` | ☑ |
 | `--verbose` (removed) | data | usage error, exit 2 | `test_cli_verbose_option_is_rejected` | ☑ |
 | Wildcard `path` (matching files present) | tmp | usage error, exit 2; not expanded | `test_cli_wildcard_path_is_rejected` | ☑ |
 | Single file hit (normal / special) | data | slot(s); special adds category; no summary | `test_cli_single_file_hit` / `test_cli_finds_custom_special` | ☑ |

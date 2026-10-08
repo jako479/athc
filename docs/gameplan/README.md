@@ -40,6 +40,7 @@ violations = validate_gameplan(gp, rules, pool)  # tuple[Violation, ...]
 
 ```bash
 athc gameplan check OFF.pln Def.pln           # league from config
+athc gameplan check                           # every .pln in the current directory
 athc gameplan check plans/ -r                 # directory tree
 athc gameplan check OFF.pln --league PCFL     # another league
 
@@ -47,6 +48,7 @@ athc gameplan list-normals OFF.pln                 # 64 normal plays to OFF.norm
 athc gameplan list-normals OFF.pln plays.txt --sort name
 athc gameplan list-normals OFF.pln -               # to stdout
 athc gameplan list-specials OFF.pln                # custom special teams to OFF.specials.txt
+athc gameplan find-play OR45RL01                   # every .pln in the current directory
 athc gameplan find-play OR45RL01 OFF.pln           # slot(s) holding the play
 athc gameplan find-play OR45RL01 BCFGPAT plans/ -r # many plays across a tree
 athc gameplan set-normals OFF.pln plays.txt        # replace 64 normal slots

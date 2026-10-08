@@ -7,6 +7,8 @@ import shutil
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
+
 from athc.cli.gameplan.find_play import (
     find_in_gameplan,
     find_play,
@@ -216,9 +218,56 @@ def test_cli_requires_args(runner) -> None:
     assert runner.invoke(find_play, []).exit_code == 2
 
 
-def test_cli_single_arg_is_rejected(runner) -> None:
-    """One positional means PATH-with-no-plays — a usage error."""
-    assert runner.invoke(find_play, [KNOWN_NORMAL]).exit_code == 2
+def test_cli_single_arg_searches_current_directory(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One positional is a play; the path defaults to the current directory."""
+    shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(find_play, [KNOWN_NORMAL])
+    assert result.exit_code == 0
+    assert f"off.pln: '{KNOWN_NORMAL}' found in slot 1-1" in result.output
+    assert f"'{KNOWN_NORMAL}': Found 1 instance(s) in 1 gameplan(s)." in result.output
+
+
+def test_cli_single_arg_recursive(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sub = tmp_path / "team_a"
+    sub.mkdir()
+    shutil.copy2(GP_OFFENSE, sub / "off.pln")
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(find_play, [KNOWN_NORMAL, "-r"])
+    assert result.exit_code == 0
+    assert f"'{KNOWN_NORMAL}': Found 1 instance(s) in 1 gameplan(s)." in result.output
+
+
+def test_cli_single_arg_empty_directory_exit_2(
+    runner,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(find_play, [KNOWN_NORMAL])
+    assert result.exit_code == 2
+    assert ".: no .pln files in directory" in caplog.text
+
+
+def test_cli_two_args_last_is_the_path(
+    runner,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """With two or more positionals the last is always the path, never a play."""
+    shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
+    monkeypatch.chdir(tmp_path)
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(find_play, [KNOWN_NORMAL, KNOWN_SPECIAL])
+    assert result.exit_code == 2
+    assert f"{KNOWN_SPECIAL}: path does not exist" in caplog.text
 
 
 def test_cli_single_file_hit(runner) -> None:

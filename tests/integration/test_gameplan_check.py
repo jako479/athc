@@ -162,8 +162,46 @@ def test_check_file_matches_golden(path: Path) -> None:
 # ── command (CliRunner) ───────────────────────────────────────────────────────
 
 
-def test_cli_requires_path(runner) -> None:
-    assert runner.invoke(check, []).exit_code == 2
+@pytest.mark.usefixtures("league")
+def test_cli_no_path_checks_current_directory(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    shutil.copy2(GP_OFFENSE, plans / "off.pln")
+    shutil.copy2(GP_DEFENSE, plans / "def.pln")
+    monkeypatch.chdir(plans)
+    result = runner.invoke(check, [])
+    assert result.exit_code == 1
+    assert "2 file(s) checked" in result.output
+
+
+@pytest.mark.usefixtures("league")
+def test_cli_no_path_recursive(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plans = tmp_path / "plans"
+    (plans / "sub").mkdir(parents=True)
+    shutil.copy2(GP_OFFENSE, plans / "sub" / "off.pln")
+    monkeypatch.chdir(plans)
+    result = runner.invoke(check, ["-r"])
+    assert result.exit_code == 1
+    assert "1 file(s) checked" in result.output
+
+
+def test_cli_no_path_empty_directory(
+    runner,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    monkeypatch.chdir(plans)
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(check, [])
+    assert result.exit_code == 2
+    assert ".: no .pln files in directory" in caplog.text
 
 
 @pytest.mark.parametrize("option", ["--play-path", "--playpool-rules", "--rules"])

@@ -4,6 +4,12 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-07 — **gameplan, profile**: `gameplan check`, `profile check` and
+  `find-play` default to the current directory when no path is given, as
+  `grep -r`, `find` and other tools that search every file in a folder do,
+  so a BAT file run from a team folder needs no path. `find-play` keeps its
+  trailing positional path, so only the one-argument form defaults; with two
+  or more arguments the last is always the path.
 - 2026-10-07 — **config**: a league's rule files moved up beside its
   `league.ini`. The `rules\` subfolder held only four fixed-name files, so the
   extra level bought nothing for a user editing them in Notepad; `standings\`

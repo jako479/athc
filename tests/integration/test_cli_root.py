@@ -140,8 +140,8 @@ def test_short_help_option_on_every_command(runner, path: tuple[str, ...]) -> No
             ["pdb_file output_file", "--pln-off pln_file"],
             ["PDBFILE", "OUTPUTFILE", "PATH"],
         ),
-        (("gameplan", "check"), ["path..."], ["PATH"]),
-        (("gameplan", "find-play"), ["play... path"], ["PLAY", "PATH"]),
+        (("gameplan", "check"), ["[path]..."], ["PATH"]),
+        (("gameplan", "find-play"), ["play... [path]"], ["PLAY", "PATH"]),
         (
             ("gameplan", "replace-play"),
             ["play replacement path"],
@@ -162,7 +162,7 @@ def test_short_help_option_on_every_command(runner, path: tuple[str, ...]) -> No
             ["--season year", "--seed number", "--time-limit number"],
             ["INTEGER"],
         ),
-        (("profile", "check"), ["path..."], ["PATH"]),
+        (("profile", "check"), ["[path]..."], ["PATH"]),
         (
             ("profile", "diff"),
             ["file1 file2", "--output file"],
@@ -191,7 +191,7 @@ USAGE_CASES = [
         ("gameplan", "list-normals"),
         "athc gameplan list-normals [-h] [--sort slot|name] gameplan [output_file]",
     ),
-    (("gameplan", "find-play"), "athc gameplan find-play [-h] [-r] play... path"),
+    (("gameplan", "find-play"), "athc gameplan find-play [-h] [-r] play... [path]"),
     (("profile", "diff"), "athc profile diff [-h] [-o file] file1 file2"),
     (
         ("generate-schedule",),

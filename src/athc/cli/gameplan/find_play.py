@@ -53,7 +53,7 @@ def format_hit_line(
 
 
 @gameplan.command(name="find-play", context_settings=CONTEXT_SETTINGS)
-@click.argument("args", nargs=-1, required=True, metavar="play... path")
+@click.argument("args", nargs=-1, required=True, metavar="play... [path]")
 @click.option(
     "-r",
     "--recursive",
@@ -65,15 +65,17 @@ def find_play(ctx: click.Context, args: tuple[str, ...], recursive: bool) -> Non
     """Find one or more plays by name across .pln files (normal + custom-special slots).
 
     play... are one or more case-insensitive names; path is a .pln file or a directory
-    (top level, or the whole tree with -r), never a wildcard. Hits show the slot(s);
-    special hits also
-    show the game category. Each file missing a play prints 'not found'.
-    Directory/tree: a per-play summary is appended.
+    (top level, or the whole tree with -r), never a wildcard. A single argument is
+    a play searched in the current directory; with two or more, the last is always
+    the path. Hits show the slot(s); special hits also show the game category.
+    Each file missing a play prints 'not found'. Directory/tree: a per-play summary
+    is appended.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    if len(args) < 2:
-        raise click.UsageError("need one or more play names followed by a path")
-    *play_names, path = args
+    if len(args) == 1:
+        play_names, path = list(args), "."
+    else:
+        *play_names, path = args
     if is_glob(path):
         raise click.UsageError(
             "path must be a .pln file or a directory; wildcards are not supported"
