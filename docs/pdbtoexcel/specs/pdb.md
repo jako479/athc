@@ -10,80 +10,80 @@
 
 A `.pdb` is a flat stream of records. Each record is a 1-byte tag followed by a fixed-size body. No file header, no overall length field; EOF terminates the stream.
 
-| Tag    | Record Type | Body Size  |
-| -----: | :---------- | ---------: |
-| `0x00` | PLAY_DATA   | 256 bytes  |
-| `0x01` | TENDENCY    | 192 bytes  |
+| Tag    | Record Type | Body Size |
+| -----: | :---------- | --------: |
+| `0x00` | Play        | 256 bytes |
+| `0x01` | Tendency    | 192 bytes |
 
 Any other tag byte is invalid.
 
-PLAY and TENDENCY records may appear in any order. Duplicate `(team, play)` keys within PLAY records are summed by the reader.
+Play and tendency records may appear in any order. Duplicate team + play name keys within play records are summed by the reader.
 
 ---
 
-## 2. Record: PLAY_DATA (256 bytes)
+## 2. Record: Play (256 bytes)
 
-| Offset | Type      | Name                | Description                                              |
-| -----: | :-------- | :------------------ | :------------------------------------------------------- |
-| 0x0000 | u32       | play_type           | `0` Run, `1` Pass, `2` Special, `3` Defense, `5` Onside  |
-| 0x0004 | char[64]  | team_name           | NUL-padded                                               |
-| 0x0044 | char[128] | play_name           | NUL-padded                                               |
-| 0x00C4 | i32       | total_yards         | Offense yards gained (signed; negative on loss)          |
-| 0x00C8 | u32       | play_count          | Plays this record covers (see notes)                     |
-| 0x00CC | u32       | completions         | Offense pass completions                                 |
-| 0x00D0 | u32       | sacks               | Offense sacks taken / defense sacks recorded             |
-| 0x00D4 | u32       | fumbles             | Fumbles                                                  |
-| 0x00D8 | u32       | interceptions       | Interceptions                                            |
-| 0x00DC | u32       | touchdowns_offense  | TDs scored by the offense                                |
-| 0x00E0 | u32       | touchdowns_defense  | TDs scored by the defense                                |
-| 0x00E4 | i32       | unknown1            | Always observed `0`                                      |
-| 0x00E8 | i32       | unknown2            | Always observed `0`                                      |
-| 0x00EC | u32       | points_scored       | Offense or defense points; ignored by readers            |
-| 0x00F0 | u32       | run_plays_against   | Defense: rush plays faced                                |
-| 0x00F4 | u32       | pass_plays_against  | Defense: pass plays faced (includes sacks)               |
-| 0x00F8 | i32       | rush_yards_allowed  | Defense: rush yards given up                             |
-| 0x00FC | i32       | pass_yards_allowed  | Defense: pass yards given up                             |
+| Offset | Type      | Name                | Description                                             |
+| -----: | :-------- | :------------------ | :------------------------------------------------------ |
+| 0x0000 | u32       | Play type           | `0` Run, `1` Pass, `2` Special, `3` Defense, `5` Onside |
+| 0x0004 | char[64]  | Team name           | NUL-padded                                              |
+| 0x0044 | char[128] | Play name           | NUL-padded                                              |
+| 0x00C4 | i32       | Total yards         | Offense yards gained (signed; negative on loss)         |
+| 0x00C8 | u32       | Play count          | Plays this record covers (see notes)                    |
+| 0x00CC | u32       | Completions         | Offense pass completions                                |
+| 0x00D0 | u32       | Sacks               | Offense sacks taken / defense sacks recorded            |
+| 0x00D4 | u32       | Fumbles             | Fumbles                                                 |
+| 0x00D8 | u32       | Interceptions       | Interceptions                                           |
+| 0x00DC | u32       | Touchdowns, offense | TDs scored by the offense                               |
+| 0x00E0 | u32       | Touchdowns, defense | TDs scored by the defense                               |
+| 0x00E4 | i32       | Unknown 1           | Always observed `0`                                     |
+| 0x00E8 | i32       | Unknown 2           | Always observed `0`                                     |
+| 0x00EC | u32       | Points scored       | Offense or defense points; ignored by readers           |
+| 0x00F0 | u32       | Run plays against   | Defense: rush plays faced                               |
+| 0x00F4 | u32       | Pass plays against  | Defense: pass plays faced (includes sacks)              |
+| 0x00F8 | i32       | Rush yards allowed  | Defense: rush yards given up                            |
+| 0x00FC | i32       | Pass yards allowed  | Defense: pass yards given up                            |
 
-A record is valid when `play_type ∈ {0, 1, 2, 3, 5}` and both `team_name` and `play_name` are non-empty.
+A record is valid when the play type is `0`, `1`, `2`, `3` or `5` and both the team name and the play name are non-empty.
 
-Records with `play_name == "RUNCLOCK"` or `play_name == "STOPCLOK"` are filtered by the reader (they are clock-management markers, not real plays).
+Records whose play name is `"RUNCLOCK"` or `"STOPCLOK"` are dropped by the reader (they are clock-management markers, not real plays).
 
 ---
 
-## 3. Record: TENDENCY_DATA (192 bytes)
+## 3. Record: Tendency (192 bytes)
 
-Run/pass call counts split by down (1st–4th) and yards-to-go bucket (`0-1`, `2-5`, `6-10`, `>10`).
+Run/pass call counts split by down (1st–4th) and yards-to-go bucket (0-1, 2-5, 6-10, >10).
 
-| Offset | Type      | Name                  |
-| -----: | :-------- | :-------------------- |
-| 0x0000 | char[64]  | team_name             |
-| 0x0040 | SITUATION | run_zero_to_one       |
-| 0x0050 | SITUATION | pass_zero_to_one      |
-| 0x0060 | SITUATION | run_two_to_five       |
-| 0x0070 | SITUATION | pass_two_to_five      |
-| 0x0080 | SITUATION | run_six_to_ten        |
-| 0x0090 | SITUATION | pass_six_to_ten       |
-| 0x00A0 | SITUATION | run_ten_plus          |
-| 0x00B0 | SITUATION | pass_ten_plus         |
+| Offset | Type            | Name             |
+| -----: | :-------------- | :--------------- |
+| 0x0000 | char[64]        | Team name        |
+| 0x0040 | situation (3.1) | Run, 0-1 yards   |
+| 0x0050 | situation (3.1) | Pass, 0-1 yards  |
+| 0x0060 | situation (3.1) | Run, 2-5 yards   |
+| 0x0070 | situation (3.1) | Pass, 2-5 yards  |
+| 0x0080 | situation (3.1) | Run, 6-10 yards  |
+| 0x0090 | situation (3.1) | Pass, 6-10 yards |
+| 0x00A0 | situation (3.1) | Run, >10 yards   |
+| 0x00B0 | situation (3.1) | Pass, >10 yards  |
 
-### 3.1 SITUATION (16 bytes)
+### 3.1 Situation (16 bytes)
 
 | Offset | Type | Name        |
 | -----: | :--- | :---------- |
-|   0x00 | u32  | first_down  |
-|   0x04 | u32  | second_down |
-|   0x08 | u32  | third_down  |
-|   0x0C | u32  | fourth_down |
+|   0x00 | u32  | First down  |
+|   0x04 | u32  | Second down |
+|   0x08 | u32  | Third down  |
+|   0x0C | u32  | Fourth down |
 
-A TENDENCY record is valid when `team_name` is non-empty.
+A tendency record is valid when the team name is non-empty.
 
 ---
 
 ## 4. Notes
 
-- **`play_count` is inaccurate for defensive plays.** For defense it exceeds `run_plays_against + pass_plays_against`, appearing to also count snaps the defensive play was on the field for during special-teams plays. Treat `run_plays_against + pass_plays_against` as the authoritative defensive snap count.
+- **Play count is inaccurate for defensive plays.** For defense it exceeds run plays against + pass plays against, appearing to also count snaps the defensive play was on the field for during special-teams plays. Treat run plays against + pass plays against as the authoritative defensive snap count.
 - **QB scrambles are indistinguishable from incomplete passes.** A scramble appears in the PDB as a pass play with `0` yards and no completion — identical to a thrown incompletion.
-- **Sacks on timed pass plays are logged as runs.** When a sack occurs on a "timed" pass play, the engine attributes the play (and its lost yards) to the run bucket rather than the pass bucket. The reader's `convert_invalid_play_data` rebalances these by detecting offensive plays whose recorded `play_type` disagrees with the play pool, and moves stats back to the correct side.
+- **Sacks on timed pass plays are logged as runs.** When a sack occurs on a "timed" pass play, the engine attributes the play (and its lost yards) to the run bucket rather than the pass bucket. The reader rebalances these by detecting offensive plays whose recorded play type disagrees with the play pool, and moves stats back to the correct side.
 
 ---
 

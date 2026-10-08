@@ -10,6 +10,18 @@ Where things stand now: [STATUS.md](STATUS.md).
   so a BAT file run from a team folder needs no path. `find-play` keeps its
   trailing positional path, so only the one-argument form defaults; with two
   or more arguments the last is always the path.
+- 2026-10-07 — **file specs**: every file-format spec under docs\ now names
+  fields in prose (Play category, Stock flag) and keeps code font for bytes
+  stored in the file, the way the NumPy .npy, safetensors and Zarr specs do;
+  ALL_CAPS enumeration labels became the game's own names. The reader and
+  writer contract sections are untouched, pending their move to an API doc.
+- 2026-10-07 — **play and gameplan specs**: a byte scan of the PNFL pool
+  (5,155 plays, 28 plans, 28 profiles) showed bits 7–6 of the two category
+  bytes are one per-file pair, identical in both bytes and of unknown
+  meaning, and that a plan's category bytes are a verbatim copy of the play
+  file's. The `.ply` spec now gives the bit layout, the observed pairs and
+  sample plays; the `.pln` spec defers category values to the `.ply` spec
+  instead of defining its own, the way PNG defers deflate to RFC 1951.
 - 2026-10-07 — **config**: a league's rule files moved up beside its
   `league.ini`. The `rules\` subfolder held only four fixed-name files, so the
   extra level bought nothing for a user editing them in Notepad; `standings\`

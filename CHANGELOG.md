@@ -7,6 +7,9 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: the file specs name fields in prose and keep code font for what is stored in the file
+- fbpro98_play: the `.ply` spec explains the category bytes bit by bit, the shared bits 7–6, and shows sample plays
+- gameplan: the `.pln` spec no longer defines category values; a plan's bytes are a copy of the play file's
 - gameplan: `check` and `find-play` work on the current folder when no path is given
 - profile: `check` works on the current folder when no path is given
 - config: a league's rule files sit next to its league.ini; the rules\ subfolder is gone

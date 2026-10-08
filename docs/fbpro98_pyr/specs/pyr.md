@@ -10,21 +10,21 @@ A `.pyr` holds every player a league knows: names, ratings, position, years and 
 
 ## 1. File Layout
 
-A 60-byte header, then one 60-byte record per player, back to back. Total file length = `60 + players × 60`. The player count is not stored.
+A 60-byte header, then one 60-byte record per player, back to back. Total file length = 60 + players × 60. The player count is not stored.
 
 ```
 header
-player[0]  id 100
-player[1]  id 101
+player 1  id 100
+player 2  id 101
 ...
 ```
 
-| Offset |   Size | Name      | Description                       | Section |
-| -----: | -----: | :-------- | :-------------------------------- | :------ |
-| 0x0000 |     60 | header    | Header                            | 2       |
-| 0x003C |     60 | player[0] | Player id 100                     | 4       |
-| 0x0078 |     60 | player[1] | Player id 101                     | 4       |
-|    ... |    ... | ...       | Record `i` is player id `100 + i` | 4       |
+| Offset |   Size | Name     | Description                     | Section |
+| -----: | -----: | :------- | :------------------------------ | :------ |
+| 0x0000 |     60 | Header   | Header                          | 2       |
+| 0x003C |     60 | Player 1 | Player id 100                   | 4       |
+| 0x0078 |     60 | Player 2 | Player id 101                   | 4       |
+|    ... |    ... | ...      | Record i is player id 100 + i   | 4       |
 
 ---
 
@@ -34,8 +34,8 @@ Starts at 0x0000.
 
 | Offset | Size | Type   | Name | Description                                                |
 | -----: | ---: | :----- | :--- | :--------------------------------------------------------- |
-| 0x0000 |    2 | u16    | key  | Differs per file (`0xCE5F` in `PNFL.pyr`); meaning unknown |
-| 0x0002 |   58 | u8[58] | zero | All `0x00`                                                 |
+| 0x0000 |    2 | u16    | Key  | Differs per file (`0xCE5F` in `PNFL.pyr`); meaning unknown |
+| 0x0002 |   58 | u8[58] | Zero | All `0x00`                                                 |
 
 The header is not coded.
 
@@ -51,7 +51,7 @@ The record bytes are scrambled with a lookup table, not a formula:
 
 The file reveals its own table, because every record starts with a value that is known before decoding:
 
-- Record `i` holds player id `100 + i` in its first two bytes (section 4), so the plain id bytes of every record are known.
+- Record i holds player id 100 + i in its first two bytes (section 4), so the plain id bytes of every record are known.
 - Compare them with the two bytes on disk: each record shows what one or two plain values are written as.
 - Over 256 consecutive records the low id byte takes every value `0x00`-`0xFF`, so a file with 256 or more players gives the whole table from byte 0 alone.
 - Decoding is the reverse lookup: find each disk byte in the table and take the plain value it stands for.
@@ -64,22 +64,22 @@ Example, `PNFL.pyr` record 0: player 100 = `0x0064`, plain bytes `64 00`; on dis
 
 ## 4. Player Record (60 bytes, decoded)
 
-Starts at `0x003C + 60 × (id − 100)`.
+Starts at 0x003C + 60 × (id − 100).
 
 | Offset | Size | Type     | Name       | Description                                                  |
 | -----: | ---: | :------- | :--------- | :----------------------------------------------------------- |
-|   0x00 |    2 | u16      | id         | Player id; `100 + record index`                              |
-|   0x02 |   13 | char[13] | first_name | NUL-padded; longer names are cut                             |
-|   0x0F |   13 | char[13] | last_name  | NUL-padded; longer names are cut                             |
-|   0x1C |    8 | u8[8]    | potential  | Potential ratings, order AC AG DI EN HA IN SP ST (section 5) |
-|   0x24 |    4 | u8[4]    | injury     | All `0x00` when healthy (section 6)                          |
-|   0x28 |    1 | u8       | group      | Position group (section 5)                                   |
-|   0x29 |    1 | u8       | position   | Position (section 5)                                         |
-|   0x2A |    8 | u8[8]    | actual     | Actual ratings, same order as `potential`                    |
-|   0x32 |    1 | u8       | years      | Years in the league                                          |
-|   0x33 |    1 | u8       | height     | Inches; filled only for the newest draft class, else `0`     |
-|   0x34 |    2 | u16      | weight     | Pounds; filled only for the newest draft class, else `0`     |
-|   0x36 |    6 | u8[6]    | unknown    | `0`; the newest draft class has `0xFFFF` at `0x37`           |
+|   0x00 |    2 | u16      | Id         | Player id; 100 + record index                                |
+|   0x02 |   13 | char[13] | First name | NUL-padded; longer names are cut                             |
+|   0x0F |   13 | char[13] | Last name  | NUL-padded; longer names are cut                             |
+|   0x1C |    8 | u8[8]    | Potential  | Potential ratings, order AC AG DI EN HA IN SP ST (section 5) |
+|   0x24 |    4 | u8[4]    | Injury     | All `0x00` when healthy (section 6)                          |
+|   0x28 |    1 | u8       | Group      | Position group (section 5)                                   |
+|   0x29 |    1 | u8       | Position   | Position (section 5)                                         |
+|   0x2A |    8 | u8[8]    | Actual     | Actual ratings, same order as potential                      |
+|   0x32 |    1 | u8       | Years      | Years in the league                                          |
+|   0x33 |    1 | u8       | Height     | Inches; filled only for the newest draft class, else `0`     |
+|   0x34 |    2 | u16      | Weight     | Pounds; filled only for the newest draft class, else `0`     |
+|   0x36 |    6 | u8[6]    | Unknown    | `0`; the newest draft class has `0xFFFF` at 0x37             |
 
 Not in the record: draft year, team and pick, age, jersey number, team, depth. Jersey numbers and teams come from the league's rosters (`.lge`), depth from the `.prf`.
 
@@ -89,25 +89,25 @@ Placeholder records: 3,258 `No One` (all ratings `1`), 191 `Delete Me`, 114 `204
 
 ## 5. Codes
 
-Ratings: `AC` acceleration, `AG` agility, `DI` discipline, `EN` endurance, `HA` hands, `IN` intelligence, `SP` speed, `ST` strength; `0`-`99`.
+Ratings: AC acceleration, AG agility, DI discipline, EN endurance, HA hands, IN intelligence, SP speed, ST strength; `0`-`99`.
 
-| position | Name | group |
+| Position | Name | Group |
 | :------- | :--- | :---- |
-| 0        | QB   | 0     |
-| 1        | FB   | 15    |
-| 2        | HB   | 15    |
-| 3        | TE   | 16    |
-| 4        | WR   | 16    |
-| 5        | C    | 17    |
-| 6        | G    | 17    |
-| 7        | T    | 17    |
-| 8        | DE   | 18    |
-| 9        | DT   | 18    |
-| 10       | LB   | 10    |
-| 11       | CB   | 19    |
-| 12       | S    | 19    |
-| 13       | K    | 13    |
-| 14       | P    | 14    |
+| `0`      | QB   | `0`   |
+| `1`      | FB   | `15`  |
+| `2`      | HB   | `15`  |
+| `3`      | TE   | `16`  |
+| `4`      | WR   | `16`  |
+| `5`      | C    | `17`  |
+| `6`      | G    | `17`  |
+| `7`      | T    | `17`  |
+| `8`      | DE   | `18`  |
+| `9`      | DT   | `18`  |
+| `10`     | LB   | `10`  |
+| `11`     | CB   | `19`  |
+| `12`     | S    | `19`  |
+| `13`     | K    | `13`  |
+| `14`     | P    | `14`  |
 
 ---
 
@@ -127,5 +127,5 @@ Observed values on injured players: `15 0 22 1`, `167 0 25 1`, `25 0 11 5`, `0 0
 
 - What the header key is and whether it generates the table
 - The injury bytes
-- Bytes `0x36`-`0x3B`
+- Bytes 0x36-0x3B
 - Why height and weight are blank for all but the newest draft class
