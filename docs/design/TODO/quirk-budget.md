@@ -6,7 +6,7 @@ Status: idea for later; nothing implemented.
 
 Real NFL seasons always contain a few rare scheduling one-offs. athc bans them all, so every athc schedule is more uniform than any real NFL season. A small league-wide budget would restore that texture without loosening any rule for everyone.
 
-NFL rates (2016–2025, 32 teams; teams per season — see [research/nfl-schedules.md](research/nfl-schedules.md)):
+NFL rates (2016–2025, 32 teams; teams per season — see [research/nfl-schedules.md](../research/nfl-schedules.md)):
 
 - Ends the season with 3 straight divisional games: 2.6
 - Has a second 3-game home/away streak: 2.2

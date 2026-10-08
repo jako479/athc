@@ -1,62 +1,7 @@
-"""
-The rules below are the NFL-pattern rules of a league with divisions. A league
-without divisions gets only the
-structural rules and the toggled home/away rules (see
-docs/scheduler/phase-2-schedule.md).
-
-Home/away sequencing requirements:
-- No 4 straight home or away games.
-- At most 1 total 3-game home/away streak per team.
-- No 3-game home/away streak to start or end the season.
-- Every 6-game span must contain between 2 and 4 home games.
-
-Divisional scheduling requirements:
-- Each team plays every divisional opponent twice, once at home and once away.
-- No 4 straight divisional games.
-- At most 4 teams open weeks 1-2 with divisional games in both (at most 1 of
-  those a 4-team-division team, at most 2 a 5-team-division team).
-- No 3 straight divisional games to start or end the season.
-- At most 1 total 3-game divisional streak per team.
-- 5-team divisions: max 6 divisional games in any 9-game span (forces <=7 in any 10).
-- 4-team divisions: max 4 divisional games in any 7-game span.
-- Front-load caps: 4-team divisions max 2 divisional games in weeks 1-4, 3 in
-  weeks 1-8, 4 in weeks 1-10; 5-team divisions max 3 in weeks 1-5, 4 in weeks
-  1-6, 5 in weeks 1-8, 6 in weeks 1-10.
-- At most 2 divisional opponents may be non-interleaved between a team's 2
-  meetings with that rival.
-- Every team must play at least 1 divisional game in the final 2 weeks.
-- The final week holds as many divisional games as one week can.
-
-League-wide caps (a per-team rule shouldn't pile up across all teams at once):
-- At most 9 teams with a 3-game home streak; 3 with a 3-game away streak.
-- At most 6 teams with a 3-game divisional streak.
-- At most 2 teams with 2 non-interleaved rivals.
-- At most 3 rematches within a 3-week span.
-
-Soft objective (prefer NFL-typical schedules; caps above stay as backstops):
-- Penalize 8 season metrics for landing outside an NFL-typical band [lo, hi],
-  weighted by rarity. Zero penalty inside the band; linear per step outside.
-  Metrics: teams with a 3-game home / away / divisional streak, 4-team-division
-  teams at the front-load cap (3 divisional in the first 8 weeks), 5-team-division
-  teams at the front-load ceiling (6 divisional in the first 10 weeks), teams with
-  2 non-interleaved rivals, close rematches, and teams opening weeks 1-2 divisional.
-  Front-load camping is soft for both division sizes (no hard teams-at-max cap).
-  Bands/weights are [phase2] settings; see docs/design/research/cpsat-rule-patterns.md.
-
-Conference scheduling requirements:
-- Each team plays every same-conference opponent outside its division exactly once.
-- Conference home balance: each team hosts half its conference games (the
-  odd game either way).
-
-Non-conference scheduling requirements:
-- After divisional and same-conference games are assigned, the remaining schedule slots
-  are
-  non-conference games.
-- Each team's count is its weeks minus its structural games.
-- Non-conference home balance: each team hosts half its non-conference games.
-
-Rule provenance (NFL policy vs. measured NFL schedule patterns):
-docs/design/research/nfl-schedules.md.
+"""Phase 2 of the scheduler: the CP-SAT model that places a fixed matchup
+inventory into weeks and picks each game's host. The rules it enforces, which
+of them apply to a given league, and their provenance are documented once, in
+docs/scheduler/phase-2-schedule.md.
 """
 
 from __future__ import annotations
@@ -81,7 +26,7 @@ from athc.scheduler.schedulers.utils import make_solver
 
 
 class ScheduleBuilder:
-    """Shared CP-SAT phase-2 placement model for schedulers with fixed matchups."""
+    """The phase-2 CP-SAT model: weeks and hosts for a fixed matchup inventory."""
 
     def __init__(
         self,
@@ -192,7 +137,6 @@ class ScheduleBuilder:
                     )
 
     def _constraint_one_game_per_week(self) -> None:
-        # Require each team to play exactly 1 game in each week.
         for team_i in self.teams:
             for w in self.weeks:
                 self.model.add(
@@ -205,7 +149,6 @@ class ScheduleBuilder:
                 )
 
     def _constraint_home_balance(self) -> None:
-        # Require each team to host half its games.
         for team_i in self.teams:
             self.model.add(
                 sum(
@@ -243,8 +186,6 @@ class ScheduleBuilder:
         return expr
 
     def _constraint_home_away_balance_in_six_game_windows(self) -> None:
-        # Every 6-game window must have between 2 and 4 home games, which also forces 2
-        # to 4 away games.
         if not self.amounts.require_home_balance_per_six_weeks:
             return
         for team_i in self.teams:
@@ -260,8 +201,6 @@ class ScheduleBuilder:
     def _constraint_no_three_game_home_or_away_streak_at_season_start_or_end(
         self,
     ) -> None:
-        # The first and last 3 games must each contain at least 1 home and at least 1
-        # away game.
         if not self.amounts.require_mixed_home_away_at_season_ends:
             return
         for team_i in self.teams:
@@ -285,8 +224,7 @@ class ScheduleBuilder:
             )
 
     def _constraint_max_one_total_three_game_home_or_away_streak(self) -> None:
-        # Allow at most one 3-game streak total, counting both home and away streaks
-        # together. Streak vars are kept for the league-wide count caps.
+        # Streak vars are kept for the league-wide count caps.
         self._streak3h: dict[Team, list[cp_model.IntVar]] = {}
         self._streak3a: dict[Team, list[cp_model.IntVar]] = {}
         if not self.amounts.require_home_away_streak_caps:
@@ -330,7 +268,6 @@ class ScheduleBuilder:
             self._streak3a[team_i] = streak3a
 
     def _constraint_no_back_to_back(self) -> None:
-        # Prevent any pair of teams from playing in consecutive weeks.
         if not self.league.has_divisions:
             return
         for idx, team_i in enumerate(self.teams):
@@ -345,8 +282,6 @@ class ScheduleBuilder:
                     )
 
     def _constraint_phase_one_inventory(self, phase_one_inventory: Matchups) -> None:
-        # Force phase II to schedule each team pair exactly as many times as phase I
-        # selected: 0, 1, or 2 meetings.
         expected_counts = Counter(phase_one_inventory)
         all_pairs = (
             self.divisional_pairs + self.conference_pairs + self.non_conference_pairs
@@ -367,8 +302,6 @@ class ScheduleBuilder:
             self.model.add(total_meetings == expected_counts.get((team_i, team_j), 0))
 
     def _constraint_divisional_home_balance(self) -> None:
-        # Split each divisional home-and-home into exactly 1 home game and 1 away game
-        # for each team.
         if not self.league.has_divisions:
             return
         for team_i, team_j in self.divisional_pairs:
@@ -376,16 +309,13 @@ class ScheduleBuilder:
             self.model.add(sum(self.x[team_j, team_i, w] for w in self.weeks) == 1)
 
     def _constraint_conference_home_balance(self) -> None:
-        # Balanced hosting: each team hosts half its conference games (2 of 4;
-        # 2 or 3 of 5; 4 of 8).
         for team_i in self.teams:
             opponents = self.league.conference_opponents(team_i)
             self._add_half_home(team_i, opponents, len(opponents))
 
     def _constraint_nonconference_home_balance(self) -> None:
-        # Balanced hosting: each team hosts half its non-conference games. The
-        # sum spans every other-conference team; the inventory decides which of
-        # them are played, so the bounds come from the team's game count.
+        # The sum spans every other-conference team; the inventory decides which
+        # of them are played, so the bounds come from the team's game count.
         for team_i in self.teams:
             opponents = [t for t in self.teams if t.conference != team_i.conference]
             count = self.league.nonconference_games(team_i, self.num_weeks)
@@ -407,8 +337,6 @@ class ScheduleBuilder:
             self.model.add(home_games <= hi)
 
     def _constraint_max_consecutive_division(self) -> None:
-        # Allow at most 3 straight divisional games but forbid any 4-game divisional
-        # streak.
         if not self.league.has_divisions:
             return
         for team_i in self.teams:
@@ -422,8 +350,6 @@ class ScheduleBuilder:
                 )
 
     def _constraint_max_teams_divisional_weeks_1_and_2(self) -> None:
-        # Cap the teams that open with divisional games in both weeks 1 and 2, both
-        # league-wide and (more tightly) per division size.
         self._opening_two_div_flags: list[cp_model.IntVar] = []
         if not self.league.has_divisions:
             return
@@ -459,8 +385,6 @@ class ScheduleBuilder:
     def _constraint_no_three_game_divisional_streak_at_season_start_or_end(
         self,
     ) -> None:
-        # Forbid teams from starting or ending the season with 3 straight divisional
-        # games.
         if not self.league.has_divisions:
             return
         for team_i in self.teams:
@@ -475,7 +399,6 @@ class ScheduleBuilder:
             )
 
     def _constraint_max_one_total_three_game_divisional_streak(self) -> None:
-        # Allow each team at most 1 total 3-game divisional streak across the season.
         # Streak vars are kept for the league-wide count cap.
         self._streak3d: dict[Team, list[cp_model.IntVar]] = {}
         if not self.league.has_divisions:
@@ -501,8 +424,7 @@ class ScheduleBuilder:
             self._streak3d[team_i] = streak3d
 
     def _constraint_max_teams_with_streaks(self) -> None:
-        # League-wide caps on how many teams have a 3-game home, away, or
-        # divisional streak (per-team caps allow every team to have one at once).
+        # The per-team streak caps alone would let every team have one at once.
         self._streak_team_flags: dict[str, list[cp_model.IntVar]] = {}
         caps: list[tuple[dict[Team, list[cp_model.IntVar]], str, int]] = []
         if self.amounts.require_home_away_streak_caps:
@@ -531,8 +453,6 @@ class ScheduleBuilder:
             self._streak_team_flags[label] = flags
 
     def _constraint_division_density(self) -> None:
-        # Cap divisional clustering at 6 in 9 for 5-team divisions (a 9-window cap
-        # forces <=7 in any 10); cap at 4 in 7 for 4-team divisions (forces <=5 in 8).
         if not self.league.has_divisions:
             return
         for team_i in self.five_team_teams:
@@ -564,7 +484,6 @@ class ScheduleBuilder:
         ]
 
     def _constraint_divisional_front_load(self) -> None:
-        # Cap early divisional games per team (NFL front-load walls).
         if not self.league.has_divisions:
             return
         for team_i in self.teams:
@@ -572,8 +491,8 @@ class ScheduleBuilder:
                 self.model.add(sum(self.d[team_i, w] for w in range(window)) <= cap)
 
     def _constraint_max_close_rematches(self) -> None:
-        # League-wide cap on rematches within a 3-week span (meetings 2 weeks
-        # apart; back-to-back is already forbidden).
+        # A gap of 2 is the only close rematch left: back-to-back is already
+        # forbidden.
         self._close_rematch_flags: list[cp_model.IntVar] = []
         if not self.league.has_divisions:
             return
@@ -593,9 +512,8 @@ class ScheduleBuilder:
         self._close_rematch_flags = close_flags
 
     def _constraint_max_two_non_interleaved_divisional_opponents(self) -> None:
-        # Count a divisional opponent as interleaved if another rival's first or second
-        # meeting
-        # falls between the team's first and second meeting with that opponent.
+        # A divisional opponent is interleaved if another rival's first or second
+        # meeting falls between the team's two meetings with that opponent.
         self._two_bunched_flags: list[cp_model.IntVar] = []
         if not self.league.has_divisions:
             return
@@ -658,7 +576,6 @@ class ScheduleBuilder:
                 self.model.add_bool_or(between_vars).only_enforce_if(il)
                 interleaved.append(il)
 
-            # Cap non-interleaved divisional opponents per team.
             self.model.add(
                 sum(interleaved)
                 >= len(opps) - self.amounts.max_non_interleaved_divisional_opponents
@@ -678,8 +595,6 @@ class ScheduleBuilder:
         self._two_bunched_flags = bunch_flags
 
     def _constraint_final_week_divisional(self) -> None:
-        # All-divisional finale: as many divisional games as one week can hold
-        # (each odd-sized division strands one team).
         if (
             not self.league.has_divisions
             or not self.amounts.require_final_week_divisional
@@ -695,7 +610,6 @@ class ScheduleBuilder:
         )
 
     def _constraint_late_divisional_presence(self) -> None:
-        # Every team plays at least 1 divisional game across the last 2 weeks.
         if not self.league.has_divisions:
             return
         if not self.amounts.require_divisional_in_final_two_weeks:
@@ -707,7 +621,6 @@ class ScheduleBuilder:
             )
 
     def _constraint_opening_nonconference_weeks(self) -> None:
-        # Weeks 1..N hold no same-conference game (divisional or conference).
         n = self.amounts.opening_nonconference_weeks
         if n == 0:
             return
@@ -723,11 +636,10 @@ class ScheduleBuilder:
                 )
 
     def _constraint_max_consecutive_conference_home_or_away(self) -> None:
-        # Along a team's sequence of conference games (non-conference games
-        # between them do not break a streak): no cap + 1 straight at home or
-        # away. For every window of weeks at least cap + 1 long, the conference
-        # home games are capped unless the window also holds a conference away
-        # game (which makes the bound slack), and the mirror.
+        # A streak runs along the team's conference games only, so non-conference
+        # weeks between them do not break it. For every window at least cap + 1
+        # long, the conference home games are capped unless the window also holds
+        # a conference away game (which makes the bound slack), and the mirror.
         cap = self.amounts.max_consecutive_conference_home_or_away
         if cap == 0:
             return
@@ -748,8 +660,6 @@ class ScheduleBuilder:
                     self.model.add(away_in <= cap + length * home_in)
 
     def _constraint_rivalry_final_week(self) -> None:
-        # Rivalry week: every listed pair meets in the last week. With rotation,
-        # the first-listed team hosts in even seasons and the second in odd.
         if not self.rivalries:
             return
         last = self.num_weeks - 1
@@ -766,9 +676,8 @@ class ScheduleBuilder:
                 )
 
     def _add_soft_objective(self) -> None:
-        # Prefer NFL-typical schedules: penalize each metric for landing outside
-        # its band [lo, hi], weighted by rarity. Zero penalty inside the band; a
-        # linear penalty per step outside. The hard caps stay as backstops.
+        # Without an objective the solver camps at the hard caps. Each metric pays
+        # `weight` per step outside its band [lo, hi] and nothing inside.
         if not self.league.has_divisions:
             return
         a = self.amounts
@@ -783,9 +692,8 @@ class ScheduleBuilder:
             penalties.append(weight * over)
             penalties.append(weight * under)
 
-        # Teams sitting at the front-load cap. Anti-camping: keep this count near
-        # NFL-typical instead of all teams maxed. 4-team = 3 divisional in first 8;
-        # 5-team = 6 divisional in first 10 (the front-load ceiling).
+        # Flags for teams at the front-load ceiling, so the objective can keep that
+        # count NFL-typical instead of letting every team max it.
         four_team_frontload_flags: list[cp_model.IntVar] = []
         for team_i in self.four_team_teams:
             early8 = sum(self.d[team_i, w] for w in range(8))

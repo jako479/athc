@@ -1,4 +1,4 @@
-"""Shared scheduler types and the registry of available scheduler implementations."""
+"""Shared scheduler types and the entry point to the one scheduler."""
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass

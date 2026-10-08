@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- scheduler: the phase-2 rules are documented once, in the phase-2 design doc; the code keeps only its modeling notes
 - config: `league.toml`, the TOML rule files and `scheduler.toml` may start with a UTF-8 byte-order mark (Notepad, Excel); it is skipped
 - playpool: `check` on a given folder still uses the configured league's category names for its folders; with no league, folder names are not checked
 - config: league settings moved from `league.ini` to `league.toml`; a league's short names for the play categories live there under `[categories.offense]` / `[categories.defense]`, no longer in code

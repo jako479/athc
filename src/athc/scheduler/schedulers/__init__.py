@@ -1,1 +1,1 @@
-"""Scheduler implementations and a registry for selecting between them."""
+"""The scheduler: phase 1 (matchups) and phase 2 (week placement)."""

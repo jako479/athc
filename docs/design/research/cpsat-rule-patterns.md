@@ -18,7 +18,7 @@ Each rule is **hard** (never violated) or **soft** (preference; violations penal
 
 1. **Per-entity cap** — bound each team. Doesn't control pileups (all teams at the cap at once is legal).
 2. **Aggregate cap** — bound the league-wide total directly.
-3. **Count-of-extremes cap** — per-team flag for "at the boundary", cap the sum of flags. Cheap, composable; this is `max_teams_divisional_weeks_1_and_2` and the [quirk-budget](../quirk-budget.md) mechanism.
+3. **Count-of-extremes cap** — per-team flag for "at the boundary", cap the sum of flags. Cheap, composable; this is `max_teams_divisional_weeks_1_and_2` and the [quirk-budget](../TODO/quirk-budget.md) mechanism.
 4. **Soft constraints + objective** — penalize atypical shapes so the solver *prefers* normal schedules ([OR-Tools pattern](https://github.com/google/or-tools/discussions/2488): add violation-flag × penalty to a minimize objective). The field's standard realism tool. Costs solve time and needs weight tuning.
 5. **Batch sampling** — generate many schedules, measure, constrain what drifts. Impractical for athc (solve time).
 
