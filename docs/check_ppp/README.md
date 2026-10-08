@@ -70,8 +70,8 @@ pair's error line and the other pairs are still checked.
 
 ## Settings
 
-The same league files the two check commands read: `rules\profile.toml`,
-`rules\gameplan.toml`, `rules\playpool.toml` and `play_path` in
+The same league files the two check commands read: `profile.toml`,
+`gameplan.toml`, `playpool.toml` and `play_path` in
 `league.ini`, plus `path` for a directory. See
 [profile](../profile/README.md) and [gameplan](../gameplan/README.md).
 

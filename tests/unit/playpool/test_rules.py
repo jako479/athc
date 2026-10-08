@@ -114,7 +114,7 @@ def test_missing_file(tmp_path: Path) -> None:
         load_rules(tmp_path / "nope.toml")
 
 
-@pytest.mark.parametrize("path", shipped_files("*/rules/playpool.toml"), ids=shipped_id)
+@pytest.mark.parametrize("path", shipped_files("*/playpool.toml"), ids=shipped_id)
 def test_shipped_rules_load(path: Path) -> None:
     load_rules(path)
 

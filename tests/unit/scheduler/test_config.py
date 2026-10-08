@@ -34,11 +34,11 @@ SEASON = 2048
 
 # Every shipped standings and scheduler rules file.
 SHIPPED_STANDINGS = shipped_files("*/standings/*.league.ini")
-SHIPPED_RULES = shipped_files("*/rules/scheduler.toml")
+SHIPPED_RULES = shipped_files("*/scheduler.toml")
 
 
 # ---------------------------------------------------------------------------
-# Scheduler tunables live in leagues/<league>/rules/scheduler.toml; league data is
+# Scheduler tunables live in leagues/<league>/scheduler.toml; league data is
 # a separate <season>.league.ini in leagues/<league>/standings/:
 # [DivisionStandings] (per-division teams in finish order -- this defines
 # division membership) plus [OverallStandings] (overall 1-18). Tests derive
@@ -47,9 +47,9 @@ SHIPPED_RULES = shipped_files("*/rules/scheduler.toml")
 
 
 def _league_folder(config_dir: Path, name: str = LEAGUE) -> Path:
-    """`leagues/<name>/` with `rules/` and `standings/` under the config dir."""
+    """`leagues/<name>/` with `standings/` under the config dir."""
     folder = config_dir / "leagues" / name
-    (folder / "rules").mkdir(parents=True, exist_ok=True)
+    folder.mkdir(parents=True, exist_ok=True)
     (folder / "standings").mkdir(exist_ok=True)
     return folder
 
@@ -60,7 +60,7 @@ def _load() -> SchedulerConfig:
 
 
 def _write_scheduler_toml(config_dir: Path, body: str) -> Path:
-    path = _league_folder(config_dir) / "rules" / "scheduler.toml"
+    path = _league_folder(config_dir) / "scheduler.toml"
     path.write_text(textwrap.dedent(body), encoding="utf-8")
     return path
 
@@ -133,7 +133,7 @@ def _valid_league(tmp_path: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# load_scheduler_config — rules/scheduler.toml (optional; missing -> defaults)
+# load_scheduler_config — scheduler.toml (optional; missing -> defaults)
 # ---------------------------------------------------------------------------
 
 
@@ -157,7 +157,7 @@ def test_load_scheduler_config_reads_values(config_dir: Path) -> None:
 
 
 def test_load_scheduler_config_defaults_when_no_file(config_dir: Path) -> None:
-    _league_folder(config_dir)  # league exists, rules/scheduler.toml does not
+    _league_folder(config_dir)  # league exists, scheduler.toml does not
     cfg = _load()
     assert cfg.difficulty.spread == config.DEFAULT_DIFFICULTY_SPREAD
     assert cfg.solver.time_limit == config.DEFAULT_TIME_LIMIT
@@ -298,7 +298,7 @@ def test_scheduler_rules_path_is_named_by_league(config_dir: Path) -> None:
     # The rules file is optional, so this never raises for an existing league --
     # it names the path.
     folder = _league_folder(config_dir)
-    assert scheduler_rules_path(LEAGUE) == folder / "rules" / "scheduler.toml"
+    assert scheduler_rules_path(LEAGUE) == folder / "scheduler.toml"
 
 
 def test_scheduler_rules_path_needs_the_league_folder() -> None:
@@ -851,8 +851,8 @@ def test_load_league_errors_on_wrong_conference_size(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("path", SHIPPED_RULES, ids=shipped_id)
 def test_shipped_rules_file_fits_its_leagues_standings(path: Path) -> None:
-    # A league's rules/scheduler.toml must fit every standings file in its folder.
-    folder = path.parents[1]
+    # A league's scheduler.toml must fit every standings file in its folder.
+    folder = path.parent
     standings = [p for p in SHIPPED_STANDINGS if p.parents[1] == folder]
     assert standings, f"no standings file in {folder}"
     config = load_scheduler_config(path)
@@ -870,9 +870,7 @@ def test_shipped_conference_league_files_match_the_test_league() -> None:
     matches = [p for p in SHIPPED_STANDINGS if load_league(p) == CONFERENCES_LEAGUE]
     assert matches
     for standings_path in matches:
-        config = load_scheduler_config(
-            standings_path.parents[1] / "rules" / "scheduler.toml"
-        )
+        config = load_scheduler_config(standings_path.parents[1] / "scheduler.toml")
         assert config.league.weeks == 12
         assert config.difficulty.spread == 0.0
         assert config.phase2.max_consecutive_conference_home_or_away == 2

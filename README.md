@@ -20,7 +20,7 @@ uv tool install ./dist/athc-0.1.0-py3-none-any.whl
 
 ## Configuration
 
-`athc` reads `%LOCALAPPDATA%\athc\athc.ini` for app-wide settings and `leagues\<NAME>\` next to it for each league (`league.ini`, `rules\`, `standings\`); missing file or section falls back to defaults. `athc config set league NAME` picks the league.
+`athc` reads `%LOCALAPPDATA%\athc\athc.ini` for app-wide settings and `leagues\<NAME>\` next to it for each league (`league.ini`, rule TOMLs, `standings\`); missing file or section falls back to defaults. `athc config set league NAME` picks the league.
 
 ```ini
 [toolname]

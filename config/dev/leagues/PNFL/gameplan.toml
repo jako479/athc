@@ -1,7 +1,31 @@
-# PNFL gameplan rules. Read automatically as leagues\<NAME>\rules\gameplan.toml;
+# PNFL gameplan rules. Read automatically as leagues\<NAME>\gameplan.toml;
 # to layer several files, list them under gameplan_rules in league.ini.
 # Sources: https://pnfl.biz/messageboard/viewtopic.php?f=16&t=14 (offense)
 #          https://pnfl.biz/messageboard/viewtopic.php?f=16&t=15 (defense)
+#
+# Per-section keys (counts >= 0):
+#   required  = true|false   default false; true -> needs >= min_count plays
+#   min_count = <int>        minimum plays in the category (default 0)
+#   max_count = <int>        maximum plays in the category
+#
+# Attribute caps.
+# Offense:
+#   qb_draws
+#   rollouts
+#   timed
+# Defense:
+#   two_dl
+# Three options each; at most one per attribute:
+#   max_<attr>_count   = <int>   whole number of plays
+#   max_<attr>_ratio   = "n/m"   quoted fraction 0-1, compared exactly
+#   max_<attr>_percent = <int>   whole number 0-100, no % sign
+#
+# Valid OFFENSE labels:  GLR RL RM RR  GLP PRD PLR  PML PMM PMR  PSL PSM PSR
+#                        "Razzle Dazzle Run" "Pass Long Left" "Pass Long Middle"
+#                        "User Specific"   (game names, quoted)
+# Valid DEFENSE labels:  GLrun RunDazzle RunLeft RunMiddle RunRight
+#                        GLpass PassDazzle PassLong PassMedium PassShort
+#                        "User Specific"   (game name, quoted)
 
 # Special teams that must each have a play assigned. Valid names:
 #   "Field Goal/PAT" "Kickoff" "Punt" "Onside Kick" "Fake FG Run" "Fake FG Pass"
@@ -31,25 +55,6 @@ disallowed_defensive_categories = ["User Specific"]
 require_all_gameplan_categories_in_profile = false  # every category the gameplan has must be used
 
 # ── Offense ───────────────────────────────────────────────────────────────────
-# Per-section keys (counts >= 0):
-#   required  = true|false   default false; true -> needs >= min_count plays
-#   min_count = <int>        minimum plays in the category (default 0)
-#   max_count = <int>        maximum plays
-#
-# Attribute caps.
-# Offense:
-#   qb_draws
-#   rollouts
-#   timed
-# Defense:
-#   two_dl
-# Three options each; at most one per attribute:
-#   max_<attr>_count   = <int>   whole number of plays
-#   max_<attr>_ratio   = "n/m"   quoted fraction 0-1, compared exactly
-#   max_<attr>_percent = <int>   whole number 0-100, no % sign
-#
-# Labels: GLR RL RM RR  GLP PRD PLR PML PMM PMR  PSL PSM PSR
-#         "Razzle Dazzle Run" "Pass Long Left" "Pass Long Middle" "User Specific"
 
 [offense.RM]
 required = true
@@ -122,11 +127,8 @@ max_timed_ratio = "1/2"
 required = false
 min_count = 3
 max_rollouts_count = 2
-max_timed_ratio = "1/2"
 
 # ── Defense ───────────────────────────────────────────────────────────────────
-# Labels: GLrun RunDazzle RunLeft RunMiddle RunRight  GLpass PassDazzle PassLong PassMedium PassShort
-#         "User Specific"
 
 [defense.RunLeft]
 required = true

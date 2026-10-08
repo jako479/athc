@@ -453,8 +453,7 @@ def _load_rules[R](
     """Load a rule set; log every problem and return None when it can't load."""
     if not files:
         logger.error(
-            "%s: no rules configured - nothing to check. "
-            "Add rules\\%s to the league folder.",
+            "%s: no rules configured - nothing to check. Add %s to the league folder.",
             PROG,
             name,
         )

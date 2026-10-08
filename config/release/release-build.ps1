@@ -51,7 +51,7 @@ foreach ($name in "athc.ini", "install.bat") {
 }
 
 # Stage the docs\ folder (README + per-command references) and the leagues\
-# folder (each league's league.ini, rules\ and standings\).
+# folder (each league's league.ini, rule files and standings\).
 foreach ($dir in "docs", "leagues") {
     Write-Host "  Staging: $dir\"
     Copy-Item (Join-Path $scriptRoot $dir) $staging -Recurse

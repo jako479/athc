@@ -40,18 +40,18 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + rules; 
 | Malformed `.prf` | tmp + league | exit 2; "ERROR" printed | `test_cli_malformed_prf` | ☑ |
 | Continues past bad file | tmp + league | exit 2; both lines printed | `test_cli_continues_past_bad` | ☑ |
 
-The "league" input is a selected league folder whose `rules/profile.toml` is the test rules file.
+The "league" input is a selected league folder whose `profile.toml` is the test rules file.
 
 ## `athc profile check` — rules / config resolution
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | No league configured | empty config | exit 2; "no league selected" | `test_cli_no_league` | ☑ |
 | League folder without rules | `leagues/<NAME>/` | exit 2; "no rules configured" | `test_cli_no_rules_in_league_folder` | ☑ |
-| Rules from the league folder | `leagues/<NAME>/rules/profile.toml` + `[athc] league` | exit 1 | `test_cli_rules_from_league_folder` | ☑ |
+| Rules from the league folder | `leagues/<NAME>/profile.toml` + `[athc] league` | exit 1 | `test_cli_rules_from_league_folder` | ☑ |
 | `--league` picks the folder | two leagues | exit 1 | `test_cli_league_flag_picks_folder` | ☑ |
 | `profile_rules` list | relative to the league folder | exit 1 | `test_cli_profile_rules_list_relative_to_league_folder` | ☑ |
 | `profile_rules` layering | base + overlay | later overrides earlier | `test_cli_rules_layering` | ☑ |
-| Bad rules TOML | league `rules/profile.toml` bad | exit 2; "TOML parse error" | `test_cli_bad_rules_toml` | ☑ |
+| Bad rules TOML | league `profile.toml` bad | exit 2; "TOML parse error" | `test_cli_bad_rules_toml` | ☑ |
 | Missing listed rules file | `profile_rules` → absent file | exit 2; path named | `test_cli_missing_rules` | ☑ |
 | Malformed `athc.ini` | bad ini | exit 2 | `test_cli_malformed_ini` | ☑ |
 
@@ -92,15 +92,15 @@ Same eight cases as profile (single / top level / recursive / missing / non-`.pl
 | Malformed `.pln` | tmp + league | exit 2; "ERROR" printed | `test_cli_malformed_pln` | ☑ |
 | Continues past bad file | tmp + league | exit 2; both lines printed | `test_cli_continues_past_bad` | ☑ |
 
-The "league" input is a selected league folder holding the test pool (`play_path`), `rules/playpool.toml` and `rules/gameplan.toml`.
+The "league" input is a selected league folder holding the test pool (`play_path`), `playpool.toml` and `gameplan.toml`.
 
 ## pool / rules / config resolution
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Missing play path | league `play_path` absent | exit 2; "not a directory" | `test_cli_missing_play_path` | ☑ |
-| Bad playpool rules TOML | league `rules/playpool.toml` bad | exit 2 | `test_cli_bad_playpool_rules` | ☑ |
+| Bad playpool rules TOML | league `playpool.toml` bad | exit 2 | `test_cli_bad_playpool_rules` | ☑ |
 | League folder without rules | `--league` + folder | exit 2; "no rules configured" | `test_cli_no_rules_in_league_folder` | ☑ |
-| Bad rules TOML | league `rules/gameplan.toml` bad | exit 2; "TOML parse error" | `test_cli_bad_rules_toml` | ☑ |
+| Bad rules TOML | league `gameplan.toml` bad | exit 2; "TOML parse error" | `test_cli_bad_rules_toml` | ☑ |
 | No league resolvable | no config | exit 2; "league" | `test_cli_no_league` | ☑ |
 | Resolves from the league folder | `[athc] league` + `leagues/<NAME>/` | exit 1 | `test_cli_resolves_from_league_folder` | ☑ |
 | `gameplan_rules` list | base + overlay | exit 1 | `test_cli_gameplan_rules_list_layers_in_order` | ☑ |
@@ -186,7 +186,7 @@ In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find
 
 # `athc gameplan set-normals`
 
-In [test_gameplan_set_normals.py](test_gameplan_set_normals.py). Operates on a tmp copy of `data/offense.pln` with the curated pool (a selected league whose `play_path` is `data/plays`, with its `rules/playpool.toml`). Edits in place, no backup; `check` validates. Exit 0 = updated, 1 = error (nothing written), 2 = usage.
+In [test_gameplan_set_normals.py](test_gameplan_set_normals.py). Operates on a tmp copy of `data/offense.pln` with the curated pool (a selected league whose `play_path` is `data/plays`, with its `playpool.toml`). Edits in place, no backup; `check` validates. Exit 0 = updated, 1 = error (nothing written), 2 = usage.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -203,7 +203,7 @@ In [test_gameplan_set_normals.py](test_gameplan_set_normals.py). Operates on a t
 
 # `athc gameplan set-specials`
 
-In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of `offense.pln` / `defense.pln`, with the curated pool from a selected league (`play_path` = `data/plays`, its `rules/playpool.toml`). Merge semantics; bulk over file/dir/tree; wrong-side files skipped by size parity; no backup. Exit 0 = all updated, 1 = some failed, 2 = setup error.
+In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of `offense.pln` / `defense.pln`, with the curated pool from a selected league (`play_path` = `data/plays`, its `playpool.toml`). Merge semantics; bulk over file/dir/tree; wrong-side files skipped by size parity; no backup. Exit 0 = all updated, 1 = some failed, 2 = setup error.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -523,7 +523,7 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`.
 
 # `athc generate-schedule`
 
-In [test_generate_schedule.py](test_generate_schedule.py). Slow (a full solve per league) → `pytest -m slow`; not run by default. One test parametrized over two test leagues — `divisions` (2026) and `conferences` (2029). For each it installs committed, test-owned inputs into the config dir as `leagues/<league>/` — `data/<league>.<season>.ini` as `standings/<season>.league.ini` and the frozen `data/<league>.scheduler.toml` as `rules/scheduler.toml` — then runs the scheduler end-to-end via the CLI (`athc generate-schedule --league <league>`) at a fixed seed (no `--time-limit`; the rules file drives the solve). **Golden regression**: validates the produced schedule against every rule that applies to that league (`schedule_validation.py`, the one validator), cross-checks that the `.html` schedule encodes the same games as the `.txt`, recomputes the report's ranks/SOS, then asserts the three output files byte-match the league's goldens in `expected/` (`schedule_<season>.*`; report run-info fields normalized). Depends on the fixed `solver_workers` reproducibility contract. Regenerate both golden sets with `python -m tests.integration.test_generate_schedule --bless`.
+In [test_generate_schedule.py](test_generate_schedule.py). Slow (a full solve per league) → `pytest -m slow`; not run by default. One test parametrized over two test leagues — `divisions` (2026) and `conferences` (2029). For each it installs committed, test-owned inputs into the config dir as `leagues/<league>/` — `data/<league>.<season>.ini` as `standings/<season>.league.ini` and the frozen `data/<league>.scheduler.toml` as `scheduler.toml` — then runs the scheduler end-to-end via the CLI (`athc generate-schedule --league <league>`) at a fixed seed (no `--time-limit`; the rules file drives the solve). **Golden regression**: validates the produced schedule against every rule that applies to that league (`schedule_validation.py`, the one validator), cross-checks that the `.html` schedule encodes the same games as the `.txt`, recomputes the report's ranks/SOS, then asserts the three output files byte-match the league's goldens in `expected/` (`schedule_<season>.*`; report run-info fields normalized). Depends on the fixed `solver_workers` reproducibility contract. Regenerate both golden sets with `python -m tests.integration.test_generate_schedule --bless`.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -541,7 +541,7 @@ In [test_config.py](test_config.py). Direct tests of `load_league_config()` / `l
 | From `[athc] league` | key + folder | `[league]` dict | `test_resolves_from_configured_league` | ☑ |
 | `LeagueConfig` name / dir / values | folder | as on disk; missing `league.ini` → `{}` | `test_league_config_names_folder` / `test_missing_league_ini_gives_empty_values` | ☑ |
 | Relative paths in `league.ini` | `play_path = plays` | resolved against the league folder | `test_path_resolves_relative_against_league_dir` | ☑ |
-| Fixed rules file / rule list | `rules/gameplan.toml`, `gameplan_rules` | fixed file when present, else `()`; list replaces it in order | `test_rules_file_only_when_present` / `test_rule_files_*` | ☑ |
+| Fixed rules file / rule list | `gameplan.toml`, `gameplan_rules` | fixed file when present, else `()`; list replaces it in order | `test_rules_file_only_when_present` / `test_rule_files_*` | ☑ |
 | None resolvable → lists folders | two folders | `LeagueError`; names `athc config set league`; "Available: <both names, sorted>" | `test_no_league_resolvable_lists_available` / `test_no_league_and_no_folders` | ☑ |
 | Unknown league name | ask missing | `LeagueError` "not found"; lists folders | `test_unknown_league_errors` | ☑ |
 | Blank `league =` | key empty | "no league selected" | `test_empty_league_key_is_no_league` | ☑ |
@@ -597,7 +597,7 @@ In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.i
 | `[autocontinue]` | config/release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
 | gameplan, every league | config/release/ | loads; playpool rules and rule files exist | `test_release_gameplan_config_loads` `[P]` | ☑ |
 | profile, every league | config/release/ | loads; rule files exist | `test_release_profile_config_loads` `[P]` | ☑ |
-| convert-pdb, every league | config/release/ | loads; the league's `rules/playpool.toml` exists | `test_release_convert_pdb_config_loads` `[P]` | ☑ |
+| convert-pdb, every league | config/release/ | loads; the league's `playpool.toml` exists | `test_release_convert_pdb_config_loads` `[P]` | ☑ |
 | `[convert-pdb]` defaults | config/release/ | spelled out in `athc.ini` | `test_release_convert_pdb_defaults` | ☑ |
 | scheduler, every league | config/release/ | tunables load; every standings file resolves | `test_release_scheduler_files_load` `[P]` | ☑ |
 | `config/dev/` mirrors `config/release/` | both | same `athc.ini`, `league.ini`, rules and standings files | `test_dev_mirrors_release_layout` | ☑ |

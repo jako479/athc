@@ -71,7 +71,7 @@ def generate_schedule(
     \b
       standings\\<season>.league.ini  [OverallStandings] plus [DivisionStandings]
                                      or [ConferenceStandings], teams in finish order
-      rules\\scheduler.toml           optional rule amounts and solver settings
+      scheduler.toml                  optional rule amounts and solver settings
 
     Writes a .txt and .html schedule plus an .html report to the current
     directory, named `schedule_<season>_<timestamp>`.

@@ -8,7 +8,7 @@ from os import PathLike
 from pathlib import Path
 from typing import Any, Final, Literal
 
-from athc.config import RULES_DIR, STANDINGS_DIR, league_dir
+from athc.config import STANDINGS_DIR, league_dir
 from athc.scheduler.domain.league import (
     TEAMS_PER_CONFERENCE,
     League,
@@ -20,10 +20,10 @@ from athc.scheduler.domain.league import (
 
 StrPath = str | PathLike[str]
 
-SCHEDULER_RULES_FILE = "scheduler.toml"  # in the league folder's rules/
+SCHEDULER_RULES_FILE = "scheduler.toml"  # in the league folder
 DEFAULT_WEEKS = 16  # regular-season weeks when the rules file sets none
 
-# Scheduler tunables; overridable in rules/scheduler.toml (missing -> these).
+# Scheduler tunables; overridable in scheduler.toml (missing -> these).
 # Both phases run multithreaded (interleave_search) and stop on deterministic
 # time, not wall-clock seconds.
 DEFAULT_TIME_LIMIT = 300.0  # phase-2 (week-placement) solve, deterministic time
@@ -163,10 +163,10 @@ class SchedulerConfig:
 
 
 def scheduler_rules_path(league: str) -> Path:
-    """The league's scheduler tunables file, `rules/scheduler.toml` in its league
-    folder (may not exist; values then default). LeagueError when the league has
-    no folder."""
-    return league_dir(league) / RULES_DIR / SCHEDULER_RULES_FILE
+    """The league's scheduler tunables file, `scheduler.toml` in its league folder
+    (may not exist; values then default). LeagueError when the league has no
+    folder."""
+    return league_dir(league) / SCHEDULER_RULES_FILE
 
 
 def load_scheduler_config(path: StrPath, *, required: bool = True) -> SchedulerConfig:

@@ -4,7 +4,7 @@ Cases for `config.py` (`load_scheduler_config`, `load_league`, file resolution) 
 
 In `test_config.py` and `test_cli.py`. The test league is named `divisions`. Status: ☑ covered · ☐ no test yet.
 
-### Scheduler rules — `leagues/<league>/rules/scheduler.toml` (optional)
+### Scheduler rules — `leagues/<league>/scheduler.toml` (optional)
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | Reads values | parsed floats/ints | `test_load_scheduler_config_reads_values` | ☑ |
@@ -19,7 +19,7 @@ In `test_config.py` and `test_cli.py`. The test league is named `divisions`. Sta
 ### File resolution — `--league` and `--season`
 | Case | Expected | Test | Status |
 |---|---|---|---|
-| Rules path | `leagues/<league>/rules/scheduler.toml` | `test_scheduler_rules_path_is_named_by_league` | ☑ |
+| Rules path | `leagues/<league>/scheduler.toml` | `test_scheduler_rules_path_is_named_by_league` | ☑ |
 | League has no folder | `LeagueError` | `test_scheduler_rules_path_needs_the_league_folder` | ☑ |
 | Standings missing | `ConfigError` naming `leagues/<league>/standings/<season>.league.ini` | `test_find_league_path_errors_when_none_exist` | ☑ |
 | Standings present (another league's ignored) | that file | `test_find_league_path_resolves_league_and_season_file` | ☑ |

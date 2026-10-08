@@ -24,7 +24,7 @@ WriteConfig = Callable[..., Path]
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league: the curated test pool and its playpool rules."""
     folder = make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
-    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
+    shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     return folder
 

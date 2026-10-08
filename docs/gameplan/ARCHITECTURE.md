@@ -48,14 +48,14 @@ Each capped attribute (`qb_draws`, `rollouts`, `timed`, `two_dl`) takes one of t
 
 Loading reports every problem at once (`RulesFileError.errors`); any error aborts `check` with each logged (exit 2).
 
-Each league's rule set is `config/release/leagues/<NAME>/rules/gameplan.toml` — data a coach supplies as a file, not code.
+Each league's rule set is `config/release/leagues/<NAME>/gameplan.toml` — data a coach supplies as a file, not code.
 
 ## Config
 
 The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.md)), chosen by `--league` / `[athc] league`:
 
-- `rules\gameplan.toml` — the rules (or a `gameplan_rules` list in `league.ini`, one path per line, later files layering over earlier).
-- `league.ini` `play_path` (play pool dir) and `rules\playpool.toml` (optional filename-filter TOML).
+- `gameplan.toml` — the rules (or a `gameplan_rules` list in `league.ini`, one path per line, later files layering over earlier).
+- `league.ini` `play_path` (play pool dir) and `playpool.toml` (optional filename-filter TOML).
 
 `check` reads all of these from the league folder only. With no rules resolvable there's nothing to validate → log an error, exit 2.
 

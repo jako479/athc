@@ -1,9 +1,9 @@
-# PNFL coaching-profile rules. Read automatically as leagues\<NAME>\rules\profile.toml;
+# PNFL coaching-profile rules. Read automatically as leagues\<NAME>\profile.toml;
 # to layer several files, list them under profile_rules in league.ini.
 # Source: https://pnfl.biz/messageboard/viewtopic.php?f=18&t=28
 
-audibles_allowed = false # if false, profiles must save with audibles off
-min_categories = 2       # baseline distinct categories per situation (>= 0)
+audibles_allowed = false   # if false, profiles must save with audibles off
+min_categories = 2         # baseline distinct categories per situation (>= 0)
 
 # Categories a profile must never use (weight 0 in every situation). Full game
 # names: Goal Line Run/Pass, Razzle Dazzle Run/Pass, Run Left/Middle/Right,

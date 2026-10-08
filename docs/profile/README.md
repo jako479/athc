@@ -55,18 +55,18 @@ validate afterward with `check`.
 
 ## Rules
 
-Rules are **not** built in — they are the league folder's `rules\profile.toml`
+Rules are **not** built in — they are the league folder's `profile.toml`
 (`leagues\<NAME>\` under the config dir, picked by `--league` /
 `[athc] league`). To layer several files, list them in `league.ini`:
 
 ```ini
 [league]
 profile_rules =
-    rules\profile.toml
-    rules\house-rules.toml
+    profile.toml
+    house-rules.toml
 ```
 
 Later files layer over earlier. With no rules configured,
 `check` reports an error and exits 2. The shipped rule set is
-[`config/release/leagues/PNFL/rules/profile.toml`](../../config/release/leagues/PNFL/rules/profile.toml),
+[`config/release/leagues/PNFL/profile.toml`](../../config/release/leagues/PNFL/profile.toml),
 and its comments explain every key.

@@ -1,5 +1,5 @@
 # Scheduler tuning for `athc generate-schedule`. Read automatically as
-# leagues\<NAME>\rules\scheduler.toml but not advertised; the commissioner edits it. A missing
+# leagues\<NAME>\scheduler.toml but not advertised; the commissioner edits it. A missing
 # file or key falls back to the built-in default.
 
 schema_version = 1

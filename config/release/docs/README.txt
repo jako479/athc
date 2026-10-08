@@ -62,8 +62,8 @@ example:
 
    path = D:\SIERRA\FBPRO98
 
-Each league is a folder under leagues\ with its league.ini, rules\ and
-standings\. athc ships two: PNFL and PCFL. To switch league, run:
+Each league is a folder under leagues\ with its league.ini, rule files
+(*.toml) and standings\. athc ships two: PNFL and PCFL. To switch league, run:
 
    athc config set league PCFL
 
@@ -98,8 +98,10 @@ That folder will contain:
    leagues\PNFL\        the PNFL league:
       league.ini           your plays folder (play_path) and league
                            files folder (path)
-      rules\               gameplan.toml, profile.toml, playpool.toml,
-                           scheduler.toml
+      gameplan.toml        league rules, one file per tool
+      profile.toml
+      playpool.toml
+      scheduler.toml
       standings\           <season>.league.ini for the scheduler
    leagues\PCFL\        the PCFL league, same layout
 
@@ -113,7 +115,7 @@ What survives reinstalls:
    leagues\*\league.ini YES -- preserved
    leagues\*\standings\ YES -- preserved (files are only added, never replaced)
    docs\                overwritten every install
-   leagues\*\rules\     overwritten every install (copy a file before editing
+   leagues\*\*.toml     overwritten every install (copy a file before editing
                         your own league's rules)
 
 When a new version adds a tool with new settings:

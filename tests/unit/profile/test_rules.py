@@ -551,6 +551,6 @@ def test_rule_min_categories_zero_ok(tmp_path: Path) -> None:
 # ── every shipped league's rules load ─────────────────────────────────────────
 
 
-@pytest.mark.parametrize("path", shipped_files("*/rules/profile.toml"), ids=shipped_id)
+@pytest.mark.parametrize("path", shipped_files("*/profile.toml"), ids=shipped_id)
 def test_shipped_rules_load(path: Path) -> None:
     load_rules([path])

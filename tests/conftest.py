@@ -24,7 +24,7 @@ OTHER_LEAGUE = "other_league"
 
 def shipped_files(pattern: str) -> list[Path]:
     """Every shipped `leagues/<pattern>` file, in both `config/dev/` and `config/release/`
-    (e.g. `*/rules/gameplan.toml`)."""
+    (e.g. `*/gameplan.toml`)."""
     return sorted(
         path
         for folder in ("dev", "release")
@@ -33,8 +33,10 @@ def shipped_files(pattern: str) -> list[Path]:
 
 
 def shipped_id(path: Path) -> str:
-    """Test id for a shipped league file: `dev/<league>/<file>`."""
-    return f"{path.parents[3].name}/{path.parents[1].name}/{path.name}"
+    """Test id for a shipped league file: `dev/<league>/<file>`, whether the file
+    sits in the league folder or in `standings\\`."""
+    rel = path.relative_to(ROOT / "config")
+    return f"{rel.parts[0]}/{rel.parts[2]}/{path.name}"
 
 
 @pytest.fixture(autouse=True)
@@ -57,10 +59,10 @@ def write_config_file(config_dir: Path, body: str, name: str = "athc.ini") -> Pa
 def make_league_dir(
     config_dir: Path, name: str = LEAGUE, body: str | None = None
 ) -> Path:
-    """Create `leagues/<name>/` (with `rules/` and `standings/`) under `config_dir`,
+    """Create `leagues/<name>/` (with `standings/`) under `config_dir`,
     write `league.ini` from `body` when given, and return the folder."""
     folder = config_dir / "leagues" / name
-    (folder / "rules").mkdir(parents=True)
+    folder.mkdir(parents=True)
     (folder / "standings").mkdir()
     if body is not None:
         write_config_file(folder, body, "league.ini")

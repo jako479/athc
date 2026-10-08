@@ -99,7 +99,7 @@ def test_league_flag_reaches_the_command(
 def test_league_flag_picks_profile_rules(runner, make_league: MakeLeague) -> None:
     make_league()  # no rules -> would fail
     other = make_league(OTHER_LEAGUE)
-    shutil.copy(RULES_TOML, other / "rules" / "profile.toml")
+    shutil.copy(RULES_TOML, other / "profile.toml")
     result = runner.invoke(
         cli, ["profile", "check", "--league", OTHER_LEAGUE, str(OFF1)]
     )
@@ -236,7 +236,7 @@ def test_root_ignores_athc_league_env(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     other = make_league(OTHER_LEAGUE)
-    shutil.copy(RULES_TOML, other / "rules" / "profile.toml")
+    shutil.copy(RULES_TOML, other / "profile.toml")
     monkeypatch.setenv("ATHC_LEAGUE", OTHER_LEAGUE)
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(cli, ["profile", "check", str(OFF1)])

@@ -37,8 +37,8 @@ MakeLeague = Callable[..., Path]
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league: the test pool, its playpool rules and gameplan rules."""
     folder = make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
-    shutil.copy(GP_RULES, folder / "rules" / "gameplan.toml")
-    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
+    shutil.copy(GP_RULES, folder / "gameplan.toml")
+    shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     return folder
 
@@ -265,9 +265,7 @@ def test_cli_missing_play_path(
 def test_cli_bad_playpool_rules(
     runner, league: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    (league / "rules" / "playpool.toml").write_text(
-        "not = valid = toml", encoding="utf-8"
-    )
+    (league / "playpool.toml").write_text("not = valid = toml", encoding="utf-8")
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 2
@@ -281,15 +279,13 @@ def test_cli_no_rules_in_league_folder(
         result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])
     assert result.exit_code == 2
     assert "no rules configured" in caplog.text
-    assert "rules\\gameplan.toml" in caplog.text
+    assert "gameplan.toml" in caplog.text
 
 
 def test_cli_bad_rules_toml(
     runner, league: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    (league / "rules" / "gameplan.toml").write_text(
-        "not = valid = toml", encoding="utf-8"
-    )
+    (league / "gameplan.toml").write_text("not = valid = toml", encoding="utf-8")
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 2
@@ -309,8 +305,8 @@ def test_cli_resolves_from_league_folder(
 ) -> None:
     # No flags: league from athc.ini, everything else from its league folder.
     folder = make_league(LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
-    shutil.copy(GP_RULES, folder / "rules" / "gameplan.toml")
-    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
+    shutil.copy(GP_RULES, folder / "gameplan.toml")
+    shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 1
@@ -324,10 +320,10 @@ def test_cli_gameplan_rules_list_layers_in_order(
     folder = make_league(
         LEAGUE,
         f"[league]\nplay_path = {PLAYS}\n"
-        f"gameplan_rules =\n    {GP_RULES}\n    rules\\overlay.toml\n",
+        f"gameplan_rules =\n    {GP_RULES}\n    overlay.toml\n",
     )
-    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
-    (folder / "rules" / "overlay.toml").write_text("", encoding="utf-8")
+    shutil.copy(POOL_RULES, folder / "playpool.toml")
+    (folder / "overlay.toml").write_text("", encoding="utf-8")
     result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])
     assert result.exit_code == 1
     assert "violation(s)" in result.output
@@ -338,7 +334,7 @@ def test_cli_missing_listed_rules_file_is_reported(
 ) -> None:
     make_league(
         LEAGUE,
-        f"[league]\nplay_path = {PLAYS}\ngameplan_rules =\n    rules\\gone.toml\n",
+        f"[league]\nplay_path = {PLAYS}\ngameplan_rules =\n    gone.toml\n",
     )
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])

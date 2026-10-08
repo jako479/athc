@@ -1,5 +1,5 @@
 # PNFL playpool rules — filename filters that set each filename-derived play
-# attribute. Read automatically as leagues\<NAME>\rules\playpool.toml.
+# attribute. Read automatically as leagues\<NAME>\playpool.toml.
 #
 # Sections (one per filename-derived attribute):
 #   [TimedPass]    a pass play's pass_logic = Timed (else Check Receivers)

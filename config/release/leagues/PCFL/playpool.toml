@@ -1,6 +1,6 @@
 # PCFL playpool rules — filename filters that set each filename-derived play
 # attribute (rollout, qb_draw, pass_logic). Read automatically as
-# leagues\<NAME>\rules\playpool.toml. Side and category come from
+# leagues\<NAME>\playpool.toml. Side and category come from
 # each play file, so these filters apply to any folder layout; only the filters
 # are league data — another league just copies and edits this file.
 

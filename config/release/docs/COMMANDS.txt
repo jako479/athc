@@ -11,7 +11,7 @@ Run tools from any terminal (Command Prompt or PowerShell):
    athc <group> <subcommand> --help   show help for one subcommand
 
 Settings live in athc.ini (the file documents every option inline). Each league
-is a folder under leagues\ next to it: league.ini (play_path, path), rules\
+is a folder under leagues\ next to it: league.ini (play_path, path), rule files
 (gameplan.toml, profile.toml, playpool.toml, scheduler.toml) and standings\
 (<season>.league.ini). League-aware tools use the league named by [athc] league
 unless the command is given --league NAME.
@@ -20,8 +20,8 @@ unless the command is given --league NAME.
 1) gameplan check  --  validate a .pln game plan against league rules
    ------------------------------------------------------------------
 
-   Rules come from the league's rules\gameplan.toml. The play pool comes from
-   the league's play_path (plus rules\playpool.toml). Each play's
+   Rules come from the league's gameplan.toml. The play pool comes from
+   the league's play_path (plus playpool.toml). Each play's
    side and category come from the play file, so any folder layout works; the
    PNFL layout (Offense/Defense/Special with category subfolders) is optional and
    only adds play attributes and misfiled-play warnings. With no gameplan rules
@@ -148,7 +148,7 @@ unless the command is given --league NAME.
 8) profile check  --  validate a .prf coaching profile against league rules
    ------------------------------------------------------------------------
 
-   Rules come from the league's rules\profile.toml. With no rules configured,
+   Rules come from the league's profile.toml. With no rules configured,
    check reports an error and stops. To check a profile together with its
    gameplan, use check-ppp.
 
@@ -204,7 +204,7 @@ unless the command is given --league NAME.
 
    Each file gets the same check as profile check and gameplan check, with
    the rules from the current league; --league picks another league. A pair
-   must be the same side, and the league's rules\profile.toml decides whether
+   must be the same side, and the league's profile.toml decides whether
    profile categories with no custom play in the game plan, and game plan
    categories the profile never uses, fail the check. Unused game plan
    categories that don't fail are listed as info only. Every error is
@@ -248,7 +248,7 @@ unless the command is given --league NAME.
    columns, per-category worksheets, sacks excluded from pass attempts) live
    in athc.ini under [convert-pdb]; --skip-calcs drops the percentage columns
    for one run. Play tags (QB draw, rollout, timed pass) come from the
-   league's rules\playpool.toml.
+   league's playpool.toml.
 
    Show help:
       athc convert-pdb --help

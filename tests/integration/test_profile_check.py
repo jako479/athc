@@ -32,9 +32,9 @@ MakeLeague = Callable[..., Path]
 
 @pytest.fixture
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
-    """The selected league, with the test rules as its rules/profile.toml."""
+    """The selected league, with the test rules as its profile.toml."""
     folder = make_league()
-    shutil.copy(RULES_TOML, folder / "rules" / "profile.toml")
+    shutil.copy(RULES_TOML, folder / "profile.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     return folder
 
@@ -279,14 +279,14 @@ def test_cli_no_rules_in_league_folder(
         result = runner.invoke(check, [str(OFF1), "--league", LEAGUE])
     assert result.exit_code == 2
     assert "no rules configured" in caplog.text
-    assert "rules\\profile.toml" in caplog.text
+    assert "profile.toml" in caplog.text
 
 
 def test_cli_rules_from_league_folder(
     runner, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
     folder = make_league()
-    shutil.copy(RULES_TOML, folder / "rules" / "profile.toml")
+    shutil.copy(RULES_TOML, folder / "profile.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     assert runner.invoke(check, [str(OFF1)]).exit_code == 1
 
@@ -294,15 +294,15 @@ def test_cli_rules_from_league_folder(
 def test_cli_league_flag_picks_folder(runner, make_league: MakeLeague) -> None:
     make_league()  # no rules -> would fail
     other = make_league(OTHER_LEAGUE)
-    shutil.copy(RULES_TOML, other / "rules" / "profile.toml")
+    shutil.copy(RULES_TOML, other / "profile.toml")
     assert runner.invoke(check, [str(OFF1), "--league", OTHER_LEAGUE]).exit_code == 1
 
 
 def test_cli_profile_rules_list_relative_to_league_folder(
     runner, make_league: MakeLeague
 ) -> None:
-    folder = make_league(LEAGUE, "[league]\nprofile_rules =\n    rules\\mine.toml\n")
-    shutil.copy(RULES_TOML, folder / "rules" / "mine.toml")
+    folder = make_league(LEAGUE, "[league]\nprofile_rules =\n    mine.toml\n")
+    shutil.copy(RULES_TOML, folder / "mine.toml")
     assert runner.invoke(check, [str(OFF1), "--league", LEAGUE]).exit_code == 1
 
 
@@ -310,21 +310,17 @@ def test_cli_rules_layering(runner, make_league: MakeLeague) -> None:
     # A profile_rules list layers files in order; the overlay is read last.
     folder = make_league(
         LEAGUE,
-        "[league]\nprofile_rules =\n    rules\\base.toml\n    rules\\overlay.toml\n",
+        "[league]\nprofile_rules =\n    base.toml\n    overlay.toml\n",
     )
-    shutil.copy(RULES_TOML, folder / "rules" / "base.toml")
-    (folder / "rules" / "overlay.toml").write_text(
-        "min_categories = 3\n", encoding="utf-8"
-    )
+    shutil.copy(RULES_TOML, folder / "base.toml")
+    (folder / "overlay.toml").write_text("min_categories = 3\n", encoding="utf-8")
     assert runner.invoke(check, [str(OFF1), "--league", LEAGUE]).exit_code == 1
 
 
 def test_cli_bad_rules_toml(
     runner, league: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    (league / "rules" / "profile.toml").write_text(
-        "not = valid = toml", encoding="utf-8"
-    )
+    (league / "profile.toml").write_text("not = valid = toml", encoding="utf-8")
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(check, [str(OFF1)])
     assert result.exit_code == 2

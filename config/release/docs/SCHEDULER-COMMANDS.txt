@@ -57,7 +57,7 @@ CONFIG FILES (in %LOCALAPPDATA%\athc\leagues\<NAME>\)
 
       A file has exactly one of [DivisionStandings] and [ConferenceStandings].
 
-   rules\scheduler.toml -- optional tuning (difficulty tilt, solver time
+   scheduler.toml -- optional tuning (difficulty tilt, solver time
    limits, weeks, rule amounts and toggles, rivalries). Every key defaults if
    absent; edit only to change a default. See the comments in the shipped
    PNFL and PCFL files.

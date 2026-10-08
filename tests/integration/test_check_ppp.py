@@ -69,7 +69,7 @@ def league(make_league: MakeLeague) -> BuildLeague:
             (playpool_rules, "playpool.toml"),
         ):
             if source is not None:
-                shutil.copy(source, folder / "rules" / target)
+                shutil.copy(source, folder / target)
         return folder
 
     return _build
@@ -601,7 +601,7 @@ def test_cli_no_profile_rules_in_league(
         result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert "no rules configured" in caplog.text
-    assert "rules\\profile.toml" in caplog.text
+    assert "profile.toml" in caplog.text
     assert "--rules" not in caplog.text  # check-ppp has no such option
     assert result.stdout == ""
 
@@ -619,7 +619,7 @@ def test_cli_no_gameplan_rules_in_league(
         result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert "no rules configured" in caplog.text
-    assert "rules\\gameplan.toml" in caplog.text
+    assert "gameplan.toml" in caplog.text
     assert "--rules" not in caplog.text  # check-ppp has no such option
     assert result.stdout == ""
 
@@ -638,7 +638,7 @@ def test_cli_rules_error_still_reports_side_mismatch(
     with caplog.at_level(logging.ERROR):
         result = run(runner, OFF1, GP_DEFENSE)
     assert result.exit_code == 2
-    assert "rules\\profile.toml" in caplog.text
+    assert "profile.toml" in caplog.text
     assert normalized(result, OFF1) == (
         "TST-OFF1.prf: ERROR: profile is offense but gameplan is defense; "
         "sides must match\n"
@@ -684,8 +684,8 @@ def test_cli_reports_every_config_error(
     with caplog.at_level(logging.ERROR):
         result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
-    assert "rules\\profile.toml" in caplog.text
-    assert "rules\\gameplan.toml" in caplog.text
+    assert "profile.toml" in caplog.text
+    assert "gameplan.toml" in caplog.text
     assert "not a directory" in caplog.text
     assert result.stdout == ""
 
@@ -757,12 +757,12 @@ def test_cli_rule_lists_in_league_ini(
     folder = make_league(
         LEAGUE,
         f"[league]\nplay_path = {PLAYS}\n"
-        "profile_rules =\n    rules\\my-profile.toml\n"
-        "gameplan_rules =\n    rules\\my-gameplan.toml\n",
+        "profile_rules =\n    my-profile.toml\n"
+        "gameplan_rules =\n    my-gameplan.toml\n",
     )
-    shutil.copy(RULES_TOML, folder / "rules" / "my-profile.toml")
-    shutil.copy(GP_RULES, folder / "rules" / "my-gameplan.toml")
-    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
+    shutil.copy(RULES_TOML, folder / "my-profile.toml")
+    shutil.copy(GP_RULES, folder / "my-gameplan.toml")
+    shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 1
@@ -779,7 +779,7 @@ def test_cli_missing_listed_rules_file(
 ) -> None:
     folder = league()
     (folder / "league.ini").write_text(
-        f"[league]\nplay_path = {PLAYS}\n{key} =\n    rules\\gone.toml\n",
+        f"[league]\nplay_path = {PLAYS}\n{key} =\n    gone.toml\n",
         encoding="utf-8",
     )
     write_config(f"[athc]\nleague = {LEAGUE}\n")
@@ -1140,7 +1140,7 @@ def test_dir_reports_every_setup_error(
     with caplog.at_level(logging.ERROR):
         result = run(runner, folder)
     assert result.exit_code == 2
-    assert "rules\\profile.toml" in caplog.text
+    assert "profile.toml" in caplog.text
     assert "no path for the league" in caplog.text
 
 

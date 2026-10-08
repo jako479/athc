@@ -33,7 +33,7 @@ src/athc/cli/generate_schedule.py   # Click command (lazy solver import)
 
 - Provides a CLI: `athc generate-schedule [--league name] --season year [--seed number] [--time-limit number]`
 - Resolves the league (`--league` → `[athc] league`) with the shared `athc.config.resolve_league`
-- Loads `standings\<season>.league.ini` (the standings, which define conferences and divisions) and `rules\scheduler.toml` (optional amounts) from the league's folder
+- Loads `standings\<season>.league.ini` (the standings, which define conferences and divisions) and `scheduler.toml` (optional amounts) from the league's folder
 - Solves the schedule in two CP-SAT phases
 - Writes `schedule_<season>_<timestamp>.txt` / `.html` and `_report.html` to the current directory, titled by league
 
@@ -45,7 +45,7 @@ CLI-level (Click → exit 2):
 Config (`ConfigError`, `LeagueError` → exit 1) — found via `config_dir()` / `ATHC_CONFIG_DIR`, no `--config` flag:
 - The league (`--league`, else `[athc] league`) must have a folder `leagues\<NAME>\`.
 - `leagues\<NAME>\standings\<season>.league.ini` is **required**: `[OverallStandings]` plus exactly one of `[DivisionStandings]` (keys `<CONFERENCE>_<DIVISION>`, division sizes from the file) or `[ConferenceStandings]` (two conferences of nine).
-- `leagues\<NAME>\rules\scheduler.toml` is **optional**; every key defaults; invalid TOML or a bad value is an error.
+- `leagues\<NAME>\scheduler.toml` is **optional**; every key defaults; invalid TOML or a bad value is an error.
 - League-resolved rules: `weeks` must fit the league, `opening_nonconference_weeks` must leave room for every same-conference game, `[rivalries]` must name every team once with exactly one cross-conference pair.
 
 Domain (`ValueError`, surfaced as `ConfigError`):

@@ -1,10 +1,10 @@
 """convert-pdb config: the workbook options from `[convert-pdb]` in `athc.ini`
-(app-wide, not league data), `play_path` and `rules\\playpool.toml` from the
+(app-wide, not league data), `play_path` and `playpool.toml` from the
 league folder, plus the default category order.
 
 `play_path` / `playpool_rules` locate the play pool used to classify and (optionally)
 tag plays; both come from the league folder, and the rules are none when the
-league has no `rules\\playpool.toml`. Category order — the row sort order and
+league has no `playpool.toml`. Category order — the row sort order and
 the Options sheet — defaults to the game's own category vocabulary.
 """
 
@@ -20,7 +20,7 @@ from athc.fbpro98_play import DefensiveCategory, OffensiveCategory
 from athc.pdbtoexcel.pdb import PLAY_DATA
 
 PACKAGE_DIR = Path(__file__).resolve().parent
-PLAYPOOL_RULES_FILE = "playpool.toml"  # in a league's rules\ folder
+PLAYPOOL_RULES_FILE = "playpool.toml"  # in the league folder
 SECTION = "convert-pdb"
 
 # The configparser boolean spellings (case-insensitive).
@@ -64,7 +64,7 @@ def load_config(league: str | None = None) -> Config:
 
     `play_path` and the playpool rules come from the league folder (LeagueError
     when no league can be resolved). A league folder without `play_path` yields
-    "" and the caller reports it; one without `rules\\playpool.toml` yields None.
+    "" and the caller reports it; one without `playpool.toml` yields None.
     The workbook options come from `[convert-pdb]` in `athc.ini`; a missing key
     keeps its default, a non-boolean value is a ConfigFileError."""
     cfg = load_league_config(league)

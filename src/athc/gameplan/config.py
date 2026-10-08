@@ -1,5 +1,5 @@
-"""Gameplan config: `play_path`, `rules\\gameplan.toml` (or the `gameplan_rules`
-list) and `rules\\playpool.toml` from the league folder."""
+"""Gameplan config: `play_path`, `gameplan.toml` (or the `gameplan_rules`
+list) and `playpool.toml` from the league folder."""
 
 from __future__ import annotations
 

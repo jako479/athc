@@ -1,4 +1,4 @@
-# PCFL coaching-profile rules. Read automatically as leagues\<NAME>\rules\profile.toml;
+# PNFL coaching-profile rules. Read automatically as leagues\<NAME>\profile.toml;
 # to layer several files, list them under profile_rules in league.ini.
 # Source: https://pnfl.biz/messageboard/viewtopic.php?f=18&t=28
 
@@ -34,7 +34,7 @@ require_all_profile_categories_in_gameplan = true   # every category the profile
 # and likewise for the in side. A group needs at least one key, and an exact
 # out_percent must be <= in_percent.
 #
-# Groups: offense OL QB RB WR K · defense DL LB DB. PCFL leaves only K unchecked.
+# Groups: offense OL QB RB WR K · defense DL LB DB. PNFL leaves only K unchecked.
 [substitutions]
 QB = { out_percent = 75, in_percent = 80 }
 OL = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }

@@ -7,7 +7,7 @@
 - athc: docs: API reference per library, one page each, under a shared index. Design: [docs/design/TODO/api-docs.md](docs/design/TODO/api-docs.md)
 - athc: logging: switch to the mainstream logging strategy (see Tamarack Habilitations)
 - playpool: check that each play's name matches its play category
-- check-playpool: consider using the league's `rules\playpool.toml` to count plays by file name type
+- check-playpool: consider using the league's `playpool.toml` to count plays by file name type
 - gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run
 - gameplan: `list-normals --sort category` — group the plays by category, each group under a `::` category header comment
 - athc: install through a PyInstaller-built installer (exe), replacing the `install.bat` + wheel zip and the uv prerequisite

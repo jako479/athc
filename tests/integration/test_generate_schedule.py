@@ -92,7 +92,7 @@ def _write_config(config_dir: Path, case: GoldenCase) -> None:
     athc config dir."""
     folder = make_league_dir(config_dir, case.league)
     shutil.copy(case.standings, folder / "standings" / f"{case.season}.league.ini")
-    shutil.copy(case.rules, folder / "rules" / "scheduler.toml")
+    shutil.copy(case.rules, folder / "scheduler.toml")
 
 
 def _generate(directory: Path, case: GoldenCase) -> tuple[str, str, str]:
@@ -135,7 +135,7 @@ def _validate(case: GoldenCase, config_dir: Path, txt: str, html: str) -> None:
     and the report's ranks/SOS values are correct for this schedule."""
     folder = config_dir / "leagues" / case.league
     league = load_league(folder / "standings" / f"{case.season}.league.ini")
-    config = load_scheduler_config(folder / "rules" / "scheduler.toml")
+    config = load_scheduler_config(folder / "scheduler.toml")
     schedule = parse_schedule_txt(txt, league)
     validate_schedule(schedule, league, config, season=case.season)
     assert game_keys(parse_schedule_html(html, league)) == game_keys(schedule), (

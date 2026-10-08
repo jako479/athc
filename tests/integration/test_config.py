@@ -109,16 +109,16 @@ def test_rules_file_only_when_present(make_league: MakeLeague) -> None:
     folder = make_league()
     cfg = load_league_config(LEAGUE)
     assert cfg.rules_file("gameplan.toml") is None
-    (folder / "rules" / "gameplan.toml").write_text("", encoding="utf-8")
-    assert cfg.rules_file("gameplan.toml") == folder / "rules" / "gameplan.toml"
+    (folder / "gameplan.toml").write_text("", encoding="utf-8")
+    assert cfg.rules_file("gameplan.toml") == folder / "gameplan.toml"
 
 
 def test_rule_files_default_is_the_fixed_file(make_league: MakeLeague) -> None:
     folder = make_league()
-    (folder / "rules" / "gameplan.toml").write_text("", encoding="utf-8")
+    (folder / "gameplan.toml").write_text("", encoding="utf-8")
     cfg = load_league_config(LEAGUE)
     assert cfg.rule_files("gameplan_rules", "gameplan.toml") == (
-        folder / "rules" / "gameplan.toml",
+        folder / "gameplan.toml",
     )
 
 
@@ -134,12 +134,12 @@ def test_rule_files_default_empty_when_fixed_file_missing(
 def test_rule_files_list_replaces_default_in_order(make_league: MakeLeague) -> None:
     folder = make_league(
         LEAGUE,
-        "[league]\ngameplan_rules =\n    rules\\base.toml\n    D:\\house.toml\n",
+        "[league]\ngameplan_rules =\n    base.toml\n    D:\\house.toml\n",
     )
-    (folder / "rules" / "gameplan.toml").write_text("", encoding="utf-8")
+    (folder / "gameplan.toml").write_text("", encoding="utf-8")
     cfg = load_league_config(LEAGUE)
     assert cfg.rule_files("gameplan_rules", "gameplan.toml") == (
-        folder / "rules" / "base.toml",
+        folder / "base.toml",
         Path("D:\\house.toml"),
     )
 
@@ -406,7 +406,7 @@ def test_release_convert_pdb_config_loads(name: str) -> None:
 
     cfg = pdbtoexcel_config.load_config(name)
     assert cfg.playpool_rules is not None and cfg.playpool_rules.is_file()
-    assert cfg.playpool_rules == RELEASE / "leagues" / name / "rules" / "playpool.toml"
+    assert cfg.playpool_rules == RELEASE / "leagues" / name / "playpool.toml"
 
 
 @pytest.mark.usefixtures("release_config_dir")
@@ -442,7 +442,7 @@ def test_dev_mirrors_release_layout() -> None:
         patterns = (
             "athc.ini",
             "leagues/*/league.ini",
-            "leagues/*/rules/*.toml",
+            "leagues/*/*.toml",
             "leagues/*/standings/*.league.ini",
         )
         return {p.relative_to(root) for pat in patterns for p in root.glob(pat)}

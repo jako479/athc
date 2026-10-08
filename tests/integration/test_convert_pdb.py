@@ -193,10 +193,10 @@ def test_entry_point_subprocess(
 
 def test_config_play_path_from_league_folder(make_league: MakeLeague) -> None:
     folder = make_league(LEAGUE, "[league]\nplay_path = plays\n")
-    (folder / "rules" / "playpool.toml").write_text("", encoding="utf-8")
+    (folder / "playpool.toml").write_text("", encoding="utf-8")
     cfg = pdbtoexcel_config.load_config(LEAGUE)
     assert cfg.play_path == str(folder / "plays")
-    assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
+    assert cfg.playpool_rules == folder / "playpool.toml"
 
 
 def test_config_missing_play_path_is_empty(make_league: MakeLeague) -> None:
@@ -224,7 +224,7 @@ def _golden_league(config_dir: Path) -> None:
     """Select a league under `config_dir` whose pool is `data/plays/` with its
     playpool rules, and turn the category worksheets on."""
     folder = make_league_dir(config_dir, LEAGUE, f"[league]\nplay_path = {PLAYS}\n")
-    shutil.copy(POOL_RULES, folder / "rules" / "playpool.toml")
+    shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config_file(
         config_dir,
         f"[athc]\nleague = {LEAGUE}\n[convert-pdb]\ninclude_category_worksheets = true\n",

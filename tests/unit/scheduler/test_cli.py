@@ -24,7 +24,7 @@ from .test_config import LEAGUE, LEAGUE_MISSING_DIVISION_STANDINGS, VALID_LEAGUE
 def league_config(config_dir: Path, write_config) -> None:
     """A configured league with its folder, so tests without --league resolve one."""
     folder = config_dir / "leagues" / LEAGUE
-    (folder / "rules").mkdir(parents=True)
+    folder.mkdir(parents=True)
     (folder / "standings").mkdir()
     write_config(f"[athc]\nleague = {LEAGUE}\n")
 
@@ -187,7 +187,7 @@ def test_league_and_season_resolve_files_and_output_to_cwd(
     folder = config_dir / "leagues" / LEAGUE
     assert captured["league"] == LEAGUE
     assert captured["league_path"] == folder / "standings" / "2048.league.ini"
-    assert captured["config_path"] == folder / "rules" / "scheduler.toml"
+    assert captured["config_path"] == folder / "scheduler.toml"
     assert captured["output_dir"] == Path.cwd()  # output goes to the current dir
 
 

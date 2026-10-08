@@ -4,6 +4,11 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-07 — **config**: a league's rule files moved up beside its
+  `league.ini`. The `rules\` subfolder held only four fixed-name files, so the
+  extra level bought nothing for a user editing them in Notepad; `standings\`
+  stays a folder because it grows by one file a season. Code, installer,
+  shipped files, docs and tests follow the new path.
 - 2026-10-06 — **gameplan**: every play category is now supported, so only a
   league's rules decide what a plan may hold. The two clock categories (Run
   Clock, Stop Clock) joined the play-category enum, and the `.pln` model keeps

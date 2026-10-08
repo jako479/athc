@@ -82,7 +82,7 @@ def resolve_rules(
     if not files:
         logger.error(
             "%s: no rules configured - nothing to check. "
-            "Add rules\\profile.toml to the league folder.",
+            "Add profile.toml to the league folder.",
             prog,
         )
         return None

@@ -41,6 +41,8 @@ athc profile diff               DONE
 
 Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
+- A league's rule files sit beside its `league.ini`; there is no `rules\`
+  subfolder.
 - Tests never name a real league: test leagues get neutral names, rules come
   from the tests' own files, and shipped-file tests run once per league folder.
 - The PCFL ships gameplan, playpool and profile rules, copied from the PNFL's.
@@ -68,20 +70,18 @@ athc.ini                      [athc] league, [autocontinue], [convert-pdb]
 leagues\
   PNFL\
     league.ini                [league] play_path (dev also db_path)
-    rules\
-      gameplan.toml
-      profile.toml
-      playpool.toml
-      scheduler.toml
+    gameplan.toml
+    profile.toml
+    playpool.toml
+    scheduler.toml
     standings\
       2045.league.ini … 2049.league.ini
   PCFL\
     league.ini                [league] play_path, db_path
-    rules\
-      gameplan.toml
-      profile.toml
-      playpool.toml
-      scheduler.toml
+    gameplan.toml
+    profile.toml
+    playpool.toml
+    scheduler.toml
     standings\
       2029.league.ini
 ```
@@ -132,11 +132,11 @@ Open: halftime handling itself.
 Working. Checks the play pool. Docs: [README](docs/check_playpool/README.md)
 
 - Reads the league's `play_path`, or a folder given on the command line (then
-  no league is read). `rules\playpool.toml` is not used.
+  no league is read). `playpool.toml` is not used.
 - Prints the warnings pool loading already logs, word for word, as findings:
   plays in a folder that contradicts the file, duplicate names, invalid files.
 
-Open: maybe use `rules\playpool.toml` for counts by file name type (TODO).
+Open: maybe use `playpool.toml` for counts by file name type (TODO).
 
 ## check-ppp
 
@@ -219,15 +219,15 @@ Reads and writes `.prf` coaching profiles. Docs:
 ## gameplan
 
 Working. Validates and edits `.pln` game plans. Docs:
-[README](docs/gameplan/README.md) · [rules](config/release/leagues/PNFL/rules/gameplan.toml)
+[README](docs/gameplan/README.md) · [rules](config/release/leagues/PNFL/gameplan.toml)
 
 - Rules can name every category: the five without a league abbreviation use
   their quoted game name (`[offense."Pass Long Left"]`), and Run Clock / Stop
   Clock may be required specials.
 - A written play path starts with the play pool's folder name, so each league's
   gameplans point at its own plays.
-- Rules and the play pool come from the league folder (`rules\gameplan.toml`,
-  `rules\playpool.toml`, `play_path` in `league.ini`); `check` has no overrides.
+- Rules and the play pool come from the league folder (`gameplan.toml`,
+  `playpool.toml`, `play_path` in `league.ini`); `check` has no overrides.
 - Attribute caps take a count, ratio or percent form — one form per attribute,
   so a league writes its rule the way the league states it. Naming two forms
   for one attribute is a rules-file error.
@@ -271,9 +271,9 @@ Working. Backs `gameplan` and `convert-pdb`. Docs:
 ## profile
 
 Working. Validates and compares `.prf` coaching profiles. Docs:
-[README](docs/profile/README.md) · [rules](config/release/leagues/PNFL/rules/profile.toml)
+[README](docs/profile/README.md) · [rules](config/release/leagues/PNFL/profile.toml)
 
-- `check` takes its rules from the league folder (`rules\profile.toml`, or a
+- `check` takes its rules from the league folder (`profile.toml`, or a
   `profile_rules` list in `league.ini`); there is no override.
 - `check` validates profiles only; checking a profile with its gameplan is
   `check-ppp`'s job.
@@ -301,7 +301,7 @@ Working. Docs: [README](docs/scheduler/README.md) ·
   threads fastest and 18-24 slower. The report shows the CPU, thread count and
   seed, so a schedule can be reproduced on another machine.
 - League-agnostic: `--league NAME` picks the league; its standings are
-  `standings\<season>.league.ini` and its rules `rules\scheduler.toml` in the
+  `standings\<season>.league.ini` and its rules `scheduler.toml` in the
   league folder. Conferences and divisions come from the standings file, the
   same-place games from the divisions, and the writers take the league name.
   No league or division name is left in scheduler code or tests; one validator

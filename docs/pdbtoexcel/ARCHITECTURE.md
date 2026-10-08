@@ -3,7 +3,7 @@
 `athc convert-pdb` — converts a WinLogStats `.pdb` (and optional FbPro '98 game
 plans) into an Excel workbook. League-agnostic: plays are grouped by their own
 **game** category; the playpool rules are league data in each league's
-`rules\playpool.toml`.
+`playpool.toml`.
 
 ## Layout
 
@@ -49,7 +49,7 @@ src/athc/cli/convert_pdb.py   # Click leaf command
 ## Config
 
 The league folder `leagues\<NAME>\`: `play_path` from `league.ini` and the
-optional `rules\playpool.toml` (none when absent). The league is always
+optional `playpool.toml` (none when absent). The league is always
 resolved; no command-line option replaces its play pool or rules. `play_path`
 must resolve to a real directory at runtime. The workbook options
 (`calculate_percentages`, `include_category_worksheets`,

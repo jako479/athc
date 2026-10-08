@@ -11,7 +11,6 @@ CONFIG_FILE = "athc.ini"
 LEAGUES_DIR = "leagues"
 LEAGUE_FILE = "league.ini"
 LEAGUE_SECTION = "league"
-RULES_DIR = "rules"
 STANDINGS_DIR = "standings"
 
 
@@ -73,18 +72,18 @@ class LeagueConfig:
         return self._resolve(raw)
 
     def rules_file_path(self, filename: str) -> Path:
-        """`rules\\<filename>` in the league folder, whether or not it exists."""
-        return self.dir / RULES_DIR / filename
+        """`<filename>` in the league folder, whether or not it exists."""
+        return self.dir / filename
 
     def rules_file(self, filename: str) -> Path | None:
-        """`rules\\<filename>` in the league folder, or None when absent."""
+        """`<filename>` in the league folder, or None when absent."""
         candidate = self.rules_file_path(filename)
         return candidate if candidate.is_file() else None
 
     def rule_files(self, key: str, default: str) -> tuple[Path, ...]:
         """The ordered rule files for a tool: the multi-line list under `key` in
         `league.ini` when present (later files layer over earlier ones), else the
-        fixed `rules\\<default>` file when it exists, else nothing."""
+        fixed `<default>` file in the league folder when it exists, else nothing."""
         raw = self.values.get(key)
         if raw:
             return tuple(

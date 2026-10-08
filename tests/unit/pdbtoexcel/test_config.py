@@ -44,10 +44,10 @@ def test_load_config_defaults(make_league: MakeLeague) -> None:
 
 def test_load_config_from_league_folder(make_league: MakeLeague) -> None:
     folder = make_league(LEAGUE, "[league]\nplay_path = D:\\plays\n")
-    (folder / "rules" / "playpool.toml").write_text("", encoding="utf-8")
+    (folder / "playpool.toml").write_text("", encoding="utf-8")
     cfg = load_config(LEAGUE)
     assert cfg.play_path == "D:\\plays"
-    assert cfg.playpool_rules == folder / "rules" / "playpool.toml"
+    assert cfg.playpool_rules == folder / "playpool.toml"
 
 
 def test_load_config_needs_a_league() -> None:
@@ -55,13 +55,13 @@ def test_load_config_needs_a_league() -> None:
         load_config()
 
 
-# ── playpool rules: league rules\playpool.toml > None ─────────────────────────
+# ── playpool rules: league playpool.toml > None ─────────────────────────
 
 
 def test_playpool_toml_next_to_athc_ini_is_ignored(
     make_league: MakeLeague, config_dir: Path
 ) -> None:
-    make_league()  # no rules\playpool.toml
+    make_league()  # no playpool.toml
     (config_dir / "playpool.toml").write_text("", encoding="utf-8")
     assert load_config(LEAGUE).playpool_rules is None
 

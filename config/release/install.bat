@@ -26,8 +26,9 @@ REM Make sure uv's tool directory is on PATH (no-op if already there).
 uv tool update-shell
 
 REM Deploy files to the athc config folder.
-REM   - docs\ and each league's rules\ are shipped reference material -> always
-REM     overwrite (no guard). Users copy a rule file before editing their own.
+REM   - docs\ and each league's rule files (*.toml) are shipped reference
+REM     material -> always overwrite (no guard). Users copy a rule file before
+REM     editing their own.
 REM   - athc.ini, each league's league.ini and standings\ are user-owned ->
 REM     guarded with 'if not exist' so edits survive a reinstall. New tool
 REM     sections take effect via in-code defaults; the freshly-extracted athc.ini
@@ -40,9 +41,8 @@ copy /Y "docs\*.txt" "%DEST%\docs\" >NUL
 if not exist "%DEST%\athc.ini" copy /Y "athc.ini" "%DEST%\athc.ini" >NUL
 
 for /D %%L in (leagues\*) do (
-    if not exist "%DEST%\%%L\rules" mkdir "%DEST%\%%L\rules"
     if not exist "%DEST%\%%L\standings" mkdir "%DEST%\%%L\standings"
-    copy /Y "%%L\rules\*.toml" "%DEST%\%%L\rules\" >NUL
+    copy /Y "%%L\*.toml" "%DEST%\%%L\" >NUL
     if not exist "%DEST%\%%L\league.ini" copy /Y "%%L\league.ini" "%DEST%\%%L\league.ini" >NUL
     for %%f in ("%%L\standings\*.league.ini") do if not exist "%DEST%\%%L\standings\%%~nxf" copy /Y "%%f" "%DEST%\%%L\standings\%%~nxf" >NUL
 )

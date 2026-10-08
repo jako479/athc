@@ -48,7 +48,10 @@ athc.ini                      app-wide settings + the selected league
 leagues\
   PNFL\
     league.ini                per-league settings ([league] play_path, path, …)
-    rules\                    gameplan.toml, profile.toml, playpool.toml, scheduler.toml
+    gameplan.toml             rule files, one per tool
+    profile.toml
+    playpool.toml
+    scheduler.toml
     standings\                <season>.league.ini
   PCFL\                       same fixed names
 ```
@@ -82,7 +85,7 @@ Log level is not a setting ([logging.md](logging.md#handler-setup)).
 
 ## Rule files
 
-Each tool reads its one fixed file under the league's `rules\`. An optional multi-line list in `league.ini` (`gameplan_rules`, `profile_rules`) replaces it with an ordered set, later files overriding earlier ones. No command-line option overrides the league's rules or play pool. Rule files are league data only; there is no shared default outside the league folders.
+Each tool reads its one fixed file from the league folder. An optional multi-line list in `league.ini` (`gameplan_rules`, `profile_rules`) replaces it with an ordered set, later files overriding earlier ones. No command-line option overrides the league's rules or play pool. Rule files are league data only; there is no shared default outside the league folders.
 
 ## Multi-league selection
 
@@ -119,7 +122,7 @@ def load(league: str | None = None) -> Config:
 ```
 
 - `Config` is a frozen dataclass with typed defaults.
-- `load()` asks the resolved `LeagueConfig` for what the tool needs: `path(key)` for a value in `league.ini`, `rules_file(name)` / `rule_files(key, default)` for files under `rules\`.
+- `load()` asks the resolved `LeagueConfig` for what the tool needs: `path(key)` for a value in `league.ini`, `rules_file(name)` / `rule_files(key, default)` for rule files in the league folder.
 - Missing file or key → dataclass defaults. Type conversion is the tool's responsibility — `configparser` returns everything as strings.
 
 ## In-code defaults are authoritative

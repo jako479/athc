@@ -1,7 +1,7 @@
 # Frozen scheduler rules for the conference test league (the generate-schedule golden and
 # model-checksum tests). Test-owned; mirrors the shipped conference-league rules except
-# spread. Installed to the config dir's
-# rules\ folder for the test run. A missing key falls back to the built-in default
+# spread. Installed to the test league's
+# folder for the test run. A missing key falls back to the built-in default
 # (the divisional league's), so every rule this league does differently is set here.
 
 schema_version = 1

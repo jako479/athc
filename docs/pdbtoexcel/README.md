@@ -31,7 +31,7 @@ The league folder `leagues\<NAME>\` (picked by `--league` /
 play_path = E:\SIERRA\FbPro98\PNFL
 ```
 
-`play_path` (the `.ply` pool, required) plus the optional `rules\playpool.toml`
+`play_path` (the `.ply` pool, required) plus the optional `playpool.toml`
 of filename filters that tag plays (QB draws, screens, defensive fronts). The
 workbook options are app-wide settings in `[convert-pdb]` in `athc.ini`
 (`calculate_percentages`, `include_category_worksheets`,

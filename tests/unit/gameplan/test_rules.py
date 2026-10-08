@@ -405,7 +405,7 @@ def test_layering_replaces_category_rule(tmp_path: Path) -> None:
 # ── every shipped league's rules load ─────────────────────────────────────────
 
 
-@pytest.mark.parametrize("path", shipped_files("*/rules/gameplan.toml"), ids=shipped_id)
+@pytest.mark.parametrize("path", shipped_files("*/gameplan.toml"), ids=shipped_id)
 def test_shipped_rules_load(path: Path) -> None:
     load_rules([path])
 
