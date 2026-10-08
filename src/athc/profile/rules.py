@@ -349,7 +349,7 @@ def load_rules(paths: Iterable[Path | str]) -> ProfileRules:
 
 def _read_toml(path: Path) -> Mapping[str, Any]:
     try:
-        text = path.read_text(encoding="utf-8")
+        text = path.read_text(encoding="utf-8-sig")
     except OSError as e:
         raise RulesFileError(f"{path}: {e}") from e
     try:

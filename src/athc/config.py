@@ -183,7 +183,7 @@ def load_league_config(league: str | None = None) -> LeagueConfig:
     if not path.is_file():
         return LeagueConfig(name=name, dir=folder, values={})
     try:
-        data = tomllib.loads(path.read_text(encoding="utf-8"))
+        data = tomllib.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, tomllib.TOMLDecodeError) as e:
         raise ConfigFileError(f"{path}: {e}") from e
     values, lists = _league_values(_table(data, LEAGUE_SECTION, path), path)

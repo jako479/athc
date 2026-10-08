@@ -179,7 +179,7 @@ def load_scheduler_config(path: StrPath, *, required: bool = True) -> SchedulerC
             raise ConfigError(f"Config file not found: '{resolved}'.")
         return SchedulerConfig()
     try:
-        data = tomllib.loads(resolved.read_text(encoding="utf-8"))
+        data = tomllib.loads(resolved.read_text(encoding="utf-8-sig"))
     except (OSError, tomllib.TOMLDecodeError) as error:
         raise ConfigError(
             f"Config file '{resolved}' is not valid TOML: {error}"

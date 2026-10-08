@@ -577,6 +577,7 @@ In [test_config.py](test_config.py). Direct tests of `load_league_config()` / `l
 | `resolve_league()` returns the name | arg / key; none; unknown | name; `LeagueError` | `test_resolve_league_returns_the_explicit_name` / `test_resolve_league_falls_back_to_configured` / `test_resolve_league_errors_*` | ☑ |
 | Blank `--league` arg | `"   "` + `[athc] league` | configured league used | `test_resolve_league_blank_arg_is_no_arg` | ☑ |
 | Malformed `athc.ini` / `league.toml` | bad INI / bad TOML | `ConfigFileError` names the file | `test_malformed_athc_ini_errors` / `test_malformed_league_toml_errors` | ☑ |
+| UTF-8 BOM in `league.toml` | BOM-prefixed file | skipped; values read | `test_bom_in_league_toml_is_skipped` | ☑ |
 | `%` in `league.toml` | `'%LOCALAPPDATA%\plays'` | loads literally (no interpolation) | `test_percent_in_league_toml_is_literal` / `test_no_interpolation_in_league_toml` | ☑ |
 | `[league]` strings vs arrays | string + array | `values` / `lists` | `test_league_list_is_kept_apart_from_values` | ☑ |
 | `[league]` wrong value type | int, array with int, inline table | `ConfigFileError` "expected a string or an array of strings", names the file | `test_league_value_wrong_type_errors` `[P]` | ☑ |

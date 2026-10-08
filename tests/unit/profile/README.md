@@ -40,6 +40,7 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | Layering overrides a compat flag | tmp ×2 | later value wins | `test_layering_overrides_gameplan_compatibility` | ☑ |
 | Five time buckets → distinct rules | tmp | one rule per `MinutesRemaining` | `test_all_time_buckets_match_distinctly` | ☑ |
 | Every shipped league's rules load | `config/dev/` + `config/release/` `leagues/<league>/profile.toml` | loads | `test_shipped_rules_load` `[P]` | ☑ |
+| UTF-8 BOM skipped | tmp | loads | `test_bom_is_skipped` | ☑ |
 
 ### Error → `RulesFileError`
 | Case | Input | Expected | Test | Status |

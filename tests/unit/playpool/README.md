@@ -19,6 +19,7 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 | Two bad regexes both reported | tmp | both in `.errors` | `test_two_bad_regexes_both_reported` | ☑ |
 | All problems collected at once | tmp | 5 errors, each kind present | `test_collects_multiple_errors` | ☑ |
 | TOML parse error | tmp | "TOML parse error" | `test_toml_parse_error` | ☑ |
+| UTF-8 BOM skipped | tmp | loads | `test_bom_is_skipped` | ☑ |
 | Missing file | path | `RulesFileError` | `test_missing_file` | ☑ |
 | Every shipped league's rules load | shipped | loads | `test_shipped_rules_load` `[P]` | ☑ |
 

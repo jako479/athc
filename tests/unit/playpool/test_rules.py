@@ -109,6 +109,13 @@ def test_toml_parse_error(tmp_path: Path) -> None:
         load_rules(write(tmp_path, "not = valid = toml"))
 
 
+def test_bom_is_skipped(tmp_path: Path) -> None:
+    """A UTF-8 byte-order mark (Notepad, Excel) is dropped, not a parse error."""
+    p = tmp_path / "rules.toml"
+    p.write_text('[RolloutPass]\nsuffix_any = ["R"]\n', encoding="utf-8-sig")
+    assert load_rules(p).rollout.suffix_any == ("R",)
+
+
 def test_missing_file(tmp_path: Path) -> None:
     with pytest.raises(RulesFileError):
         load_rules(tmp_path / "nope.toml")

@@ -234,6 +234,13 @@ def test_toml_parse_error(tmp_path: Path) -> None:
         load_rules([write(tmp_path, "not = valid = toml")])
 
 
+def test_bom_is_skipped(tmp_path: Path) -> None:
+    """A UTF-8 byte-order mark (Notepad, Excel) is dropped, not a parse error."""
+    p = tmp_path / "rules.toml"
+    p.write_text(MINIMAL, encoding="utf-8-sig")
+    assert load_rules([p]).min_categories == 2
+
+
 def test_negative_min_categories_rejected(tmp_path: Path) -> None:
     with pytest.raises(RulesFileError, match=">= 0"):
         load_rules([write(tmp_path, "min_categories = -1\n")])

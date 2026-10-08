@@ -86,7 +86,7 @@ def load_rules(path: StrPath) -> PlaypoolRules:
     """Parse a playpool rules TOML file. Raises RulesFileError on any problem."""
     p = Path(path)
     try:
-        text = p.read_text(encoding="utf-8")
+        text = p.read_text(encoding="utf-8-sig")
     except OSError as e:
         raise RulesFileError(f"{p}: {e}") from e
     try:

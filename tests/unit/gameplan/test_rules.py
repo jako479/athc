@@ -433,6 +433,13 @@ def test_layering_replaces_category_rule(tmp_path: Path) -> None:
     assert rule.required is False  # replaced, not merged with a's required=true
 
 
+def test_bom_is_skipped(tmp_path: Path) -> None:
+    """A UTF-8 byte-order mark (Notepad, Excel) is dropped, not a parse error."""
+    p = tmp_path / "rules.toml"
+    p.write_text(MINIMAL + OFF_SECTION, encoding="utf-8-sig")
+    assert load_rules([p]).offense_categories["Run Middle"].min_count == 10
+
+
 # ── every shipped league's rules load ─────────────────────────────────────────
 
 

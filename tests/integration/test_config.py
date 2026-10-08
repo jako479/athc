@@ -229,6 +229,15 @@ def test_malformed_league_toml_errors(make_league: MakeLeague) -> None:
     assert str(folder / "league.toml") in str(exc.value)
 
 
+def test_bom_in_league_toml_is_skipped(make_league: MakeLeague) -> None:
+    """A UTF-8 byte-order mark (Notepad, Excel) is dropped, not a parse error."""
+    folder = make_league(LEAGUE)
+    (folder / "league.toml").write_text(
+        "[league]\nplay_path = 'plays'\n", encoding="utf-8-sig"
+    )
+    assert load_league(LEAGUE)["play_path"] == "plays"
+
+
 def test_available_leagues_lists_folders_only(
     make_league: MakeLeague, config_dir: Path
 ) -> None:

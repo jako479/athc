@@ -87,6 +87,7 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 |---|---|---|---|---|
 | Empty path list | — | "at least one" | `test_empty_paths_rejected` | ☑ |
 | Later file replaces a category rule | tmp ×2 | whole rule replaced | `test_layering_replaces_category_rule` | ☑ |
+| UTF-8 BOM skipped | tmp | loads | `test_bom_is_skipped` | ☑ |
 
 ### shipped rules
 | Case | Input | Expected | Test | Status |

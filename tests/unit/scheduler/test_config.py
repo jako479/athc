@@ -225,6 +225,13 @@ def test_load_scheduler_config_errors_on_invalid_toml(config_dir: Path) -> None:
         _load()
 
 
+def test_load_scheduler_config_skips_bom(config_dir: Path) -> None:
+    """A UTF-8 byte-order mark (Notepad, Excel) is dropped, not a parse error."""
+    path = _league_folder(config_dir) / "scheduler.toml"
+    path.write_text("[difficulty]\nspread = 2.0\n", encoding="utf-8-sig")
+    assert _load().difficulty.spread == 2.0
+
+
 def test_load_scheduler_config_reads_phase2_amounts(config_dir: Path) -> None:
     _write_scheduler_toml(
         config_dir,
