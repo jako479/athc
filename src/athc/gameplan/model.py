@@ -12,7 +12,7 @@ class RuleName(StrEnum):
     DUPLICATE_PLAY = "duplicate_play"
     UNRESOLVED_PLAY = "unresolved_play"
     CATEGORY_REQUIRED = "category_required"
-    CATEGORY_DISALLOWED = "category_disallowed"
+    CATEGORY_NOT_ALLOWED = "category_not_allowed"
     CATEGORY_MIN_COUNT = "category_min_count"
     CATEGORY_MAX_COUNT = "category_max_count"
     CATEGORY_MAX_QB_DRAWS = "category_max_qb_draws"

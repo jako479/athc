@@ -39,15 +39,15 @@ def validate_gameplan(
     if gameplan.is_offense:
         violations.extend(_validate_offense(by_category, rules.offense_categories))
         violations.extend(
-            _validate_disallowed(
-                by_category, rules.disallowed_offensive_categories, "Offensive"
+            _validate_allowed(
+                by_category, rules.allowed_offensive_categories, "Offensive"
             )
         )
     else:
         violations.extend(_validate_defense(by_category, rules.defense_categories))
         violations.extend(
-            _validate_disallowed(
-                by_category, rules.disallowed_defensive_categories, "Defensive"
+            _validate_allowed(
+                by_category, rules.allowed_defensive_categories, "Defensive"
             )
         )
 
@@ -287,23 +287,22 @@ def _cap_exceeded(
     return None
 
 
-def _validate_disallowed(
-    by_category: Mapping[str, list[Play]], disallowed: frozenset[str], side: str
+def _validate_allowed(
+    by_category: Mapping[str, list[Play]], allowed: frozenset[str], side: str
 ) -> list[Violation]:
-    """A gameplan may not contain plays in a disallowed category."""
-    violations: list[Violation] = []
-    for category in sorted(disallowed):
-        plays = by_category.get(category, [])
-        if plays:
-            violations.append(
-                Violation(
-                    RuleName.CATEGORY_DISALLOWED,
-                    f"{side} category '{category}' is not allowed; "
-                    f"has {len(plays)} play(s).",
-                    category,
-                )
-            )
-    return violations
+    """When the rules list the allowed categories, a gameplan may contain plays
+    in no other category. An empty list allows every category."""
+    if not allowed:
+        return []
+    return [
+        Violation(
+            RuleName.CATEGORY_NOT_ALLOWED,
+            f"{side} category '{category}' is not allowed; has {len(plays)} play(s).",
+            category,
+        )
+        for category, plays in sorted(by_category.items())
+        if category not in allowed
+    ]
 
 
 def _validate_special_categories(

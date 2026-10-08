@@ -215,6 +215,9 @@ Reads and writes `.prf` coaching profiles. Docs:
 Working. Validates and edits `.pln` game plans. Docs:
 [README](docs/gameplan/README.md) · [rules](config/release/leagues/PNFL/gameplan.toml)
 
+- Rules say which categories a gameplan may contain
+  (`allowed_offensive_categories` / `allowed_defensive_categories`, by the
+  league's labels); a play in any other category is a violation.
 - `check` and `find-play` default to the current directory when no path is
   given, like `grep -r` and `find`; `find-play` only does so with a single
   argument, since with two or more the last is always the path.

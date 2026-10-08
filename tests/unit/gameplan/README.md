@@ -66,13 +66,18 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 | Percent below 0 / above 100 | tmp | "[0, 100]" | `test_percent_out_of_range_rejected` `[P]` | ☑ |
 | Percent not an int | tmp | "must be an integer" | `test_percent_must_be_int` | ☑ |
 
-### disallowed categories
+### allowed categories
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Parse offense + defense lists | tmp | frozensets | `test_disallowed_categories_parse` | ☑ |
-| Unknown category | tmp | "unknown category" | `test_disallowed_unknown_category` | ☑ |
-| Not a list | tmp | "must be a list" | `test_disallowed_must_be_list` | ☑ |
-| Absent → empty | tmp | empty frozensets | `test_disallowed_absent_is_empty` | ☑ |
+| Labels → game names, both sides | tmp | frozensets of game names | `test_allowed_categories_parse` | ☑ |
+| Game name, even of an unlabeled category | PNFL + `"Pass Long Left"` | "not an offense category label" | `test_allowed_game_name_rejected` | ☑ |
+| League label without league labels | `CategoryLabels()` + `"RM"` | "not an offense category label" | `test_allowed_needs_the_league_names` | ☑ |
+| Unknown offense label | tmp | "not an offense category label" | `test_allowed_unknown_offense_label` | ☑ |
+| Unknown defense label | tmp | "not a defense category label" | `test_allowed_unknown_defense_label` | ☑ |
+| Not a list | tmp | "must be a list" | `test_allowed_must_be_list` | ☑ |
+| Entry not a string | tmp | "entries must be strings" | `test_allowed_entries_must_be_strings` | ☑ |
+| Absent → empty | tmp | empty frozensets | `test_allowed_absent_is_empty` | ☑ |
+| Explicit `[]` → empty | tmp | empty frozenset | `test_allowed_empty_list_loads_empty` | ☑ |
 
 ### [profile_compatibility]
 | Case | Input | Expected | Test | Status |
@@ -94,6 +99,7 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 |---|---|---|---|---|
 | Empty path list | — | "at least one" | `test_empty_paths_rejected` | ☑ |
 | Later file replaces a category rule | tmp ×2 | whole rule replaced | `test_layering_replaces_category_rule` | ☑ |
+| Later file replaces an allowed list; omitted key keeps it | tmp ×2 | later list wins | `test_layering_replaces_allowed_list` | ☑ |
 | UTF-8 BOM skipped | tmp | loads | `test_bom_is_skipped` | ☑ |
 
 ### shipped rules
@@ -118,7 +124,7 @@ Constructed gameplan + pool (records carry typed playpool attributes). Each side
 | `min_count` short | make | `CATEGORY_MIN_COUNT` | `test_offense_min_count_fires` | ☑ |
 | Required category absent | make | `CATEGORY_REQUIRED` | `test_offense_required_fires` | ☑ |
 | `max_count` exceeded | make | `CATEGORY_MAX_COUNT` | `test_offense_max_count_fires` | ☑ |
-| Disallowed category present | make | `CATEGORY_DISALLOWED` | `test_offense_disallowed_fires` | ☑ |
+| Category outside the allowed list | make | `CATEGORY_NOT_ALLOWED` | `test_offense_not_allowed_fires` | ☑ |
 | `max_qb_draws_count` exceeded | make | `CATEGORY_MAX_QB_DRAWS` | `test_offense_max_qb_draws_count_fires` | ☑ |
 | `max_qb_draws_count` within limit | make | no violation | `test_offense_max_qb_draws_count_clean` | ☑ |
 | `max_rollouts_count` exceeded | make | `CATEGORY_MAX_ROLLOUTS` | `test_offense_max_rollouts_count_fires` | ☑ |
@@ -135,11 +141,13 @@ Constructed gameplan + pool (records carry typed playpool attributes). Each side
 | Optional empty category | make | no min_count / required | `test_min_count_not_checked_when_category_empty` | ☑ |
 | `max_count` exceeded | make | `CATEGORY_MAX_COUNT` | `test_max_count_fires` | ☑ |
 | `max_count` within limit | make | no violation | `test_max_count_clean_within_limit` | ☑ |
-| Disallowed category present | make | `CATEGORY_DISALLOWED` | `test_disallowed_fires` | ☑ |
-| Disallowed category unused | make | no violation | `test_disallowed_clean_when_unused` | ☑ |
+| Category outside the allowed list | make | `CATEGORY_NOT_ALLOWED`, "'User Specific'", `category` set | `test_not_allowed_names_the_category` | ☑ |
+| Several categories outside the list | make | reported in name order | `test_not_allowed_reports_categories_in_name_order` | ☑ |
+| Every category allowed | make | no violation | `test_allowed_clean_when_every_category_is_allowed` | ☑ |
+| Empty allowed list | make | no violation | `test_allowed_empty_is_not_enforced` | ☑ |
 | 2-DL front over cap | make | `CATEGORY_MAX_TWO_DL` | `test_two_dl_cap_fires` | ☑ |
 | 2-DL front under cap | make | no violation | `test_two_dl_cap_clean_with_other_front` | ☑ |
-| All issues reported (incl. disallowed) | make | disallowed + max_count + required all present | `test_all_issues_reported_including_disallowed` | ☑ |
+| All issues reported (incl. not allowed) | make | not allowed + max_count + required all present | `test_all_issues_reported_including_not_allowed` | ☑ |
 
 ### Special
 | Case | Input | Expected | Test | Status |

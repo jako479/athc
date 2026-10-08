@@ -39,15 +39,18 @@ required_special_categories = [
     "Squib Kick",
 ]
 
-# Categories a gameplan must NOT contain (full game-category names). A play in
-# any of these is a violation.
-disallowed_offensive_categories = [
-    "Pass Long Left",
-    "Pass Long Middle",
-    "Razzle Dazzle Run",
-    "User Specific",
+# Categories a gameplan may contain, by the league's names. A play in any
+# other category is a violation. Omitted = not enforced.
+allowed_offensive_categories = [
+    "GLR", "RL", "RM", "RR",
+    "GLP", "PRD", "PLR",
+    "PML", "PMM", "PMR",
+    "PSL", "PSM", "PSR",
 ]
-disallowed_defensive_categories = ["User Specific"]
+allowed_defensive_categories = [
+    "GLrun", "RunDazzle", "RunLeft", "RunMiddle", "RunRight",
+    "GLpass", "PassDazzle", "PassLong", "PassMedium", "PassShort",
+]
 
 # Cross-check between a gameplan and a profile, applied by `check-ppp`.
 # Omitted = not enforced.

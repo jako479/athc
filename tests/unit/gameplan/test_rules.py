@@ -339,38 +339,70 @@ def test_percent_must_be_int(tmp_path: Path) -> None:
         load_rules([write(tmp_path, text)])
 
 
-# ── disallowed categories ─────────────────────────────────────────────────────
+# ── allowed categories ────────────────────────────────────────────────────────
 
 
-def test_disallowed_categories_parse(tmp_path: Path) -> None:
+def test_allowed_categories_parse(tmp_path: Path) -> None:
+    """Entries are the league's names; the rules hold the game names."""
     text = (
-        MINIMAL + "disallowed_offensive_categories = "
-        '["Pass Long Left", "Razzle Dazzle Run", "User Specific"]\n'
-        'disallowed_defensive_categories = ["User Specific"]\n'
+        MINIMAL + 'allowed_offensive_categories = ["RM", "PSL"]\n'
+        'allowed_defensive_categories = ["RunDazzle"]\n'
     )
     rules = load_rules([write(tmp_path, text)])
-    assert rules.disallowed_offensive_categories == frozenset(
-        {"Pass Long Left", "Razzle Dazzle Run", "User Specific"}
+    assert rules.allowed_offensive_categories == frozenset(
+        {"Run Middle", "Pass Short Left"}
     )
-    assert rules.disallowed_defensive_categories == frozenset({"User Specific"})
+    assert rules.allowed_defensive_categories == frozenset({"Run Dazzle"})
 
 
-def test_disallowed_unknown_category(tmp_path: Path) -> None:
-    text = MINIMAL + 'disallowed_offensive_categories = ["Bogus Category"]\n'
-    with pytest.raises(RulesFileError, match="unknown category"):
+def test_allowed_game_name_rejected(tmp_path: Path) -> None:
+    """Only league names count, even for a category the league has no name for."""
+    text = MINIMAL + 'allowed_offensive_categories = ["Pass Long Left"]\n'
+    with pytest.raises(RulesFileError, match="not an offense category label"):
         load_rules([write(tmp_path, text)])
 
 
-def test_disallowed_must_be_list(tmp_path: Path) -> None:
-    text = MINIMAL + 'disallowed_offensive_categories = "Pass Long Left"\n'
+def test_allowed_needs_the_league_names(tmp_path: Path) -> None:
+    text = MINIMAL + 'allowed_offensive_categories = ["RM"]\n'
+    with pytest.raises(RulesFileError, match="not an offense category label"):
+        _load_rules([write(tmp_path, text)], labels=CategoryLabels())
+
+
+def test_allowed_unknown_offense_label(tmp_path: Path) -> None:
+    text = MINIMAL + 'allowed_offensive_categories = ["Bogus"]\n'
+    with pytest.raises(RulesFileError, match="not an offense category label"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_allowed_unknown_defense_label(tmp_path: Path) -> None:
+    text = MINIMAL + 'allowed_defensive_categories = ["Bogus"]\n'
+    with pytest.raises(RulesFileError, match="not a defense category label"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_allowed_must_be_list(tmp_path: Path) -> None:
+    text = MINIMAL + 'allowed_offensive_categories = "RM"\n'
     with pytest.raises(RulesFileError, match="must be a list"):
         load_rules([write(tmp_path, text)])
 
 
-def test_disallowed_absent_is_empty(tmp_path: Path) -> None:
+def test_allowed_entries_must_be_strings(tmp_path: Path) -> None:
+    text = MINIMAL + "allowed_offensive_categories = [1]\n"
+    with pytest.raises(RulesFileError, match="entries must be strings"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_allowed_absent_is_empty(tmp_path: Path) -> None:
     rules = load_rules([write(tmp_path, MINIMAL + OFF_SECTION)])
-    assert rules.disallowed_offensive_categories == frozenset()
-    assert rules.disallowed_defensive_categories == frozenset()
+    assert rules.allowed_offensive_categories == frozenset()
+    assert rules.allowed_defensive_categories == frozenset()
+
+
+def test_allowed_empty_list_loads_empty(tmp_path: Path) -> None:
+    """An explicit `[]` is the same as omitting the key: nothing enforced."""
+    text = MINIMAL + "allowed_offensive_categories = []\n"
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.allowed_offensive_categories == frozenset()
 
 
 # ── [profile_compatibility] ───────────────────────────────────────────────────
@@ -451,6 +483,22 @@ def test_layering_replaces_category_rule(tmp_path: Path) -> None:
     rule = load_rules([a, b]).offense_categories["Run Middle"]
     assert rule.min_count == 4
     assert rule.required is False  # replaced, not merged with a's required=true
+
+
+def test_layering_replaces_allowed_list(tmp_path: Path) -> None:
+    """A later file's allowed list replaces the earlier one; an omitted key
+    keeps the earlier list."""
+    a = tmp_path / "a.toml"
+    a.write_text(
+        MINIMAL + 'allowed_offensive_categories = ["RM", "RL"]\n'
+        'allowed_defensive_categories = ["RunLeft"]\n',
+        "utf-8",
+    )
+    b = tmp_path / "b.toml"
+    b.write_text('allowed_offensive_categories = ["PSL"]\n', "utf-8")
+    rules = load_rules([a, b])
+    assert rules.allowed_offensive_categories == frozenset({"Pass Short Left"})
+    assert rules.allowed_defensive_categories == frozenset({"Run Left"})
 
 
 def test_bom_is_skipped(tmp_path: Path) -> None:

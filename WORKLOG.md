@@ -4,6 +4,12 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-08 — **gameplan**: the rules' disallowed-category lists became
+  allowed-category lists (`allowed_offensive_categories` /
+  `allowed_defensive_categories`), so a league says what a gameplan may
+  contain by its own labels, the way the `[offense.X]` sections already
+  do. The shipped PNFL and PCFL rules list the categories their old
+  lists left out, so what they enforce is unchanged.
 - 2026-10-08 — **gameplan**: `list-normals` gained `--sort category`, which
   groups the plays under `::` headers in the league's reading order so a coach
   can read a plan the way the game's grid presents it. The headers carry the

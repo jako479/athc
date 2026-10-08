@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- gameplan: rules list the categories a gameplan may contain (`allowed_offensive_categories` / `allowed_defensive_categories`, by the league's labels) instead of the ones it may not
 - config: the TOML rule and scheduler files carry no `schema_version` line; the rule loaders reject it like any other unknown key
 - gameplan: `list-normals --sort category` groups the plays by category, each group under a `::` header with the league's category name
 - gameplan: `list-normals` reads the league like the other gameplan commands and takes `--league`

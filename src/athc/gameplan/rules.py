@@ -5,7 +5,8 @@ more external TOML files into a `Rules` value; later files layer over earlier
 ones (per-category replace, scalar overwrite). Categories are keyed by the
 league's label from league.toml (`[offense.PSL]`, `[defense.RunDazzle]`); a
 category the league does not label uses its game name, quoted
-(`[offense."Pass Long Left"]`).
+(`[offense."Pass Long Left"]`). The `allowed_*_categories` lists take the
+league's labels only.
 """
 
 from __future__ import annotations
@@ -74,6 +75,10 @@ class Rules:
     """A gameplan validation rule set, loaded from external TOML. Every field is
     optional; an empty rule set enforces nothing.
 
+    `allowed_offensive_categories` / `allowed_defensive_categories` hold the
+    game names of the categories a gameplan may contain; empty allows every
+    category.
+
     The `[profile_compatibility]` flag gates the gameplan-vs-profile check
     `check-ppp` runs; it defaults False — not enforced.
     """
@@ -81,18 +86,10 @@ class Rules:
     offense_categories: Mapping[str, OffenseCategoryRule] = field(default_factory=dict)
     defense_categories: Mapping[str, DefenseCategoryRule] = field(default_factory=dict)
     required_special_categories: frozenset[int] = frozenset()
-    disallowed_offensive_categories: frozenset[str] = frozenset()
-    disallowed_defensive_categories: frozenset[str] = frozenset()
+    allowed_offensive_categories: frozenset[str] = frozenset()
+    allowed_defensive_categories: frozenset[str] = frozenset()
     custom_special_play_required: bool = False
     require_all_gameplan_categories_in_profile: bool = False
-
-
-_OFFENSE_CATEGORIES: Final[frozenset[str]] = frozenset(
-    c.long for c in OffensiveCategory
-)
-_DEFENSE_CATEGORIES: Final[frozenset[str]] = frozenset(
-    c.long for c in DefensiveCategory
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,8 +134,8 @@ _ALLOWED_TOP_KEYS: Final[frozenset[str]] = frozenset(
     {
         "required_special_categories",
         "custom_special_play_required",
-        "disallowed_offensive_categories",
-        "disallowed_defensive_categories",
+        "allowed_offensive_categories",
+        "allowed_defensive_categories",
         "profile_compatibility",
         "offense",
         "defense",
@@ -163,8 +160,8 @@ class RulesFileError(ValueError):
 class _MergedData:
     required_special_categories: frozenset[int] | None = None
     custom_special_play_required: bool | None = None
-    disallowed_offensive: frozenset[str] | None = None
-    disallowed_defensive: frozenset[str] | None = None
+    allowed_offensive: frozenset[str] | None = None
+    allowed_defensive: frozenset[str] | None = None
     require_all_gameplan_categories_in_profile: bool | None = None
     offense: dict[str, OffenseCategoryRule] = field(default_factory=dict)
     defense: dict[str, DefenseCategoryRule] = field(default_factory=dict)
@@ -181,7 +178,6 @@ def load_rules(paths: Iterable[Path | str], *, labels: CategoryLabels) -> Rules:
     if not path_list:
         raise RulesFileError("at least one rules file is required")
 
-    sections = _SectionLabels.from_labels(labels)
     merged = _MergedData()
     errors: list[str] = []
     for path in path_list:
@@ -190,7 +186,7 @@ def load_rules(paths: Iterable[Path | str], *, labels: CategoryLabels) -> Rules:
         except RulesFileError as e:
             errors.extend(e.errors)
             continue
-        _merge_file(merged, data, errors, source=path, sections=sections)
+        _merge_file(merged, data, errors, source=path, labels=labels)
 
     if errors:
         raise RulesFileError(errors)
@@ -224,9 +220,10 @@ def _merge_file(
     errors: list[str],
     *,
     source: Path,
-    sections: _SectionLabels,
+    labels: CategoryLabels,
 ) -> None:
     """Apply one parsed TOML document onto `merged`, collecting every problem."""
+    sections = _SectionLabels.from_labels(labels)
     _attempt(
         errors, lambda: _reject_unknown_keys(data, _ALLOWED_TOP_KEYS, source, "(top)")
     )
@@ -258,30 +255,32 @@ def _merge_file(
         if ok:
             merged.custom_special_play_required = val
 
-    if "disallowed_offensive_categories" in data:
+    if "allowed_offensive_categories" in data:
         val, ok = _attempt(
             errors,
-            lambda: _category_name_set(
-                data["disallowed_offensive_categories"],
-                _OFFENSE_CATEGORIES,
+            lambda: _category_label_set(
+                data["allowed_offensive_categories"],
+                labels.offense,
                 source,
-                "disallowed_offensive_categories",
+                "allowed_offensive_categories",
+                "offense",
             ),
         )
         if ok:
-            merged.disallowed_offensive = val
-    if "disallowed_defensive_categories" in data:
+            merged.allowed_offensive = val
+    if "allowed_defensive_categories" in data:
         val, ok = _attempt(
             errors,
-            lambda: _category_name_set(
-                data["disallowed_defensive_categories"],
-                _DEFENSE_CATEGORIES,
+            lambda: _category_label_set(
+                data["allowed_defensive_categories"],
+                labels.defense,
                 source,
-                "disallowed_defensive_categories",
+                "allowed_defensive_categories",
+                "defense",
             ),
         )
         if ok:
-            merged.disallowed_defensive = val
+            merged.allowed_defensive = val
     if "profile_compatibility" in data:
         _merge_profile_compatibility(
             merged, data["profile_compatibility"], errors, source=source
@@ -456,8 +455,8 @@ def _build_rules(m: _MergedData) -> Rules:
         offense_categories=dict(m.offense),
         defense_categories=dict(m.defense),
         required_special_categories=m.required_special_categories or frozenset(),
-        disallowed_offensive_categories=m.disallowed_offensive or frozenset(),
-        disallowed_defensive_categories=m.disallowed_defensive or frozenset(),
+        allowed_offensive_categories=m.allowed_offensive or frozenset(),
+        allowed_defensive_categories=m.allowed_defensive or frozenset(),
         custom_special_play_required=bool(m.custom_special_play_required),
         require_all_gameplan_categories_in_profile=bool(
             m.require_all_gameplan_categories_in_profile
@@ -543,19 +542,30 @@ def _optional_fraction(
     return fraction
 
 
-def _category_name_set(
-    value: object, valid: frozenset[str], source: Path, where: str
+def _category_label_set(
+    value: object,
+    table: Mapping[OffensiveCategory, str] | Mapping[DefensiveCategory, str],
+    source: Path,
+    where: str,
+    side: str,
 ) -> frozenset[str]:
-    """A list of full game-category names, each validated against `valid`."""
+    """A list of the league's labels for one side -> the categories' game names.
+    Only league labels count — the list never needs a category the league has
+    no label for."""
     if not isinstance(value, list):
         raise RulesFileError(f"{source}: {where}: must be a list")
+    by_label = {label: category.long for category, label in table.items()}
     out: set[str] = set()
-    for name in value:
-        if not isinstance(name, str):
+    for label in value:
+        if not isinstance(label, str):
             raise RulesFileError(f"{source}: {where}: entries must be strings")
-        if name not in valid:
-            raise RulesFileError(f"{source}: {where}: unknown category {name!r}")
-        out.add(name)
+        if label not in by_label:
+            article = "an" if side == "offense" else "a"
+            raise RulesFileError(
+                f"{source}: {where}: {label!r} is not {article} {side} category "
+                f"label. Valid: {sorted(by_label)}"
+            )
+        out.add(by_label[label])
     return frozenset(out)
 
 

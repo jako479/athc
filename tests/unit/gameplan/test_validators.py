@@ -1,4 +1,5 @@
-"""Unit tests for gameplan validators: max_count, disallowed, attribute caps.
+"""Unit tests for gameplan validators: max_count, allowed categories, attribute
+caps.
 
 Defense gameplans are used because they need no clock plays. Each play's game
 category comes from its pool record (`user_category`), and the validator reads
@@ -105,21 +106,47 @@ def test_max_count_clean_within_limit() -> None:
     assert RuleName.CATEGORY_MAX_COUNT not in fired(gp, rules, pool)
 
 
-# ── disallowed categories ─────────────────────────────────────────────────────
+# ── allowed categories ────────────────────────────────────────────────────────
 
 
-def test_disallowed_fires() -> None:
+def test_not_allowed_names_the_category() -> None:
     pool = make_pool([make_record("US1", user_category=USER_SPECIFIC)])
     gp = defense_gameplan(["US1"])
-    rules = def_rules(disallowed_defensive_categories=frozenset({"User Specific"}))
-    assert RuleName.CATEGORY_DISALLOWED in fired(gp, rules, pool)
+    rules = def_rules(allowed_defensive_categories=frozenset({"Run Left"}))
+    (violation,) = validate_gameplan(gp, rules, pool)
+    assert violation.rule_name == RuleName.CATEGORY_NOT_ALLOWED
+    assert violation.message == (
+        "Defensive category 'User Specific' is not allowed; has 1 play(s)."
+    )
+    assert violation.category == "User Specific"
 
 
-def test_disallowed_clean_when_unused() -> None:
+def test_not_allowed_reports_categories_in_name_order() -> None:
+    pool = make_pool(
+        [
+            make_record("US1", user_category=USER_SPECIFIC),
+            make_record("PS1", user_category=PASS_SHORT),
+        ]
+    )
+    gp = defense_gameplan(["US1", "PS1"])
+    rules = def_rules(allowed_defensive_categories=frozenset({"Run Left"}))
+    assert [v.category for v in validate_gameplan(gp, rules, pool)] == [
+        "Pass Short",
+        "User Specific",
+    ]
+
+
+def test_allowed_clean_when_every_category_is_allowed() -> None:
     pool = make_pool([make_record("RL1", user_category=RUN_LEFT)])
     gp = defense_gameplan(["RL1"])
-    rules = def_rules(disallowed_defensive_categories=frozenset({"User Specific"}))
-    assert RuleName.CATEGORY_DISALLOWED not in fired(gp, rules, pool)
+    rules = def_rules(allowed_defensive_categories=frozenset({"Run Left"}))
+    assert RuleName.CATEGORY_NOT_ALLOWED not in fired(gp, rules, pool)
+
+
+def test_allowed_empty_is_not_enforced() -> None:
+    pool = make_pool([make_record("US1", user_category=USER_SPECIFIC)])
+    gp = defense_gameplan(["US1"])
+    assert RuleName.CATEGORY_NOT_ALLOWED not in fired(gp, def_rules(), pool)
 
 
 # ── 2-DL front cap (typed playpool attribute) ─────────────────────────────────
@@ -164,7 +191,7 @@ def test_two_dl_cap_clean_with_other_front() -> None:
 # ── all issues reported together ──────────────────────────────────────────────
 
 
-def test_all_issues_reported_including_disallowed() -> None:
+def test_all_issues_reported_including_not_allowed() -> None:
     """One validate_gameplan reports every distinct issue, not just the first."""
     pool = make_pool(
         [
@@ -176,7 +203,7 @@ def test_all_issues_reported_including_disallowed() -> None:
     )
     gp = defense_gameplan(["US1", "RL0", "RL1", "RL2"])
     rules = def_rules(
-        disallowed_defensive_categories=frozenset({"User Specific"}),
+        allowed_defensive_categories=frozenset({"Run Left", "Pass Short"}),
         defense_categories={
             "Run Left": DefenseCategoryRule(required=False, min_count=1, max_count=2),
             "Pass Short": DefenseCategoryRule(required=True, min_count=6),
@@ -184,7 +211,7 @@ def test_all_issues_reported_including_disallowed() -> None:
     )
     kinds = fired(gp, rules, pool)
     assert {
-        RuleName.CATEGORY_DISALLOWED,  # User Specific present
+        RuleName.CATEGORY_NOT_ALLOWED,  # User Specific present
         RuleName.CATEGORY_MAX_COUNT,  # 3 Run Left > 2
         RuleName.CATEGORY_REQUIRED,  # no Pass Short
     } <= kinds
@@ -320,11 +347,11 @@ def test_offense_max_count_fires() -> None:
     assert RuleName.CATEGORY_MAX_COUNT in fired(gp, rules, pool)
 
 
-def test_offense_disallowed_fires() -> None:
+def test_offense_not_allowed_fires() -> None:
     pool = make_off_pool([make_off_record("RR0", user_category=OFF_RUN_RIGHT)])
     gp = offense_gameplan([make_off_play("RR0", user_category=OFF_RUN_RIGHT)])
-    rules = off_rules(disallowed_offensive_categories=frozenset({"Run Right"}))
-    assert RuleName.CATEGORY_DISALLOWED in fired(gp, rules, pool)
+    rules = off_rules(allowed_offensive_categories=frozenset({"Run Middle"}))
+    assert RuleName.CATEGORY_NOT_ALLOWED in fired(gp, rules, pool)
 
 
 # ── offense: attribute caps ───────────────────────────────────────────────────
