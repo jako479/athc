@@ -152,6 +152,35 @@ def test_cli_copies_goal_line_and_stop_clock_combined(runner, tmp_path: Path) ->
 # ── console output ────────────────────────────────────────────────────────────
 
 
+def _bumped_pat_source(src: Path, tmp_path: Path) -> Path:
+    profile = read_profile(str(src))
+    pats = tuple(
+        replace(p, category_weights=_bumped(p.category_weights))
+        for p in profile.pat_situations
+    )
+    dest = tmp_path / "source.prf"
+    write_profile(replace(profile, pat_situations=pats), str(dest))
+    return dest
+
+
+def test_cli_copies_pat_logic(runner, tmp_path: Path) -> None:
+    source = _bumped_pat_source(OFF1, tmp_path)
+    target = _copy_prf(OFF1, tmp_path, name="target.prf")
+    result = runner.invoke(copy, [str(source), str(target), "--pat-logic"])
+    assert result.exit_code == 0
+    assert f"{target}: updated (pat-logic)" in result.output
+    assert (
+        read_profile(str(target)).pat_situations
+        == read_profile(str(source)).pat_situations
+    )
+
+
+def test_cli_help_lists_pat_logic(runner) -> None:
+    result = runner.invoke(copy, ["--help"])
+    assert result.exit_code == 0
+    assert "--pat-logic" in result.output
+
+
 def test_cli_prints_updated_line_and_summary(runner, tmp_path: Path) -> None:
     source = _mutated_source(OFF1, tmp_path, flip=(1,))
     target = _copy_prf(OFF1, tmp_path, name="target.prf")

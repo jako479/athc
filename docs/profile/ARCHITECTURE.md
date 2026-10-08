@@ -92,7 +92,8 @@ fields from `source` into one or many targets (`ProfileWriter.apply` → updated
 tree (`-r`); files of the wrong side are skipped by file-size parity (offense
 even, defense odd), and `source` is never overwritten. No backup is made. Flags (≥1 required, combinable):
 `--stop-clock`, `--sub-percent`, `--field-goal-range`, `--fourth-down`,
-`--goal-line`; the last two copy whole situations (stop-clock + weights).
+`--goal-line`, `--pat-logic`; `--fourth-down` and `--goal-line` copy whole
+situations (stop-clock + weights); `--pat-logic` copies the 60-situation PAT table.
 Copy does not validate (use `check`). Exit 0 ok / 1 a target failed / 2 couldn't run.
 
 ## Exit codes

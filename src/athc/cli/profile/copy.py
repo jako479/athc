@@ -28,6 +28,7 @@ _FLAG_LABELS = {
     "copy_field_goal_range": "field-goal-range",
     "copy_fourth_down": "fourth-down",
     "copy_goal_line": "goal-line",
+    "copy_pat_logic": "pat-logic",
 }
 
 
@@ -70,6 +71,12 @@ _FLAG_LABELS = {
     is_flag=True,
     help="Copy every goal-line situation (inside DEF 5 or OFF 5).",
 )
+@click.option(
+    "--pat-logic",
+    "copy_pat_logic",
+    is_flag=True,
+    help="Copy the PAT play-calling table (all 60 situations).",
+)
 @click.pass_context
 def copy(
     ctx: click.Context,
@@ -89,7 +96,7 @@ def copy(
         raise click.UsageError(
             "at least one copy option is required "
             "(--stop-clock, --sub-percent, --field-goal-range, "
-            "--fourth-down, --goal-line)"
+            "--fourth-down, --goal-line, --pat-logic)"
         )
 
     try:

@@ -50,12 +50,14 @@ class ProfileWriter:
         copy_field_goal_range: bool = False,
         copy_fourth_down: bool = False,
         copy_goal_line: bool = False,
+        copy_pat_logic: bool = False,
     ) -> Profile:
         """Apply the requested copies and return the updated target Profile.
 
         Raises `ProfileTypeMismatchError` before any field if the sides differ.
         `fourth_down` / `goal_line` copy whole situations (stop_clock + weights);
-        overlap with `stop_clock` is idempotent.
+        overlap with `stop_clock` is idempotent. `pat_logic` copies the whole
+        60-situation PAT table.
         """
         source = read_profile(str(self.source_path))
         target = read_profile(str(self.target_path))
@@ -66,6 +68,8 @@ class ProfileWriter:
             profile = replace(profile, substitutions=source.substitutions)
         if copy_field_goal_range:
             profile = replace(profile, field_goal_range=source.field_goal_range)
+        if copy_pat_logic:
+            profile = replace(profile, pat_situations=source.pat_situations)
         if copy_stop_clock or copy_fourth_down or copy_goal_line:
             profile = _copy_situations(
                 profile,

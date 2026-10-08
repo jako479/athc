@@ -179,6 +179,7 @@ unless the command is given --league NAME.
 
    Example terminal calls:
       athc profile copy SRC.prf DST.prf --stop-clock --goal-line
+      athc profile copy SRC.prf DST.prf --pat-logic
       athc profile copy SRC.prf profiles\ --stop-clock -r
 
 

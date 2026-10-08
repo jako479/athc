@@ -280,6 +280,7 @@ Working. Backs `gameplan` and `convert-pdb`. Docs:
 Working. Validates and compares `.prf` coaching profiles. Docs:
 [README](docs/profile/README.md) · [rules](config/release/leagues/PNFL/profile.toml)
 
+- `copy --pat-logic` copies the whole 60-situation PAT table, either side.
 - `check` defaults to the current directory when no path is given, like
   `grep -r` and `find`.
 - `check` takes its rules from the league folder (`profile.toml`, or a

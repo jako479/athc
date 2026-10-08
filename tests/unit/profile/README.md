@@ -173,6 +173,7 @@ One row per behavior. Input: `built` = `Profile`/`GamePlan` constructed in-test.
 | field-goal-range: replace / leave situations | OFF1 | FG copied, situations intact | `test_copy_field_goal_range_replaces_value` / `_leaves_situations_alone` | ☑ |
 | fourth-down only / on defense | OFF1 / DEF1 | only 4th-down situations copied | `test_copy_fourth_down_copies_only_fourth_down_situations` / `_works_on_defense` | ☑ |
 | goal-line only / both inside-5 buckets | OFF1 | only goal-line copied | `test_copy_goal_line_copies_only_goal_line_situations` / `_covers_both_inside_5_buckets` | ☑ |
+| pat-logic: replace all / leave others / on defense / untouched without flag | OFF1 / DEF1 | PAT table copied, rest intact | `test_copy_pat_logic_replaces_every_pat_situation` / `_leaves_other_fields_alone` / `_works_on_defense` / `test_copy_without_pat_logic_leaves_pat_situations_alone` | ☑ |
 | Combined flags independent | OFF1 | each field applied | `test_combined_flags_apply_each_independently` | ☑ |
 | fourth-down + stop-clock combine | OFF1 | clean overlap | `test_fourth_down_and_stop_clock_combine_cleanly` | ☑ |
 | Side mismatch raises (any flag / both types) | OFF1↔DEF1 | `ProfileTypeMismatchError` | `test_mismatch_raises_for_any_flag` `[P]` / `test_mismatch_error_carries_both_types` | ☑ |

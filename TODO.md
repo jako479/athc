@@ -7,7 +7,6 @@
 - [ ] convert-pdb: complete integration into athc
 - [ ] convert-pdb: clear sort instructions on Options page
 - [ ] convert-pdb: remove hidden setting `include_category_worksheets = false` from athc.ini
-- [ ] profile: copy: copy PATs
 - [ ] playpool: convert from `check-playpool` to `playpool check`
 - [ ] athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
 - [ ] athc: CLI: confirm mainstream CLI strategy (see Tamarack Habilitations)

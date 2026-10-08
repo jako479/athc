@@ -51,7 +51,7 @@ athc profile copy SRC.prf profiles\ --sub-percent -r
 
 Copies selected fields from `source` into one or more targets (a `.prf` file, a
 directory, or the tree with `-r`). Pick at least one: `--stop-clock`,
-`--sub-percent`, `--field-goal-range`, `--fourth-down`, `--goal-line`. Wrong-side
+`--sub-percent`, `--field-goal-range`, `--fourth-down`, `--goal-line`, `--pat-logic`. Wrong-side
 targets are skipped; no backup is made. Exit 0 (ok), 1 (a target failed), or 2 (usage or unreadable source). No rules needed —
 validate afterward with `check`.
 

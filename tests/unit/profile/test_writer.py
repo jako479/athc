@@ -330,12 +330,64 @@ def test_fourth_down_and_stop_clock_combine_cleanly(tmp_path: Path) -> None:
             assert after.category_weights == before.category_weights
 
 
+# ── pat_logic ─────────────────────────────────────────────────────────────────
+
+
+def _bumped_pat_source(src: Path, tmp_path: Path) -> Path:
+    profile = read_profile(str(src))
+    pats = tuple(
+        replace(p, category_weights=_distinct_weights(p.category_weights))
+        for p in profile.pat_situations
+    )
+    return _write_source(replace(profile, pat_situations=pats), tmp_path)
+
+
+def test_copy_pat_logic_replaces_every_pat_situation(tmp_path: Path) -> None:
+    source = _bumped_pat_source(OFF1, tmp_path)
+    target = _copy_prf(OFF1, tmp_path, name="target.prf")
+    original = read_profile(str(target))
+    result = ProfileWriter(source, target).apply(copy_pat_logic=True)
+    assert result.pat_situations == read_profile(str(source)).pat_situations
+    assert result.pat_situations != original.pat_situations
+
+
+def test_copy_pat_logic_leaves_other_fields_alone(tmp_path: Path) -> None:
+    source = _bumped_pat_source(OFF1, tmp_path)
+    target = _copy_prf(OFF1, tmp_path, name="target.prf")
+    original = read_profile(str(target))
+    result = ProfileWriter(source, target).apply(copy_pat_logic=True)
+    assert result.situations == original.situations
+    assert result.substitutions == original.substitutions
+    assert result.field_goal_range == original.field_goal_range
+
+
+def test_copy_pat_logic_works_on_defense(tmp_path: Path) -> None:
+    source = _bumped_pat_source(DEF1, tmp_path)
+    target = _copy_prf(DEF1, tmp_path, name="target.prf")
+    result = ProfileWriter(source, target).apply(copy_pat_logic=True)
+    assert result.pat_situations == read_profile(str(source)).pat_situations
+
+
+def test_copy_without_pat_logic_leaves_pat_situations_alone(tmp_path: Path) -> None:
+    source = _bumped_pat_source(OFF1, tmp_path)
+    target = _copy_prf(OFF1, tmp_path, name="target.prf")
+    original = read_profile(str(target))
+    result = ProfileWriter(source, target).apply(copy_stop_clock=True)
+    assert result.pat_situations == original.pat_situations
+
+
 # ── mismatched types ──────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
     "flag",
-    ["copy_stop_clock", "copy_sub_percent", "copy_field_goal_range", "copy_goal_line"],
+    [
+        "copy_stop_clock",
+        "copy_sub_percent",
+        "copy_field_goal_range",
+        "copy_goal_line",
+        "copy_pat_logic",
+    ],
 )
 def test_mismatch_raises_for_any_flag(tmp_path: Path, flag: str) -> None:
     source = _copy_prf(OFF1, tmp_path, name="source.prf")
