@@ -1,15 +1,36 @@
 # TODO
 
+## 1.0.0
+
+- [ ] gameplan: `list-normals --sort category` — group the plays by category
+- [ ] gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run
+- [ ] convert-pdb: complete integration into athc
+- [ ] convert-pdb: clear sort instructions on Options page
+- [ ] convert-pdb: remove hidden setting `include_category_worksheets = false` from athc.ini
+- [ ] profile-copy: copy Sub %
+- [ ] profile-copy: copy PATs
+- [ ] profile-copy: copy Stop Clock setting
+- [ ] profile-copy: copy 4th downs?
+- [ ] athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
+- [ ] athc: CLI: confirm mainstream CLI strategy (see Tamarack Habilitations)
+- [ ] athc: Logging: switch to the mainstream logging strategy w/ color (see Tamarack Habilitations)
+- [ ] athc: Error handling and exit codes (see Tamarack Habilitations)
+- [ ] athc: docs: API reference per library, one page each, under a shared index. Design: [docs/design/TODO/api-docs.md](docs/design/TODO/api-docs.md)
+- [ ] athc: clear usage and help text for all commands
+- [ ] athc: STATUS.md, WORKLOG.md, CHANGELOG.md: clean and clear
+- [ ] athc: Release Docs:
+  - [ ] clear user documentation
+  - [ ] list of commands
+  - [ ] explain each command's messages in the release docs ([command-messages](docs/design/TODO/command-messages.md))
+- [ ] installer
+- [ ] release (steps?)
+
+## 2.0.0
+
 - convert-pdb: Total Stats filtering (from pnfl's TODO): remove filtering via script? add filtering to config? convert to a table for filtering (greater-than, less-than)?
-- convert-pdb: remove hidden setting `include_category_worksheets = false` from athc.ini
-- athc: docs: explain each command's messages in the release docs ([command-messages](docs/design/TODO/command-messages.md))
-- athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
-- athc: docs: API reference per library, one page each, under a shared index. Design: [docs/design/TODO/api-docs.md](docs/design/TODO/api-docs.md)
-- athc: logging: switch to the mainstream logging strategy (see Tamarack Habilitations)
-- playpool: check that each play's name matches its play category
-- check-playpool: consider using the league's `playpool.toml` to count plays by file name type
-- gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run
-- gameplan: `list-normals --sort category` — group the plays by category, each group under a `::` category header comment
+- gameplan-check: rule for excluded files [ME ONLY?]
+- playpool-check: check that each play's name matches its play category
+- playpool-check: count plays by file name type
 - athc: install through a PyInstaller-built installer (exe), replacing the `install.bat` + wheel zip and the uv prerequisite
 - athc: cli: wire logging in the `cli()` group callback — `RichHandler` on stderr, `click.style` on stdout; drop the 15 per-command `basicConfig` calls. Design: [docs/design/logging.md](docs/design/logging.md)
 - athc: tests: add ruff's `PT` rule group (pytest style); 117 findings today, 111 auto-fixable under `--unsafe-fixes`
