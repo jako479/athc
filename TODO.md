@@ -7,7 +7,10 @@
 - [ ] convert-pdb: complete integration into athc
 - [ ] convert-pdb: clear sort instructions on Options page
 - [ ] convert-pdb: remove hidden setting `include_category_worksheets = false` from athc.ini
-- [ ] playpool: convert from `check-playpool` to `playpool check`
+- [ ] convert-pdb: 2-DL or R&S?
+- [ ] profile: copy: copy PATs
+- [x] playpool: convert from `check-playpool` to `playpool check`
+- [ ] athc: fix toml reading so handles UTF-8 BOM in file properly
 - [ ] athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
 - [ ] athc: CLI: confirm mainstream CLI strategy (see Tamarack Habilitations)
 - [ ] athc: Logging: switch to the mainstream logging strategy w/ color (see Tamarack Habilitations)
@@ -19,6 +22,7 @@
   - [ ] list of commands
   - [ ] explain each command's messages in the release docs ([command-messages](docs/design/TODO/command-messages.md))
 - [ ] build a PyInstaller-built installer (exe); replacing the `install.bat` + wheel zip and uv prereq
+  - [ ] exclude autocontinue
 - [ ] RELEASE!!!
   - [ ] upload installer to Google Drive
   - [ ] post in forum
