@@ -6,9 +6,10 @@
 #   [RolloutPass]  a pass play's rollout flag
 #   [QBRun]        a run play's qb_draw flag
 #
-# Filter options, valid in any section (all optional, all CASE-SENSITIVE). A play
-# name matches the attribute when it hits ANY of suffix_any / regex_any / include
-# AND NONE of suffix_none / regex_none / exclude (the vetoes win):
+# Filter options, valid in any section (all optional, all CASE-SENSITIVE, except
+# regex depends on the expressions). A play name matches the attribute when it
+# hits ANY of suffix_any / regex_any / include AND NONE of suffix_none /
+# regex_none / exclude (the vetoes win):
 #   suffix_any  = [...]   name ends with any of these
 #   suffix_none = [...]   veto: name ends with any of these
 #   regex_any   = [...]   a regex searches the name
@@ -16,11 +17,21 @@
 #   include     = [...]   force on: exact play names
 #   exclude     = [...]   force off: exact play names
 
-schema_version = 1
-
 [TimedPass]
-suffix_any = ["T", "T1", "T2", "TR", "RT", "Ty", "T01", "T01R", "T02", "Top"]
-suffix_none = ["OUT", "SLT1", "FLT1", "OUT1"]
+suffix_any = [
+    "T",
+    "T1",
+    "T2",
+    "TR",
+    "Ty",
+    "T01",
+    "T02",
+    "T03",
+    "T04",
+    "T01R",
+    "Top",
+]
+suffix_none = ["FLT1", "OUT", "OUT1", "SLT1"]
 regex_any = ["(?i)lob.$"]
 include = [
     "GBglpH1L",
@@ -33,8 +44,20 @@ include = [
 ]
 
 [RolloutPass]
-suffix_any = ["R", "RT", "TR", "wagL", "rolL"]
+suffix_any = ["R", "RT", "wagL"]
 suffix_none = ["CR", "WR", "scrR", "trpR", "nRT", "NRT"]
+regex_any = ["(?i)rol.$"]
+include = [
+    "PS2Ytrls",
+    "MN6XLuckT",
+    "OR6XzipT",
+    "SF6YdouT",
+]
+exclude = [
+    "LA6XFL1R",
+    "LV6BSL-T",
+    "SF6ZtrpR",
+]
 
 [QBRun]
 regex_any = ["^.1", "^..1"] # 2nd or 3rd character is "1"
