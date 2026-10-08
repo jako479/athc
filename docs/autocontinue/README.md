@@ -22,7 +22,7 @@ Run the game on your **primary monitor** — autocontinue only watches that disp
 
 ## Config
 
-Reads `[autocontinue]` from `athc.ini`, found via `ATHC_CONFIG_DIR` / the default config dir (see [../design/config.md](../design/config.md)) — there is no `--config` flag. Unlike most tools, both settings are **required** (a clicking watcher shouldn't run on guessed timings); a missing section or setting is an error.
+Reads `[autocontinue]` from `athc.ini`, found via `ATHC_CONFIG_DIR` / the default config dir (see [../design/architecture.md](../design/architecture.md#config)) — there is no `--config` flag. Unlike most tools, both settings are **required** (a clicking watcher shouldn't run on guessed timings); a missing section or setting is an error.
 
 | Setting | Meaning |
 |---|---|

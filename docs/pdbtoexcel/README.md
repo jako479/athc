@@ -24,7 +24,7 @@ Plays are grouped by their category, shown under the league's name for it
 ## Config
 
 The league folder `leagues\<NAME>\` (picked by `--league` /
-`[athc] league`; see [../design/config.md](../design/config.md)):
+`[athc] league`; see [../design/architecture.md](../design/architecture.md#config)):
 
 - `league.toml`: `play_path` (the `.ply` pool, required) and the league's
   category names (`[categories.*]`).

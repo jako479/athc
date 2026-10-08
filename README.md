@@ -38,7 +38,7 @@ mytool = "mypkg.cli:mytool"
 
 The umbrella discovers them at runtime — no changes to `athc` needed.
 
-See [docs/design/overview.md](docs/design/overview.md) for the full architecture.
+See [docs/design/architecture.md](docs/design/architecture.md) for the full architecture and the conventions every command follows.
 
 ## Development
 
@@ -48,7 +48,33 @@ Install the project and its dev tools:
 uv sync
 ```
 
-For local paths different from production (e.g., game files on `E:\`), use the `athc.ini` in `config/dev/` and set `ATHC_CONFIG_DIR = "$PWD\dev"`. See [docs/design/cli.md](docs/design/cli.md) for the dev-config pattern.
+Source runs read the dev config in `config/dev/` (a full `athc.ini` plus league folders, shared with athc-admin) instead of the installed one: point `ATHC_CONFIG_DIR` at that folder. For the VS Code terminal, in `.vscode/settings.json` (in a multi-root workspace, in the `.code-workspace` `settings` with `${workspaceFolder:athc}`; open a new terminal to pick it up):
+
+```json
+"terminal.integrated.env.windows": {
+  "ATHC_CONFIG_DIR": "${workspaceFolder}/config/dev"
+}
+```
+
+For F5, each `.vscode/launch.json` entry sets it on the debug process (terminal and launch `env` are independent; set both if you run both ways):
+
+```json
+{
+  "name": "athc profile check",
+  "type": "debugpy",
+  "request": "launch",
+  "module": "athc",
+  "args": ["profile", "check"],
+  "console": "integratedTerminal",
+  "env": { "ATHC_CONFIG_DIR": "${workspaceFolder}/config/dev" }
+}
+```
+
+For one shell session:
+
+```powershell
+$env:ATHC_CONFIG_DIR = "$PWD\config\dev"
+```
 
 ## Tests
 

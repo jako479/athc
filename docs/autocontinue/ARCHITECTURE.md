@@ -28,7 +28,7 @@ src/athc/cli/autocontinue.py  # Click command; lazy-imports main so pyautogui lo
 
 - **Windows-only** — queries screen size via `ctypes.windll.user32` with DPI-awareness.
 - **Primary monitor only** — pyautogui/`ImageGrab` captures the primary display, so the game must run there. A single-display VM sidesteps this (the guest has one monitor, freeing the host's other monitors). Full multi-monitor support is out of scope (PIL has known multi-monitor/negative-coordinate bugs).
-- No `--config` flag — config is `config_dir()/athc.ini` (`ATHC_CONFIG_DIR`), per [config.md](../design/config.md); tests isolate by setting that env var.
+- No `--config` flag — config is `config_dir()/athc.ini` (`ATHC_CONFIG_DIR`), per [architecture.md](../design/architecture.md#config); tests isolate by setting that env var.
 - `--hot-corner/--no-hot-corner` (default unset) overrides the `hot_corner` config value; unset, the config wins. The override holds across live reloads.
 - pyautogui (+ opencv-python, which backs the confidence-based image match) is a **required dependency**, but the CLI still lazy-imports `main` so discovery and `--help` work even on a broken install; running without it then exits 1 with a "reinstall" hint.
 - Sees pixels only — never inspects or edits game files.

@@ -1,6 +1,6 @@
 # Logging — what is broken and what to do
 
-Status: TODO for 1.0.0. The design is [logging.md](../logging.md); this file lists where the code does not follow it (audit of 2026-10-08).
+Status: TODO for 1.0.0. The design is [architecture.md](../architecture.md#output-streams); this file lists where the code does not follow it (audit of 2026-10-08).
 
 ## The design in one breath
 
@@ -28,4 +28,4 @@ Not followed:
 1. `generate-schedule`: echo the three output file names and the seed to stdout as the success line. `convert-pdb`: echo the workbook path.
 2. Wire logging once in `cli()`: `RichHandler` on stderr, `click.style` for stdout status; delete the 15 per-command `basicConfig` calls. (Today a 2.0.0 TODO item; pull it into 1.0.0.)
 3. Decide whether every file-writing command gets `-q/--quiet`, then add it where chosen.
-4. Remove the "Not yet wired up" note from [logging.md](../logging.md) once done.
+4. Remove the "Not yet as designed" note from [architecture.md](../architecture.md#output-streams) once done.

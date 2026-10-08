@@ -4,6 +4,14 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-08 — **athc**: the CLI, config and logging design docs were half
+  rules and half mechanics that duplicated the code, so the rules moved into
+  `docs/design/architecture.md` (the renamed overview) as one Cross-cutting
+  conventions section and the three files went. A new output-files rule came
+  with it: another session had convert-pdb stop on a missing output folder,
+  one level had been created before, and nothing wrote the rule down; the
+  modern end-user tools checked (pandoc, 7-Zip, yt-dlp) create the whole
+  chain, so that is the rule, with the code change still to do.
 - 2026-10-08 — **convert-pdb**: the June port had dropped PdbToExcel's
   category order (the ini lists of RL / PSL / RunLeft codes that set the row
   order and the Options sheet) and its `DELETED_PLAYS` list, sorting by the

@@ -41,11 +41,16 @@ athc profile diff               DONE
 
 Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
+- The design docs are one `docs/design/architecture.md`: the architecture plus a
+  Cross-cutting conventions section (CLI, exit codes, output streams, output
+  files, config); `cli.md`, `config.md` and `logging.md` are gone, their rules
+  folded in. New rule: a produced file's missing folders are created in full
+  (pandoc, 7-Zip, yt-dlp do the same); the code still errors today.
 - A league's category labels come from `league.toml` (`CategoryLabels`); the
   category enum carries only codes and game names.
 - A file spec holds only the layout, its validity rules and open questions; a
   library's API is in its README, indexed in
-  [docs/design/overview.md](docs/design/overview.md).
+  [docs/design/architecture.md](docs/design/architecture.md).
 - A league's rule files sit beside its `league.toml`; there is no `rules\`
   subfolder.
 - Tests never name a real league: test leagues get neutral names, rules come
@@ -114,7 +119,7 @@ leagues\
 - `.vscode/` is untracked; game data files are marked binary in
   `.gitattributes`.
 - Config stays INI. Logging is designed but not wired — one `basicConfig` in
-  `cli()`, per [docs/design/logging.md](docs/design/logging.md).
+  `cli()`, per [docs/design/architecture.md](docs/design/architecture.md#output-streams).
 - Install is `install.bat` plus a wheel in a zip; uv downloads a managed
   Python, so Python is no longer a prerequisite.
 

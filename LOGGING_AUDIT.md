@@ -1,7 +1,7 @@
 # Logging audit
 
 Review checklist, not a design. Run it on each tool after that tool has
-been wired to the logging design in [docs/design/logging.md](docs/design/logging.md).
+been wired to the logging design in [docs/design/architecture.md](docs/design/architecture.md#output-streams).
 Prompted by pnfl-admin's logparser, where all four of these were broken.
 
 ## Check per tool

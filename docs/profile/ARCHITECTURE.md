@@ -54,7 +54,7 @@ Loading reports every problem at once (`RulesFileError.errors`); any error abort
 `league.toml`; the league comes from `--league` /
 `[athc] league` (config found via `ATHC_CONFIG_DIR` / the default
 config dir; no `--config` flag). `check` has no rules override. No rules
-configured ⇒ `check` logs an error and exits 2 (nothing to validate). See [../design/config.md](../design/config.md).
+configured ⇒ `check` logs an error and exits 2 (nothing to validate). See [../design/architecture.md](../design/architecture.md#config).
 
 ## Check
 
@@ -104,7 +104,7 @@ See [README.md](README.md#results-and-exit-codes).
 
 Registered under the `athc` umbrella via the `athc.commands` entry point
 (`profile = "athc.cli.profile:profile"`); `AthcGroup` lazy-loads it. Follows the
-Click group/leaf pattern in [../design/cli.md](../design/cli.md).
+Click group/leaf pattern in [../design/architecture.md](../design/architecture.md#cli).
 
 ## Scope
 

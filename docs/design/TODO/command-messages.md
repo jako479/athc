@@ -7,7 +7,7 @@ its messages; then delete this file.
 
 - The release docs don't say what each command prints, or what a warning or
   error means and what to do about it.
-- Only the general rule is written down ([logging.md](../logging.md)); nothing
+- Only the general rule is written down ([architecture.md](../architecture.md#output-streams)); nothing
   per command.
 
 ## What to document, per command

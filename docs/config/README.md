@@ -15,7 +15,7 @@ athc config set league NAME    # set the league used when --league is not given
 
 ## Config
 
-Operates on `athc.ini`, found via `ATHC_CONFIG_DIR` / the default config dir (see [../design/config.md](../design/config.md)) — there is no `--config` flag and no `[config]` section; the group reads no settings.
+Operates on `athc.ini`, found via `ATHC_CONFIG_DIR` / the default config dir (see [../design/architecture.md](../design/architecture.md#config)) — there is no `--config` flag and no `[config]` section; the group reads no settings.
 
 ## Tests
 

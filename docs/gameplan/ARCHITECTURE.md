@@ -52,7 +52,7 @@ Each league's rule set is `config/release/leagues/<NAME>/gameplan.toml` — data
 
 ## Config
 
-The league folder `leagues\<NAME>\` (see [../design/config.md](../design/config.md)), chosen by `--league` / `[athc] league`:
+The league folder `leagues\<NAME>\` (see [../design/architecture.md](../design/architecture.md#config)), chosen by `--league` / `[athc] league`:
 
 - `gameplan.toml` — the rules (or a `gameplan_rules` array in `league.toml`, later files layering over earlier).
 - `league.toml` `play_path` (play pool dir), its `[categories.*]` labels, and `playpool.toml` (optional filename-filter TOML).
@@ -104,7 +104,7 @@ line each: `<file>: Replaced 'OLD' (cat) in special slot N with 'NEW' (cat)`
 ## Exit codes
 
 See [README.md](README.md#results-and-exit-codes). Two classes (see
-[../design/cli.md](../design/cli.md#exit-codes)): `check`, `find-play`,
+[../design/architecture.md](../design/architecture.md#exit-codes)): `check`, `find-play`,
 `set-specials`, and `replace-play` bear a **findings** tier; `list-normals`,
 `list-specials`, and `set-normals` are utilities.
 

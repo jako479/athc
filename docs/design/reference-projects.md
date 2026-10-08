@@ -29,7 +29,7 @@ For running from source with a config separate from the installed one.
 - [llm](https://github.com/simonw/llm) — `LLM_USER_PATH` overrides the default app dir.
 - [tmuxp](https://github.com/tmux-python/tmuxp) — `TMUXP_CONFIGDIR` env var.
 
-Pattern adopted for athc: `ATHC_CONFIG_DIR` env var, no `--config` flag. Mechanics in [cli.md](cli.md).
+Pattern adopted for athc: `ATHC_CONFIG_DIR` env var, no `--config` flag. Mechanics in [architecture.md](architecture.md#running-from-source).
 
 ## Output file location (CWD, never a fixed app dir)
 
@@ -39,7 +39,18 @@ Default location for a produced file when no path is given.
 - [cookiecutter](https://github.com/cookiecutter/cookiecutter) — generates into CWD; `-o` defaults to `.`.
 - [ffmpeg](https://ffmpeg.org/ffmpeg.html) — output is a required positional (relative → CWD).
 
-**Adaptation for athc**: produced output (schedule, report, convert-pdb `.xlsx`, diff export) stays CWD-relative or explicit, like CLI paths in [config.py](../../src/athc/config.py). `platformdirs` is config-only; fixed dirs are for state, not output ([clig.dev](https://clig.dev/)).
+**Adaptation for athc**: produced output (schedule, report, convert-pdb `.xlsx`, diff export) stays CWD-relative or explicit, like CLI paths in [config.py](../../src/athc/config.py). `platformdirs` is config-only; fixed dirs are for state, not output ([clig.dev](https://clig.dev/)). Rules in [architecture.md](architecture.md#output-files).
+
+## Missing output folders (created in full)
+
+What happens when the folder of a user-named output file does not exist. Modern end-user tools create the whole chain; C-era tools and raw file primitives (ffmpeg, curl `-o` without `--create-dirs`, wget `-O`, ImageMagick, PowerShell `Out-File`) stop with an error. Nobody creates one level only. Checked against the sources on 2026-10-08.
+
+- [pandoc](https://github.com/jgm/pandoc) — `-o`: `createDirectoryIfMissing True` on the output's folder ([App.hs](https://github.com/jgm/pandoc/blob/main/src/Text/Pandoc/App.hs)).
+- [7-Zip](https://github.com/ip7z/7zip) — `a`: `CreateComplexDir` on the archive's folder ([Update.cpp](https://github.com/ip7z/7zip/blob/main/CPP/7zip/UI/Common/Update.cpp)).
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) — `-o`: "Any missing directory will be automatically created for you" ([README](https://github.com/yt-dlp/yt-dlp#output-template)).
+- Every modern build tool checked does the same (esbuild `--outfile`, `go build -o`, ruff `--output-file`, pytest `--junitxml`).
+
+**Adaptation for athc**: the modern camp. Whatever writes the file creates its missing folders in full; a command that edits a file in place never creates its target. Rules in [architecture.md](architecture.md#output-files).
 
 ## Multi-profile config (one folder per named profile)
 
@@ -51,7 +62,7 @@ For athc's `leagues\<NAME>\` folders and the stored current league.
 - **pip / gcloud / poetry** — `config set KEY VALUE` writes one setting; precedent for `athc config set league NAME`.
 - **AWS CLI / kubectl** — the profile flag goes after the command: `aws s3 ls --profile x` ([docs](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-options.html)), `kubectl get --context x` ([docs](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_get/)). Precedent for `--league` after the command name.
 
-**Adaptation for athc**: fixed file names inside each league folder; `[athc] league` in `athc.ini`; `--league` on each league-aware command (`athc <command> --league NAME`); priority `--league` → `[athc] league` → error. Full design: [config.md](config.md). CLI mechanics: [cli.md](cli.md).
+**Adaptation for athc**: fixed file names inside each league folder; `[athc] league` in `athc.ini`; `--league` on each league-aware command (`athc <command> --league NAME`); priority `--league` → `[athc] league` → error. Rules in [architecture.md](architecture.md#config); the option in [architecture.md](architecture.md#cli).
 
 ## Plugins via entry points
 
@@ -98,6 +109,7 @@ athc's own discipline (golden input→expected-output fixtures with a regen scri
 | In-code defaults; missing section/key → no error | pgcli, mycli, yt-dlp |
 | Config dir override (`ATHC_CONFIG_DIR` env var) | httpie (`HTTPIE_CONFIG_DIR`), llm (`LLM_USER_PATH`), tmuxp |
 | Output → CWD/explicit, never a fixed app dir | yt-dlp, cookiecutter, ffmpeg; clig.dev |
+| Missing output folders created in full | pandoc, 7-Zip, yt-dlp |
 | Folder per league, fixed inner file names | OBS Studio, Kodi, Hugo |
 | Current league as a key in the main settings file | Calibre |
 | `config set KEY VALUE` | pip, gcloud, poetry |
