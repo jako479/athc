@@ -107,7 +107,7 @@ Extensions are validated (`.pdb` / `.xlsx`,`.xlsm` / `.pln`).
 | Exit | Meaning |
 |---|---|
 | `0` | **OK** — workbook written. |
-| `1` | **Error** — input or I/O error (missing/invalid PDB, bad play path, missing output folder, a bad or missing `pdbtoexcel.toml`). The output folder is never created. |
+| `1` | **Error** — input or I/O error (missing/invalid PDB, bad play path, an output folder that can't be created, a bad or missing `pdbtoexcel.toml`). |
 | `2` | **Usage** — bad arguments or extensions. |
 
 ## Out of scope

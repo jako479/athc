@@ -16,6 +16,7 @@ athc convert-pdb stats.pdb out.xlsx --league PCFL
   game plans to fill the Slot columns.
 - The workbook always includes the Total Stats team.
 - `--skip-calcs` drops the percentage columns.
+- Missing folders in the output path are created.
 - Exit 0 ok, 1 on an input/I/O error, 2 on usage (bad extension, etc.).
 
 Plays are grouped by their category, shown under the league's name for it

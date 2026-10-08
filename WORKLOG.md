@@ -4,6 +4,12 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-08 — **athc**: the output-files rule became code. `convert-pdb`,
+  `list-normals`, `list-specials` and `profile diff -o` had each stopped with
+  an error on a missing output folder; each now creates the whole folder chain
+  before it writes, where the write happens, so the rule holds for every
+  caller. The in-place editors are unchanged: a missing target is still an
+  error and nothing is created. The TODO design note went with it.
 - 2026-10-08 — **athc**: the CLI, config and logging design docs were half
   rules and half mechanics that duplicated the code, so the rules moved into
   `docs/design/architecture.md` (the renamed overview) as one Cross-cutting

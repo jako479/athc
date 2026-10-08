@@ -264,14 +264,16 @@ def emit_play_list(
     logger: logging.Logger,
     noun: str,
 ) -> int:
-    """Print `lines` to stdout, or write them to `out_path` (replacing it) with a
-    `:: <source>` header. Returns the exit code (0 ok, 1 write error). The
-    count reported leaves out blanks and `::` header lines."""
+    """Print `lines` to stdout, or write them to `out_path` (replacing it, its
+    missing folders created) with a `:: <source>` header. Returns the exit code
+    (0 ok, 1 write error). The count reported leaves out blanks and `::` header
+    lines."""
     if out_path is None:
         click.echo("\n".join(lines))
         return 0
     text = f":: {source.resolve()}\n" + "\n".join(lines) + "\n"
     try:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(text, encoding="utf-8")
     except OSError as error:
         logger.error("%s: %s", prog, error)

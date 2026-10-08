@@ -39,8 +39,8 @@ athc profile diff A.prf B.prf -o changes.csv
 
 Shows what changed from `file1` to `file2` (same side only) — situations, PAT, substitutions,
 field-goal range, audibles. `-o file` writes a `.txt` or `.csv` report instead of
-stdout. Exit 0 (identical), 1 (differs), or 2 (I/O error or side mismatch). No
-rules needed.
+stdout, creating its missing folders. Exit 0 (identical), 1 (differs), or 2 (I/O
+error or side mismatch). No rules needed.
 
 ## copy
 

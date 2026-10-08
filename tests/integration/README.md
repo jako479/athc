@@ -139,6 +139,9 @@ In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `d
 | Output file: `--sort category` | data + out | rest match category fixture | `test_normals_file_sort_category` | ☑ |
 | `--sort category` count skips headers | data + out | "Wrote 64 normal play(s)" | `test_normals_file_sort_category_counts_plays_not_headers` | ☑ |
 | Existing file replaced | existing out | exit 0; rewritten | `test_normals_overwrites_existing_file` | ☑ |
+| Missing folder created | `lists\plays.txt`, no `lists\` | exit 0; file written | `test_normals_creates_missing_folder` | ☑ |
+| Missing folders created in full | `lists\2049\plays.txt`, no `lists\` | exit 0; whole chain created | `test_normals_creates_missing_folders_in_full` | ☑ |
+| Output folder is a file | `lists` is a file | exit 1; error names the folder | `test_normals_output_folder_is_a_file_exit_1` | ☑ |
 | Logs count + path | data + out | "Wrote 64 normal play(s)" | `test_normals_file_logs_count` | ☑ |
 | Missing gameplan | tmp | exit 1; error logged | `test_normals_missing_gameplan` | ☑ |
 | Malformed, output file | tmp | exit 1; no file written | `test_normals_malformed_file_mode_no_output` | ☑ |
@@ -153,6 +156,8 @@ In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `d
 | `-` prints (source order) | data | lines match fixture | `test_specials_dash_offense` / `..._defense` | ☑ |
 | Output file: header + plays | data + out | line 1 `::`, rest match | `test_specials_file_writes_header_and_plays` | ☑ |
 | Existing file replaced | existing out | exit 0; rewritten | `test_specials_overwrites_existing_file` | ☑ |
+| Missing folder created | `lists\spec.txt`, no `lists\` | exit 0; file written | `test_specials_creates_missing_folder` | ☑ |
+| Missing folders created in full | `lists\2049\spec.txt`, no `lists\` | exit 0; whole chain created | `test_specials_creates_missing_folders_in_full` | ☑ |
 | Logs count + path | data + out | "Wrote 6 special play(s)" | `test_specials_file_logs_count` | ☑ |
 | Malformed, output file | tmp | exit 1; no file written | `test_specials_malformed_file_mode_no_output` | ☑ |
 
@@ -320,7 +325,9 @@ In [test_profile_diff.py](test_profile_diff.py). Inputs: real `TST-OFF1/OFF2/DEF
 | `.txt` identical | OFF1 ×2 | exit 0; "are identical." | `test_output_txt_identical_exit_0` | ☑ |
 | `.csv` rows + CRLF | base/mod | `\r\n`; provenance + header + rows | `test_output_csv_rows_and_crlf` | ☑ |
 | Unknown extension | `.json` | exit 2; no file written | `test_output_unknown_extension_exit_2` | ☑ |
-| Write failure | bad dir | exit 2 | `test_output_write_failure_exit_2` | ☑ |
+| Missing folder created | `reports\report.csv`, no `reports\` | exit 1; file written | `test_output_creates_missing_folder` | ☑ |
+| Missing folders created in full | `reports\2049\report.txt`, no `reports\` | exit 1; whole chain created | `test_output_creates_missing_folders_in_full` | ☑ |
+| Write failure | folder is a file | exit 2 | `test_output_write_failure_exit_2` | ☑ |
 | **Golden `.txt`/`.csv` (all fields / identical)** | base/mod ↔ expected | byte-equal (path normalized) | `test_all_fields_output_matches_golden` `[P]` / `test_identical_output_matches_golden` `[P]` | ☑ |
 
 ## render / render_csv (direct)
@@ -361,7 +368,8 @@ In [test_profile_copy.py](test_profile_copy.py). Inputs: real `TST-OFF1/DEF1.prf
 | Offense source skips defense targets | dir mix | wrong side untouched | `test_cli_offense_source_skips_defense_targets` | ☑ |
 | Single wrong-side target skipped | DEF1 target | exit 0; 0 processed; untouched | `test_cli_single_wrong_side_target_skipped` | ☑ |
 | Continues past failed file | dir + bad | exit 1; 1 updated, 1 failed | `test_cli_continues_past_failed_file` | ☑ |
-| Missing source / target | tmp | exit 1; target untouched | `test_cli_missing_source_exit_1` / `test_cli_missing_target_exit_1` | ☑ |
+| Missing source / target | tmp | exit 2; target untouched | `test_cli_missing_source_exit_2` / `test_cli_missing_target_exit_2` | ☑ |
+| Target in a missing folder | tmp | exit 2; folder not created | `test_cli_missing_target_folder_not_created_exit_2` | ☑ |
 
 ---
 
@@ -548,7 +556,9 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`.
 | Missing PDB file | tmp | exit 1; "file not found" | `test_missing_pdb_exit_1` | ☑ |
 | Play path not a directory | league `play_path` is a file | exit 1; "play path is not a directory" | `test_play_path_not_a_directory_exit_1` | ☑ |
 | Missing `pdbtoexcel.toml` | league folder without it | exit 1; "pdbtoexcel.toml: not found" | `test_missing_pdbtoexcel_toml_exit_1` | ☑ |
-| Output folder missing | `reports\2049\w1.xlsx`, no `reports\` | exit 1; "output folder not found"; nothing created | `test_missing_output_folder_exit_1` | ☑ |
+| Output folder missing, one level | `reports\w1.xlsx`, no `reports\` | exit 0; folder created; file written | `test_missing_output_folder_created` | ☑ |
+| Output folders missing, several levels | `reports\2049\w1.xlsx`, no `reports\` | exit 0; whole chain created; file written | `test_missing_output_folders_created_in_full` | ☑ |
+| Output folder is a file | `reports` is a file | exit 1; nothing written | `test_output_folder_is_a_file_exit_1` | ☑ |
 | Invalid PDB content | tmp | exit 1 | `test_invalid_pdb_content_exit_1` | ☑ |
 | Produces `.xlsx` + sheets + tendencies | data + dir | exit 0; 5 sheets; 23x16 tendency rows | `test_produces_xlsx_with_sheets` | ☑ |
 | Produces `.xlsm` | data + dir | exit 0; file written | `test_produces_xlsm` | ☑ |

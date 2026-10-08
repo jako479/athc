@@ -45,7 +45,8 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   Cross-cutting conventions section (CLI, exit codes, output streams, output
   files, config); `cli.md`, `config.md` and `logging.md` are gone, their rules
   folded in. New rule: a produced file's missing folders are created in full
-  (pandoc, 7-Zip, yt-dlp do the same); the code still errors today.
+  (pandoc, 7-Zip, yt-dlp do the same); `convert-pdb`, `list-normals`,
+  `list-specials` and `profile diff -o` follow it.
 - A league's category labels come from `league.toml` (`CategoryLabels`); the
   category enum carries only codes and game names.
 - A file spec holds only the layout, its validity rules and open questions; a

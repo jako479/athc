@@ -191,7 +191,6 @@ Warnings never change the exit code. The code is computed once after the work lo
 - Missing folders in the path are created in full, the way pandoc, 7-Zip and yt-dlp do it; never one level only.
 - Whatever writes the file makes that call, CLI or library, so the rule holds for every caller.
 - A command that edits a file in place (`set-normals`, `set-specials`, `replace-play`, `profile copy`) never creates its target; a missing path is an error.
-- **Not yet as designed.** Today `convert-pdb`, `list-normals`, `list-specials` and `profile diff -o` all stop with an error when the folder is missing.
 
 ### Config
 

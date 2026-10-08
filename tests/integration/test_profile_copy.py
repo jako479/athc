@@ -303,3 +303,11 @@ def test_cli_missing_target_exit_2(runner, tmp_path: Path) -> None:
         copy, [str(source), str(tmp_path / "nope.prf"), "--stop-clock"]
     )
     assert result.exit_code == 2
+
+
+def test_cli_missing_target_folder_not_created_exit_2(runner, tmp_path: Path) -> None:
+    source = _copy_prf(OFF1, tmp_path, name="source.prf")
+    target = tmp_path / "missing" / "target.prf"
+    result = runner.invoke(copy, [str(source), str(target), "--stop-clock"])
+    assert result.exit_code == 2
+    assert not target.parent.exists()

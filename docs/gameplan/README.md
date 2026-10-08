@@ -58,7 +58,7 @@ athc gameplan set-specials plans/ spec.txt -r      # merge specials across a tre
 athc gameplan replace-play OLDRUN NEWRUN plans/ -r # swap one play for another
 ```
 
-`list-*` and `find-play` just read a `.pln` — no pool, rules or config. `set-*` need the pool (like `check`, minus the gameplan rules) and edit in place with no backup. `replace-play play replacement path` swaps one play for another wherever `find-play` would find it, using the league's play pool; `replacement` must be in the pool. `athc gameplan <command> --help` for flags.
+`list-specials` and `find-play` just read a `.pln` — no pool, rules or config; `list-normals` also reads the league's category names (`--league`). `list-*` create the output file's missing folders. `set-*` need the pool (like `check`, minus the gameplan rules) and edit in place with no backup. `replace-play play replacement path` swaps one play for another wherever `find-play` would find it, using the league's play pool; `replacement` must be in the pool. `athc gameplan <command> --help` for flags.
 
 ## Config
 

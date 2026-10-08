@@ -84,7 +84,7 @@ def diff(ctx: click.Context, a: Path, b: Path, output: Path | None) -> None:
         ctx.exit(2)
 
     result = diff_profiles(pa, pb)
-    if fmt is None:
+    if output is None:
         click.echo(render(result, str(a), str(b)))
     else:
         content = (
@@ -93,7 +93,8 @@ def diff(ctx: click.Context, a: Path, b: Path, output: Path | None) -> None:
             else render(result, str(a), str(b)) + "\n"
         )
         try:
-            output.write_bytes(content.encode("utf-8"))  # type: ignore[union-attr]
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_bytes(content.encode("utf-8"))
         except OSError as error:
             logger.error("%s: %s: %s", PROG, output, error)
             ctx.exit(2)

@@ -156,6 +156,3 @@ convert-pdb says "pdbtoexcel.toml: not found":
 
 convert-pdb says a game plan was not found:
     Fix the path after -o / -o2 / -d / -d2, or leave that option out.
-
-convert-pdb says "output folder not found":
-    Create the folder the output file should go in, then re-run.

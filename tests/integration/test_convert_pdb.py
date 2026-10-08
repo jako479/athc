@@ -128,15 +128,31 @@ def test_play_path_not_a_directory_exit_1(
 
 
 @pytest.mark.usefixtures("league")
-def test_missing_output_folder_exit_1(
+def test_missing_output_folder_created(runner, tmp_path: Path) -> None:
+    out = tmp_path / "reports" / "w1.xlsx"
+    result = runner.invoke(convert_pdb, [str(PDB), str(out)])
+    assert result.exit_code == 0
+    assert out.is_file()
+
+
+@pytest.mark.usefixtures("league")
+def test_missing_output_folders_created_in_full(runner, tmp_path: Path) -> None:
+    out = tmp_path / "reports" / "2049" / "w1.xlsx"
+    result = runner.invoke(convert_pdb, [str(PDB), str(out)])
+    assert result.exit_code == 0
+    assert out.is_file()
+
+
+@pytest.mark.usefixtures("league")
+def test_output_folder_is_a_file_exit_1(
     runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    out = tmp_path / "reports" / "2049" / "w1.xlsx"
+    (tmp_path / "reports").write_text("x", encoding="utf-8")
+    out = tmp_path / "reports" / "w1.xlsx"
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(convert_pdb, [str(PDB), str(out)])
     assert result.exit_code == 1
-    assert f"output folder not found: {out.parent}" in caplog.text
-    assert not out.parent.exists()
+    assert not out.exists()
 
 
 def test_missing_pdbtoexcel_toml_exit_1(

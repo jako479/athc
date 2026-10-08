@@ -26,9 +26,7 @@ def convert_pdb(
             f"play path is not a directory: {config.play_path!r} "
             f"(set play_path in the league's league.toml)"
         )
-    output_folder = Path(output_path).parent
-    if not output_folder.is_dir():
-        raise OSError(f"output folder not found: {output_folder}")
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     creator = PdbWorkbookCreator.from_config(
         config,

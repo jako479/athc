@@ -112,10 +112,23 @@ def test_output_unknown_extension_exit_2(
     assert not out.exists()
 
 
+def test_output_creates_missing_folder(runner, tmp_path: Path) -> None:
+    out = tmp_path / "reports" / "report.csv"
+    assert runner.invoke(diff, [str(BASE), str(MOD), "-o", str(out)]).exit_code == 1
+    assert out.is_file()
+
+
+def test_output_creates_missing_folders_in_full(runner, tmp_path: Path) -> None:
+    out = tmp_path / "reports" / "2049" / "report.txt"
+    assert runner.invoke(diff, [str(BASE), str(MOD), "-o", str(out)]).exit_code == 1
+    assert out.is_file()
+
+
 def test_output_write_failure_exit_2(
     runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    out = tmp_path / "no_such_dir" / "report.csv"
+    (tmp_path / "reports").write_text("x", encoding="utf-8")
+    out = tmp_path / "reports" / "report.csv"
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(diff, [str(BASE), str(MOD), "-o", str(out)])
     assert result.exit_code == 2

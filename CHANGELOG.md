@@ -11,7 +11,7 @@ high-level change completed alongside it gets its own line.
 - convert-pdb: `pdbtoexcel.toml` also lists deleted plays, skipped quietly instead of warning "Play file not found"
 - convert-pdb: the play names a league's `playpool.toml` lists under include / exclude are checked against the play pool; one not in the pool, on the wrong side, or under both lists is a warning
 - convert-pdb: the release settings count sacks as pass attempts
-- convert-pdb: the output folder must exist; a missing one is a one-line error instead of being created
+- convert-pdb, gameplan `list-normals` / `list-specials`, profile `diff -o`: the output file's missing folders are created in full instead of being an error
 - gameplan: rules list the categories a gameplan may contain (`allowed_offensive_categories` / `allowed_defensive_categories`, by the league's labels) instead of the ones it may not
 - config: the TOML rule and scheduler files carry no `schema_version` line; the rule loaders reject it like any other unknown key
 - gameplan: `list-normals --sort category` groups the plays by category, each group under a `::` header with the league's category name

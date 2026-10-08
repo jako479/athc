@@ -76,6 +76,31 @@ def test_normals_default_writes_next_to_gameplan(runner, tmp_path: Path) -> None
     assert lines[1:] == _expected("offense_normals_slot.txt")
 
 
+def test_normals_creates_missing_folder(runner, tmp_path: Path) -> None:
+    out = tmp_path / "lists" / "plays.txt"
+    result = runner.invoke(list_normals, [str(GP_OFFENSE), str(out)])
+    assert result.exit_code == 0
+    assert out.read_text(encoding="utf-8").splitlines()[1:] == _expected(
+        "offense_normals_slot.txt"
+    )
+
+
+def test_normals_creates_missing_folders_in_full(runner, tmp_path: Path) -> None:
+    out = tmp_path / "lists" / "2049" / "plays.txt"
+    result = runner.invoke(list_normals, [str(GP_OFFENSE), str(out)])
+    assert result.exit_code == 0
+    assert out.is_file()
+
+
+def test_normals_output_folder_is_a_file_exit_1(runner, tmp_path: Path, caplog) -> None:
+    (tmp_path / "lists").write_text("x", encoding="utf-8")
+    out = tmp_path / "lists" / "plays.txt"
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(list_normals, [str(GP_OFFENSE), str(out)])
+    assert result.exit_code == 1
+    assert out.parent.name in caplog.text
+
+
 def test_normals_overwrites_existing_file(runner, tmp_path: Path) -> None:
     out = tmp_path / "plays.txt"
     out.write_text("existing\n", encoding="utf-8")
@@ -275,6 +300,20 @@ def test_specials_default_writes_next_to_gameplan(runner, tmp_path: Path) -> Non
     lines = out.read_text(encoding="utf-8").splitlines()
     assert lines[0].startswith(":: ") and str(gp.resolve()) in lines[0]
     assert lines[1:] == _expected("offense_specials.txt")
+
+
+def test_specials_creates_missing_folder(runner, tmp_path: Path) -> None:
+    out = tmp_path / "lists" / "spec.txt"
+    result = runner.invoke(list_specials, [str(GP_OFFENSE), str(out)])
+    assert result.exit_code == 0
+    assert out.is_file()
+
+
+def test_specials_creates_missing_folders_in_full(runner, tmp_path: Path) -> None:
+    out = tmp_path / "lists" / "2049" / "spec.txt"
+    result = runner.invoke(list_specials, [str(GP_OFFENSE), str(out)])
+    assert result.exit_code == 0
+    assert out.is_file()
 
 
 def test_specials_overwrites_existing_file(runner, tmp_path: Path) -> None:
