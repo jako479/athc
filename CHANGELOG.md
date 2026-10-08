@@ -7,6 +7,10 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- gameplan: `list-normals --sort category` groups the plays by category, each group under a `::` header with the league's category name
+- gameplan: `list-normals` reads the league like the other gameplan commands and takes `--league`
+- gameplan: a rules file whose `offense` / `defense` value or section is not a table is reported like any other rules error instead of crashing
+- gameplan: `check` names a required or stock-only special category by its game name (`Kickoff`, `Kick Return`) instead of its slot number
 - playpool: an unreadable play file is skipped with a warning instead of failing the whole load
 - playpool: plays load in path order, so the same play wins a duplicate name every time
 - playpool: the pool no longer carries the rules and labels it was built with, nor a `to_dict`; `add` takes only sided plays

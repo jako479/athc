@@ -4,6 +4,20 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-08 — **gameplan**: `list-normals` gained `--sort category`, which
+  groups the plays under `::` headers in the league's reading order so a coach
+  can read a plan the way the game's grid presents it. The headers carry the
+  league's category labels, so the command now resolves the league like every
+  other league-reading command; a first cut had given Pass Long Left/Middle
+  and Razzle Dazzle Run short labels in the category enum, dropped once the
+  labels moved to `league.toml`. `find-play`, `replace-play` and `list-normals`
+  now share one helper for a gameplan play's category. A review of the
+  gameplan package then fixed the rules loader crashing on a non-table
+  `offense` / `defense` value and folded its own `ConfigFileError` into the
+  config package's; `check` now names a special category in its messages the
+  way it names normal ones, the validator groups a plan's plays once, and the
+  three integration test files that built gameplans by hand share one set of
+  helpers in the integration conftest.
 - 2026-10-08 — **playpool**: `check-playpool` became `playpool check`, so the
   play pool is a command group like `gameplan` and `profile`, the
   resource-then-verb shape of `git remote add` and `docker container ls`;

@@ -288,7 +288,7 @@ def _merge_file(
             merged, data["profile_compatibility"], errors, source=source
         )
 
-    for label, section in data.get("offense", {}).items():
+    for label, section in _side_sections(data, "offense", errors, source).items():
         val, ok = _attempt(
             errors,
             lambda label=label, section=section: _build_offense_section(
@@ -298,7 +298,7 @@ def _merge_file(
         if ok:
             name, rule = val
             merged.offense[name] = rule
-    for label, section in data.get("defense", {}).items():
+    for label, section in _side_sections(data, "defense", errors, source).items():
         val, ok = _attempt(
             errors,
             lambda label=label, section=section: _build_defense_section(
@@ -308,6 +308,35 @@ def _merge_file(
         if ok:
             name, rule = val
             merged.defense[name] = rule
+
+
+def _side_sections(
+    data: Mapping[str, Any], side: str, errors: list[str], source: Path
+) -> dict[str, Mapping[str, Any]]:
+    """The `[<side>.<label>]` tables of one document, label -> table. A `<side>`
+    value or a section that is not a table is collected in `errors` and left out."""
+    table, ok = _attempt(
+        errors, lambda: _require_table(data.get(side, {}), source, f"[{side}]")
+    )
+    if not ok:
+        return {}
+    out: dict[str, Mapping[str, Any]] = {}
+    for label, section in table.items():
+        value, ok = _attempt(
+            errors,
+            lambda label=label, section=section: _require_table(
+                section, source, f"[{side}.{label}]"
+            ),
+        )
+        if ok:
+            out[label] = value
+    return out
+
+
+def _require_table(value: object, source: Path, where: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise RulesFileError(f"{source}: {where} must be a table")
+    return value
 
 
 def _merge_profile_compatibility(
@@ -415,12 +444,12 @@ def _cap_fields(
         "ratio": _optional_fraction,
         "percent": _optional_percent,
     }
-    return {
-        key: parse[form](section.get(key), source, f"{where}.{key}")
-        for attr in attrs
-        for form in _CAP_FORMS
-        if (key := f"max_{attr}_{form}")
-    }
+    fields: dict[str, Any] = {}
+    for attr in attrs:
+        for form in _CAP_FORMS:
+            key = f"max_{attr}_{form}"
+            fields[key] = parse[form](section.get(key), source, f"{where}.{key}")
+    return fields
 
 
 def _build_rules(m: _MergedData) -> Rules:

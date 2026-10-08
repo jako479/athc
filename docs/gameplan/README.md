@@ -46,6 +46,7 @@ athc gameplan check OFF.pln --league PCFL     # another league
 
 athc gameplan list-normals OFF.pln                 # 64 normal plays to OFF.normals.txt
 athc gameplan list-normals OFF.pln plays.txt --sort name
+athc gameplan list-normals OFF.pln --sort category # grouped under `:: <category>` headers
 athc gameplan list-normals OFF.pln -               # to stdout
 athc gameplan list-specials OFF.pln                # custom special teams to OFF.specials.txt
 athc gameplan find-play OR45RL01                   # every .pln in the current directory

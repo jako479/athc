@@ -19,13 +19,20 @@ from athc.fbpro98_gameplan import (
     GamePlan,
     PlayRef,
     ProfileType,
-    SpecialSlot,
-    StockPlayRef,
     read_gameplan,
     write_gameplan,
 )
 from tests.conftest import LEAGUE, PNFL_LABELS, league_toml
-from tests.integration.conftest import GP_DEFENSE, GP_OFFENSE, PLAYS
+from tests.integration.conftest import (
+    GP_DEFENSE,
+    GP_OFFENSE,
+    PLAYS,
+    build_gameplan,
+    defense_normal,
+    defense_special,
+    offense_normal,
+    offense_special,
+)
 
 MakeLeague = Callable[..., Path]
 WriteConfig = Callable[..., Path]
@@ -50,72 +57,6 @@ MISSING = "NOSUCHPLAYXX"
 # ── constructed-gameplan helpers ──────────────────────────────────────────────
 
 
-def _clock(category: int) -> SpecialSlot:
-    return SpecialSlot(stock=StockPlayRef(f"CLOCK{category}", 0, 0, 1, category, 0))
-
-
-def _onorm(name: str, user_category: int = 0x05) -> CustomPlayRef:
-    """Offense normal play (user_category 0x05 = Run Left)."""
-    return CustomPlayRef(
-        filename=f"plays\\{name}.PLY",
-        play_category=1,
-        special_category=0,
-        user_category=user_category,
-    )
-
-
-def _ospec(name: str, category: int) -> CustomPlayRef:
-    """Offense special-teams play in `category` (1-10)."""
-    return CustomPlayRef(
-        filename=f"plays\\{name}.PLY",
-        play_category=1,
-        special_category=category,
-        user_category=0,
-    )
-
-
-def _dnorm(name: str) -> CustomPlayRef:
-    """Defense normal play."""
-    return CustomPlayRef(
-        filename=f"plays\\{name}.PLY",
-        play_category=0,
-        special_category=0,
-        user_category=0x04,
-    )
-
-
-def _dspec(name: str, category: int) -> CustomPlayRef:
-    """Defense special-teams play in `category` (1-10)."""
-    return CustomPlayRef(
-        filename=f"plays\\{name}.PLY",
-        play_category=0,
-        special_category=category,
-        user_category=0,
-    )
-
-
-def _build(
-    profile_type: ProfileType,
-    normals: dict[int, CustomPlayRef] | None,
-    specials: dict[int, CustomPlayRef] | None,
-) -> GamePlan:
-    normal_slots: list[PlayRef | None] = [None] * 64
-    for index, play in (normals or {}).items():
-        normal_slots[index] = play
-    special_slots = [SpecialSlot() for _ in range(GamePlan.NUMBER_SPECIAL_CATEGORIES)]
-    for category, play in (specials or {}).items():
-        special_slots[category - 1] = SpecialSlot(custom=play)
-    # Offense requires both stock clock plays; defense has none.
-    if profile_type is ProfileType.OFFENSE:
-        for category in (11, 12):
-            special_slots[category - 1] = _clock(category)
-    return GamePlan(
-        profile_type=profile_type,
-        normal_plays=tuple(normal_slots),
-        special_plays=tuple(special_slots),
-    )
-
-
 def _offense_gameplan(
     *,
     normals: dict[int, CustomPlayRef] | None = None,
@@ -123,7 +64,7 @@ def _offense_gameplan(
 ) -> GamePlan:
     """Empty offense gameplan with the given normal slots (0-based) and custom
     special slots (1-based category) filled."""
-    return _build(ProfileType.OFFENSE, normals, specials)
+    return build_gameplan(ProfileType.OFFENSE, normals, specials)
 
 
 def _defense_gameplan(
@@ -132,7 +73,7 @@ def _defense_gameplan(
     specials: dict[int, CustomPlayRef] | None = None,
 ) -> GamePlan:
     """Empty defense gameplan (no clock slots) with the given slots filled."""
-    return _build(ProfileType.DEFENSE, normals, specials)
+    return build_gameplan(ProfileType.DEFENSE, normals, specials)
 
 
 def _write(gp: GamePlan, tmp_path: Path, name: str = "gp.pln") -> Path:
@@ -150,17 +91,21 @@ def _name(play: PlayRef | None) -> str:
 
 
 def test_replace_no_match_unchanged() -> None:
-    gp = _offense_gameplan(normals={0: _onorm("OLDRUN")})
-    out, normal_hits, special_hits = replace_in_gameplan(gp, MISSING, _onorm("NEW"))
+    gp = _offense_gameplan(normals={0: offense_normal("OLDRUN")})
+    out, normal_hits, special_hits = replace_in_gameplan(
+        gp, MISSING, offense_normal("NEW")
+    )
     assert not normal_hits and not special_hits and out is gp
 
 
 def test_replace_offense_normal_multiple_slots() -> None:
     """Offense normal play in several slots: all swap; bystander preserved."""
-    old = _onorm("OLDRUN")
-    gp = _offense_gameplan(normals={0: old, 5: old, 63: old, 1: _onorm("KEEPME", 0x09)})
+    old = offense_normal("OLDRUN")
+    gp = _offense_gameplan(
+        normals={0: old, 5: old, 63: old, 1: offense_normal("KEEPME", 0x09)}
+    )
     out, normal_hits, special_hits = replace_in_gameplan(
-        gp, "OLDRUN", _onorm("NEW", 0x09)
+        gp, "OLDRUN", offense_normal("NEW", 0x09)
     )
     assert [i for i, _ in normal_hits] == [0, 5, 63] and special_hits == []
     assert [_name(out.normal_plays[i]) for i in (0, 5, 63)] == ["NEW"] * 3
@@ -168,17 +113,23 @@ def test_replace_offense_normal_multiple_slots() -> None:
 
 
 def test_replace_defense_normal() -> None:
-    gp = _defense_gameplan(normals={0: _dnorm("OLDDEF"), 1: _dnorm("KEEPDEF")})
-    out, normal_hits, special_hits = replace_in_gameplan(gp, "OLDDEF", _dnorm("NEWDEF"))
+    gp = _defense_gameplan(
+        normals={0: defense_normal("OLDDEF"), 1: defense_normal("KEEPDEF")}
+    )
+    out, normal_hits, special_hits = replace_in_gameplan(
+        gp, "OLDDEF", defense_normal("NEWDEF")
+    )
     assert [i for i, _ in normal_hits] == [0] and special_hits == []
     assert _name(out.normal_plays[0]) == "NEWDEF"
     assert _name(out.normal_plays[1]) == "KEEPDEF"  # bystander preserved
 
 
 def test_replace_offense_special() -> None:
-    gp = _offense_gameplan(specials={1: _ospec("OLDFG", 1), 2: _ospec("KEEPKICK", 2)})
+    gp = _offense_gameplan(
+        specials={1: offense_special("OLDFG", 1), 2: offense_special("KEEPKICK", 2)}
+    )
     out, normal_hits, special_hits = replace_in_gameplan(
-        gp, "OLDFG", _ospec("NEWFG", 1)
+        gp, "OLDFG", offense_special("NEWFG", 1)
     )
     assert normal_hits == [] and [n for n, _ in special_hits] == [1]
     assert _name(out.custom_special_plays[0]) == "NEWFG"
@@ -186,9 +137,11 @@ def test_replace_offense_special() -> None:
 
 
 def test_replace_defense_special() -> None:
-    gp = _defense_gameplan(specials={2: _dspec("OLDKR", 2), 3: _dspec("KEEPPR", 3)})
+    gp = _defense_gameplan(
+        specials={2: defense_special("OLDKR", 2), 3: defense_special("KEEPPR", 3)}
+    )
     out, normal_hits, special_hits = replace_in_gameplan(
-        gp, "OLDKR", _dspec("NEWKR", 2)
+        gp, "OLDKR", defense_special("NEWKR", 2)
     )
     assert normal_hits == [] and [n for n, _ in special_hits] == [2]
     assert _name(out.custom_special_plays[1]) == "NEWKR"  # category 2 → index 1
@@ -196,27 +149,27 @@ def test_replace_defense_special() -> None:
 
 
 def test_replace_case_insensitive_target() -> None:
-    gp = _offense_gameplan(normals={7: _onorm("MixedCase")})
-    out, normal_hits, _ = replace_in_gameplan(gp, "mixedcase", _onorm("NEW"))
+    gp = _offense_gameplan(normals={7: offense_normal("MixedCase")})
+    out, normal_hits, _ = replace_in_gameplan(gp, "mixedcase", offense_normal("NEW"))
     assert [i for i, _ in normal_hits] == [7] and _name(out.normal_plays[7]) == "NEW"
 
 
 def test_replace_special_into_normal_raises() -> None:
-    gp = _offense_gameplan(normals={0: _onorm("OLDRUN")})
+    gp = _offense_gameplan(normals={0: offense_normal("OLDRUN")})
     with pytest.raises(ValueError):
-        replace_in_gameplan(gp, "OLDRUN", _ospec("FG", 1))
+        replace_in_gameplan(gp, "OLDRUN", offense_special("FG", 1))
 
 
 def test_replace_wrong_special_category_raises() -> None:
-    gp = _offense_gameplan(specials={1: _ospec("OLDFG", 1)})
+    gp = _offense_gameplan(specials={1: offense_special("OLDFG", 1)})
     with pytest.raises(ValueError):
-        replace_in_gameplan(gp, "OLDFG", _ospec("KICK", 2))
+        replace_in_gameplan(gp, "OLDFG", offense_special("KICK", 2))
 
 
 def test_replace_wrong_side_raises() -> None:
-    gp = _offense_gameplan(normals={0: _onorm("OLDRUN")})
+    gp = _offense_gameplan(normals={0: offense_normal("OLDRUN")})
     with pytest.raises(ValueError):
-        replace_in_gameplan(gp, "OLDRUN", _dnorm("DEFPLAY"))
+        replace_in_gameplan(gp, "OLDRUN", defense_normal("DEFPLAY"))
 
 
 # ── format_replacement_lines (short category; normal vs special phrasing) ──────
@@ -225,9 +178,9 @@ def test_replace_wrong_side_raises() -> None:
 def test_format_lines_normal_slot() -> None:
     line = format_replacement_lines(
         Path("OFF.pln"),
-        [(0, _onorm("OLDRUN"))],
+        [(0, offense_normal("OLDRUN"))],
         [],
-        _onorm("NEWRUN", 0x09),
+        offense_normal("NEWRUN", 0x09),
         PNFL_LABELS,
     )
     assert line == ["OFF.pln: 'OLDRUN' (RL) replaced with 'NEWRUN' (RM) [1-1]"]
@@ -235,16 +188,24 @@ def test_format_lines_normal_slot() -> None:
 
 def test_format_lines_multiple_normal_slots() -> None:
     """Many normal hits collapse to one line, slots bracketed in order."""
-    dup = _onorm("DUP", 0x09)
+    dup = offense_normal("DUP", 0x09)
     line = format_replacement_lines(
-        Path("OFF.pln"), [(2, dup), (13, dup)], [], _onorm("NEW", 0x09), PNFL_LABELS
+        Path("OFF.pln"),
+        [(2, dup), (13, dup)],
+        [],
+        offense_normal("NEW", 0x09),
+        PNFL_LABELS,
     )
     assert line == ["OFF.pln: 'DUP' (RM) replaced with 'NEW' (RM) [1-3][4-2]"]
 
 
 def test_format_lines_special_slot() -> None:
     line = format_replacement_lines(
-        Path("OFF.pln"), [], [(1, _ospec("OLDFG", 1))], _ospec("NEWFG", 1), PNFL_LABELS
+        Path("OFF.pln"),
+        [],
+        [(1, offense_special("OLDFG", 1))],
+        offense_special("NEWFG", 1),
+        PNFL_LABELS,
     )
     assert line == [
         "OFF.pln: Replaced 'OLDFG' (Field Goal/PAT) in special slot 1 "
@@ -273,13 +234,13 @@ def test_cli_rejects_multiple_plays(runner, tmp_path: Path) -> None:
 
 
 def test_cli_no_quiet_option(runner, tmp_path: Path) -> None:
-    p = _write(_offense_gameplan(normals={0: _onorm("OLDRUN")}), tmp_path)
+    p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
     result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, str(p), "-q"])
     assert result.exit_code == 2
 
 
 def test_cli_replacement_not_in_pool_exit_2(runner, tmp_path: Path, caplog) -> None:
-    p = _write(_offense_gameplan(normals={0: _onorm("OLDRUN")}), tmp_path)
+    p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
     with caplog.at_level(logging.ERROR, logger="athc.cli.gameplan.replace_play"):
         result = runner.invoke(replace_play, ["OLDRUN", MISSING, str(p)])
     assert result.exit_code == 2
@@ -304,8 +265,10 @@ def _copy_offense(tmp_path: Path, name: str = "offense.pln") -> Path:
 
 def test_cli_single_file_replaces_normal(runner, tmp_path: Path) -> None:
     """Target in several slots of one file: all swap, one collapsed line, bystander kept."""
-    old = _onorm("OLDRUN")
-    gp = _offense_gameplan(normals={0: old, 5: old, 63: old, 1: _onorm("KEEPME", 0x09)})
+    old = offense_normal("OLDRUN")
+    gp = _offense_gameplan(
+        normals={0: old, 5: old, 63: old, 1: offense_normal("KEEPME", 0x09)}
+    )
     p = _write(gp, tmp_path)
     result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, str(p)])
     assert result.exit_code == 0
@@ -325,7 +288,7 @@ def test_cli_output_uses_game_names_without_league_labels(
     (league / "league.toml").write_text(
         league_toml(PLAYS, labels=False), encoding="utf-8"
     )
-    old = _onorm("OLDRUN")
+    old = offense_normal("OLDRUN")
     p = _write(_offense_gameplan(normals={0: old}), tmp_path)
     result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, str(p)])
     assert result.exit_code == 0
@@ -336,7 +299,9 @@ def test_cli_output_uses_game_names_without_league_labels(
 
 
 def test_cli_single_file_replaces_special(runner, tmp_path: Path) -> None:
-    gp = _offense_gameplan(specials={1: _ospec("OLDFG", 1), 2: _ospec("KEEPKICK", 2)})
+    gp = _offense_gameplan(
+        specials={1: offense_special("OLDFG", 1), 2: offense_special("KEEPKICK", 2)}
+    )
     p = _write(gp, tmp_path)
     result = runner.invoke(replace_play, ["OLDFG", SPECIAL_REPL, str(p)])
     assert result.exit_code == 0
@@ -431,7 +396,7 @@ def test_cli_recursive_replaces_in_subdir(runner, tmp_path: Path) -> None:
 
 
 def test_cli_replacement_special_for_normal_fails(runner, tmp_path: Path) -> None:
-    p = _write(_offense_gameplan(normals={0: _onorm("OLDRUN")}), tmp_path)
+    p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
     original = p.read_bytes()
     result = runner.invoke(replace_play, ["OLDRUN", SPECIAL_REPL, str(p)])
     assert result.exit_code == 1
@@ -440,7 +405,7 @@ def test_cli_replacement_special_for_normal_fails(runner, tmp_path: Path) -> Non
 
 
 def test_cli_replacement_wrong_side_fails(runner, tmp_path: Path) -> None:
-    p = _write(_offense_gameplan(normals={0: _onorm("OLDRUN")}), tmp_path)
+    p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
     original = p.read_bytes()
     result = runner.invoke(replace_play, ["OLDRUN", DEFENSE_REPL, str(p)])
     assert result.exit_code == 1
@@ -448,7 +413,7 @@ def test_cli_replacement_wrong_side_fails(runner, tmp_path: Path) -> None:
 
 
 def test_cli_replacement_wrong_special_category_fails(runner, tmp_path: Path) -> None:
-    p = _write(_offense_gameplan(specials={1: _ospec("OLDFG", 1)}), tmp_path)
+    p = _write(_offense_gameplan(specials={1: offense_special("OLDFG", 1)}), tmp_path)
     original = p.read_bytes()
     result = runner.invoke(replace_play, ["OLDFG", KICKOFF_REPL, str(p)])
     assert result.exit_code == 1

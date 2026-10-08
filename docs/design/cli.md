@@ -149,7 +149,7 @@ Production users never set the var; the default `%LOCALAPPDATA%\athc` wins.
 
 - `context_settings=CONTEXT_SETTINGS` (`help_option_names` `-h` and `--help`) on every group and command, so `-h` works everywhere; each command shows its own help.
 - Argument names and option values show in lowercase with underscores (`metavar="pdb_file"`), the POSIX synopsis style, not Click's default capitals.
-- The usage line lists each option, help first, then the arguments (`athc gameplan list-normals [-h] [--sort slot|name] gameplan [output_file]`), the POSIX / argparse style instead of Click's `[OPTIONS]`; a long line wraps between options. Groups use `CommandGroup` (the root `AthcGroup` builds on it) and standalone commands `cls=AthcCommand`; a group's subcommands get `AthcCommand` automatically.
+- The usage line lists each option, help first, then the arguments (`athc gameplan list-normals [-h] [--sort slot|name|category] [--league name] gameplan [output_file]`), the POSIX / argparse style instead of Click's `[OPTIONS]`; a long line wraps between options. Groups use `CommandGroup` (the root `AthcGroup` builds on it) and standalone commands `cls=AthcCommand`; a group's subcommands get `AthcCommand` automatically.
 - `no_args_is_help=True` on the root group so bare `athc` prints help instead of hanging.
 - `@click.version_option(package_name="athc")` reads the installed metadata — no hard-coded version strings.
 - `python -m athc` works via `athc/__main__.py`.

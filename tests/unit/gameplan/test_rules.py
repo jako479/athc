@@ -59,6 +59,18 @@ def test_unknown_defense_label(tmp_path: Path) -> None:
         load_rules([write(tmp_path, text)])
 
 
+def test_side_not_a_table_rejected(tmp_path: Path) -> None:
+    text = MINIMAL + 'offense = "RM"\n'
+    with pytest.raises(RulesFileError, match=r"\[offense\] must be a table"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_section_not_a_table_rejected(tmp_path: Path) -> None:
+    text = MINIMAL + "[offense]\nRM = 5\n"
+    with pytest.raises(RulesFileError, match=r"\[offense.RM\] must be a table"):
+        load_rules([write(tmp_path, text)])
+
+
 def test_league_label_section_needs_the_league_labels(tmp_path: Path) -> None:
     with pytest.raises(RulesFileError, match="not an offense category label"):
         _load_rules([write(tmp_path, MINIMAL + OFF_SECTION)], labels=CategoryLabels())

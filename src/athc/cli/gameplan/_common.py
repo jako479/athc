@@ -11,7 +11,13 @@ from pathlib import Path
 import click
 
 from athc.fbpro98_gameplan import GamePlan, PlayRef
-from athc.fbpro98_play import CategoryLabels
+from athc.fbpro98_play import (
+    CategoryLabels,
+    DefensiveCategory,
+    OffensiveCategory,
+    PlayCategory,
+    resolve_category,
+)
 from athc.gameplan import Rules, RulesFileError, load_rules
 from athc.playpool import PlayPool, read_play_pool
 from athc.playpool import RulesFileError as PoolRulesFileError
@@ -19,6 +25,41 @@ from athc.playpool import load_rules as load_pool_rules
 
 COMMENT_TOKEN = "::"
 _GLOB_CHARS = frozenset("*?[")
+
+# Listing order for `list-normals --sort category`: the league's reading order,
+# with User Specific closing each side.
+_OFFENSE_CATEGORY_ORDER: tuple[PlayCategory, ...] = (
+    OffensiveCategory.RUN_LEFT,
+    OffensiveCategory.RUN_MIDDLE,
+    OffensiveCategory.RUN_RIGHT,
+    OffensiveCategory.PASS_SHORT_LEFT,
+    OffensiveCategory.PASS_SHORT_MIDDLE,
+    OffensiveCategory.PASS_SHORT_RIGHT,
+    OffensiveCategory.PASS_MEDIUM_LEFT,
+    OffensiveCategory.PASS_MEDIUM_MIDDLE,
+    OffensiveCategory.PASS_MEDIUM_RIGHT,
+    OffensiveCategory.PASS_LONG_LEFT,
+    OffensiveCategory.PASS_LONG_MIDDLE,
+    OffensiveCategory.PASS_LONG_RIGHT,
+    OffensiveCategory.RAZZLE_DAZZLE_RUN,
+    OffensiveCategory.RAZZLE_DAZZLE_PASS,
+    OffensiveCategory.GOAL_LINE_RUN,
+    OffensiveCategory.GOAL_LINE_PASS,
+    OffensiveCategory.USER_SPECIFIC,
+)
+_DEFENSE_CATEGORY_ORDER: tuple[PlayCategory, ...] = (
+    DefensiveCategory.RUN_LEFT,
+    DefensiveCategory.RUN_MIDDLE,
+    DefensiveCategory.RUN_RIGHT,
+    DefensiveCategory.PASS_SHORT,
+    DefensiveCategory.PASS_MEDIUM,
+    DefensiveCategory.PASS_LONG,
+    DefensiveCategory.PASS_DAZZLE,
+    DefensiveCategory.RUN_DAZZLE,
+    DefensiveCategory.GOAL_LINE_RUN,
+    DefensiveCategory.GOAL_LINE_PASS,
+    DefensiveCategory.USER_SPECIFIC,
+)
 
 
 def parse_play_list(text: str) -> list[str]:
@@ -173,13 +214,40 @@ def build_pool(
         return None
 
 
-def normal_play_lines(gp: GamePlan, *, sort: str) -> list[str]:
+def category_of(play: PlayRef) -> PlayCategory:
+    """A gameplan play's category, from the category bytes copied into the `.pln`."""
+    return resolve_category(
+        play.play_category, play.special_category, play.user_category
+    )
+
+
+def normal_play_lines(gp: GamePlan, *, sort: str, labels: CategoryLabels) -> list[str]:
     """The 64 normal play names. `slot` keeps positions (empty slot = ""); `name`
-    drops blanks and sorts case-insensitively."""
+    drops blanks and sorts case-insensitively; `category` drops blanks and groups
+    them in category order, each group under a `:: <label>` header (the league's
+    label, else the game name), slot order within a group, no header for an
+    empty category."""
+    if sort == "category":
+        return _category_lines(gp, labels)
     names = ["" if p is None else p.name for p in gp.normal_plays]
     if sort == "name":
         return sorted((n for n in names if n), key=str.casefold)
     return names
+
+
+def _category_lines(gp: GamePlan, labels: CategoryLabels) -> list[str]:
+    order = _OFFENSE_CATEGORY_ORDER if gp.is_offense else _DEFENSE_CATEGORY_ORDER
+    plays = [(category_of(p), p.name) for p in gp.normal_plays if p is not None]
+    lines: list[str] = []
+    # The reader rejects an unrecognized category, and the GamePlan invariants
+    # (side parity, no special-teams play in a normal slot) keep every play's
+    # category inside `order`, so none is dropped here.
+    for category in order:
+        names = [name for found, name in plays if found is category]
+        if names:
+            lines.append(f"{COMMENT_TOKEN} {labels.label(category)}")
+            lines.extend(names)
+    return lines
 
 
 def special_play_lines(gp: GamePlan) -> list[str]:
@@ -197,7 +265,8 @@ def emit_play_list(
     noun: str,
 ) -> int:
     """Print `lines` to stdout, or write them to `out_path` (replacing it) with a
-    `:: <source>` header. Returns the exit code (0 ok, 1 write error)."""
+    `:: <source>` header. Returns the exit code (0 ok, 1 write error). The
+    count reported leaves out blanks and `::` header lines."""
     if out_path is None:
         click.echo("\n".join(lines))
         return 0
@@ -207,5 +276,6 @@ def emit_play_list(
     except OSError as error:
         logger.error("%s: %s", prog, error)
         return 1
-    click.echo(f"Wrote {sum(1 for n in lines if n)} {noun} play(s) to {out_path}")
+    count = sum(1 for n in lines if n and not n.startswith(COMMENT_TOKEN))
+    click.echo(f"Wrote {count} {noun} play(s) to {out_path}")
     return 0

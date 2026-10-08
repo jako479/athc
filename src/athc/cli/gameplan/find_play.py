@@ -10,9 +10,13 @@ import click
 
 from athc.cli import CONTEXT_SETTINGS
 from athc.cli.gameplan import gameplan
-from athc.cli.gameplan._common import collect_files, find_in_gameplan, is_glob
+from athc.cli.gameplan._common import (
+    category_of,
+    collect_files,
+    find_in_gameplan,
+    is_glob,
+)
 from athc.fbpro98_gameplan import InvalidGamePlanError, PlayRef, read_gameplan
-from athc.fbpro98_play import resolve_category
 
 PROG = "athc gameplan find-play"
 logger = logging.getLogger(__name__)
@@ -21,13 +25,6 @@ logger = logging.getLogger(__name__)
 def _normal_slot_label(index: int) -> str:
     """Game-grid coord for a 0-based normal slot: slot 0 -> `1-1`, slot 63 -> `16-4`."""
     return f"{index // 4 + 1}-{index % 4 + 1}"
-
-
-def _category_name(play: PlayRef) -> str:
-    """Long game category name for a play, from its category bytes."""
-    return resolve_category(
-        play.play_category, play.special_category, play.user_category
-    ).long
 
 
 def format_hit_line(
@@ -47,7 +44,7 @@ def format_hit_line(
         parts.append(f"'{play_name}' found in {section} {slots}")
     for number, play in special_hits:
         parts.append(
-            f"'{play_name}' found in special slot {number} ({_category_name(play)})"
+            f"'{play_name}' found in special slot {number} ({category_of(play).long})"
         )
     return f"{path}: {'; '.join(parts)}"
 

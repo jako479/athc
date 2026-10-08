@@ -22,7 +22,14 @@ from athc.fbpro98_gameplan import (
     StockPlayRef,
     write_gameplan,
 )
-from tests.integration.conftest import GP_DEFENSE, GP_OFFENSE
+from tests.integration.conftest import (
+    GP_DEFENSE,
+    GP_OFFENSE,
+    build_gameplan,
+    defense_special,
+    offense_normal,
+    offense_special,
+)
 
 # Real plays in the fixtures (offense.pln = O_64_06a, defense.pln = D_50_09).
 KNOWN_NORMAL = "OR45RL01"
@@ -32,19 +39,6 @@ MISSING = "NOSUCHPLAYXX"
 
 
 # ── constructed-gameplan helpers ──────────────────────────────────────────────
-
-
-def _empty_offense_gameplan() -> GamePlan:
-    slots = [SpecialSlot() for _ in range(GamePlan.NUMBER_SPECIAL_CATEGORIES)]
-    for category in (11, 12):
-        slots[category - 1] = SpecialSlot(
-            stock=StockPlayRef(f"CLOCK{category}", 0, 0, 1, category, 0)
-        )
-    return GamePlan(
-        profile_type=ProfileType.OFFENSE,
-        normal_plays=tuple([None] * 64),
-        special_plays=tuple(slots),
-    )
 
 
 def _set_normal_slots(gp: GamePlan, *placements: tuple[int, CustomPlayRef]) -> GamePlan:
@@ -61,35 +55,6 @@ def _set_custom_special(gp: GamePlan, category: int, play: CustomPlayRef) -> Gam
     return replace(gp, special_plays=tuple(specials))
 
 
-def _make_offense_normal(name: str, *, user_category: int = 0x05) -> CustomPlayRef:
-    """Default user_category 0x05 = 'Run Left' (after masking 0x3F); play_category 1 = offense side."""
-    return CustomPlayRef(
-        filename=f"plays\\{name}.PLY",
-        play_category=1,
-        special_category=0,
-        user_category=user_category,
-    )
-
-
-def _make_offense_special(name: str, special_category: int = 1) -> CustomPlayRef:
-    return CustomPlayRef(
-        filename=f"plays\\{name}.PLY",
-        play_category=1,
-        special_category=special_category,
-        user_category=0,
-    )
-
-
-def _make_defense_special(name: str, special_category: int = 2) -> CustomPlayRef:
-    """Defense special play (play_category 0 = receiving side)."""
-    return CustomPlayRef(
-        filename=f"plays\\{name}.PLY",
-        play_category=0,
-        special_category=special_category,
-        user_category=0,
-    )
-
-
 def _write(gp: GamePlan, tmp_path: Path, name: str = "gp.pln") -> Path:
     path = tmp_path / name
     write_gameplan(gp, path)
@@ -100,12 +65,12 @@ def _write(gp: GamePlan, tmp_path: Path, name: str = "gp.pln") -> Path:
 
 
 def test_find_no_match_returns_empty() -> None:
-    assert find_in_gameplan(_empty_offense_gameplan(), MISSING) == ([], [])
+    assert find_in_gameplan(build_gameplan(ProfileType.OFFENSE), MISSING) == ([], [])
 
 
 def test_find_matches_normal_slot() -> None:
     gp = _set_normal_slots(
-        _empty_offense_gameplan(), (0, _make_offense_normal("OR45RL01"))
+        build_gameplan(ProfileType.OFFENSE), (0, offense_normal("OR45RL01"))
     )
     normals, specials = find_in_gameplan(gp, "OR45RL01")
     assert specials == []
@@ -114,8 +79,10 @@ def test_find_matches_normal_slot() -> None:
 
 def test_find_multiple_in_one_gameplan() -> None:
     """One play in several normal slots of a single gameplan."""
-    play = _make_offense_normal("DUPPLAY", user_category=0x09)
-    gp = _set_normal_slots(_empty_offense_gameplan(), (0, play), (5, play), (63, play))
+    play = offense_normal("DUPPLAY", user_category=0x09)
+    gp = _set_normal_slots(
+        build_gameplan(ProfileType.OFFENSE), (0, play), (5, play), (63, play)
+    )
     normals, _ = find_in_gameplan(gp, "DUPPLAY")
     assert [i for i, _ in normals] == [0, 5, 63]
 
@@ -123,9 +90,9 @@ def test_find_multiple_in_one_gameplan() -> None:
 def test_find_multiple_different_plays() -> None:
     """Two different plays both present in one gameplan (find is per-play)."""
     gp = _set_normal_slots(
-        _empty_offense_gameplan(),
-        (0, _make_offense_normal("PLAYA")),
-        (5, _make_offense_normal("PLAYB", user_category=0x09)),
+        build_gameplan(ProfileType.OFFENSE),
+        (0, offense_normal("PLAYA")),
+        (5, offense_normal("PLAYB", user_category=0x09)),
     )
     assert [i for i, _ in find_in_gameplan(gp, "PLAYA")[0]] == [0]
     assert [i for i, _ in find_in_gameplan(gp, "PLAYB")[0]] == [5]
@@ -133,7 +100,7 @@ def test_find_multiple_different_plays() -> None:
 
 def test_find_case_insensitive() -> None:
     gp = _set_normal_slots(
-        _empty_offense_gameplan(), (7, _make_offense_normal("MixedCase"))
+        build_gameplan(ProfileType.OFFENSE), (7, offense_normal("MixedCase"))
     )
     assert [i for i, _ in find_in_gameplan(gp, "mixedcase")[0]] == [7]
     assert [i for i, _ in find_in_gameplan(gp, "MIXEDCASE")[0]] == [7]
@@ -141,7 +108,7 @@ def test_find_case_insensitive() -> None:
 
 def test_find_matches_custom_special() -> None:
     gp = _set_custom_special(
-        _empty_offense_gameplan(), 3, _make_offense_special("KICK1", 3)
+        build_gameplan(ProfileType.OFFENSE), 3, offense_special("KICK1", 3)
     )
     normals, specials = find_in_gameplan(gp, "KICK1")
     assert normals == []
@@ -149,7 +116,7 @@ def test_find_matches_custom_special() -> None:
 
 
 def test_find_skips_stock_special_slots() -> None:
-    gp = _empty_offense_gameplan()
+    gp = build_gameplan(ProfileType.OFFENSE)
     stock = StockPlayRef(
         play_name="STOCKFG",
         map_offset=0,
@@ -165,7 +132,7 @@ def test_find_skips_stock_special_slots() -> None:
 
 
 def test_find_skips_clock_slots() -> None:
-    gp = _empty_offense_gameplan()
+    gp = build_gameplan(ProfileType.OFFENSE)
     assert find_in_gameplan(gp, "CLOCK11") == ([], [])
     assert find_in_gameplan(gp, "CLOCK12") == ([], [])
 
@@ -175,7 +142,7 @@ def test_find_skips_clock_slots() -> None:
 
 def test_format_normal_one_slot() -> None:
     """One normal slot: singular `slot`, no category."""
-    play = _make_offense_normal("OR45RL01")
+    play = offense_normal("OR45RL01")
     assert format_hit_line(Path("OFF.pln"), "OR45RL01", [(0, play)], []) == (
         "OFF.pln: 'OR45RL01' found in slot 1-1"
     )
@@ -183,14 +150,14 @@ def test_format_normal_one_slot() -> None:
 
 def test_format_normal_two_slots() -> None:
     """Two normal slots: plural `slots`, comma-separated."""
-    play = _make_offense_normal("DUP")
+    play = offense_normal("DUP")
     assert format_hit_line(Path("OFF.pln"), "DUP", [(0, play), (5, play)], []) == (
         "OFF.pln: 'DUP' found in slots 1-1, 2-2"
     )
 
 
 def test_format_normal_three_slots() -> None:
-    play = _make_offense_normal("DUP")
+    play = offense_normal("DUP")
     assert format_hit_line(
         Path("OFF.pln"), "DUP", [(0, play), (5, play), (63, play)], []
     ) == ("OFF.pln: 'DUP' found in slots 1-1, 2-2, 16-4")
@@ -198,14 +165,14 @@ def test_format_normal_three_slots() -> None:
 
 def test_format_offense_special() -> None:
     """Special: `special slot N`, then the long category."""
-    play = _make_offense_special("BCFGPAT", 1)
+    play = offense_special("BCFGPAT", 1)
     assert format_hit_line(Path("OFF.pln"), "BCFGPAT", [], [(1, play)]) == (
         "OFF.pln: 'BCFGPAT' found in special slot 1 (Field Goal/PAT)"
     )
 
 
 def test_format_defense_special() -> None:
-    play = _make_defense_special("CINKR", 2)  # Kick Return
+    play = defense_special("CINKR", 2)  # Kick Return
     assert format_hit_line(Path("DEF.pln"), "CINKR", [], [(2, play)]) == (
         "DEF.pln: 'CINKR' found in special slot 2 (Kick Return)"
     )
@@ -302,13 +269,13 @@ def test_cli_multiple_plays_all_hit(runner, tmp_path: Path) -> None:
     """Several plays across a directory: one play is in two slots of one gameplan,
     which also holds a second searched play."""
     gp1 = _set_normal_slots(
-        _empty_offense_gameplan(),
-        (0, _make_offense_normal("OR45RL01")),  # slot 1-1
-        (6, _make_offense_normal("OR45RL01")),  # slot 2-3 (same play, 2nd slot)
-        (5, _make_offense_normal("DUPRM", user_category=0x09)),  # slot 2-2 (2nd play)
+        build_gameplan(ProfileType.OFFENSE),
+        (0, offense_normal("OR45RL01")),  # slot 1-1
+        (6, offense_normal("OR45RL01")),  # slot 2-3 (same play, 2nd slot)
+        (5, offense_normal("DUPRM", user_category=0x09)),  # slot 2-2 (2nd play)
     )
     gp2 = _set_normal_slots(
-        _empty_offense_gameplan(), (0, _make_offense_normal("OR45RL01"))
+        build_gameplan(ProfileType.OFFENSE), (0, offense_normal("OR45RL01"))
     )
     _write(gp1, tmp_path, "gp1.pln")
     _write(gp2, tmp_path, "gp2.pln")

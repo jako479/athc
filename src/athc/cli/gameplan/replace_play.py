@@ -10,7 +10,12 @@ import click
 
 from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.gameplan import gameplan
-from athc.cli.gameplan._common import build_pool, collect_files, find_in_gameplan
+from athc.cli.gameplan._common import (
+    build_pool,
+    category_of,
+    collect_files,
+    find_in_gameplan,
+)
 from athc.fbpro98_gameplan import (
     CustomPlayRef,
     GamePlan,
@@ -19,7 +24,7 @@ from athc.fbpro98_gameplan import (
     read_gameplan,
     write_gameplan,
 )
-from athc.fbpro98_play import CategoryLabels, resolve_category
+from athc.fbpro98_play import CategoryLabels
 from athc.gameplan.config import ConfigFileError, load_config
 from athc.gameplan.writer import build_custom_play
 
@@ -32,9 +37,7 @@ logger = logging.getLogger(__name__)
 def _label(play: PlayRef, labels: CategoryLabels) -> str:
     """The league's label for a slot's play category (e.g. `RL`); game name when
     the league has none (`Field Goal/PAT`)."""
-    return labels.label(
-        resolve_category(play.play_category, play.special_category, play.user_category)
-    )
+    return labels.label(category_of(play))
 
 
 def _slot_label(index: int) -> str:

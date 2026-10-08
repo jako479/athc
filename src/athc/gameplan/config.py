@@ -7,16 +7,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from athc.config import LEAGUE_FILE, load_league_config
+from athc.config import LEAGUE_FILE, ConfigFileError, load_league_config
 from athc.fbpro98_play import CategoryLabels
 
 GAMEPLAN_RULES_FILE = "gameplan.toml"
 PLAYPOOL_RULES_FILE = "playpool.toml"
 GAMEPLAN_RULES_KEY = "gameplan_rules"
 
-
-class ConfigFileError(ValueError):
-    """Raised when the gameplan config can't be read or lacks a required key."""
+__all__ = ["Config", "ConfigFileError", "load_config"]
 
 
 @dataclass(frozen=True)

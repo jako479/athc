@@ -13,6 +13,7 @@ from collections.abc import Iterable, Mapping
 from fractions import Fraction
 
 from athc.fbpro98_gameplan import GamePlan
+from athc.fbpro98_play import UNKNOWN_CATEGORY, resolve_category
 from athc.gameplan.model import RuleName, Violation
 from athc.gameplan.rules import DefenseCategoryRule, OffenseCategoryRule, Rules
 from athc.playpool import (
@@ -33,19 +34,20 @@ def validate_gameplan(
 
     resolved, name_violations = _resolve_normal_plays(gameplan, play_pool)
     violations.extend(name_violations)
+    by_category = _group_by_category(resolved)
 
     if gameplan.is_offense:
-        violations.extend(_validate_offense(resolved, rules.offense_categories))
+        violations.extend(_validate_offense(by_category, rules.offense_categories))
         violations.extend(
             _validate_disallowed(
-                resolved, rules.disallowed_offensive_categories, "Offensive"
+                by_category, rules.disallowed_offensive_categories, "Offensive"
             )
         )
     else:
-        violations.extend(_validate_defense(resolved, rules.defense_categories))
+        violations.extend(_validate_defense(by_category, rules.defense_categories))
         violations.extend(
             _validate_disallowed(
-                resolved, rules.disallowed_defensive_categories, "Defensive"
+                by_category, rules.disallowed_defensive_categories, "Defensive"
             )
         )
 
@@ -100,9 +102,9 @@ def _resolve_normal_plays(
 
 
 def _validate_offense(
-    records: list[Play], category_rules: Mapping[str, OffenseCategoryRule]
+    by_category: Mapping[str, list[Play]],
+    category_rules: Mapping[str, OffenseCategoryRule],
 ) -> list[Violation]:
-    by_category = _group_by_category(records)
     violations: list[Violation] = []
 
     for category, rule in category_rules.items():
@@ -200,9 +202,9 @@ def _validate_offense(
 
 
 def _validate_defense(
-    records: list[Play], category_rules: Mapping[str, DefenseCategoryRule]
+    by_category: Mapping[str, list[Play]],
+    category_rules: Mapping[str, DefenseCategoryRule],
 ) -> list[Violation]:
-    by_category = _group_by_category(records)
     violations: list[Violation] = []
 
     for category, rule in category_rules.items():
@@ -286,10 +288,9 @@ def _cap_exceeded(
 
 
 def _validate_disallowed(
-    records: list[Play], disallowed: frozenset[str], side: str
+    by_category: Mapping[str, list[Play]], disallowed: frozenset[str], side: str
 ) -> list[Violation]:
     """A gameplan may not contain plays in a disallowed category."""
-    by_category = _group_by_category(records)
     violations: list[Violation] = []
     for category in sorted(disallowed):
         plays = by_category.get(category, [])
@@ -313,10 +314,12 @@ def _validate_special_categories(
     for category in sorted(required):
         slot = gameplan.special_plays[category - 1]
         if slot.custom is None and slot.stock is None:
+            name = _special_name(gameplan, category)
             violations.append(
                 Violation(
                     RuleName.SPECIAL_CATEGORY_REQUIRED,
-                    f"Required special category {category} has no play",
+                    f"Required special category '{name}' has no play",
+                    name,
                 )
             )
     return violations
@@ -329,14 +332,26 @@ def _validate_custom_special_plays(gameplan: GamePlan) -> list[Violation]:
     for category in GamePlan.CUSTOM_SPECIAL_CATEGORIES:
         slot = gameplan.special_plays[category - 1]
         if slot.stock is not None and slot.custom is None:
+            name = _special_name(gameplan, category)
             violations.append(
                 Violation(
                     RuleName.CUSTOM_SPECIAL_PLAY_REQUIRED,
-                    f"Special category {category} uses a stock play; "
+                    f"Special category '{name}' uses a stock play; "
                     "a custom play is required",
+                    name,
                 )
             )
     return violations
+
+
+def _special_name(gameplan: GamePlan, category: int) -> str:
+    """The gameplan's side's game name for special slot `category` (offense
+    "Kickoff", defense "Kick Return"). Defense has no clock categories, so 11 and
+    12 fall back to the offense names the rules file uses."""
+    side = resolve_category(1 if gameplan.is_offense else 0, category, 0)
+    if side is UNKNOWN_CATEGORY:
+        side = resolve_category(1, category, 0)
+    return side.long
 
 
 def _group_by_category(

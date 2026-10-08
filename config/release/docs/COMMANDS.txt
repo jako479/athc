@@ -45,6 +45,11 @@ unless the command is given --league NAME.
    copy; pass an output file to write elsewhere, or - to print to the screen.
    A file's first line is a `::` comment with the absolute path of the source
    .pln. --sort name lists alphabetically (default keeps slot order).
+   --sort category groups the plays by category, each group under a `::`
+   comment with the league's category name from league.toml (RL, RM, ... for
+   offense; RunLeft, RunMiddle, ... for defense; the game's name where the
+   league has none); a category with no plays gets no header. The league is
+   the configured one unless the command is given --league NAME.
 
    Show help:
       athc gameplan list-normals -h
@@ -52,6 +57,7 @@ unless the command is given --league NAME.
    Example terminal calls:
       athc gameplan list-normals offense.pln
       athc gameplan list-normals offense.pln plays.txt --sort name
+      athc gameplan list-normals offense.pln --sort category
       athc gameplan list-normals offense.pln -
 
 

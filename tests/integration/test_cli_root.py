@@ -189,7 +189,8 @@ USAGE_CASES = [
     (("gameplan",), "athc gameplan [-h] command [args]..."),
     (
         ("gameplan", "list-normals"),
-        "athc gameplan list-normals [-h] [--sort slot|name] gameplan [output_file]",
+        "athc gameplan list-normals [-h] [--sort slot|name|category] [--league name] "
+        "gameplan [output_file]",
     ),
     (("gameplan", "find-play"), "athc gameplan find-play [-h] [-r] play... [path]"),
     (("profile", "diff"), "athc profile diff [-h] [-o file] file1 file2"),

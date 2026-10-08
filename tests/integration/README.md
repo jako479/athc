@@ -116,7 +116,7 @@ The "league" input is a selected league folder holding the test pool (`play_path
 
 # `athc gameplan list-normals` / `list-specials`
 
-In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `data/defense.pln` (no pool/rules/config); stdout compared to `expected/{offense,defense}_normals_{slot,name}.txt` and `expected/{offense,defense}_specials.txt`. File mode prepends a `:: <source>` header line.
+In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `data/defense.pln` (no pool or rules; `list-normals` reads a selected league carrying the PNFL category labels, set up by an autouse fixture); stdout compared to `expected/{offense,defense}_normals_{slot,name,category}.txt` and `expected/{offense,defense}_specials.txt`. File mode prepends a `:: <source>` header line. The categories the real files lack (Pass Long Left/Middle, Razzle Dazzle Run, User Specific) come from a constructed offense gameplan written to tmp.
 
 ## list-normals
 | Case | Input | Expected | Test | Status |
@@ -128,8 +128,16 @@ In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `d
 | Default: `<name>.normals.txt` next to the `.pln` | tmp copy | header + plays | `test_normals_default_writes_next_to_gameplan` | ☑ |
 | `-` prints, slot order | data | 64 lines match fixture | `test_normals_dash_offense_slot` / `..._defense_slot` | ☑ |
 | `-` prints, `--sort name` | data | sorted, blanks dropped | `test_normals_dash_sort_name` | ☑ |
+| `-` prints, `--sort category` | data | grouped under `:: <label>` headers, league order, blanks dropped | `test_normals_dash_sort_category_offense` / `..._defense` | ☑ |
+| `--sort category`: no league label | tmp (constructed) | game-name headers; Pass Long L/M before PLR, Razzle Dazzle Run before PRD, User Specific last; no header for an empty category; slot order within | `test_normals_sort_category_game_name_without_label` | ☑ |
+| `--sort category`: league without labels | league.toml rewritten | every header a game name | `test_normals_sort_category_without_league_labels` | ☑ |
+| `--league` picks the league | second league | that league's labels | `test_normals_league_option_picks_league` | ☑ |
+| No league selected | athc.ini without league | exit 1; "no league selected" | `test_normals_no_league_exit_1` | ☑ |
+| Malformed league.toml | bad TOML | exit 1; error names the file | `test_normals_bad_league_toml_exit_1` | ☑ |
 | Output file: header + plays | data + out | line 1 `::`, rest match | `test_normals_file_writes_header_and_plays` | ☑ |
 | Output file: `--sort name` | data + out | rest match name fixture | `test_normals_file_sort_name` | ☑ |
+| Output file: `--sort category` | data + out | rest match category fixture | `test_normals_file_sort_category` | ☑ |
+| `--sort category` count skips headers | data + out | "Wrote 64 normal play(s)" | `test_normals_file_sort_category_counts_plays_not_headers` | ☑ |
 | Existing file replaced | existing out | exit 0; rewritten | `test_normals_overwrites_existing_file` | ☑ |
 | Logs count + path | data + out | "Wrote 64 normal play(s)" | `test_normals_file_logs_count` | ☑ |
 | Missing gameplan | tmp | exit 1; error logged | `test_normals_missing_gameplan` | ☑ |

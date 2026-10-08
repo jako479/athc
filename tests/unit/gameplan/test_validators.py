@@ -537,3 +537,40 @@ def test_custom_special_play_required_ignores_clock_categories() -> None:
     assert RuleName.CUSTOM_SPECIAL_PLAY_REQUIRED not in fired(
         gp, rules, make_off_pool([])
     )
+
+
+def _messages(gp: GamePlan, rules: Rules, pool: PlayPool) -> list[str]:
+    return [v.message for v in validate_gameplan(gp, rules, pool)]
+
+
+def test_special_category_required_names_the_category() -> None:
+    """The message carries the side's game name for the slot, not its number."""
+    gp = defense_gameplan([])
+    rules = def_rules(required_special_categories=frozenset({2}))
+    (violation,) = validate_gameplan(gp, rules, make_pool([]))
+    assert violation.message == "Required special category 'Kick Return' has no play"
+    assert violation.category == "Kick Return"
+
+
+def test_required_clock_category_on_defense_uses_offense_name() -> None:
+    """Defense has no clock categories of its own, so the rules-file name is used."""
+    gp = defense_gameplan([])
+    rules = def_rules(required_special_categories=frozenset({12}))
+    assert "Required special category 'Stop Clock' has no play" in _messages(
+        gp, rules, make_pool([])
+    )
+
+
+def test_custom_special_play_required_names_the_category() -> None:
+    slots = list(empty_specials())
+    slots[0] = SpecialSlot(stock=StockPlayRef("STOCK1", 0, 0, 0x00, 1, 0x00))
+    gp = GamePlan(
+        profile_type=ProfileType.DEFENSE,
+        normal_plays=(None,) * 64,
+        special_plays=tuple(slots),
+    )
+    rules = def_rules(custom_special_play_required=True)
+    assert (
+        "Special category 'Field Goal/PAT Defense' uses a stock play; "
+        "a custom play is required"
+    ) in _messages(gp, rules, make_pool([]))

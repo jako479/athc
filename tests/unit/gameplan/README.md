@@ -13,6 +13,8 @@ One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `league
 | Defense label → full name | tmp | `[defense.RunDazzle]` → "Run Dazzle" | `test_defense_short_label_maps_to_full_name` | ☑ |
 | Unknown offense label | tmp | "not an offense category label" | `test_unknown_offense_label` | ☑ |
 | Unknown defense label | tmp | "not a defense category label" | `test_unknown_defense_label` | ☑ |
+| `offense` not a table | tmp | "[offense] must be a table" | `test_side_not_a_table_rejected` | ☑ |
+| Section not a table | tmp | "[offense.RM] must be a table" | `test_section_not_a_table_rejected` | ☑ |
 | League label without league labels | `CategoryLabels()` + `[offense.RM]` | "not an offense category label" | `test_league_label_section_needs_the_league_labels` | ☑ |
 | Game name without league labels | `CategoryLabels()` + `[offense."Run Middle"]` | loads | `test_game_name_section_loads_without_league_labels` | ☑ |
 | Game name of a labeled category | PNFL + `[offense."Run Middle"]` | "not an offense category label" | `test_game_name_section_rejected_when_league_labels_it` | ☑ |
@@ -142,6 +144,9 @@ Constructed gameplan + pool (records carry typed playpool attributes). Each side
 | Required clock category on offense | make | no `SPECIAL_CATEGORY_REQUIRED` (stock clock plays present) | `test_required_clock_category_satisfied_on_offense` | ☑ |
 | Required clock category on defense | make | `SPECIAL_CATEGORY_REQUIRED` | `test_required_clock_category_fires_on_defense` | ☑ |
 | Clock categories exempt from custom-required | make | no `CUSTOM_SPECIAL_PLAY_REQUIRED` | `test_custom_special_play_required_ignores_clock_categories` | ☑ |
+| Required-special message names the category | make | "'Kick Return'"; `category` set | `test_special_category_required_names_the_category` | ☑ |
+| Clock category on defense named by the rules-file name | make | "'Stop Clock'" | `test_required_clock_category_on_defense_uses_offense_name` | ☑ |
+| Stock-only message names the category | make | "'Field Goal/PAT Defense'" | `test_custom_special_play_required_names_the_category` | ☑ |
 
 ### Resolution (both sides)
 | Case | Input | Expected | Test | Status |
