@@ -33,7 +33,7 @@
   - [ ] clear user documentation
   - [ ] list of commands
   - [ ] explain each command's messages in the release docs ([command-messages](docs/design/TODO/command-messages.md))
-- [ ] build a PyInstaller-built installer (exe); replacing the `install.bat` + wheel zip and uv prereq
+- [ ] build a PyInstaller-built installer (exe); replacing the `install.bat` + wheel zip and uv prereq; plan in [installer-exe](docs/design/TODO/installer-exe.md)
   - [ ] exclude autocontinue
 - [ ] RELEASE!!!
   - [ ] upload installer to Google Drive
