@@ -65,6 +65,16 @@ athc/
 
 A package can start as a library and grow a `cli/` later (or vice versa).
 
+## Library docs
+
+Each library's `docs/<lib>/README.md` is its quickstart and API reference: Features, Setup, Usage, then an API section listing the public functions, classes and exceptions, one short entry each. A file-format spec under `docs/<lib>/specs/` holds only the byte layout, the validity rules and the open questions of the format, never function names or exceptions.
+
+- [playpool](../playpool/README.md)
+- [fbpro98_gameplan](../fbpro98_gameplan/README.md)
+- [fbpro98_lg2](../fbpro98_lg2/README.md)
+- [fbpro98_play](../fbpro98_play/README.md)
+- [fbpro98_profile](../fbpro98_profile/README.md)
+
 ## Config handling
 
 - Single shared INI file at `%LOCALAPPDATA%\athc\athc.ini`, read by `configparser`.

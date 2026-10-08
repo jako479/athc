@@ -1,6 +1,5 @@
 # .lg2 - Front Page Sports Football Pro '98 League File Format
 
-- **Status:** Draft (the 9 trailing bytes per team have no known meaning)
 - **Owner:** FBPro98 Lg2 Library
 - **Encoding:** Strings ASCII.
 
@@ -236,3 +235,11 @@ The folder is empty: byte 0x000 is NUL. `SIERRA\FBPRO97` after it is leftover te
 0x0000  00 SIERRA\FBPRO97 00 00 ...   folder   = (empty)
 0x0105  OFF1.PRF 00 00 ...            filename = OFF1.PRF
 ```
+
+---
+
+## 5. Open Questions
+
+- The 9-byte trailer of each team record (sections 2.2.1, 3.2.1, 4.2.1)
+- Whether a custom league can mix in stock entries
+- Where the game looks for an old stock league's files

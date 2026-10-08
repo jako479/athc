@@ -1,6 +1,5 @@
 # .ply - Front Page Sports Football Pro '98 Play File Format
 
-- **Status:** Draft (reverse-engineering of personnel actions incomplete)
 - **Owner:** FBPro98 Play Library
 - **Encoding:** Integers little-endian; block IDs ASCII.
 
@@ -227,22 +226,7 @@ Byte arrays, first 40 bytes of each file, split at the structure boundaries of s
 
 ---
 
-## 4. Reader Contract
-
-- API: `read_play(path)` → parsed `PlayFile`; `parse_play(buffer, path)` parses raw bytes.
-- Validates `ID == "P95:"`, `len(file) == 8 + size`, file large enough for the offsets table + 3 category bytes + 11 player headers.
-- Exposes: `file_path`, `stream_length`, `player_offsets`, `player_headers`, `play_category`, `special_category`, `user_category`.
-- Raises `InvalidPlayFileError` for bad block ID, size mismatch, or truncated category bytes / player headers.
-
----
-
-## 5. Validation & Test Vectors
-
-Category values were checked against the PNFL play pool on 2026-10-07 (section 3.4). Fixtures cover offensive, defensive, and special plays, plus one zero-byte invalid file. Tests verify the file length against the size field, exact offset tables and player-header tuples for all valid fixtures, the 3 category bytes at 0x001E–0x0020, resolved category names, and rejection of the zero-byte file.
-
----
-
-## 6. Open Questions
+## 4. Open Questions
 
 - Full player-record layout
 - Boundaries between pre-snap / middle-of-play / end-of-play logic sequences

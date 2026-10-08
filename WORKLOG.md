@@ -4,6 +4,14 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-07 — **file specs, library READMEs**: the Reader and Writer
+  Contract, Validation & Test Vectors and Status lines left every file spec,
+  as the `.lg2` spec had done the day before; a spec now holds only the
+  layout, the validity rules and real open questions, and the `.lg2` spec got
+  back the three it had lost. Each library README gained an API section after
+  Usage, the way an API reference sits apart from a quickstart in Sphinx-built
+  docs; the decoded-sample checks moved to the research notes; playpool got
+  the README it was missing; the overview indexes the five README pages.
 - 2026-10-07 — **gameplan, profile**: `gameplan check`, `profile check` and
   `find-play` default to the current directory when no path is given, as
   `grep -r`, `find` and other tools that search every file in a folder do,

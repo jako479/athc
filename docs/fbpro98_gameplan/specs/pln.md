@@ -1,6 +1,5 @@
 # .pln - Front Page Sports Football Pro '98 Game Plan File Format
 
-- **Status:** Complete
 - **Owner:** FBPro98 Gameplan Library
 - **Encoding:** Integers are little-endian; strings are ASCII unless noted.
 
@@ -90,7 +89,7 @@ If the stock flag is `1` (stock play):
 |   0x0C |    4 | u32     | Map offset | Opaque pointer into unknown game file |
 |   0x10 |    2 | u16     | Map size   | Opaque size into unknown game file    |
 
-Map offset and map size reference the external `STOCK98.MAP` file; the gameplan library carries them through unchanged on round-trip.
+Map offset and map size reference the external `STOCK98.MAP` file.
 
 ---
 
@@ -100,7 +99,7 @@ Coaches assign plays to slots. The Game Plan Editor shows the normal slots as a 
 
 The offsets are fixed: offsets 0–63 always correspond to game plan slots 1-1 through 16-4, row-major, and offsets 64–85 always correspond to the special slots, keyed by special category (`0x01`–`0x0C`). Defensive game plans have no clock plays, so their offsets 84 and 85 are always `0x0000`.
 
-An empty slot has its offset zeroed and contributes no play record. The play records are packed back-to-back regardless of any empty slots. Normal and non-stock special slots are optional; the stock specials are always present (10 on defense, 12 on offense with the two clock plays).
+An empty slot has its offset zeroed and contributes no play record. The play records are packed back-to-back in slot order, regardless of any empty slots. Normal and non-stock special slots are optional; the stock specials are always present (10 on defense, 12 on offense with the two clock plays).
 
 ### 3.1 Offensive Game Plans (86 slots)
 
@@ -207,23 +206,17 @@ Total file size: **even** for offense, **odd** for defense. FbPro98's file-open 
 
 ---
 
-## 7. Reader Validation
+## 7. Validity
 
-Reader raises `InvalidGamePlanError` for:
+A file is invalid when any of these holds:
 
-- Bad block ID, size, or offset
-- Truncated play record
-- Missing NUL on custom play filename
-- `stock_flag ∉ {0, 1}`
+- A bad block ID, size or offset
+- A truncated play record
+- No NUL on a custom play filename
+- A stock flag other than `0` or `1`
 - Play category bytes that no category table recognizes (see ply.md section 3)
-- `profile_type ∉ {0, 1}`
-- `audible` bytes ≠ `00 01 02 03`
-- J95 counts don't match parsed records
-- S98 data ≠ `"STOCK98.MAP\x00"`
-- File-size parity wrong for profile type
-
----
-
-## 8. Writer Contract
-
-Emit play records in slot order 0–85, recompute J95 counts, pad parity per section 6. Round-trip identity required: `write_gameplan(read_gameplan(p), q)` produces bytes identical to `p`.
+- A profile type other than `0` or `1`
+- Audible bytes other than `00 01 02 03`
+- J95 counts that don't match the play records
+- S98 data other than `"STOCK98.MAP\x00"`
+- File-size parity wrong for the profile type

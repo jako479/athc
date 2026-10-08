@@ -1,6 +1,5 @@
 # .pyr - Front Page Sports Football Pro '98 Player File Format
 
-- **Status:** Draft (reverse engineered from `PNFL.pyr`; no library yet)
 - **Owner:** none yet
 - **Encoding:** Integers little-endian; strings ASCII. Every byte after the header is coded (section 3).
 
@@ -117,13 +116,7 @@ Observed values on injured players: `15 0 22 1`, `167 0 25 1`, `25 0 11 5`, `0 0
 
 ---
 
-## 7. Validation & Test Vectors
-
-`PNFL.pyr` decoded with the rebuilt table matches the league's own roster sheets: C. J. Stroud (6283) QB, years 5, actual AC 81 AG 81 DI 83 EN 86 HA 71 IN 91 SP 81 ST 95; Dillon Gabriel (8430) QB, years 1, potential 81 81 84 85 71 90 80 95, actual 79 79 83 83 70 89 78 94.
-
----
-
-## 8. Open Questions
+## 7. Open Questions
 
 - What the header key is and whether it generates the table
 - The injury bytes

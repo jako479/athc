@@ -1,6 +1,5 @@
 # .lge - Front Page Sports Football Pro '98 League File Format
 
-- **Status:** Draft (reverse engineered from `PNFL.lge`; no library yet)
 - **Owner:** none yet
 - **Encoding:** Integers little-endian; strings ASCII, NUL-terminated, with leftover text after the NUL. Team and roster chunks are masked (section 8).
 
@@ -170,13 +169,7 @@ T03 and R03 data is XORed byte by byte with (0x69 × team + i) mod 256, team the
 
 ---
 
-## 9. Validation & Test Vectors
-
-`PNFL.lge`: team 5 unmasks to `Denver` / `Broncos` / `DEN` / `Empire Field` / `Brian Jacobs` / `DEFAULT8`; its roster starts `6283 6, 8428 2, 4552 31` (C. J. Stroud #6, Cam Ward #2, Isaiah Spiller #31) and matches the league's roster sheet slot for slot. Week 1 game 3 is `10 24 5 23 0 0`: Atlanta 24, Denver 23.
-
----
-
-## 10. Open Questions
+## 9. Open Questions
 
 - L03 bytes 0x00, 0x02-0x07, 0x0C-0x0E and the 7-byte tail
 - T03 stadium type `1`, the color slot order and bytes 0x7F-0x91

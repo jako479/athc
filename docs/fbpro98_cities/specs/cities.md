@@ -1,6 +1,5 @@
 # CITIES.DAT - Front Page Sports Football Pro '98 City Table Format
 
-- **Status:** Draft (city records mapped; the four header tables are not)
 - **Owner:** none yet
 - **Encoding:** Integers little-endian; strings ASCII, NUL-terminated, with leftover text after the NUL. Not masked.
 
@@ -76,13 +75,7 @@ Range encoding: the four ranges tile 1-100, each low-high inclusive (`1 30`, `31
 
 ---
 
-## 4. Validation & Test Vectors
-
-`PNFL.lge` team chunks name their city by this id: Atlanta `2`, Chicago `8`, Cincinnati `9`, Denver `12`, Detroit `13`, Jacksonville `19`, Miami `24`, Minnesota `26` (Minneapolis), New York `29`, Philadelphia `31`, Pittsburgh `33`, San Diego `36`, San Francisco `37`, Washington `43`, Green Bay `49`, Baltimore `50`, New England `52` (Foxboro); Las Vegas stores `40`, which is Toronto's record, and the game's Team Settings screen indeed shows its City as Toronto.
-
----
-
-## 5. Open Questions
+## 4. Open Questions
 
 - The four header tables
 - Record bytes 0x11, 0x44 and the two trailing bytes of each weather table

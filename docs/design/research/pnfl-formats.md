@@ -1,7 +1,7 @@
 # PNFL league files: research notes
 
 - Source: `E:\SIERRA\FbPro98\PNFL.*` as of 2026-10-02 (season 2049, 6 weeks played), read-only.
-- Specs written from these notes: [lge.md](../../fbpro98_lge/specs/lge.md), [pyr.md](../../fbpro98_pyr/specs/pyr.md), [lg2.md](../../fbpro98_lg2/specs/lg2.md). Overview: [fbpro98-files.md](../fbpro98-files.md).
+- Specs written from these notes: [lge.md](../../fbpro98_lge/specs/lge.md), [pyr.md](../../fbpro98_pyr/specs/pyr.md), [lg2.md](../../fbpro98_lg2/specs/lg2.md), [cities.md](../../fbpro98_cities/specs/cities.md). Overview: [fbpro98-files.md](../fbpro98-files.md).
 - Decoder: [research/pnfl_decode.py](../../../research/pnfl_decode.py) (stdlib, read-only): `python pnfl_decode.py <game folder> teams | roster 5 | player 6283 | freeagents | schedule | champions | draft | tmn | stats 6283`.
 
 ## 1. Team order in PNFL.lg2
@@ -67,6 +67,7 @@ Two files are scrambled. Everything else is plain; leftover text after a NUL and
 - R03 (325 B), masked after the u16 team number: 63 u16 player ids (slots 60-62 held Denver's three inactive players), 63 jersey numbers in slot order, a permutation of 1-9, 65 zeros, a 60-byte table identical in all teams.
 - S03 (928 B): 16 regular weeks, 3 playoff rounds, 6 weeks played; per week a count then 6-byte games: team A, score A, team B, score B, overtime, status (0 played, 2 not). Unplayed scores `0xFF`; playoff teams `0xFF`. Each team is A 8 times and B 8 times; which side is home is unverified.
 - Every sampled `.lge` (1992 stock to PNFL) has the same chunk set and sizes; the 8-12 team stock leagues have a 90-byte L03.
+- Check: team 5 unmasks to `Denver` / `Broncos` / `DEN` / `Empire Field` / `Brian Jacobs` / `DEFAULT8`; its roster starts `6283 6, 8428 2, 4552 31` (C. J. Stroud #6, Cam Ward #2, Isaiah Spiller #31) and matches the league's roster sheet slot for slot. Week 1 game 3 is `10 24 5 23 0 0`: Atlanta 24, Denver 23.
 
 ### pnfl.rst (5,994 B)
 
@@ -79,6 +80,7 @@ Two files are scrambled. Everything else is plain; leftover text after a NUL and
 - Ratings order AC AG DI EN HA IN SP ST. Positions 0 QB 1 FB 2 HB 3 TE 4 WR 5 C 6 G 7 T 8 DE 9 DT 10 LB 11 CB 12 S 13 K 14 P; groups QB 0, LB 10, K 13, P 14, RB 15, WR/TE 16, OL 17, DL 18, DB 19.
 - 3,258 "No One" placeholders (ratings all 1), 191 "Delete Me", 114 "2043 Draft".
 - Names, numbers, ratings and YRS match the league's roster sheets exactly. Not in the file: draft year/team/pick, depth, age.
+- Check: C. J. Stroud (6283) QB, years 5, actual AC 81 AG 81 DI 83 EN 86 HA 71 IN 91 SP 81 ST 95; Dillon Gabriel (8430) QB, years 1, potential 81 81 84 85 71 90 80 95, actual 79 79 83 83 70 89 78 94.
 
 ### PNFL.dat (348,160 B) + PNFL.idx (225,280 B)
 
@@ -103,6 +105,11 @@ Two files are scrambled. Everything else is plain; leftover text after a NUL and
 ### pnfl.lgc (2,244 B)
 
 - 51 `LGC:` records: winner name[17], score u8, loser name[17], score u8. Latest: Miami 34, Chicago 33.
+
+### CITIES.DAT (14,328 B)
+
+- The game's city table, one copy in the game folder, 128 cities: weather odds and home stadium per city. Layout in [cities.md](../../fbpro98_cities/specs/cities.md).
+- Check: `PNFL.lge` team chunks name their city by this id: Atlanta `2`, Chicago `8`, Cincinnati `9`, Denver `12`, Detroit `13`, Jacksonville `19`, Miami `24`, Minnesota `26` (Minneapolis), New York `29`, Philadelphia `31`, Pittsburgh `33`, San Diego `36`, San Francisco `37`, Washington `43`, Green Bay `49`, Baltimore `50`, New England `52` (Foxboro); Las Vegas stores `40`, which is Toronto's record, and the game's Team Settings screen indeed shows its City as Toronto.
 
 ## 4. Ease of reverse engineering
 

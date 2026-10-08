@@ -41,6 +41,9 @@ athc profile diff               DONE
 
 Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
+- A file spec holds only the layout, its validity rules and open questions; a
+  library's API is in its README, indexed in
+  [docs/design/overview.md](docs/design/overview.md).
 - A league's rule files sit beside its `league.ini`; there is no `rules\`
   subfolder.
 - Tests never name a real league: test leagues get neutral names, rules come
@@ -183,7 +186,7 @@ Docs: [spec](docs/fbpro98_lg2/specs/lg2.md)
 
 - Used by `check-ppp` to pair a folder's files; `path` in
   `league.ini` names the folder that holds the file.
-- Team order is the league's `.lge` order (spec section 4).
+- Team order is the league's `.lge` order (spec section 1).
 - Reader in, with unit tests; stock leagues are rejected.
 
 ## fbpro98 league files (specs only)
@@ -265,6 +268,7 @@ changes.
 ## playpool (library)
 
 Working. Backs `gameplan` and `convert-pdb`. Docs:
+[README](docs/playpool/README.md),
 [ARCHITECTURE](docs/playpool/ARCHITECTURE.md)
 
 - The `PlayRecord` family renamed to `Play`.

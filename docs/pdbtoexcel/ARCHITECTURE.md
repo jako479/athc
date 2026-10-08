@@ -38,6 +38,22 @@ src/athc/cli/convert_pdb.py   # Click leaf command
 - Always adds a Total Stats team summing every team.
 - Writes `.xlsx` (plain) or `.xlsm` (with the VBA sort macros from `resources/`).
 
+## PDB parser
+
+`pdb.py`, internal to the tool:
+
+- `PDB(filename)` parses the file on construction.
+- `plays`: dict keyed by `PLAY_DATA.PLAY_TYPE`, then by `(team, play)`, holding a
+  `PLAY_DATA`; `tendencies`: list of `TENDENCY_DATA`, sorted by team.
+- Duplicate `(team, play)` records within one play type are summed
+  (`PLAY_DATA.__iadd__`).
+- `RUNCLOCK` and `STOPCLOK` records are dropped; names in `RENAMED_PLAYS` are
+  rewritten on load (`WR47PT01` → `WR27PT01`, `WR48PT01` → `WR28PT01`).
+- `InvalidPDBError`: a bad record-type byte.
+- `convert_invalid_play_data(play_pool)` moves offensive run/pass records the
+  engine logged under the wrong play type, judged by the pool's category
+  (`specs/pdb.md` section 4).
+
 ## League-agnostic notes
 
 - No `pool_category` / PNFL labels: grouping is by game category. The "Type" column

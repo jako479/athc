@@ -15,7 +15,6 @@
 - [ ] athc: CLI: confirm mainstream CLI strategy (see Tamarack Habilitations)
 - [ ] athc: Logging: switch to the mainstream logging strategy w/ color (see Tamarack Habilitations)
 - [ ] athc: Error handling and exit codes (see Tamarack Habilitations)
-- [ ] athc: docs: API reference per library, one page each, under a shared index. Design: [docs/design/TODO/api-docs.md](docs/design/TODO/api-docs.md)
 - [ ] athc: clear usage and help text for all commands
 - [ ] athc: STATUS.md, WORKLOG.md, CHANGELOG.md: clean and clear
 - [ ] athc: Release Docs:

@@ -1,6 +1,5 @@
 # WinLogStats `.pdb` File Format (Little-Endian)
 
-- **Status:** Draft (reverse-engineered)
 - **Owner:** PDB-to-Excel Library
 - **Encoding:** Integers little-endian; strings ASCII (NUL-padded fixed buffers).
 
@@ -17,7 +16,7 @@ A `.pdb` is a flat stream of records. Each record is a 1-byte tag followed by a 
 
 Any other tag byte is invalid.
 
-Play and tendency records may appear in any order. Duplicate team + play name keys within play records are summed by the reader.
+Play and tendency records may appear in any order, and the same team + play name key may appear in more than one play record.
 
 ---
 
@@ -38,7 +37,7 @@ Play and tendency records may appear in any order. Duplicate team + play name ke
 | 0x00E0 | u32       | Touchdowns, defense | TDs scored by the defense                               |
 | 0x00E4 | i32       | Unknown 1           | Always observed `0`                                     |
 | 0x00E8 | i32       | Unknown 2           | Always observed `0`                                     |
-| 0x00EC | u32       | Points scored       | Offense or defense points; ignored by readers           |
+| 0x00EC | u32       | Points scored       | Offense or defense points                               |
 | 0x00F0 | u32       | Run plays against   | Defense: rush plays faced                               |
 | 0x00F4 | u32       | Pass plays against  | Defense: pass plays faced (includes sacks)              |
 | 0x00F8 | i32       | Rush yards allowed  | Defense: rush yards given up                            |
@@ -46,7 +45,7 @@ Play and tendency records may appear in any order. Duplicate team + play name ke
 
 A record is valid when the play type is `0`, `1`, `2`, `3` or `5` and both the team name and the play name are non-empty.
 
-Records whose play name is `"RUNCLOCK"` or `"STOPCLOK"` are dropped by the reader (they are clock-management markers, not real plays).
+Records whose play name is `"RUNCLOCK"` or `"STOPCLOK"` are clock-management markers, not real plays.
 
 ---
 
@@ -83,15 +82,4 @@ A tendency record is valid when the team name is non-empty.
 
 - **Play count is inaccurate for defensive plays.** For defense it exceeds run plays against + pass plays against, appearing to also count snaps the defensive play was on the field for during special-teams plays. Treat run plays against + pass plays against as the authoritative defensive snap count.
 - **QB scrambles are indistinguishable from incomplete passes.** A scramble appears in the PDB as a pass play with `0` yards and no completion — identical to a thrown incompletion.
-- **Sacks on timed pass plays are logged as runs.** When a sack occurs on a "timed" pass play, the engine attributes the play (and its lost yards) to the run bucket rather than the pass bucket. The reader rebalances these by detecting offensive plays whose recorded play type disagrees with the play pool, and moves stats back to the correct side.
-
----
-
-## 5. Reader Contract
-
-- API: `PDB(filename)` parses the file synchronously.
-- Exposes `plays` (dict keyed by `PLAY_TYPE` → dict keyed by `(team, play)` → `PLAY_DATA`) and `tendencies` (list of `TENDENCY_DATA`, sorted by team).
-- Duplicate `(team, play)` records within a single `PLAY_TYPE` are summed via `PLAY_DATA.__iadd__`.
-- Names listed in `RENAMED_PLAYS` are rewritten on load (e.g. `WR47PT01` → `WR27PT01`).
-- Raises `InvalidPDBError` on a bad record-type byte.
-- `convert_invalid_play_data(play_pool)` reclassifies misattributed run/pass records (see section 4).
+- **Sacks on timed pass plays are logged as runs.** When a sack occurs on a "timed" pass play, the engine attributes the play (and its lost yards) to the run bucket rather than the pass bucket.

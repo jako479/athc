@@ -1,6 +1,5 @@
 # .prf - Front Page Sports Football Pro '98 Coaching Profile File Format
 
-- **Status:** Complete
 - **Owner:** FBPro98 Profile Library
 - **Encoding:** Integers little-endian; strings ASCII unless noted.
 
@@ -27,7 +26,7 @@ trailer
 
 Each block: ID (4 bytes) + size (4 bytes) + data, where size excludes the 8-byte header.
 
-Profiles can also be saved with embedded game plans (G95/J95/S98 trios after I95). This library rejects that variant — see section 4.
+Profiles can also be saved with embedded game plans (G95/J95/S98 trios after I95); see section 4.
 
 ---
 
@@ -67,7 +66,7 @@ Data layout: substitutions → category weights → FG range → PAT category we
 |   0x1C |    2 | u16  | Kickers out %           | Fatigue threshold  | Offense     |
 |   0x1E |    2 | u16  | Kickers in %            | Recovery threshold | Offense     |
 
-The UI exposes only the offense groups (OL, QB, RB, WR, K) when editing an offense profile and only the defense groups (DL, LB, DB) for defense. Non-editable groups hold the game's default 80/90 (`0x50` / `0x5A`). Readers expose all eight; writers preserve disk bytes for non-editable groups (initialize to 80/90 for new profiles).
+The UI exposes only the offense groups (OL, QB, RB, WR, K) when editing an offense profile and only the defense groups (DL, LB, DB) for defense. Non-editable groups hold the game's default 80/90 (`0x50` / `0x5A`).
 
 ### 2.3 Category Weights (15120 bytes, data offset 0x20)
 
@@ -120,8 +119,6 @@ Offense uses all 27 codes (`0x00`–`0x1A`). Defense uses 22 (`0x00`–`0x15`); 
 | `0x19` | Pass Medium Random   | _(unused)_           |
 | `0x1A` | Pass Short Random    | _(unused)_           |
 
-The reader does not enforce side-specific code restrictions — it accepts `0x00`–`0x1A` on both sides for permissive inspection.
-
 #### 2.3.3 Weight Encoding
 
 Weight 1 packs the weight and the Stop Clock bit:
@@ -158,7 +155,7 @@ Per (minutes, down) pair: 35 + 35 + 28 + 28 = 126 records. Total: 5 × 4 × 126 
 
 Records are laid out by minutes remaining (slowest-changing), then down, then yards to go, then field position, then point spread (fastest-changing). Within each (minutes, down) pair the four yards-to-go groups appear in order; the two upper yards-to-go groups omit the <DEF 5 field-position row, which is what creates the 280-cell shortfall.
 
-Stop Clock is bit 7 of weight 1 on disk (see section 2.3.3); the parsed model carries it as a situation-level flag rather than a property of the weighted picks.
+Stop Clock is bit 7 of weight 1 on disk (section 2.3.3).
 
 ### 2.4 Field Goal Range (1 byte, data offset 0x3B30)
 
@@ -220,15 +217,11 @@ Field goal range and use audibles are stored redundantly in F95 and I95; a misma
 
 ---
 
-## 4. Embedded Game Plans (Detected and Rejected)
+## 4. Embedded Game Plans
 
 When present, the extra blocks start at 0x3CB7, where the trailer would be.
 
-Profiles saved with embedded game plans append one G95/J95/S98 trio per plan after I95. This library rejects that variant.
-
-- **Detect:** the I95 game plan block count is not `0`, or any non-trailer bytes follow I95, or a `G95:` / `J95:` / `S98:` ID appears.
-- **Reader:** rejects the file as unsupported, distinct from invalid.
-- **Writer:** never emits this variant.
+Profiles saved with embedded game plans append one G95/J95/S98 trio per plan after I95. The variant shows as an I95 game plan block count other than `0`, bytes other than the trailer after I95, or a `G95:` / `J95:` / `S98:` ID after I95.
 
 ---
 
@@ -245,36 +238,25 @@ Every profile ends with **1 byte (offense)** or **2 bytes (defense)** so the tot
 
 (Bare blocks total 0x3CB7 = odd, so offense pads +1, defense pads +2.)
 
-Trailer bytes must be `0x00` (NUL). Stock/factory profiles use `0x69` (a single byte for offense, `0x69 0x69` for defense), but those profiles are independently rejected at the F95 size check (section 4); the trailer code path never reaches them. A `0x69` trailer is invalid; the writer always emits NULs.
+Trailer bytes must be `0x00` (NUL). Stock/factory profiles use `0x69` (a single byte for offense, `0x69 0x69` for defense), but they are the older stock layout, whose F95 size is `0x3F69` or `0x4509` rather than `0x3C9D`.
 
 ---
 
-## 6. Reader Validation
+## 6. Validity
 
-Reader raises `InvalidProfileError` for:
+A file is invalid when any of these holds:
 
-- Bad block ID or size
-- F95 `size ≠ 0x3C9D`; I95 `size ≠ 0x0A`
-- `profile_type ∉ {0, 1}`; I95 `reserved ≠ 0`
-- `field_goal_range ∉ [5, 50]` in F95 or I95
-- F95/I95 mismatch on `field_goal_range` or `use_audibles`
-- `use_audibles ∉ {0, 1}` in either block
-- Substitution pair violating `0 ≤ out ≤ in ≤ 100`
-- Category-weights `play_category ∉ [0x00, 0x1A]` (no side-specific subset enforced)
-- Category-weights `weight ∉ [0, 10]` (after masking the Stop-Clock bit on `weight1`)
-- Trailer length ≠ 1 (offense) or 2 (defense)
-- Trailer byte ≠ `0x00`
-- File-size parity wrong for profile type
+- A bad block ID or size
+- An F95 size other than `0x3C9D`; an I95 size other than `0x0A`
+- A profile type other than `0` or `1`; an I95 reserved field other than `0`
+- A field goal range outside `5`–`50` in F95 or I95
+- F95 and I95 disagreeing on the field goal range or use audibles
+- Use audibles other than `0` or `1` in either block
+- A substitution pair violating `0 ≤ out ≤ in ≤ 100`
+- A category-weights play category outside `0x00`–`0x1A` (no side-specific subset)
+- A category-weights weight outside `0`–`10` (after masking the Stop Clock bit on weight 1)
+- A trailer length other than 1 (offense) or 2 (defense)
+- A trailer byte other than `0x00`
+- File-size parity wrong for the profile type
 
-Profiles with embedded game plans (section 4) raise `UnsupportedProfileError` instead.
-
----
-
-## 7. Writer Contract
-
-- F95: fixed `0x3C9D` data size; recompute all sub-section bytes from the model.
-- I95: fixed `0x0A` data size; mirror `field_goal_range` and `use_audibles` from F95; `reserved = 0`; `num_game_plan_blocks = 0`.
-- Regular-situation `weight1`: pack the Stop-Clock flag into bit 7; clear bit 7 on `weight2` / `weight3`. PAT-situation weights carry no Stop-Clock bit.
-- Trailer: 1 NUL (offense) or 2 NULs (defense).
-
-Never emits embedded game plan blocks (section 4) or the stock layout (section 4 / F95 size variants).
+A profile with embedded game plans (section 4) is a valid file in a different variant, not an invalid one.
