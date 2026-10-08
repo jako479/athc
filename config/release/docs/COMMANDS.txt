@@ -256,14 +256,22 @@ unless the command is given --league NAME.
 13) convert-pdb  --  WinLogStats stats (.pdb) into Excel
     ----------------------------------------------------
 
-   Builds an Excel workbook (.xlsx, or .xlsm for embedded sorting macros)
-   from a WinLogStats .pdb. Cross-reference up to two offensive (-o/-o2)
-   and two defensive (-d/-d2) game plans to tag plays. The workbook always
-   includes a Total Stats team. The other workbook options (percentage
-   columns, per-category worksheets, sacks excluded from pass attempts) live
-   in athc.ini under [convert-pdb]; --skip-calcs drops the percentage columns
-   for one run. Play tags (QB draw, rollout, timed pass) come from the
-   league's playpool.toml.
+   Builds an Excel workbook from a WinLogStats .pdb: Run Plays, Pass Plays
+   and Def Plays sheets (one row per team and play, plus a Total Stats team
+   summing every team), a Tendencies sheet (run/pass counts by down and
+   distance) and an Options sheet. Save as .xlsm for the built-in sorting:
+   double-click a column to sort by it (stat columns toggle between
+   descending and ascending; Team, Category, Slot, Play and Type sort
+   ascending only). Cross-reference up to two offensive (-o/-o2) and two
+   defensive (-d/-d2) game plans to fill the Slot 1 / Slot 2 columns with
+   each play's position in the plan.
+
+   Per league, in leagues\<NAME>\: league.toml names the categories (RL,
+   PSL, RunLeft, ...), pdbtoexcel.toml sets the order they sort in and lists
+   deleted plays to skip, and playpool.toml tags plays (QB draw, rollout,
+   timed pass). The workbook options (percentage columns, per-category
+   worksheets, sacks excluded from pass attempts) live in athc.ini under
+   [convert-pdb]; --skip-calcs drops the percentage columns for one run.
 
    Show help:
       athc convert-pdb --help
@@ -271,6 +279,7 @@ unless the command is given --league NAME.
    Example terminal calls:
       athc convert-pdb stats.pdb output.xlsm
       athc convert-pdb stats.pdb output.xlsm -d defense.pln -o offense.pln
+      athc convert-pdb stats.pdb output.xlsm -o OFF1.pln -o2 OFF2.pln -d DEF1.pln -d2 DEF2.pln
 
 
 14) autocontinue  --  auto-click the FbPro '98 'Continue' button between plays

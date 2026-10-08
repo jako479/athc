@@ -37,6 +37,17 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 | **Timed + rollout both** (TR suffix) | tree | both attrs | `test_rollout_and_timed_both` | ☑ |
 | **Timed-by-suffix but excluded → rollout only** | tree | timed off, rollout on | `test_timed_excluded_still_rollout` | ☑ |
 
+## reader.py — `rule_warnings` (include / exclude names against a pool)
+
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Clean rules | make; names in the pool, right side | `[]` | `test_clean_rules_give_no_warnings` | ☑ |
+| Name not in the pool | include / exclude | "is not in the play pool" | `test_name_not_in_the_pool` `[P]` | ☑ |
+| Wrong side | run play under TimedPass / RolloutPass; pass play under QBRun; defensive; special-teams | "is a … play; it has no effect" | `test_wrong_side_is_reported` `[P]` | ☑ |
+| Wrong side under exclude | pass play under QBRun exclude | same message | `test_exclude_on_the_wrong_side_is_reported` | ☑ |
+| In both include and exclude | one section; in the pool or not | one "exclude wins" line, nothing else | `test_name_in_both_include_and_exclude_reported_once` `[P]` | ☑ |
+| Sorted by section, then name | two sections | TimedPass first; names sorted | `test_warnings_are_sorted_by_section_then_name` | ☑ |
+
 ## model.py — record classes and `PlayPool`
 
 | Case | Input | Expected | Test | Status |

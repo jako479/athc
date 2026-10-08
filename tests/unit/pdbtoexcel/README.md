@@ -19,12 +19,26 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 ## config.py
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Default order uses game names | — | run/pass/defense game cats; no overlap | `test_default_category_order_uses_game_names` | ☑ |
-| Defaults (league folder, no league.toml) | folder | play_path ""; options True; rules None | `test_load_config_defaults` | ☑ |
+| Defaults (league folder with labels + order only) | folder | play_path ""; options True; rules None; no deleted plays | `test_load_config_defaults` | ☑ |
 | From the league folder | `league.toml` + `playpool.toml` | play_path / playpool_rules resolved | `test_load_config_from_league_folder` | ☑ |
 | Needs a league | no league selected | `LeagueError` | `test_load_config_needs_a_league` | ☑ |
 | `playpool.toml` next to athc.ini ignored | `<config dir>/playpool.toml`, no league file | `None` | `test_playpool_toml_next_to_athc_ini_is_ignored` | ☑ |
-| No rules anywhere | folder only | `None` | `test_no_playpool_rules_anywhere_is_none` | ☑ |
+| Category order in file order | PNFL `pdbtoexcel.toml` | run/pass/defense enum members as listed | `test_category_order_in_file_order` | ☑ |
+| Unlabeled category by game name | `"Razzle Dazzle Run"` | resolves | `test_unlabeled_category_goes_by_its_game_name` | ☑ |
+| Labeled category by game name | `"Run Left"` with RL labeled | `ConfigFileError` "not a run category" | `test_labeled_category_by_game_name_is_unknown` | ☑ |
+| Unknown name lists the valid ones | `"Nope"` | error with sorted valid names | `test_unknown_name_lists_the_valid_ones` | ☑ |
+| Empty list allowed | `run = []` | `()` | `test_empty_list_is_allowed` | ☑ |
+| Wrong side | pass label under run / run under pass / offense under defense | error says which | `test_wrong_side_is_an_error` `[P]` | ☑ |
+| Repeated name | `RL` twice | "listed twice" | `test_repeated_name_is_an_error` | ☑ |
+| Missing key / table | no `defense` / no `[category_order]` | "missing" | `test_missing_key_is_an_error` / `test_missing_table_is_an_error` | ☑ |
+| Table written as a value | `category_order = 1` / `deleted_plays = 1` | "must be a table" | `test_table_written_as_a_value_is_an_error` `[P]` | ☑ |
+| Not an array of strings | string, `[1]`, mixed | "expected an array of strings" | `test_list_must_be_an_array_of_strings` `[P]` | ☑ |
+| Unknown key / table | `special`, `[filters]` | "unknown key" | `test_unknown_key_is_an_error` / `test_unknown_table_is_an_error` | ☑ |
+| Missing file | no `pdbtoexcel.toml` | "not found" | `test_missing_file_is_an_error` | ☑ |
+| Bad TOML / BOM | malformed; `utf-8-sig` | error names the file; BOM loads | `test_bad_toml_is_an_error` / `test_bom_is_skipped` | ☑ |
+| Deleted plays | `[deleted_plays] names` | names as written; absent → empty | `test_deleted_plays_read_as_written` / `test_deleted_plays_table_without_names_is_empty` | ☑ |
+| Deleted plays wrong type / key | string, `[1]`; `plays` | error | `test_deleted_plays_must_be_an_array_of_strings` `[P]` / `test_deleted_plays_unknown_key_is_an_error` | ☑ |
+| Every shipped league loads | `config/{dev,release}` × PNFL/PCFL | 4/9/10 categories; ATF0ELOB deleted | `test_shipped_league_loads` `[P]` | ☑ |
 | Workbook options from `[convert-pdb]` | athc.ini + folder | all three flipped | `test_load_config_reads_workbook_options` | ☑ |
 | Workbook options without the section | folder | True / False / True | `test_workbook_options_default_without_section` | ☑ |
 | configparser booleans accepted | `1/yes/true/on`, `0/no/false/off`, any case | parsed | `test_workbook_option_accepts_configparser_booleans` `[P]` | ☑ |
@@ -34,15 +48,22 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 ## workbook_creator + excel_workbook (read back with openpyxl)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Base sheets + run row | synth + pool | 5 sheets; team/category/stats | `test_base_sheets_and_run_row` | ☑ |
-| Pass row: Screen + comp/att | synth + pool | "Screen"; att excludes sacks | `test_pass_row_screen_and_stats` | ☑ |
-| Defense row: front Type | synth + pool | `defensive_front` value; total calls | `test_defense_row_front_type` | ☑ |
+| Base sheets + run row | synth + pool | 5 sheets; team / label ("RM") / stats | `test_base_sheets_and_run_row` | ☑ |
+| Run row with no attempts | play_count 0, category sheets on | zeros, no division error | `test_run_row_with_no_attempts_writes_zeros` | ☑ |
+| Pass row: Screen + comp/att | synth + pool | "PSR"; "Screen"; att excludes sacks | `test_pass_row_screen_and_stats` | ☑ |
+| Defense row: front Type | synth + pool | "RunRight"; `defensive_front` value; total calls | `test_defense_row_front_type` | ☑ |
+| Unlabeled category shows its game name | synth + pool | "Razzle Dazzle Run" | `test_unlabeled_category_shows_its_game_name` | ☑ |
+| Options sheet lists the order by label | — | H/I/J columns = run/pass/defense labels | `test_options_sheet_lists_the_order_by_label` | ☑ |
+| Rows follow the category order | synth + pool | RL row before RM row | `test_rows_follow_the_category_order` | ☑ |
+| Unlisted category left out | order with RL only | RM play absent | `test_unlisted_category_is_left_out` | ☑ |
+| Deleted play skipped quietly | not in pool, 2 teams | no row; no warning; one info line | `test_deleted_play_is_skipped_quietly` | ☑ |
+| Deleted play still in the pool | in pool, listed in another case, 2 teams, totals | no row; one "stale" warning with the file's spelling | `test_deleted_play_still_in_the_pool_is_skipped_with_a_warning` | ☑ |
 | Run row: QB draw Type | synth + pool | "QB draw" | `test_qb_draw_type` | ☑ |
 | `--skip-calcs` omits % columns | synth + pool | no "Fumble %" header | `test_skip_calcs_omits_percent_columns` | ☑ |
 | Totals add "Total Stats" team | synth + pool | summed team present | `test_totals_adds_total_stats_team` | ☑ |
 | Category worksheets when enabled | synth + pool | "Run Categories" sheet + row | `test_category_worksheets_when_enabled` | ☑ |
-| Special-teams / unknown skipped | synth + pool | absent from sheets | `test_special_teams_and_unknown_plays_skipped` | ☑ |
+| Special-teams / unknown skipped | synth + pool | absent from sheets; "Play file not found" warning | `test_special_teams_and_unknown_plays_skipped` | ☑ |
 | Tendencies written | synth | 16 rows per team | `test_tendencies_written` | ☑ |
 | Slot column from gameplan | synth + pool + pln | slot 0 → "1-1" | `test_slot_column_from_gameplan` | ☑ |
 
-Notes: grouping is by **game category** (not `pool_category`). Exact percentage-cell values aren't asserted (column presence + the underlying counts are).
+Notes: grouping is by the play file's category, shown under the league's label (`PNFL_LABELS`) and sorted by the league's order (`PNFL_ORDER` in the conftest). Exact percentage-cell values aren't asserted (column presence + the underlying counts are).

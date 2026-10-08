@@ -1,8 +1,8 @@
 """Orchestrates PDB -> Excel workbook creation.
 
 Joins plays to the play pool, computes totals and category aggregates, sorts by
-the game category, and dispatches rows to ExcelPdbWorkbook. Plays are grouped by
-their own game category (e.g. "Pass Short Left") — nothing league-specific.
+the league's category order, and dispatches rows to ExcelPdbWorkbook. Plays are
+grouped by their category (from the play file), shown under the league's label.
 """
 
 from __future__ import annotations
@@ -12,7 +12,8 @@ from collections.abc import Iterator
 from os import PathLike
 
 from athc.fbpro98_gameplan import GamePlan, read_gameplan
-from athc.pdbtoexcel.config import CategoryOrder, Config
+from athc.fbpro98_play import PlayCategory
+from athc.pdbtoexcel.config import Config
 from athc.pdbtoexcel.excel_workbook import ExcelPdbWorkbook
 from athc.pdbtoexcel.pdb import PDB, PLAY_DATA
 from athc.playpool import (
@@ -20,6 +21,7 @@ from athc.playpool import (
     PlayPool,
     load_rules,
     read_play_pool,
+    rule_warnings,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,7 +37,6 @@ class PdbWorkbookCreator:
     def __init__(
         self,
         config: Config,
-        category_order: CategoryOrder,
         play_pool: PlayPool,
         pdb: PDB,
         pln_defense: GamePlan | None = None,
@@ -44,9 +45,10 @@ class PdbWorkbookCreator:
         pln_offense_2: GamePlan | None = None,
     ) -> None:
         self.config = config
-        self.category_order = category_order
         self.play_pool = play_pool
         self.pdb = pdb
+        # Deleted plays match case-insensitively (the pool's names do too).
+        self._deleted_upper = {name.upper() for name in config.deleted_plays}
         self.pln_defense = pln_defense
         self.pln_offense = pln_offense
         self.pln_defense_2 = pln_defense_2
@@ -56,23 +58,29 @@ class PdbWorkbookCreator:
     def from_config(
         cls,
         config: Config,
-        category_order: CategoryOrder,
         pdb_filename: StrPath,
         pln_def_filename: StrPath | None = None,
         pln_off_filename: StrPath | None = None,
         pln_def_filename_2: StrPath | None = None,
         pln_off_filename_2: StrPath | None = None,
     ) -> PdbWorkbookCreator:
-        """Build all dependencies from file paths. Tests call `__init__` with fakes."""
-        rules = load_rules(config.playpool_rules) if config.playpool_rules else None
-        play_pool = read_play_pool(
-            config.play_path, rules=rules, labels=config.categories
-        )
+        """Build all dependencies from file paths. Tests call `__init__` with fakes.
+
+        The playpool rules' include / exclude names are checked against the pool
+        once it is read; each problem is logged as a warning."""
+        if config.playpool_rules:
+            rules = load_rules(config.playpool_rules)
+            play_pool = read_play_pool(
+                config.play_path, rules=rules, labels=config.categories
+            )
+            for message in rule_warnings(play_pool, rules):
+                logger.warning("%s: %s", config.playpool_rules.name, message)
+        else:
+            play_pool = read_play_pool(config.play_path, labels=config.categories)
         pdb = PDB(str(pdb_filename))
         pdb.convert_invalid_play_data(play_pool)
         return cls(
             config,
-            category_order,
             play_pool,
             pdb,
             read_gameplan(pln_def_filename) if pln_def_filename else None,
@@ -90,6 +98,7 @@ class PdbWorkbookCreator:
         `calculate_totals=True` appends a "Total Stats" team summing all teams.
         """
         logger.info("Creating '%s'", filename)
+        self._warn_stale_deleted_plays()
         offense_slots = (1 if self.pln_offense else 0) + (
             1 if self.pln_offense_2 else 0
         )
@@ -98,12 +107,7 @@ class PdbWorkbookCreator:
         )
 
         with ExcelPdbWorkbook(
-            self.config,
-            self.category_order,
-            filename,
-            perform_calculations,
-            offense_slots,
-            defense_slots,
+            self.config, filename, perform_calculations, offense_slots, defense_slots
         ) as workbook:
             combined_plays: dict[bytes, PLAY_DATA] | None = (
                 {} if calculate_totals else None
@@ -141,8 +145,20 @@ class PdbWorkbookCreator:
 
         logger.info("Conversion complete")
 
+    def _warn_stale_deleted_plays(self) -> None:
+        """A `[deleted_plays]` entry that is still in the pool is stale; say so
+        (its stats are skipped all the same)."""
+        for name in sorted(self.config.deleted_plays):
+            if self.play_pool.find_by_name(name) is not None:
+                logger.warning(
+                    "'%s' is listed in [%s] but is in the play pool; its stats are "
+                    "skipped",
+                    name,
+                    "deleted_plays",
+                )
+
     def _category_rank(self, play_record: Play, play_type: PLAY_DATA.PLAY_TYPE) -> int:
-        return self.category_order[play_type].index(play_record.category.long)
+        return self.config.category_order[play_type].index(play_record.category)
 
     def _iter_tracked_plays(self) -> Iterator[PLAY_DATA]:
         for play_type in (
@@ -155,25 +171,33 @@ class PdbWorkbookCreator:
             )
 
     def _iter_source_plays(self) -> Iterator[ResolvedPlay]:
-        seen_missing: set[str] = set()
+        """Every exportable PDB stat line with its pool record. A deleted play is
+        skipped with one info line, a play missing from the pool with one
+        warning; both are reported once per name, not per team."""
+        seen: set[str] = set()
         for play_in_pdb in self._iter_tracked_plays():
             play_name = play_in_pdb.play_name.decode("ASCII")
             team_name = play_in_pdb.team_name.decode("ASCII")
+            if play_name.upper() in self._deleted_upper:
+                if play_name not in seen:
+                    logger.info("Skipping deleted play '%s'", play_name)
+                    seen.add(play_name)
+                continue
             play_record = self.play_pool.find_by_name(play_name)
             if play_record is None:
-                if play_name not in seen_missing:
+                if play_name not in seen:
                     logger.warning("Play file not found for play '%s'", play_name)
-                    seen_missing.add(play_name)
+                    seen.add(play_name)
                 continue
             if self._should_export(play_in_pdb, play_record):
                 yield play_in_pdb, play_name, team_name, play_record
 
     def _should_export(self, play_in_pdb: PLAY_DATA, play_record: Play) -> bool:
-        """Skip special-teams plays and any whose game category isn't in the order
-        for its PDB play type (e.g. a misclassified play that would break the sort)."""
+        """Skip special-teams plays and any whose category is not in the league's
+        order for its PDB play type (unlisted on purpose, or misclassified)."""
         if play_record.play_file.is_special_teams:
             return False
-        return play_record.category.long in self.category_order[play_in_pdb.play_type]
+        return play_record.category in self.config.category_order[play_in_pdb.play_type]
 
     def _get_play_slots(
         self, play_in_pdb: PLAY_DATA, play_name: str
@@ -231,23 +255,24 @@ class PdbWorkbookCreator:
         resolved_plays: list[ResolvedPlay],
         calculate_totals: bool,
     ) -> None:
-        team_categories: dict[tuple[str, str], PLAY_DATA] = {}
-        categories: dict[str, PLAY_DATA] = {}
+        team_categories: dict[tuple[str, PlayCategory], PLAY_DATA] = {}
+        categories: dict[PlayCategory, PLAY_DATA] = {}
         for play_in_pdb, _, team_name, play_record in resolved_plays:
-            category = play_record.category.long
+            category = play_record.category
             self._add_to_category(team_categories, play_in_pdb, (team_name, category))
             if calculate_totals:
                 self._add_to_category(categories, play_in_pdb, category)
 
-        for team_category, category_data in team_categories.items():
-            workbook.add_category(team_category, category_data)
+        label = self.config.categories.label
+        for (team, category), category_data in team_categories.items():
+            workbook.add_category((team, label(category)), category_data)
         if calculate_totals:
             ordered = sorted(
                 categories.items(),
-                key=lambda x: self.category_order[x[1].play_type].index(x[0]),
+                key=lambda x: self.config.category_order[x[1].play_type].index(x[0]),
             )
-            for category_name, category_data in ordered:
-                workbook.add_category(("Total Stats", category_name), category_data)
+            for category, category_data in ordered:
+                workbook.add_category(("Total Stats", label(category)), category_data)
 
     @staticmethod
     def _add_to_total_play(

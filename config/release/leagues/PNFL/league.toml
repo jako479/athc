@@ -1,5 +1,5 @@
 # PNFL league settings. Rules live here (gameplan.toml, profile.toml,
-# playpool.toml, scheduler.toml) and season standings in standings\
+# playpool.toml, pdbtoexcel.toml, scheduler.toml) and season standings in standings\
 # (<season>.league.ini). Reinstalling never overwrites this file.
 
 [league]

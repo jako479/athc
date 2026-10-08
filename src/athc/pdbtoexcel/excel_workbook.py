@@ -14,7 +14,7 @@ from typing import Any
 import xlsxwriter
 from xlsxwriter.worksheet import Worksheet
 
-from athc.pdbtoexcel.config import CategoryOrder, Config, get_runtime_path
+from athc.pdbtoexcel.config import Config, get_runtime_path
 from athc.pdbtoexcel.pdb import PLAY_DATA
 from athc.playpool import DefensivePlay, OffensivePlay, Play
 
@@ -46,14 +46,14 @@ class ExcelPdbWorkbook:
     def __init__(
         self,
         config: Config,
-        category_order: CategoryOrder,
         filename,
         perform_calculations,
         offense_slot_count: int = 0,
         defense_slot_count: int = 0,
     ):
         self.config = config
-        self.category_order = category_order
+        self.category_order = config.category_order
+        self._label = config.categories.label  # a category's league label
         self.filename = Path(filename)
         self.macros_are_enabled = self.filename.suffix.lower() == ".xlsm"
         self.show_percentages = perform_calculations and config.calculate_percentages
@@ -72,8 +72,6 @@ class ExcelPdbWorkbook:
         return None
 
     def __enter__(self):
-        self.filename.parent.mkdir(exist_ok=True)
-
         self.workbook = xlsxwriter.Workbook(self.filename)
         self.fmt = self._create_formats()
         self._create_options_worksheet()
@@ -201,9 +199,17 @@ class ExcelPdbWorkbook:
         ws.set_column_pixels(7, 9, 81)
         ws.write_row(0, 7, ["CATEGORY ORDER", "", ""], self.fmt.options_header)
         ws.write_row(1, 7, ["RUN", "PASS", "DEFENSE"], self.fmt.options_header2)
-        ws.write_column(2, 7, self.category_order[PLAY_DATA.PLAY_TYPE.RUN])
-        ws.write_column(2, 8, self.category_order[PLAY_DATA.PLAY_TYPE.PASS])
-        ws.write_column(2, 9, self.category_order[PLAY_DATA.PLAY_TYPE.DEFENSE])
+        for column, play_type in enumerate(
+            (
+                PLAY_DATA.PLAY_TYPE.RUN,
+                PLAY_DATA.PLAY_TYPE.PASS,
+                PLAY_DATA.PLAY_TYPE.DEFENSE,
+            ),
+            start=7,
+        ):
+            ws.write_column(
+                2, column, [self._label(c) for c in self.category_order[play_type]]
+            )
         # NOTES
         ws.write_row(0, 11, ["NOTES"] + [""] * 9, self.fmt.options_header)
         note = (
@@ -485,7 +491,7 @@ class ExcelPdbWorkbook:
         slot_1, slot_2 = play_slots
         row_data = [
             play_data.team_name.decode("ASCII"),
-            play_record.category.long,
+            self._label(play_record.category),
             slot_1,
             slot_2,
             play_data.play_name.decode("ASCII"),
@@ -498,12 +504,13 @@ class ExcelPdbWorkbook:
         ]
 
         if self.show_percentages:
+            count = int(play_data.play_count)
             row_data.insert(
-                10, round(int(play_data.fumbles) / int(play_data.play_count), 3)
+                10, round(int(play_data.fumbles) / count, 3) if count > 0 else 0
             )
             row_data.insert(
                 12,
-                round(int(play_data.touchdowns_offense) / int(play_data.play_count), 3),
+                round(int(play_data.touchdowns_offense) / count, 3) if count > 0 else 0,
             )
 
         self.run.worksheet.write_row(self.run.rows, 0, row_data)
@@ -534,7 +541,7 @@ class ExcelPdbWorkbook:
         slot_1, slot_2 = play_slots
         row_data = [
             play_data.team_name.decode("ASCII"),
-            play_record.category.long,
+            self._label(play_record.category),
             slot_1,
             slot_2,
             play_data.play_name.decode("ASCII"),
@@ -598,7 +605,7 @@ class ExcelPdbWorkbook:
         slot_1, slot_2 = play_slots
         row_data = [
             play_data.team_name.decode("ASCII"),
-            play_record.category.long,
+            self._label(play_record.category),
             slot_1,
             slot_2,
             play_data.play_name.decode("ASCII"),
@@ -662,16 +669,15 @@ class ExcelPdbWorkbook:
         ]
 
         if self.show_percentages:
+            count = int(category_data.play_count)
             row_data.insert(
-                6, round(int(category_data.fumbles) / int(category_data.play_count), 3)
+                6, round(int(category_data.fumbles) / count, 3) if count > 0 else 0
             )
             row_data.insert(
                 8,
-                round(
-                    int(category_data.touchdowns_offense)
-                    / int(category_data.play_count),
-                    3,
-                ),
+                round(int(category_data.touchdowns_offense) / count, 3)
+                if count > 0
+                else 0,
             )
 
         assert self.run_categories is not None

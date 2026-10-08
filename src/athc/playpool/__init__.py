@@ -10,7 +10,7 @@ from athc.playpool.model import (
     PlayPool,
     SpecialTeamsPlay,
 )
-from athc.playpool.reader import read_play_pool
+from athc.playpool.reader import read_play_pool, rule_warnings
 from athc.playpool.rules import (
     FilenameFilter,
     PlaypoolRules,
@@ -33,4 +33,5 @@ __all__ = [
     "build_rules",
     "load_rules",
     "read_play_pool",
+    "rule_warnings",
 ]

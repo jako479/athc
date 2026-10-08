@@ -12,7 +12,7 @@ src/athc/playpool/
 ├── __init__.py   # public API re-exports
 ├── model.py      # Play + Offensive/Defensive/SpecialTeams subclasses; enums; PlayPool
 ├── rules.py      # FilenameFilter, PlaypoolRules, load_rules (filename filters)
-└── reader.py     # read_play_pool: walk, classify, add to the pool; folder_warnings
+└── reader.py     # read_play_pool: walk, classify, add to the pool; folder_warnings; rule_warnings
 ```
 
 ## What this package does
@@ -43,6 +43,11 @@ src/athc/playpool/
 - Keeps every warning it logs (folder mismatches, duplicate names, invalid or
   unreadable files) in `PlayPool.issues`, word for word, so `playpool check`
   can print and count them.
+- `rule_warnings(pool, rules)` checks the exact names a rules file lists under
+  `include` / `exclude` against a built pool: not in the pool, a play the
+  section cannot apply to (wrong side), or under both lists of one section. It
+  returns the lines; the caller decides whether to log them (`convert-pdb`
+  does; `read_play_pool` and `playpool check` do not call it).
 
 ## Records — fixed, typed attributes
 

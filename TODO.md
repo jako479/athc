@@ -2,6 +2,7 @@
 
 ## 1.0.0
 
+- [ ] convert-pdb: add a problems section to the release docs
 - [ ] athc: Logging: fix the deviations from the design — `generate-schedule` and `convert-pdb` print nothing to stdout, 15 per-command `basicConfig` calls; see [LOGGING-IS-FUCKED](docs/design/TODO/LOGGING-IS-FUCKED.md)
 - [ ] gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run
 - [ ] convert-pdb: complete integration into athc

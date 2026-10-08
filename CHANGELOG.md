@@ -7,6 +7,11 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- convert-pdb: the category order is league data again — `pdbtoexcel.toml` in the league folder lists the run, pass and defense categories in the order the rows sort and the Options sheet shows them, by the league's names (`PSL`, `RunLeft`)
+- convert-pdb: `pdbtoexcel.toml` also lists deleted plays, skipped quietly instead of warning "Play file not found"
+- convert-pdb: the play names a league's `playpool.toml` lists under include / exclude are checked against the play pool; one not in the pool, on the wrong side, or under both lists is a warning
+- convert-pdb: the release settings count sacks as pass attempts
+- convert-pdb: the output folder must exist; a missing one is a one-line error instead of being created
 - gameplan: rules list the categories a gameplan may contain (`allowed_offensive_categories` / `allowed_defensive_categories`, by the league's labels) instead of the ones it may not
 - config: the TOML rule and scheduler files carry no `schema_version` line; the rule loaders reject it like any other unknown key
 - gameplan: `list-normals --sort category` groups the plays by category, each group under a `::` header with the league's category name

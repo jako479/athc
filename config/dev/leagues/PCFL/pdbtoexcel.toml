@@ -1,0 +1,20 @@
+# PCFL convert-pdb settings. Read automatically as leagues\<NAME>\pdbtoexcel.toml.
+
+# The order of the play categories in the workbook: the row order within each
+# team on the Run, Pass and Def Plays sheets, and the CATEGORY ORDER lists on
+# the Options sheet that the sort macros use. Names are this league's category
+# names from league.toml (the game name for a category the league leaves
+# unnamed). A category not listed stays out of the workbook.
+[category_order]
+run = ["RL", "RM", "RR", "GLR"]
+pass = ["PSL", "PSM", "PSR", "PML", "PMM", "PMR", "PLR", "PRD", "GLP"]
+defense = [
+    "RunLeft", "RunMiddle", "RunRight", "RunDazzle",
+    "PassShort", "PassMedium", "PassLong", "PassDazzle",
+    "GLrun", "GLpass",
+]
+
+# Plays removed from the league's play pool. Their stat lines are skipped
+# quietly instead of warning "Play file not found".
+[deleted_plays]
+names = ["ATF0ELOB"]

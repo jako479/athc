@@ -23,7 +23,13 @@ from click.testing import CliRunner
 from athc.cli.convert_pdb import convert_pdb
 from athc.pdbtoexcel import config as pdbtoexcel_config
 from athc.pdbtoexcel.pdb import PLAY_DATA
-from tests.conftest import LEAGUE, make_league_dir, write_config_file
+from tests.conftest import (
+    LEAGUE,
+    league_toml,
+    make_league_dir,
+    write_config_file,
+    write_pdbtoexcel_toml,
+)
 from tests.integration.conftest import (
     DATA,
     EXPECTED,
@@ -42,11 +48,14 @@ MakeLeague = Callable[..., Path]
 def league(
     make_league: MakeLeague, write_config: Callable[..., Path], tmp_path: Path
 ) -> Path:
-    """The selected league, with no rules; its play_path is an empty folder."""
+    """The selected league, with the PNFL labels and order and no playpool
+    rules; its play_path is an empty folder."""
     plays = tmp_path / "plays"
     plays.mkdir()
     write_config(f"[athc]\nleague = {LEAGUE}\n")
-    return make_league(LEAGUE, f"[league]\nplay_path = '{plays}'\n")
+    folder = make_league(LEAGUE, league_toml(plays))
+    write_pdbtoexcel_toml(folder)
+    return folder
 
 
 # ── extension / usage validation (exit 2) ─────────────────────────────────────
@@ -111,11 +120,38 @@ def test_play_path_not_a_directory_exit_1(
     not_a_dir = tmp_path / "notdir.txt"
     not_a_dir.write_text("x", encoding="utf-8")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
-    make_league(LEAGUE, f"[league]\nplay_path = '{not_a_dir}'\n")
+    write_pdbtoexcel_toml(make_league(LEAGUE, league_toml(not_a_dir)))
     with caplog.at_level(logging.ERROR):
         result = runner.invoke(convert_pdb, [str(PDB), str(tmp_path / "o.xlsx")])
     assert result.exit_code == 1
     assert "play path is not a directory" in caplog.text
+
+
+@pytest.mark.usefixtures("league")
+def test_missing_output_folder_exit_1(
+    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    out = tmp_path / "reports" / "2049" / "w1.xlsx"
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(convert_pdb, [str(PDB), str(out)])
+    assert result.exit_code == 1
+    assert f"output folder not found: {out.parent}" in caplog.text
+    assert not out.parent.exists()
+
+
+def test_missing_pdbtoexcel_toml_exit_1(
+    runner,
+    make_league: MakeLeague,
+    write_config: Callable[..., Path],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    make_league(LEAGUE, league_toml(tmp_path))
+    with caplog.at_level(logging.ERROR):
+        result = runner.invoke(convert_pdb, [str(PDB), str(tmp_path / "o.xlsx")])
+    assert result.exit_code == 1
+    assert "pdbtoexcel.toml: not found" in caplog.text
 
 
 @pytest.mark.usefixtures("league")
@@ -167,7 +203,7 @@ def test_skip_calcs(runner, tmp_path: Path) -> None:
 def test_entry_point_subprocess(
     make_league: MakeLeague, config_dir: Path, tmp_path: Path
 ) -> None:
-    make_league(LEAGUE, f"[league]\nplay_path = '{tmp_path}'\n")
+    write_pdbtoexcel_toml(make_league(LEAGUE, league_toml(tmp_path)))
     env = {**os.environ, "ATHC_CONFIG_DIR": str(config_dir)}
     out = tmp_path / "out.xlsx"
     result = subprocess.run(
@@ -192,7 +228,8 @@ def test_entry_point_subprocess(
 
 
 def test_config_play_path_from_league_folder(make_league: MakeLeague) -> None:
-    folder = make_league(LEAGUE, "[league]\nplay_path = 'plays'\n")
+    folder = make_league(LEAGUE, league_toml("plays"))
+    write_pdbtoexcel_toml(folder)
     (folder / "playpool.toml").write_text("", encoding="utf-8")
     cfg = pdbtoexcel_config.load_config(LEAGUE)
     assert cfg.play_path == str(folder / "plays")
@@ -200,7 +237,7 @@ def test_config_play_path_from_league_folder(make_league: MakeLeague) -> None:
 
 
 def test_config_missing_play_path_is_empty(make_league: MakeLeague) -> None:
-    make_league()
+    write_pdbtoexcel_toml(make_league(LEAGUE, league_toml()))
     assert pdbtoexcel_config.load_config(LEAGUE).play_path == ""
 
 
@@ -222,9 +259,11 @@ def test_cli_no_league_is_one_line_error(
 
 def _golden_league(config_dir: Path) -> None:
     """Select a league under `config_dir` whose pool is `data/plays/` with its
-    playpool rules, and turn the category worksheets on."""
-    folder = make_league_dir(config_dir, LEAGUE, f"[league]\nplay_path = '{PLAYS}'\n")
+    playpool rules, the PNFL labels and order, and turn the category worksheets
+    on."""
+    folder = make_league_dir(config_dir, LEAGUE, league_toml(PLAYS))
     shutil.copy(POOL_RULES, folder / "playpool.toml")
+    write_pdbtoexcel_toml(folder)
     write_config_file(
         config_dir,
         f"[athc]\nleague = {LEAGUE}\n[convert-pdb]\ninclude_category_worksheets = true\n",

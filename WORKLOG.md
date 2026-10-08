@@ -4,6 +4,17 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-08 — **convert-pdb**: the June port had dropped PdbToExcel's
+  category order (the ini lists of RL / PSL / RunLeft codes that set the row
+  order and the Options sheet) and its `DELETED_PLAYS` list, sorting by the
+  game's own category list under the game's long names instead; neither drop
+  was the user's decision. Both come back as league data in a new
+  `pdbtoexcel.toml` beside the other league files, over the category names
+  `league.toml` already holds; a category left out of the order stays out of
+  the workbook. The playpool rules' include / exclude names are now checked
+  against the pool the way PdbToExcel checked its overrides file (not in the
+  pool, wrong side), plus a name under both lists. The release settings count
+  sacks as pass attempts; the Total Stats filter stays out.
 - 2026-10-08 — **gameplan**: the rules' disallowed-category lists became
   allowed-category lists (`allowed_offensive_categories` /
   `allowed_defensive_categories`), so a league says what a gameplan may

@@ -521,11 +521,12 @@ def test_release_convert_pdb_config_loads(name: str) -> None:
 def test_release_convert_pdb_defaults() -> None:
     from athc.pdbtoexcel import config as pdbtoexcel_config
 
-    # The shipped [convert-pdb] section in athc.ini spells out the defaults.
+    # The shipped [convert-pdb] section in athc.ini spells out every option; the
+    # release counts sacks as pass attempts (the dev config leaves them out).
     cfg = pdbtoexcel_config.load_config()
     assert cfg.calculate_percentages is True
     assert cfg.include_category_worksheets is False
-    assert cfg.exclude_sacks_from_pass_attempts is True
+    assert cfg.exclude_sacks_from_pass_attempts is False
 
 
 @pytest.mark.usefixtures("release_config_dir")

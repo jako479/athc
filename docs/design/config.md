@@ -51,6 +51,7 @@ leagues\
     gameplan.toml             rule files, one per tool
     profile.toml
     playpool.toml
+    pdbtoexcel.toml           convert-pdb's category order and deleted plays
     scheduler.toml
     standings\                <season>.league.ini
   PCFL\                       same fixed names
@@ -58,7 +59,7 @@ leagues\
 
 Fixed, well-known file names inside a league folder; nothing lists them in config. A league is any folder under `leagues\`; its name is the folder name. Per-league values that are not files in the league folder (`play_path`, the plays folder; `path`, the folder holding the league's files, each named after the league, which `check-ppp` reads for a directory; athc-admin's `db_path`, `log_dir`) go in `league.toml` under `[league]`; relative paths there resolve against the league folder.
 
-A league's short names for the game's play categories are the `[categories.offense]` and `[categories.defense]` tables of `league.toml`, keyed by the game's category name (`"Run Right" = "RR"`). The shipped files list every category of each side in the game's order, the unlabeled ones commented out. The gameplan rule files name categories by these labels (game name where the league has none), the play pool recognizes category folders by them, and `replace-play` prints them. Special-teams categories have no labels. A key that is not a category of its side, an empty or repeated label, or a label equal to a category name of its side is a `ConfigFileError`. Code: `CategoryLabels` in `athc.fbpro98_play`, carried as `LeagueConfig.categories`.
+A league's short names for the game's play categories are the `[categories.offense]` and `[categories.defense]` tables of `league.toml`, keyed by the game's category name (`"Run Right" = "RR"`). The shipped files list every category of each side in the game's order, the unlabeled ones commented out. The gameplan rule files name categories by these labels (game name where the league has none), the play pool recognizes category folders by them, and `replace-play` prints them. Special-teams categories have no labels. A key that is not a category of its side, an empty or repeated label, or a label equal to a category name of its side is a `ConfigFileError`. Code: `CategoryLabels` in `athc.fbpro98_play`, carried as `LeagueConfig.categories`. The order those categories appear in a `convert-pdb` workbook is the league's too: `pdbtoexcel.toml` lists them, by these names, per side ([pdbtoexcel/README.md](../pdbtoexcel/README.md)).
 
 Precedent: OBS Studio (`basic/profiles/<Name>/basic.ini`), Kodi (`profiles/<name>/`), Hugo (`config/_default/` + `config/<env>/`).
 

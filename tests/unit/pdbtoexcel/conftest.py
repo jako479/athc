@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from athc.fbpro98_play import DefensiveCategory as D
+from athc.fbpro98_play import OffensiveCategory as O
 from athc.fbpro98_play import PlayFile
+from athc.pdbtoexcel.config import CategoryOrder
 from athc.pdbtoexcel.pdb import PLAY_DATA, TENDENCY_DATA
 from athc.playpool import (
     DefensiveFront,
@@ -19,6 +22,34 @@ from athc.playpool import (
 DATA = Path(__file__).resolve().parent / "data"
 REAL_PDB = DATA / "2045-2047.pdb"
 PLAYS_SNAPSHOT = DATA / "2045-2047.plays.json"
+
+# The PNFL category order (what tests/conftest.py's PDBTOEXCEL_TOML resolves to).
+PNFL_ORDER: CategoryOrder = {
+    PLAY_DATA.PLAY_TYPE.RUN: (O.RUN_LEFT, O.RUN_MIDDLE, O.RUN_RIGHT, O.GOAL_LINE_RUN),
+    PLAY_DATA.PLAY_TYPE.PASS: (
+        O.PASS_SHORT_LEFT,
+        O.PASS_SHORT_MIDDLE,
+        O.PASS_SHORT_RIGHT,
+        O.PASS_MEDIUM_LEFT,
+        O.PASS_MEDIUM_MIDDLE,
+        O.PASS_MEDIUM_RIGHT,
+        O.PASS_LONG_RIGHT,
+        O.RAZZLE_DAZZLE_PASS,
+        O.GOAL_LINE_PASS,
+    ),
+    PLAY_DATA.PLAY_TYPE.DEFENSE: (
+        D.RUN_LEFT,
+        D.RUN_MIDDLE,
+        D.RUN_RIGHT,
+        D.RUN_DAZZLE,
+        D.PASS_SHORT,
+        D.PASS_MEDIUM,
+        D.PASS_LONG,
+        D.PASS_DAZZLE,
+        D.GOAL_LINE_RUN,
+        D.GOAL_LINE_PASS,
+    ),
+}
 
 
 def make_play_data(

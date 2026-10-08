@@ -101,6 +101,7 @@ That folder will contain:
       gameplan.toml        league rules, one file per tool
       profile.toml
       playpool.toml
+      pdbtoexcel.toml      convert-pdb's category order and deleted plays
       scheduler.toml
       standings\           <season>.league.ini for the scheduler
    leagues\PCFL\        the PCFL league, same layout
@@ -144,3 +145,17 @@ Settings changes aren't picking up:
 An error with no detail (or filing a bug report):
     Run  set ATHC_DEBUG=1  first, then re-run the command to see the
     full technical traceback.
+
+convert-pdb says "Play file not found" for every play, and the play
+sheets are empty:
+    play_path in leagues\<NAME>\league.toml is not your plays folder.
+
+convert-pdb says "pdbtoexcel.toml: not found":
+    The league folder has no pdbtoexcel.toml. Copy the one from the zip's
+    leagues\PNFL\ folder and edit it.
+
+convert-pdb says a game plan was not found:
+    Fix the path after -o / -o2 / -d / -d2, or leave that option out.
+
+convert-pdb says "output folder not found":
+    Create the folder the output file should go in, then re-run.

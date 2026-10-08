@@ -29,10 +29,18 @@ from athc.playpool.model import (
     DefensivePlay,
     OffensivePlay,
     PassLogic,
+    Play,
     PlayPool,
     SpecialTeamsPlay,
 )
-from athc.playpool.rules import PlaypoolRules, StrPath
+from athc.playpool.rules import (
+    SECTION_QB_RUN,
+    SECTION_ROLLOUT,
+    SECTION_TIMED,
+    FilenameFilter,
+    PlaypoolRules,
+    StrPath,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -237,4 +245,55 @@ def read_play_pool(
     return pool
 
 
-__all__ = ["folder_warnings", "read_play_pool"]
+def rule_warnings(pool: PlayPool, rules: PlaypoolRules) -> list[str]:
+    """What is wrong with the exact play names a rules file lists under `include`
+    / `exclude`, checked against `pool`: a name not in the pool; a name whose
+    play the section cannot apply to (a run play under a pass attribute, a pass
+    play under [QBRun], a defensive or special-teams play anywhere); a name under
+    both `include` and `exclude` of one section (the veto wins). One line each,
+    in section order then by name. The reader applies the rules regardless; the
+    patterns (`suffix_*`, `regex_*`) are not checked."""
+    messages: list[str] = []
+    sections: tuple[tuple[str, FilenameFilter, bool], ...] = (
+        (SECTION_TIMED, rules.timed, False),
+        (SECTION_ROLLOUT, rules.rollout, False),
+        (SECTION_QB_RUN, rules.qb_draw, True),
+    )
+    for section, filter_, needs_run in sections:
+        both = filter_.include & filter_.exclude
+        for name in sorted(both):
+            messages.append(
+                f"[{section}] '{name}' is in both include and exclude; exclude wins"
+            )
+        for key, names in (("include", filter_.include), ("exclude", filter_.exclude)):
+            for name in sorted(names - both):
+                play = pool.find_by_name(name)
+                if play is None:
+                    messages.append(
+                        f"[{section}] {key} '{name}' is not in the play pool"
+                    )
+                    continue
+                kind = _wrong_kind(play, needs_run)
+                if kind is not None:
+                    messages.append(
+                        f"[{section}] {key} '{name}' is a {kind} play; it has no effect"
+                    )
+    return messages
+
+
+def _wrong_kind(play: Play, needs_run: bool) -> str | None:
+    """What `play` is when a section needing a run (or pass) play cannot apply
+    to it; None when it can."""
+    if isinstance(play, SpecialTeamsPlay):
+        return "special-teams"
+    if isinstance(play, DefensivePlay):
+        return "defensive"
+    category = play.category
+    if needs_run and not category.is_run:
+        return "pass" if category.is_pass else category.long
+    if not needs_run and not category.is_pass:
+        return "run" if category.is_run else category.long
+    return None
+
+
+__all__ = ["folder_warnings", "read_play_pool", "rule_warnings"]

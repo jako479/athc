@@ -248,9 +248,14 @@ Working. Extracts a WinLogStats database into an Excel workbook. Docs:
 [README](docs/pdbtoexcel/README.md) ·
 [ARCHITECTURE](docs/pdbtoexcel/ARCHITECTURE.md)
 
-- The play pool and playpool rules come only from the league folder. The
+- Everything league-specific comes from the league folder: the play pool and
+  playpool rules, the category names (`league.toml`), and the category order
+  and deleted plays (`pdbtoexcel.toml`, required). The workbook names
+  categories the league's way and sorts them in the league's order. The
   workbook always has the Total Stats team; the three other workbook options
   stay in `[convert-pdb]`.
+- The playpool rules' include / exclude names are checked against the pool
+  when convert-pdb loads it; `playpool check` does not run that check yet.
 - The `.pdb` spec lives in `docs/pdbtoexcel/specs/`; the master VBA workbooks
   in `src/athc/pdbtoexcel/excel-template/` (not shipped) rebuild the `.bin`
   blocks. A golden workbook test pins the real `.pdb` output cell by cell.

@@ -75,6 +75,21 @@ def league_toml(play_path: Path | str | None = None, *, labels: bool = True) -> 
     return body + (CATEGORIES_TOML if labels else "")
 
 
+# A test league's pdbtoexcel.toml: the PNFL category order over the labels above.
+PDBTOEXCEL_TOML = (
+    "[category_order]\n"
+    'run = ["RL", "RM", "RR", "GLR"]\n'
+    'pass = ["PSL", "PSM", "PSR", "PML", "PMM", "PMR", "PLR", "PRD", "GLP"]\n'
+    'defense = ["RunLeft", "RunMiddle", "RunRight", "RunDazzle", "PassShort", '
+    '"PassMedium", "PassLong", "PassDazzle", "GLrun", "GLpass"]\n'
+)
+
+
+def write_pdbtoexcel_toml(folder: Path, body: str = PDBTOEXCEL_TOML) -> Path:
+    """Write a league folder's `pdbtoexcel.toml` (the PNFL order by default)."""
+    return write_config_file(folder, body, "pdbtoexcel.toml")
+
+
 def shipped_files(pattern: str) -> list[Path]:
     """Every shipped `leagues/<pattern>` file, in both `config/dev/` and `config/release/`
     (e.g. `*/gameplan.toml`)."""
