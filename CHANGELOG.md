@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- config: the TOML rule and scheduler files carry no `schema_version` line; the rule loaders reject it like any other unknown key
 - gameplan: `list-normals --sort category` groups the plays by category, each group under a `::` header with the league's category name
 - gameplan: `list-normals` reads the league like the other gameplan commands and takes `--league`
 - gameplan: a rules file whose `offense` / `defense` value or section is not a table is reported like any other rules error instead of crashing

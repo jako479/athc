@@ -4,8 +4,6 @@
 # folder for the test run. A missing key falls back to the built-in default
 # (the divisional league's), so every rule this league does differently is set here.
 
-schema_version = 1
-
 [league]
 weeks = 12               # regular-season weeks (even): 8 conference + 4 non-conference games
 

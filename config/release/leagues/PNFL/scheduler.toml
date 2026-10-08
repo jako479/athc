@@ -2,8 +2,6 @@
 # leagues\<NAME>\scheduler.toml but not advertised; the commissioner edits it. A missing
 # file or key falls back to the built-in default.
 
-schema_version = 1
-
 [difficulty]
 # Two non-conference games are fixed by division standings (AE1 vs NE1 and
 # NW1, etc.; 5ths play each other). The solver picks the rest, tilting each

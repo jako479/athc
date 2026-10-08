@@ -135,7 +135,6 @@ _PASS_SUBKEYS: Final[frozenset[str]] = _subkeys(_PASS_ATTRS)
 _DEFENSE_SUBKEYS: Final[frozenset[str]] = _subkeys(_DEFENSE_ATTRS)
 _ALLOWED_TOP_KEYS: Final[frozenset[str]] = frozenset(
     {
-        "schema_version",
         "required_special_categories",
         "custom_special_play_required",
         "disallowed_offensive_categories",

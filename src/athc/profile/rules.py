@@ -262,7 +262,6 @@ _GAME_CATEGORY_BY_NAME: Final[Mapping[str, int]] = {
 # typos like `[my_rule]` (missing `offense.`/`defense.` prefix) are caught early.
 _ALLOWED_TOP_KEYS: Final[frozenset[str]] = frozenset(
     {
-        "schema_version",
         "audibles_allowed",
         "min_categories",
         "gameplan_compatibility",

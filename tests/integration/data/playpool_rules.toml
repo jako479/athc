@@ -1,7 +1,5 @@
 # Playpool rules for the integration tests (a full, realistic rule set).
 
-schema_version = 1
-
 # Filter keys, valid in any section (all optional, CASE-SENSITIVE). A name matches
 # when it hits ANY of suffix_any / regex_any / include AND NONE of suffix_none /
 # regex_none / exclude (vetoes win):

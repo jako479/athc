@@ -84,6 +84,11 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 | Not a table | tmp | "must be a table" | `test_profile_compatibility_must_be_table` | ☑ |
 | Layering overrides the flag | tmp ×2 | later value wins | `test_layering_overrides_profile_compatibility` | ☑ |
 
+### top-level keys
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| `schema_version` is an unknown key | tmp | "(top): unknown key" | `test_schema_version_is_an_unknown_key` | ☑ |
+
 ### layering / paths
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|

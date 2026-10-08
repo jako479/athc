@@ -283,6 +283,11 @@ def test_unknown_top_key(tmp_path: Path) -> None:
         load_rules([write(tmp_path, MINIMAL + "bogus = 1\n")])
 
 
+def test_schema_version_is_an_unknown_key(tmp_path: Path) -> None:
+    with pytest.raises(RulesFileError, match="unknown key"):
+        load_rules([write(tmp_path, MINIMAL + "schema_version = 1\n")])
+
+
 def test_unknown_situation_key(tmp_path: Path) -> None:
     with pytest.raises(RulesFileError, match="unknown key"):
         load_rules([write(tmp_path, MINIMAL + SECTION + "bogus = 1\n")])

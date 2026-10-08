@@ -16,8 +16,8 @@ from tests.conftest import PNFL_LABELS, shipped_files, shipped_id
 # Every test loads with the PNFL labels unless it says otherwise.
 load_rules = partial(_load_rules, labels=PNFL_LABELS)
 
-# A minimal valid rule set to append sections onto.
-MINIMAL = "schema_version = 1\n"
+# A minimal valid rule set (an empty file) to append sections onto.
+MINIMAL = ""
 
 OFF_SECTION = """
 [offense.RM]
@@ -424,6 +424,14 @@ def test_layering_overrides_profile_compatibility(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert load_rules([a, b]).require_all_gameplan_categories_in_profile is False
+
+
+# ── top-level keys ────────────────────────────────────────────────────────────
+
+
+def test_schema_version_is_an_unknown_key(tmp_path: Path) -> None:
+    with pytest.raises(RulesFileError, match=r"\(top\): unknown key"):
+        load_rules([write(tmp_path, "schema_version = 1\n")])
 
 
 # ── layering / paths ──────────────────────────────────────────────────────────

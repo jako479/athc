@@ -4,8 +4,6 @@
 # each play file, so these filters apply to any folder layout; only the filters
 # are league data — another league just copies and edits this file.
 
-schema_version = 1
-
 # Filter keys, valid in any section (all optional, CASE-SENSITIVE). A name matches
 # when it hits ANY of suffix_any / regex_any / include AND NONE of suffix_none /
 # regex_none / exclude (vetoes win):

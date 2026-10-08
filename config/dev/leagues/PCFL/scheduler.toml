@@ -3,8 +3,6 @@
 # A missing file or key falls back to the built-in default, which is the PNFL's,
 # so every rule the PCFL does differently is set here.
 
-schema_version = 1
-
 [league]
 weeks = 12               # regular-season weeks (even): 8 conference + 4 non-conference games
 

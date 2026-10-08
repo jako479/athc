@@ -1,6 +1,5 @@
 # Coaching-profile rules for the integration tests (a full, realistic rule set).
 
-schema_version = 1
 audibles_allowed = false
 min_categories = 2
 

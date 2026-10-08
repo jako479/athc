@@ -10,8 +10,9 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 |---|---|---|---|---|
 | Test rules load | tree | filters populated; regex compiled | `test_load_test_rules` | ☑ |
 | Build from dict; absent section empty | dict | `FilenameFilter()` | `test_build_from_dict` | ☑ |
-| Only schema_version → all empty | tmp | `PlaypoolRules()` | `test_missing_section_is_empty` | ☑ |
+| Empty file → all empty | tmp | `PlaypoolRules()` | `test_missing_section_is_empty` | ☑ |
 | Unknown section | tmp | "unknown section" | `test_unknown_section` | ☑ |
+| `schema_version` is an unknown section | tmp | "unknown section" | `test_schema_version_is_an_unknown_section` | ☑ |
 | Unknown key in section | tmp | "unknown key" | `test_unknown_key` | ☑ |
 | Wrong value type | tmp | "must be a list of strings" | `test_bad_value_type` | ☑ |
 | Section not a table | tmp | "must be a table" | `test_section_not_a_table` | ☑ |

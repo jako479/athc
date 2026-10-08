@@ -5,8 +5,6 @@
 # --bless). Every output-affecting key is set explicitly so nothing rides on
 # in-code defaults.
 
-schema_version = 1
-
 [league]
 weeks = 16
 

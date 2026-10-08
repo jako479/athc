@@ -1,8 +1,6 @@
 # Test playpool rules — a realistic set of filename filters, plus a `FAKETR` in TimedPass
 # exclude so a "TR"-ending play (timed + rollout by suffix) ends up rollout-only.
 
-schema_version = 1
-
 [TimedPass]
 suffix_any = ["T", "T1", "T2", "TR", "RT", "Ty", "T01", "T01R", "T02", "Top"]
 suffix_none = ["OUT", "SLT1", "FLT1", "OUT1"]

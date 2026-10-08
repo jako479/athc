@@ -52,6 +52,7 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | Multiple problems collected (one file) | tmp | all 3 in `.errors` | `test_collects_multiple_errors` | ☑ |
 | Multiple problems collected (across files) | tmp ×2 | both in `.errors` | `test_collects_errors_across_files` | ☑ |
 | Unknown top-level key | tmp | "unknown key" | `test_unknown_top_key` | ☑ |
+| `schema_version` is an unknown top-level key | tmp | "unknown key" | `test_schema_version_is_an_unknown_key` | ☑ |
 | Unknown situation key | tmp | "unknown key" | `test_unknown_situation_key` | ☑ |
 | Situation has no constraint | tmp | "needs one of" | `test_situation_needs_constraint` | ☑ |
 | Bad `time` value | tmp | "unknown value" | `test_bad_time` | ☑ |

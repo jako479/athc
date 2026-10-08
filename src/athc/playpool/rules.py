@@ -103,7 +103,7 @@ def build_rules(
     format/data problem in one pass and raises them all together."""
     errors: list[str] = []
     for key in data:
-        if key != "schema_version" and key not in _SECTIONS:
+        if key not in _SECTIONS:
             errors.append(
                 f"{source}: unknown section [{key}] (expected {sorted(_SECTIONS)})"
             )

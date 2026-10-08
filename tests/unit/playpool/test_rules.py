@@ -42,8 +42,13 @@ def test_build_from_dict() -> None:
 
 
 def test_missing_section_is_empty(tmp_path: Path) -> None:
-    rules = load_rules(write(tmp_path, "schema_version = 1\n"))
+    rules = load_rules(write(tmp_path, ""))
     assert rules == PlaypoolRules()
+
+
+def test_schema_version_is_an_unknown_section(tmp_path: Path) -> None:
+    with pytest.raises(RulesFileError, match="unknown section"):
+        load_rules(write(tmp_path, "schema_version = 1\n"))
 
 
 def test_unknown_section(tmp_path: Path) -> None:

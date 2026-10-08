@@ -1,6 +1,5 @@
 # Test coaching-profile rules (a full, realistic rule set).
 
-schema_version = 1
 audibles_allowed = false
 min_categories = 2
 
