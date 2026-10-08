@@ -19,7 +19,7 @@ def _pool_with(name: str, *, special_category: int) -> PlayPool:
         Path("root") / f"{name}.ply", 0, 0x01, special_category, 0, (), ()
     )
     record = OffensivePlay(name, play_file)
-    pool._register(record)
+    pool.add(record)
     pool.offensive_plays.append(record)
     return pool
 

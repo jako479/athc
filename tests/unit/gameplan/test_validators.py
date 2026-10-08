@@ -54,8 +54,7 @@ def make_record(
 def make_pool(records: Iterable[DefensivePlay]) -> PlayPool:
     pool = PlayPool("root")
     for record in records:
-        pool._register(record)
-        pool.defensive_plays.append(record)
+        pool.add(record)
     return pool
 
 
@@ -249,8 +248,7 @@ def make_off_record(
 def make_off_pool(records: Iterable[OffensivePlay]) -> PlayPool:
     pool = PlayPool("root")
     for record in records:
-        pool._register(record)
-        pool.offensive_plays.append(record)
+        pool.add(record)
     return pool
 
 

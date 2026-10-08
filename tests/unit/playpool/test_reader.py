@@ -19,7 +19,7 @@ from athc.playpool import (
     SpecialTeamsPlay,
     read_play_pool,
 )
-from athc.playpool.pool import folder_warnings
+from athc.playpool.reader import folder_warnings
 from tests.conftest import PNFL_LABELS
 from tests.unit.playpool.conftest import PLAYS, MakePlay
 
@@ -117,14 +117,14 @@ def test_no_warnings_on_consistent_trees(
 ) -> None:
     """League-layout plays match their folders; the others have no recognized folders."""
     root = PLAYS if tree == "league" else request.getfixturevalue(f"{tree}_tree")
-    with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
+    with caplog.at_level(logging.WARNING, logger="athc.playpool.reader"):
         read_play_pool(root, labels=PNFL_LABELS)
     assert "play in" not in caplog.text  # no side/category mismatch warnings
 
 
 def test_invalid_skipped(caplog: pytest.LogCaptureFixture) -> None:
     assert (PLAYS / "Offense" / "PML" / "PS7Xmids.ply").is_file()
-    with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
+    with caplog.at_level(logging.WARNING, logger="athc.playpool.reader"):
         pool = read_play_pool(PLAYS, labels=PNFL_LABELS)
     assert "Skipping invalid play file" in caplog.text and "PS7Xmids" in caplog.text
     assert pool.find_by_name("PS7Xmids") is None
@@ -136,7 +136,7 @@ def test_flat_play_classified_from_file(
     """A loose .ply (no folders) is classified from its file, not skipped."""
     src = next(PLAYS.glob("**/AF21rm12.ply"))  # offensive Run Middle
     shutil.copy(src, tmp_path / "loose.ply")
-    with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
+    with caplog.at_level(logging.WARNING, logger="athc.playpool.reader"):
         play = read_play_pool(tmp_path, labels=PNFL_LABELS).find_by_name("loose")
     assert isinstance(play, OffensivePlay)
     assert play.category.long == "Run Middle"
@@ -154,7 +154,7 @@ def test_wrong_side_folder_file_wins_and_warns(
     dst = tmp_path / "Offense" / "Screens"
     dst.mkdir(parents=True)
     shutil.copy(src, dst / "AF32gp02.ply")
-    with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
+    with caplog.at_level(logging.WARNING, logger="athc.playpool.reader"):
         play = read_play_pool(tmp_path, labels=PNFL_LABELS).find_by_name("AF32gp02")
     assert isinstance(play, DefensivePlay)  # file wins
     assert (
@@ -171,7 +171,7 @@ def test_wrong_category_folder_warns(
     dst = tmp_path / "Offense" / "PML"  # folder says Pass Medium Left
     dst.mkdir(parents=True)
     shutil.copy(src, dst / "AF2AshtZ.ply")
-    with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
+    with caplog.at_level(logging.WARNING, logger="athc.playpool.reader"):
         play = read_play_pool(tmp_path, labels=PNFL_LABELS).find_by_name("AF2AshtZ")
     assert isinstance(play, OffensivePlay)
     assert play.category.long == "Pass Short Middle"
@@ -216,6 +216,29 @@ def test_duplicate_name_is_an_issue(tmp_path: Path) -> None:
     ]
 
 
+def test_duplicate_winner_is_last_in_path_order(tmp_path: Path) -> None:
+    """Files load in sorted path order, so of two same-named plays the one under
+    the later folder wins, whatever order the filesystem lists them in."""
+    (tmp_path / "b").mkdir()
+    src = next(PLAYS.glob("**/AF2AshtZ.ply"))  # Pass Short Middle bytes
+    shutil.copy(src, tmp_path / "b" / "AF21rm12.ply")
+    _copy_play("AF21rm12", tmp_path / "a")  # Run Middle, created second
+    play = read_play_pool(tmp_path).find_by_name("AF21rm12")
+    assert play is not None and play.category.long == "Pass Short Middle"
+
+
+def test_unreadable_file_is_an_issue(tmp_path: Path) -> None:
+    """A .ply that cannot be read (here a folder by that name) is skipped with a
+    warning like an invalid one; the rest of the pool still loads."""
+    (tmp_path / "locked.ply").mkdir()
+    _copy_play("AF21rm12", tmp_path)
+    pool = read_play_pool(tmp_path)
+    assert len(pool.issues) == 1
+    assert pool.issues[0].startswith("Skipping unreadable play file: ")
+    assert "locked.ply" in pool.issues[0]
+    assert pool.find_by_name("AF21rm12") is not None
+
+
 def test_invalid_file_is_an_issue(tmp_path: Path) -> None:
     (tmp_path / "bad.ply").write_bytes(b"\x00\x01\x02")
     issues = read_play_pool(tmp_path, labels=PNFL_LABELS).issues
@@ -230,7 +253,7 @@ def test_issues_match_the_logged_warnings(
     _copy_play("AF2AshtZ", tmp_path / "Offense" / "PML")
     _copy_play("AF21rm12", tmp_path / "a")
     _copy_play("AF21rm12", tmp_path / "b")
-    with caplog.at_level(logging.WARNING, logger="athc.playpool.pool"):
+    with caplog.at_level(logging.WARNING, logger="athc.playpool.reader"):
         pool = read_play_pool(tmp_path, labels=PNFL_LABELS)
     logged = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
     assert len(pool.issues) == 2

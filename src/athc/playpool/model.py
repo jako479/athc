@@ -1,9 +1,10 @@
-"""Typed play records that wrap a parsed .ply file.
+"""In-memory data model for a play pool.
 
-A record's `category` comes from the play file (`play_file.category`, an
+Typed play records that wrap a parsed .ply file, and the `PlayPool` that holds
+them. A record's `category` comes from the play file (`play_file.category`, an
 `fbpro98_play` enum member). Folder-derived attributes (offense `screen`; defense
 `defensive_front`) and filename-derived ones (`rollout`, `qb_draw`, `pass_logic`)
-are set by the pool.
+are set by the reader.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from enum import Enum
 from pathlib import Path
 
 from athc.fbpro98_play import PlayCategory, PlayFile
+from athc.playpool.rules import StrPath
 
 
 class PassLogic(Enum):
@@ -112,11 +114,44 @@ class SpecialTeamsPlay(Play):
     """A special-teams play; adds no fields beyond the base."""
 
 
+class PlayPool:
+    """All plays under a root directory, indexed by name and split by side."""
+
+    def __init__(self, root_dir: StrPath) -> None:
+        self.root_dir = Path(root_dir)
+        self.offensive_plays: list[OffensivePlay] = []
+        self.defensive_plays: list[DefensivePlay] = []
+        self.special_teams_plays: list[SpecialTeamsPlay] = []
+        # The reader's warnings, kept word for word so a caller like playpool
+        # check can print and count them as findings.
+        self.issues: list[str] = []
+        self._plays_by_name: dict[str, Play] = {}
+
+    def find_by_name(self, name: str) -> Play | None:
+        return self._plays_by_name.get(name.upper())
+
+    def add(self, play: OffensivePlay | DefensivePlay | SpecialTeamsPlay) -> None:
+        """File `play` under its side and index it by name (case-insensitive); a
+        repeated name replaces the earlier entry in the index."""
+        if isinstance(play, OffensivePlay):
+            self.offensive_plays.append(play)
+        elif isinstance(play, DefensivePlay):
+            self.defensive_plays.append(play)
+        elif isinstance(play, SpecialTeamsPlay):
+            self.special_teams_plays.append(play)
+        else:
+            raise TypeError(
+                f"not an offensive, defensive or special-teams play: {play!r}"
+            )
+        self._plays_by_name[play.name.upper()] = play
+
+
 __all__ = [
     "DefensiveFront",
     "DefensivePlay",
     "OffensivePlay",
     "PassLogic",
     "Play",
+    "PlayPool",
     "SpecialTeamsPlay",
 ]

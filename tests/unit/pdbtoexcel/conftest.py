@@ -81,11 +81,5 @@ def make_record(
 def make_pool(records) -> PlayPool:
     pool = PlayPool("root")
     for record in records:
-        pool._register(record)
-        if isinstance(record, OffensivePlay):
-            pool.offensive_plays.append(record)
-        elif isinstance(record, DefensivePlay):
-            pool.defensive_plays.append(record)
-        elif isinstance(record, SpecialTeamsPlay):
-            pool.special_teams_plays.append(record)
+        pool.add(record)
     return pool

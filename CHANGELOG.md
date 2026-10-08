@@ -7,6 +7,10 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- playpool: an unreadable play file is skipped with a warning instead of failing the whole load
+- playpool: plays load in path order, so the same play wins a duplicate name every time
+- playpool: the pool no longer carries the rules and labels it was built with, nor a `to_dict`; `add` takes only sided plays
+- playpool: library modules renamed to match the other libraries: `model.py` (play records and the pool) and `reader.py` (builds the pool from a folder)
 - scheduler: the phase-2 rules are documented once, in the phase-2 design doc; the code keeps only its modeling notes
 - config: `league.toml`, the TOML rule files and `scheduler.toml` may start with a UTF-8 byte-order mark (Notepad, Excel); it is skipped
 - playpool: `check` on a given folder still uses the configured league's category names for its folders; with no league, folder names are not checked

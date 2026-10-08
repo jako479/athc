@@ -10,15 +10,17 @@ a flat directory. Folders are optional and only add what the bytes can't encode.
 ```
 src/athc/playpool/
 ├── __init__.py   # public API re-exports
-├── records.py    # Play + Offensive/Defensive/SpecialTeams subclasses; enums
+├── model.py      # Play + Offensive/Defensive/SpecialTeams subclasses; enums; PlayPool
 ├── rules.py      # FilenameFilter, PlaypoolRules, load_rules (filename filters)
-└── pool.py       # PlayPool, read_play_pool: walk, classify, index; folder_warnings
+└── reader.py     # read_play_pool: walk, classify, add to the pool; folder_warnings
 ```
 
 ## What this package does
 
-- `read_play_pool(root, *, rules=None)` → `PlayPool`: walks `root/**/*.ply`,
-  parses each via `fbpro98_play`, classifies, indexes by name (case-insensitive).
+- `read_play_pool(root, *, rules=None, labels=None)` → `PlayPool`: walks
+  `root/**/*.ply` in sorted path order, parses each via `fbpro98_play`,
+  classifies, indexes by name (case-insensitive; of two same-named plays the
+  later in that order wins).
 - Classifies each play **from its file**:
   - side from the category bytes (`is_offensive` / `is_defensive` /
     `is_special_teams`);
@@ -38,9 +40,9 @@ src/athc/playpool/
   side is reported alone; unrecognized folders (flat / non-PNFL) never warn. A
   category with no PNFL folder (`User Specific`, Pass Long Left/Middle, Razzle
   Dazzle Run) warns only when filed inside a category folder, not when loose.
-- Keeps every warning it logs (folder mismatches, duplicate names, invalid
-  files) in `PlayPool.issues`, word for word, so `playpool check` can print
-  and count them.
+- Keeps every warning it logs (folder mismatches, duplicate names, invalid or
+  unreadable files) in `PlayPool.issues`, word for word, so `playpool check`
+  can print and count them.
 
 ## Records — fixed, typed attributes
 
@@ -70,7 +72,7 @@ own side first; the filename filters and the labels are league data. The shipped
 
 ## What this package enforces / does NOT do
 
-- Invalid `.ply` files are logged and skipped, never raised.
+- Invalid and unreadable `.ply` files are logged and skipped, never raised.
 - No CLI or config reads — the caller resolves the pool root (and optional rules
   path) and passes them in.
 - No `.ply` byte parsing or `.pln`/`.prf` I/O (other libraries).

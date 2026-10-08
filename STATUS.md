@@ -262,6 +262,12 @@ Working. Backs `gameplan` and `convert-pdb`; `playpool check` checks the pool.
 Docs: [README](docs/playpool/README.md),
 [ARCHITECTURE](docs/playpool/ARCHITECTURE.md)
 
+- An unreadable play file is skipped with a warning; plays load in sorted path
+  order, so a duplicate name resolves the same way every time.
+- `PlayPool` is a plain container (`add`, `find_by_name`, `issues`); it no
+  longer holds `rules`/`labels` or a `to_dict`.
+- Modules renamed to match the other libraries: `model.py` holds the play
+  records and `PlayPool`; `reader.py` walks the folder and fills the pool.
 - `check-playpool` became `playpool check`, a command group like `gameplan`
   and `profile`.
 - `check` reads the league's `play_path`, or a folder given on the command

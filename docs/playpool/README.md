@@ -37,9 +37,9 @@ Without rules, the filename-derived attributes stay off.
 
 ## API
 
-- `read_play_pool(root_dir, *, rules=None, labels=None)` walks `root_dir/**/*.ply` and returns a `PlayPool`; invalid files are logged and skipped, never raised. `labels` is the league's `CategoryLabels`; without it no folder name means a category.
+- `read_play_pool(root_dir, *, rules=None, labels=None)` walks `root_dir/**/*.ply` in sorted path order and returns a `PlayPool`; invalid and unreadable files are logged and skipped, never raised, and of two same-named plays the later in that order wins. `labels` is the league's `CategoryLabels`; without it no folder name means a category.
 - `folder_warnings(rel_path, play, labels)`: the folder/file mismatch warnings for one play, as the pool reports them.
-- `PlayPool`: `root_dir`, `rules`, `labels`, `offensive_plays`, `defensive_plays`, `special_teams_plays`, `issues` (every warning, word for word); `find_by_name(name)` (case-insensitive); `to_dict(relative_to=None)`.
+- `PlayPool`: `root_dir`, `offensive_plays`, `defensive_plays`, `special_teams_plays`, `issues` (every warning, word for word); `find_by_name(name)` (case-insensitive); `add(play)` files an `OffensivePlay` / `DefensivePlay` / `SpecialTeamsPlay` under its side and indexes it.
 - `Play`: `name`, `play_file` (the parsed `PlayFile`), `file_path`, `category` (an `fbpro98_play` enum member), `play_category`, `special_category`, `user_category`; `to_dict()`. `OffensivePlay` adds `screen`, `rollout`, `qb_draw`, `pass_logic` (`PassLogic.TIMED` / `CHECK_RECEIVERS`); `DefensivePlay` adds `defensive_front` (`DefensiveFront.THREE_FOUR` / `FOUR_THREE` / `TWO_DL`); `SpecialTeamsPlay` adds nothing.
 - `load_rules(path)` parses a rules TOML into a `PlaypoolRules`; `build_rules(data, *, source)` builds one from a mapping. `PlaypoolRules`: `timed`, `rollout`, `qb_draw`, each a `FilenameFilter` whose `matches(name)` is true when the name hits any of `suffix_any` / `regex_any` / `include` and none of `suffix_none` / `regex_none` / `exclude`.
 - `RulesFileError`: an unreadable or malformed rules file; `errors` lists every problem found.

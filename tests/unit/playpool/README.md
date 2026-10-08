@@ -36,7 +36,7 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 | **Timed + rollout both** (TR suffix) | tree | both attrs | `test_rollout_and_timed_both` | ☑ |
 | **Timed-by-suffix but excluded → rollout only** | tree | timed off, rollout on | `test_timed_excluded_still_rollout` | ☑ |
 
-## records.py — record classes
+## model.py — record classes and `PlayPool`
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -45,9 +45,11 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 | Defensive `to_dict` | make | `defensive_front == "2-DL"` | `test_defensive_to_dict` | ☑ |
 | Special-teams `to_dict` (no extra fields) | make | base keys only | `test_special_to_dict` | ☑ |
 | `find_by_name` case-insensitive | make | hit; miss → None | `test_find_by_name` | ☑ |
-| Duplicate name → warn, last wins | make | warning; last record | `test_duplicate_name_warns` | ☑ |
+| `add` files a play under its side | make | one list each | `test_add_files_by_side` | ☑ |
+| `add` rejects a bare `Play` | make | `TypeError` | `test_add_rejects_a_bare_play` | ☑ |
+| Duplicate name → last added wins | make | last record | `test_duplicate_name_last_wins` | ☑ |
 
-## pool.py — file-driven classification (identical across league layout / arbitrary / flat)
+## reader.py — file-driven classification (identical across league layout / arbitrary / flat)
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -59,8 +61,21 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 | Consistent trees emit no warning | tree | no "play in" | `test_no_warnings_on_consistent_trees` `[P]` | ☑ |
 | Invalid `.ply` skipped + warning | tree | warned; absent | `test_invalid_skipped` | ☑ |
 | Flat loose play classified from file | tmp | offensive; not skipped | `test_flat_play_classified_from_file` | ☑ |
+| Duplicate name → last in sorted path order wins | tmp | later folder's play | `test_duplicate_winner_is_last_in_path_order` | ☑ |
 
-## pool.py — `folder_warnings` (recognized league folder vs the play file)
+## reader.py — `issues` (every warning kept on the pool, word for word)
+
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Consistent tree → no issues | tmp | `[]` | `test_no_issues_when_consistent` | ☑ |
+| Category mismatch | tmp | the warning text | `test_category_mismatch_is_an_issue` | ☑ |
+| Wrong side | tmp | the warning text | `test_wrong_side_is_an_issue` | ☑ |
+| Duplicate name | tmp | the warning text | `test_duplicate_name_is_an_issue` | ☑ |
+| Invalid file | tmp | "Skipping invalid play file" | `test_invalid_file_is_an_issue` | ☑ |
+| Unreadable file (a folder named `.ply`) | tmp | "Skipping unreadable play file"; rest loads | `test_unreadable_file_is_an_issue` | ☑ |
+| Issues equal the logged warnings | tmp | same list | `test_issues_match_the_logged_warnings` | ☑ |
+
+## reader.py — `folder_warnings` (recognized league folder vs the play file)
 
 Warning = `<reason>: <path-from-pool-root>`. Wrong side reported alone; category checked only when the side matches; unrecognized folders never warn. Category folders are the league's labels (`CategoryLabels`); the play's own side is looked up first.
 

@@ -3,8 +3,8 @@
 Side and category come from the parsed play file, so any folder layout works —
 a league tree, an arbitrary tree, or a flat directory. Folders are optional: a
 recognized folder adds an attribute the bytes can't carry (offense `screen`,
-defense `defensive_front`) and lets the pool warn (with the play's path) when a
-play sits in a folder that contradicts its file. Category folders are named by
+defense `defensive_front`) and lets the reader warn (with the play's path) when
+a play sits in a folder that contradicts its file. Category folders are named by
 the league's labels (`CategoryLabels`, from league.toml); the filename-derived
 flags (`rollout`, `qb_draw`, `pass_logic`) come from the league's `PlaypoolRules`.
 """
@@ -14,7 +14,6 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
-from os import PathLike
 from pathlib import Path, PurePath
 
 from athc.fbpro98_play import (
@@ -25,17 +24,15 @@ from athc.fbpro98_play import (
     PlayFile,
     read_play,
 )
-from athc.playpool.records import (
+from athc.playpool.model import (
     DefensiveFront,
     DefensivePlay,
     OffensivePlay,
     PassLogic,
-    Play,
+    PlayPool,
     SpecialTeamsPlay,
 )
-from athc.playpool.rules import PlaypoolRules
-
-StrPath = str | PathLike[str]
+from athc.playpool.rules import PlaypoolRules, StrPath
 
 logger = logging.getLogger(__name__)
 
@@ -149,117 +146,72 @@ def folder_warnings(
     return _warnings(info, play, rel.as_posix())
 
 
-class PlayPool:
-    """All plays under a root directory, indexed by name and split by side."""
+def _warn(pool: PlayPool, message: str) -> None:
+    """Log a warning and keep it on the pool as an issue."""
+    logger.warning(message)
+    pool.issues.append(message)
 
-    def __init__(
-        self,
-        root_dir: StrPath,
-        *,
-        rules: PlaypoolRules | None = None,
-        labels: CategoryLabels | None = None,
-    ) -> None:
-        self.root_dir = Path(root_dir)
-        self.rules = rules if rules is not None else PlaypoolRules()
-        self.labels = labels if labels is not None else CategoryLabels()
-        self.offensive_plays: list[OffensivePlay] = []
-        self.defensive_plays: list[DefensivePlay] = []
-        self.special_teams_plays: list[SpecialTeamsPlay] = []
-        # Kept as well as logged, so a caller like playpool check can print and
-        # count them as findings.
-        self.issues: list[str] = []
-        self._plays_by_name: dict[str, Play] = {}
 
-    def find_by_name(self, name: str) -> Play | None:
-        return self._plays_by_name.get(name.upper())
+def _add(
+    pool: PlayPool, play: OffensivePlay | DefensivePlay | SpecialTeamsPlay
+) -> None:
+    if pool.find_by_name(play.name) is not None:
+        _warn(pool, f"Duplicate play name '{play.name}'; last loaded wins")
+    pool.add(play)
 
-    def _warn(self, message: str) -> None:
-        logger.warning(message)
-        self.issues.append(message)
 
-    def _register(self, play: Play) -> None:
-        key = play.name.upper()
-        if key in self._plays_by_name:
-            self._warn(f"Duplicate play name '{play.name}'; last loaded wins")
-        self._plays_by_name[key] = play
-
-    def _process_play_file(self, file_path: Path) -> None:
-        try:
-            play_file = read_play(file_path)
-        except InvalidPlayFileError as exc:
-            self._warn(f"Skipping invalid play file: {exc}")
-            return
-
-        name = file_path.stem
-        try:
-            rel = file_path.relative_to(self.root_dir)
-        except ValueError:
-            rel = Path(file_path.name)
-        info = _folder_info(rel.parent.parts, _file_side(play_file), self.labels)
-        for message in _warnings(info, play_file, rel.as_posix()):
-            self._warn(message)
-
-        if play_file.is_special_teams:
-            self._add(SpecialTeamsPlay(name=name, play_file=play_file))
-        elif play_file.is_offensive:
-            self._add(self._offensive(name, play_file, screen=info.screen))
-        else:
-            self._add(
-                DefensivePlay(
-                    name=name, play_file=play_file, defensive_front=info.front
-                )
-            )
-
-    def _offensive(
-        self, name: str, play_file: PlayFile, *, screen: bool
-    ) -> OffensivePlay:
-        category = play_file.category
-        is_run = category.is_run
-        is_pass = category.is_pass
-        qb_draw = is_run and self.rules.qb_draw.matches(name)
-        rollout = is_pass and self.rules.rollout.matches(name)
-        pass_logic: PassLogic | None = None
-        if is_pass:
-            pass_logic = (
-                PassLogic.TIMED
-                if self.rules.timed.matches(name)
-                else PassLogic.CHECK_RECEIVERS
-            )
-        return OffensivePlay(
-            name=name,
-            play_file=play_file,
-            screen=screen,
-            rollout=rollout,
-            qb_draw=qb_draw,
-            pass_logic=pass_logic,
+def _offensive(
+    rules: PlaypoolRules, name: str, play_file: PlayFile, *, screen: bool
+) -> OffensivePlay:
+    category = play_file.category
+    is_run = category.is_run
+    is_pass = category.is_pass
+    qb_draw = is_run and rules.qb_draw.matches(name)
+    rollout = is_pass and rules.rollout.matches(name)
+    pass_logic: PassLogic | None = None
+    if is_pass:
+        pass_logic = (
+            PassLogic.TIMED if rules.timed.matches(name) else PassLogic.CHECK_RECEIVERS
         )
+    return OffensivePlay(
+        name=name,
+        play_file=play_file,
+        screen=screen,
+        rollout=rollout,
+        qb_draw=qb_draw,
+        pass_logic=pass_logic,
+    )
 
-    def _add(self, play: Play) -> None:
-        if isinstance(play, OffensivePlay):
-            self.offensive_plays.append(play)
-        elif isinstance(play, DefensivePlay):
-            self.defensive_plays.append(play)
-        elif isinstance(play, SpecialTeamsPlay):
-            self.special_teams_plays.append(play)
-        self._register(play)
 
-    def to_dict(self, *, relative_to: StrPath | None = None) -> dict[str, object]:
-        """Serialize the pool to a JSON-friendly dict (plays sorted by name)."""
-        base = Path(relative_to) if relative_to is not None else None
-        return {
-            "offensive_plays": [
-                p.to_dict(relative_to=base)
-                for p in sorted(self.offensive_plays, key=lambda p: p.name)
-            ],
-            "defensive_plays": [
-                p.to_dict(relative_to=base)
-                for p in sorted(self.defensive_plays, key=lambda p: p.name)
-            ],
-            "special_teams_plays": [
-                p.to_dict(relative_to=base)
-                for p in sorted(self.special_teams_plays, key=lambda p: p.name)
-            ],
-        }
+def _read_play_file(
+    pool: PlayPool, file_path: Path, rules: PlaypoolRules, labels: CategoryLabels
+) -> None:
+    """Parse one .ply, classify it from its file and folders, and add it to
+    `pool`; an invalid or unreadable file is skipped with a warning."""
+    try:
+        play_file = read_play(file_path)
+    except InvalidPlayFileError as exc:
+        _warn(pool, f"Skipping invalid play file: {exc}")
+        return
+    except OSError as exc:
+        _warn(pool, f"Skipping unreadable play file: {exc}")
+        return
+
+    name = file_path.stem
+    rel = file_path.relative_to(pool.root_dir)
+    info = _folder_info(rel.parent.parts, _file_side(play_file), labels)
+    for message in _warnings(info, play_file, rel.as_posix()):
+        _warn(pool, message)
+
+    if play_file.is_special_teams:
+        _add(pool, SpecialTeamsPlay(name=name, play_file=play_file))
+    elif play_file.is_offensive:
+        _add(pool, _offensive(rules, name, play_file, screen=info.screen))
+    else:
+        _add(
+            pool,
+            DefensivePlay(name=name, play_file=play_file, defensive_front=info.front),
+        )
 
 
 def read_play_pool(
@@ -268,17 +220,21 @@ def read_play_pool(
     rules: PlaypoolRules | None = None,
     labels: CategoryLabels | None = None,
 ) -> PlayPool:
-    """Scan `root_dir` for .ply files and classify them; invalid files skipped.
+    """Scan `root_dir` for .ply files, in sorted path order, and classify them;
+    invalid and unreadable files are skipped with a warning. With duplicate
+    names the last in that order wins.
 
     Each play's side and category come from the file itself. With no `rules`,
     filename-derived attributes stay off; with no `labels`, no folder name means
-    anything.
+    a category (the fixed side, screen and front folders still apply).
     """
-    pool = PlayPool(root_dir, rules=rules, labels=labels)
+    pool = PlayPool(root_dir)
+    rules = rules if rules is not None else PlaypoolRules()
+    labels = labels if labels is not None else CategoryLabels()
     logger.info("Processing .ply files in '%s'", pool.root_dir)
-    for file_path in pool.root_dir.glob("**/*.ply"):
-        pool._process_play_file(file_path)
+    for file_path in sorted(pool.root_dir.glob("**/*.ply")):
+        _read_play_file(pool, file_path, rules, labels)
     return pool
 
 
-__all__ = ["PlayPool", "folder_warnings", "read_play_pool"]
+__all__ = ["folder_warnings", "read_play_pool"]

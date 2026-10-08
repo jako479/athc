@@ -53,7 +53,7 @@ athc/
     autocontinue/    config.py  core.py  images/
 
     # LIBRARIES (importable by tools and by other libs; playpool also has a CLI)
-    playpool/                  py.typed  pool.py  records.py
+    playpool/                  py.typed  model.py  reader.py  rules.py
     fbpro98_gameplan/          py.typed  model.py  reader.py  writer.py
     fbpro98_lg2/               py.typed  model.py  reader.py
     fbpro98_play/              py.typed  model.py  reader.py

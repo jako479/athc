@@ -1,7 +1,7 @@
 """Playpool filename-filter rules — which filename patterns set each
 filename-derived play attribute, parsed from a per-league TOML file.
 
-Folder conventions, attributes, and enums are fixed in code (records.py / pool.py);
+Folder conventions, attributes, and enums are fixed in code (model.py / reader.py);
 only these filename filters are league data, so a league with the same folder
 layout but different play names just edits the filters.
 """
