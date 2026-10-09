@@ -3,7 +3,18 @@
 ## 1.0.0
 
 - [ ] gameplan: set-normals: decide whether to keep `-q/--quiet`, the only quiet option in athc: drop it, keep it, or give every file-writing command one; see [logging](docs/design/TODO/logging.md#open)
+- [ ]
 - [ ] convert-pdb: add a problems section to the release docs
+- [ ] gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run
+- [ ] convert-pdb: add clear sort instructions on Options page
+- [ ] convert-pdb: remove hidden setting `include_category_worksheets = false` from athc.ini
+- [x] convert-pdb: complete integration into athc
+- [x] profile: copy: copy PATs
+- [x] playpool: convert from `check-playpool` to `playpool check`
+- [x] athc: fix toml reading so handles UTF-8 BOM in file properly
+- [ ] athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
+- [ ] athc: clear usage and help text for all commands
+- [ ] athc: STATUS.md, WORKLOG.md, CHANGELOG.md: clean and clear
 - [ ] athc: console, run log, errors and exit codes the pdf-converter way; design in [logging](docs/design/TODO/logging.md) and [logging-by-command](docs/design/TODO/logging-by-command.md); one session per subtask, in this order:
   - [x] Python 3.13: raise the floor (pyproject, ruff, pyright, AGENTS.md, architecture.md)
   - [ ] errors: `athc/errors.py` with the base `AthcError` and the shared `ConfigFileError`, `LeagueError`, `RulesFileError`; every library error subclasses it; duplicate class names and the two `ConfigError`s gone; readers wrap model `ValueError`s; `load_config` wraps `configparser` errors
@@ -15,26 +26,12 @@
   - [x] config: `slots=True` on the frozen Config dataclasses
   - [ ] tests: every CLI test asserts stdout and stderr separately; console color, `NO_COLOR` and log-file tests
   - [ ] docs: architecture.md describes the code as it is; per-tool READMEs carry their lines and codes; logging.md, logging-by-command.md and the older logging/error-handling TODO lines retired; athc-admin follow-on TODO added
-- [ ] gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run
-- [ ] convert-pdb: complete integration into athc
-- [ ] convert-pdb: clear sort instructions on Options page
-- [ ] convert-pdb: remove hidden setting `include_category_worksheets = false` from athc.ini
-- [ ] convert-pdb: 2-DL or R&S?
-- [ ] profile: copy: copy PATs
-- [x] playpool: convert from `check-playpool` to `playpool check`
-- [ ] athc: fix toml reading so handles UTF-8 BOM in file properly
-- [ ] athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
-- [ ] athc: CLI: confirm mainstream CLI strategy (see Tamarack Habilitations)
-- [ ] athc: Logging: switch to the mainstream logging strategy w/ color (see Tamarack Habilitations)
-- [ ] athc: Error handling and exit codes (see Tamarack Habilitations)
-- [ ] athc: clear usage and help text for all commands
-- [ ] athc: STATUS.md, WORKLOG.md, CHANGELOG.md: clean and clear
+- [x] build a PyInstaller-built installer (exe); replacing the `install.bat` + wheel zip and uv prereq; design in [installer](docs/design/installer.md)
+  - [ ] exclude autocontinue
 - [ ] athc: Release Docs:
   - [ ] clear user documentation
   - [ ] list of commands
   - [ ] explain each command's messages in the release docs, from [logging-by-command](docs/design/TODO/logging-by-command.md)
-- [x] build a PyInstaller-built installer (exe); replacing the `install.bat` + wheel zip and uv prereq; design in [installer](docs/design/installer.md)
-  - [ ] exclude autocontinue
 - [ ] RELEASE!!!
   - [ ] upload installer to Google Drive
   - [ ] post in forum
