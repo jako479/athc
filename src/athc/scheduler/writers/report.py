@@ -16,7 +16,7 @@ from athc.scheduler.schedulers.types import SCHEDULER_DESCRIPTION, MatchupPlan
 StrPath = str | PathLike[str]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TeamScheduleReport:
     team: str
     conference_rank: int  # 1-9
@@ -30,7 +30,7 @@ class TeamScheduleReport:
     nonconference_opponents: tuple[str, ...]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ScheduleReport:
     seed: int
     config_path: str
@@ -182,7 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>"""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class HtmlReportWriter:
     """Render a `ScheduleReport` as a sortable HTML table to `path`."""
 

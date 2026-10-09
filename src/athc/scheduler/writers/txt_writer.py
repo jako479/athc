@@ -24,7 +24,7 @@ def _format_week_game(game: Game) -> str:
     return f"{game.away.metro}#{game.home.metro}"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TxtScheduleWriter:
     """Write a compact text schedule (`Week N` headers, then `away#home` lines)."""
 

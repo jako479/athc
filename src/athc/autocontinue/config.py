@@ -26,7 +26,7 @@ class ConfigError(Exception):
     """The `[autocontinue]` settings are missing or invalid."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Config:
     mouse_move_duration: float
     delay_before_continue: float

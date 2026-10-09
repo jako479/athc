@@ -45,14 +45,14 @@ class ConfigError(Exception):
     """The config file is missing, or present but invalid."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LeagueConfig:
     """League shape the standings file does not carry."""
 
     weeks: int = DEFAULT_WEEKS
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class DifficultyConfig:
     """Non-conference difficulty tilt: `spread` covers the whole
     non-conference slate."""
@@ -60,14 +60,14 @@ class DifficultyConfig:
     spread: float = DEFAULT_DIFFICULTY_SPREAD
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SolverConfig:
     time_limit: float = DEFAULT_TIME_LIMIT
     phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT
     solver_workers: SolverWorkers = DEFAULT_SOLVER_WORKERS
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Phase2Config:
     """Phase-2 (week-placement) rule amounts and toggles; defaults are the
     current values. The rules themselves and league/conference sizes are fixed.
@@ -145,7 +145,7 @@ class Phase2Config:
     require_divisional_in_final_two_weeks: bool = True
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RivalriesConfig:
     """Final-week rivalry pairs, as listed (first hosts in even seasons)."""
 
@@ -153,7 +153,7 @@ class RivalriesConfig:
     rotate_home_by_season: bool = True
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SchedulerConfig:
     league: LeagueConfig = field(default_factory=LeagueConfig)
     difficulty: DifficultyConfig = field(default_factory=DifficultyConfig)

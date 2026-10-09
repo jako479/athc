@@ -12,7 +12,7 @@
   - [ ] main(): `cli(standalone_mode=False)`; one place turns usage errors, `AthcError`, `OSError`, Ctrl-C and bugs into the line, the log entry and the exit code; `ATHC_DEBUG` goes; `__main__.py` goes through it
   - [ ] exit codes: 0 / 1 findings / 2 error in every command; a per-item catch keeps a batch going and the worst outcome wins; Ctrl-C 130; a directory with no files warns and exits 0
   - [ ] library warnings and progress: libraries return warnings and findings as values and take a `progress` callback (`warn` too for autocontinue); no library logs or prints
-  - [ ] config: `slots=True` on the frozen Config dataclasses
+  - [x] config: `slots=True` on the frozen Config dataclasses
   - [ ] tests: every CLI test asserts stdout and stderr separately; console color, `NO_COLOR` and log-file tests
   - [ ] docs: architecture.md describes the code as it is; per-tool READMEs carry their lines and codes; logging.md, logging-by-command.md and the older logging/error-handling TODO lines retired; athc-admin follow-on TODO added
 - [ ] gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run

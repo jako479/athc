@@ -32,7 +32,7 @@ class DefensiveFront(Enum):
     TWO_DL = "2-DL"  # two down linemen (the Run-and-Shoot front)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Play:
     """A play: its name plus the parsed .ply file behind it."""
 
@@ -77,7 +77,7 @@ class Play:
         return self._base_dict(relative_to=relative_to)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class OffensivePlay(Play):
     """An offensive play: `screen` from the folder, the rest from filename rules."""
 
@@ -95,7 +95,7 @@ class OffensivePlay(Play):
         return result
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class DefensivePlay(Play):
     """A defensive play: `defensive_front` from the folder when present."""
 
@@ -109,7 +109,7 @@ class DefensivePlay(Play):
         return result
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SpecialTeamsPlay(Play):
     """A special-teams play; adds no fields beyond the base."""
 

@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: every frozen dataclass, the Config ones included, uses `slots=True`
 - install: athc ships as `athc-<ver>-setup.exe`, which needs no Python, uv or internet; a per-user install with `athc` on PATH, settings seeded once and never overwritten, and an uninstaller that removes everything
 - convert-pdb: the category order is league data again — `pdbtoexcel.toml` in the league folder lists the run, pass and defense categories in the order the rows sort and the Options sheet shows them, by the league's names (`PSL`, `RunLeft`)
 - convert-pdb: `pdbtoexcel.toml` also lists deleted plays, skipped quietly instead of warning "Play file not found"

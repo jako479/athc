@@ -56,7 +56,7 @@ def empty_category_order() -> CategoryOrder:
     return dict.fromkeys(_ORDER_KEYS.values(), ())
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Config:
     play_path: str = ""
     playpool_rules: Path | None = None  # optional; tags plays

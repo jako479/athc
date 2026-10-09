@@ -15,13 +15,13 @@ def make_matchup(team_a: Team, team_b: Team) -> Matchup:
     return (a, b)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class MatchupPlan:
     matchups: Matchups
     fixed_nonconference_pairs: frozenset[Matchup] = frozenset()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SchedulerResult:
     schedule: Schedule
     matchup_plan: MatchupPlan

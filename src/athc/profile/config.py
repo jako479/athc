@@ -12,7 +12,7 @@ PROFILE_RULES_FILE = "profile.toml"
 PROFILE_RULES_KEY = "profile_rules"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Config:
     rule_files: tuple[Path, ...] = ()
 

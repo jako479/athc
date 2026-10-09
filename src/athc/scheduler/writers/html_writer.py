@@ -69,7 +69,7 @@ def _named_header(name: str, label: str, width: int) -> str:
     )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class HtmlScheduleWriter:
     """Write a nav-rich HTML schedule (week-by-week + team-by-team) to `path`."""
 

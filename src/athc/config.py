@@ -61,7 +61,7 @@ class ConfigFileError(ValueError):
     %-interpolation in athc.ini, a wrong value type or a bad category label."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LeagueConfig:
     """One league folder: its name, path and the `[league]` table of its
     `league.toml` — string values in `values`, arrays of strings in `lists`

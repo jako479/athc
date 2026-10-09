@@ -17,7 +17,7 @@ GAMEPLAN_RULES_KEY = "gameplan_rules"
 __all__ = ["Config", "ConfigFileError", "load_config"]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Config:
     play_path: Path
     playpool_rules: Path | None = None  # optional playpool rules TOML

@@ -10,19 +10,19 @@ TEAMS_PER_CONFERENCE = 9
 CONFERENCES_PER_LEAGUE = 2
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Conference:
     name: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Division:
     name: str
     conference: Conference
     expected_size: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Team:
     metro: str
     conference: Conference
@@ -45,7 +45,7 @@ class Team:
 RivalryPair = tuple[Team, Team]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ConferenceRankings:
     """The overall 1-18 standings (`overall`) plus the per-conference 1-9 ranks
     derived from it."""
@@ -141,7 +141,7 @@ def lookup_team(teams: Sequence[Team], metro: str) -> Team:
     return by_metro[metro]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class League:
     """Teams in canonical order, the two conferences (sorted by name), the
     standings-derived rankings, and each division's previous-season finish

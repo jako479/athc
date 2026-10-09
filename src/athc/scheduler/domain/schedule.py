@@ -9,14 +9,14 @@ from athc.scheduler.domain.league import Team
 GAMES_PER_WEEK = 9  # 18 teams, all playing every week
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Game:
     week: int  # 1-indexed
     home: Team
     away: Team
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Schedule:
     games: tuple[Game, ...]
 
