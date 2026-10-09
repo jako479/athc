@@ -112,7 +112,7 @@ Source runs read a per-machine **dev config** instead of the installed one: `ATH
 ## Windows version support
 
 **Windows 10 / 11 (default target):**
-- Python 3.12+ (athc itself only needs 3.10 today; the predecessor codebase used PEP 695 type-alias syntax which requires 3.12, so 3.12 is the forward-looking floor for the eventual port).
+- Python 3.13+.
 - uv (binding constraint — uv requires Windows 10 or newer).
 - Distribution: a per-user `athc-<ver>-setup.exe`, a PyInstaller bundle wrapped by Inno Setup, carrying its own Python ([installer.md](installer.md)).
 - No package-version pins required for this path; all athc deps have modern wheels.

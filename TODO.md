@@ -5,7 +5,7 @@
 - [ ] gameplan: set-normals: decide whether to keep `-q/--quiet`, the only quiet option in athc: drop it, keep it, or give every file-writing command one; see [logging](docs/design/TODO/logging.md#open)
 - [ ] convert-pdb: add a problems section to the release docs
 - [ ] athc: console, run log, errors and exit codes the pdf-converter way; design in [logging](docs/design/TODO/logging.md) and [logging-by-command](docs/design/TODO/logging-by-command.md); one session per subtask, in this order:
-  - [ ] Python 3.13: raise the floor (pyproject, ruff, pyright, AGENTS.md, architecture.md)
+  - [x] Python 3.13: raise the floor (pyproject, ruff, pyright, AGENTS.md, architecture.md)
   - [ ] errors: `athc/errors.py` with the base `AthcError` and the shared `ConfigFileError`, `LeagueError`, `RulesFileError`; every library error subclasses it; duplicate class names and the two `ConfigError`s gone; readers wrap model `ValueError`s; `load_config` wraps `configparser` errors
   - [ ] console: `athc/console.py` on Rich (print / ok / skip / result / progress / warn / fail / unexpected; prefix-only color; stdout/stderr split; soft wrap; `NO_COLOR`); every command's lines go through it, `generate-schedule` and `convert-pdb` included; no `athc <command>:` prefixes; `click.echo` gone
   - [ ] run log: `athc/log.py`, rotating `athc.log` under the per-user log folder, set up once in `main()`; the console writes each log line itself; the 15 per-command `basicConfig` calls go

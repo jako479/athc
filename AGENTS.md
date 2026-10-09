@@ -18,8 +18,7 @@ your own.
 
 ## Dev environment
 
-- Python 3.12+ (`requires-python = ">=3.12"`). Do not use 3.13-only syntax —
-  pyright is pinned to 3.12 and flags it. The local `.venv` runs 3.13.
+- Python 3.13+ (`requires-python = ">=3.13"`).
 - `uv sync` builds `.venv` and installs everything, including the `dev`
   dependency group. `uv.lock` is committed, so the versions are exact.
 - Add a dependency with `uv add <pkg>`, or `uv add --dev <pkg>` for tooling.

@@ -10,7 +10,7 @@ authors = [{ name = "Brian Jacobs" }]
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 # All deps are required (no opt-in extras): the installer must deliver every tool
 # working; extras suit pip/dev users, not a bundled installer.
 dependencies = [
@@ -83,7 +83,7 @@ fail_under = 92
 
 [tool.ruff]
 line-length = 88
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [
@@ -127,6 +127,6 @@ exclude = [
 extraPaths = ["src", "tests"]
 typeCheckingMode = "standard"
 reportUnusedImport = "warning"
-pythonVersion = "3.12"
+pythonVersion = "3.13"
 venvPath = "."
 venv = ".venv"
