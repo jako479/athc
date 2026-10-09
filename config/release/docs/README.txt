@@ -18,8 +18,12 @@ WHAT'S NEW IN v0.1.0
 REQUIREMENTS
 ------------
 
-64-bit Windows 10 or newer. Nothing else: athc carries its own Python, and
-installing needs no internet and no admin rights.
+64-bit Windows. Nothing else: athc carries its own Python, and installing
+needs no internet and no admin rights.
+
+   Windows 8.1 or newer:   check-ppp, config, convert-pdb, gameplan,
+                           playpool, profile
+   Windows 10 or newer:    autocontinue, generate-schedule
 
 
 INSTALLATION
