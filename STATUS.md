@@ -119,8 +119,10 @@ leagues\
   warnings into errors.
 - `.vscode/` is untracked; game data files are marked binary in
   `.gitattributes`.
-- Config stays INI. Logging is designed but not wired — one `basicConfig` in
-  `cli()`, per [docs/design/architecture.md](docs/design/architecture.md#output-streams).
+- Config stays INI. Logging is designed but not wired: the design is
+  [docs/design/TODO/logging.md](docs/design/TODO/logging.md) (Rich console,
+  file-only run log, one error base, 0 / 1 / 2 in every command); the code
+  still has 15 `basicConfig` calls and two exit-code schemes.
 - Install is a per-user `athc-<ver>-setup.exe`: a PyInstaller bundle with its
   own Python, wrapped by Inno Setup; no Python, uv or internet needed. Built
   from the exact versions in `uv.lock`. Scripts in `packaging/`; a Windows
@@ -128,7 +130,7 @@ leagues\
   and uninstalls. athc-admin builds its own setup.exe from the same scripts;
   the public setup.exe refuses to install over it. Design: [docs/design/installer.md](docs/design/installer.md).
 
-Open: wire the logging design into `cli()` · athc-admin's tests still
+Open: implement the logging design (the TODO task) · athc-admin's tests still
 write the old `[league.PNFL]` layout and need updating when it picks up this
 athc.
 

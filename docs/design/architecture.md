@@ -155,7 +155,7 @@ Rules that hold across every command and library. Each tool's own behavior is in
 
 ### Exit codes
 
-Whether `1` means findings or error depends on whether the command can report a **finding**: a problem in otherwise-valid input, distinct from the command failing to run. A new command picks its class by that one question.
+Whether `1` means findings or error depends on whether the command can report a **finding**: a problem in otherwise-valid input, distinct from the command failing to run. A new command picks its class by that one question. This split goes: the TODO design ([logging.md](TODO/logging.md)) gives every command one scheme, 0 / 1 findings / 2 error.
 
 **Commands with a findings tier** (`gameplan check`, `profile check`, `check-ppp`, `playpool check`, `profile diff`, `find-play`, and the multi-file editors `set-specials`, `replace-play`, `profile copy`) follow the grep/diff convention:
 
@@ -182,7 +182,7 @@ Warnings never change the exit code. The code is computed once after the work lo
 - **Libraries** never print results and never configure handlers: `logger.warning` for a recoverable "skipped X" notice, `logger.info` for progress, never `logger.error` (the app decides what's fatal). So library progress such as `convert-pdb`'s "Conversion complete" lands on stderr.
 - The log level is fixed; there is no option or config key for it.
 - An unexpected exception (a bug, not an anticipated error) is caught once in the umbrella `main()`, logged as one line, exit 2, no traceback; `ATHC_DEBUG=1` re-raises it.
-- **Not yet as designed.** Handler setup belongs in one place, the root group callback; today each leaf command calls `basicConfig` and output is uncolored. The console, color and run-log rework is the pdf-converter TODO ([pdf-converter-conventions.md](TODO/pdf-converter-conventions.md)); the deviations are listed in [LOGGING-IS-FUCKED.md](TODO/LOGGING-IS-FUCKED.md).
+- **Not yet as designed.** Today each leaf command calls `basicConfig`, output is uncolored and there is no run log. The target (Rich console, file-only run log, one error base, one exit-code scheme) is the TODO design [logging.md](TODO/logging.md), with its per-command companion [logging-by-command.md](TODO/logging-by-command.md).
 
 ### Output files
 

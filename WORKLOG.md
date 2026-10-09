@@ -4,6 +4,15 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-08 — **athc**: the logging rework got a design in place of a
+  decision table. Research into what mainstream tools do (git, ruff, grep,
+  pip, Black, clig.dev, Rich) confirmed pdf-converter's console, run log and
+  error pattern as the mainstream one and settled the exit codes: one scheme
+  in every command, 0 / 1 findings / 2 error, the worst outcome winning across
+  a batch. That ends today's split, where the same league error exits 1 in
+  some commands and 2 in others. Two TODO designs hold it, the framework and
+  the per-command detail; LOGGING-IS-FUCKED.md and command-messages.md were
+  folded into them.
 - 2026-10-08 — **athc**: the output-files rule became code. `convert-pdb`,
   `list-normals`, `list-specials` and `profile diff -o` had each stopped with
   an error on a missing output folder; each now creates the whole folder chain

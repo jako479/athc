@@ -2,19 +2,19 @@
 
 ## 1.0.0
 
+- [ ] gameplan: set-normals: decide whether to keep `-q/--quiet`, the only quiet option in athc: drop it, keep it, or give every file-writing command one; see [logging](docs/design/TODO/logging.md#open)
 - [ ] convert-pdb: add a problems section to the release docs
-- [ ] athc: output, logging and errors the way pdf-converter (Tamarack Habilitations) does them; decisions and order in [pdf-converter-conventions](docs/design/TODO/pdf-converter-conventions.md); one session per subtask, in this order:
+- [ ] athc: console, run log, errors and exit codes the pdf-converter way; design in [logging](docs/design/TODO/logging.md) and [logging-by-command](docs/design/TODO/logging-by-command.md); one session per subtask, in this order:
   - [ ] Python 3.13: raise the floor (pyproject, ruff, pyright, AGENTS.md, architecture.md)
-  - [ ] errors: one base exception in one module; every library error subclasses it; duplicate class names gone; commands catch the base
-  - [ ] console: a Console class on Rich (OK/WARN/FAIL prefixes, prefix-only color, stdout/stderr split, soft wrap, `NO_COLOR`); every command's status and failure lines go through it, `generate-schedule` and `convert-pdb` included; no `athc <command>:` prefixes
-  - [ ] library warnings: libraries return warnings instead of logging them; commands print them as WARN lines; live progress (generate-schedule, autocontinue) is the one exception
-  - [ ] run log: rotating file under the per-user log folder, set up once in `main()`; logging never prints to the console; the per-command `basicConfig` calls go
-  - [ ] unexpected errors: caught per file and at startup; traceback to the run log; one FAIL line naming the log; the batch continues; `ATHC_DEBUG` goes
-  - [ ] `python -m athc`: `__main__.py` goes through `main()`
+  - [ ] errors: `athc/errors.py` with the base `AthcError` and the shared `ConfigFileError`, `LeagueError`, `RulesFileError`; every library error subclasses it; duplicate class names and the two `ConfigError`s gone; readers wrap model `ValueError`s; `load_config` wraps `configparser` errors
+  - [ ] console: `athc/console.py` on Rich (print / ok / skip / result / progress / warn / fail / unexpected; prefix-only color; stdout/stderr split; soft wrap; `NO_COLOR`); every command's lines go through it, `generate-schedule` and `convert-pdb` included; no `athc <command>:` prefixes; `click.echo` gone
+  - [ ] run log: `athc/log.py`, rotating `athc.log` under the per-user log folder, set up once in `main()`; the console writes each log line itself; the 15 per-command `basicConfig` calls go
+  - [ ] main(): `cli(standalone_mode=False)`; one place turns usage errors, `AthcError`, `OSError`, Ctrl-C and bugs into the line, the log entry and the exit code; `ATHC_DEBUG` goes; `__main__.py` goes through it
+  - [ ] exit codes: 0 / 1 findings / 2 error in every command; a per-item catch keeps a batch going and the worst outcome wins; Ctrl-C 130; a directory with no files warns and exits 0
+  - [ ] library warnings and progress: libraries return warnings and findings as values and take a `progress` callback (`warn` too for autocontinue); no library logs or prints
   - [ ] config: `slots=True` on the frozen Config dataclasses
-  - [ ] tests: every CLI test asserts stdout and stderr separately
-  - [ ] docs: architecture.md describes the code as it is; LOGGING-IS-FUCKED.md, pdf-converter-conventions.md and the older logging/error-handling TODO lines retired
-- [ ] athc: Logging: fix the deviations from the design — `generate-schedule` and `convert-pdb` print nothing to stdout, 15 per-command `basicConfig` calls; see [LOGGING-IS-FUCKED](docs/design/TODO/LOGGING-IS-FUCKED.md)
+  - [ ] tests: every CLI test asserts stdout and stderr separately; console color, `NO_COLOR` and log-file tests
+  - [ ] docs: architecture.md describes the code as it is; per-tool READMEs carry their lines and codes; logging.md, logging-by-command.md and the older logging/error-handling TODO lines retired; athc-admin follow-on TODO added
 - [ ] gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run
 - [ ] convert-pdb: complete integration into athc
 - [ ] convert-pdb: clear sort instructions on Options page
@@ -32,7 +32,7 @@
 - [ ] athc: Release Docs:
   - [ ] clear user documentation
   - [ ] list of commands
-  - [ ] explain each command's messages in the release docs ([command-messages](docs/design/TODO/command-messages.md))
+  - [ ] explain each command's messages in the release docs, from [logging-by-command](docs/design/TODO/logging-by-command.md)
 - [x] build a PyInstaller-built installer (exe); replacing the `install.bat` + wheel zip and uv prereq; design in [installer](docs/design/installer.md)
   - [ ] exclude autocontinue
 - [ ] RELEASE!!!
@@ -47,7 +47,6 @@
 - playpool-check: check that each play's name matches its play category
 - playpool-check: count plays by file name type
 - libraries: game-specific library under gameplan, profile, play, etc. with common categories??
-- athc: cli: wire logging in the `cli()` group callback — `RichHandler` on stderr, `click.style` on stdout; drop the 15 per-command `basicConfig` calls. Design: [docs/design/architecture.md](docs/design/architecture.md#output-streams)
 - athc: tests: add ruff's `PT` rule group (pytest style); 117 findings today, 111 auto-fixable under `--unsafe-fixes`
 - autocontinue: work with Dean to determine usability requirements
 - autocontinue: add halftime
