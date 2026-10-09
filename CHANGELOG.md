@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- install: athc ships as `athc-<ver>-setup.exe`, which needs no Python, uv or internet; a per-user install with `athc` on PATH, settings seeded once and never overwritten, and an uninstaller that removes everything
 - convert-pdb: the category order is league data again — `pdbtoexcel.toml` in the league folder lists the run, pass and defense categories in the order the rows sort and the Options sheet shows them, by the league's names (`PSL`, `RunLeft`)
 - convert-pdb: `pdbtoexcel.toml` also lists deleted plays, skipped quietly instead of warning "Play file not found"
 - convert-pdb: the play names a league's `playpool.toml` lists under include / exclude are checked against the play pool; one not in the pool, on the wrong side, or under both lists is a warning

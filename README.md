@@ -6,11 +6,9 @@ Current state and what's next: [STATUS.md](STATUS.md) · task list: [TODO.md](TO
 
 ## Install
 
-End-user (from a local wheel; not yet on PyPI):
+End-user: run `athc-<ver>-setup.exe`. It needs no Python, uv or internet, installs per user, and puts `athc` on PATH.
 
-```
-uv tool install ./dist/athc-0.1.0-py3-none-any.whl
-```
+Build it with `packaging/release-build.ps1` and test it in Windows Sandbox with `packaging/release-test.ps1`; see [docs/design/installer.md](docs/design/installer.md).
 
 ## Commands
 

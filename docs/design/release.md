@@ -12,5 +12,6 @@ Dev-facing process for cutting an athc release. End-user install behavior lives 
 1. Bump `version` in `pyproject.toml`.
 2. Add a "What's new in v0.X.0" entry near the top of `config/release/docs/README.txt`.
 3. Commit, then tag: `git tag v0.X.0`.
-4. Run `config/release/release-build.ps1` to produce the zip in `dist/`.
-5. Distribute the zip.
+4. Run `packaging/release-build.ps1` to produce `dist/athc-<ver>-setup.exe`.
+5. Run `packaging/release-test.ps1` to test it in Windows Sandbox.
+6. Distribute the setup.exe.

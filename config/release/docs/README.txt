@@ -18,31 +18,24 @@ WHAT'S NEW IN v0.1.0
 REQUIREMENTS
 ------------
 
-Windows 10 or newer.
-
-uv (Python package manager).
-Install by opening Command Prompt or PowerShell and running:
-
-   winget install --id=astral-sh.uv -e
-
-winget ships with Windows 10/11. If you see "winget is not
-recognized", install "App Installer" from the Microsoft Store first.
-
-You do not need to install Python. uv downloads it automatically
-if it is not already on your computer.
+64-bit Windows 10 or newer. Nothing else: athc carries its own Python, and
+installing needs no internet and no admin rights.
 
 
 INSTALLATION
 ------------
 
-1. Extract this zip to a folder on your computer.
-2. Double-click install.bat and wait for it to finish.
+1. Run athc-<version>-setup.exe.
+2. Open a new Command Prompt or PowerShell window and run 'athc'.
 
-install.bat downloads athc's dependencies, so you need an internet
-connection the first time you install.
+The program installs to:
 
-You only need to run install.bat once. Re-running it later picks up
-new versions without touching your settings.
+   %LOCALAPPDATA%\Programs\Assistant to the Head Coach\
+
+with this README, COMMANDS.txt, SCHEDULER-COMMANDS.txt, CHANGELOG.txt and
+LICENSE.txt beside it. The Start menu has a shortcut to this README.
+
+To upgrade, run the new version's setup.exe. Your settings are kept.
 
 
 FIRST-TIME SETUP
@@ -79,14 +72,14 @@ Once installed, the 'athc' command is available from any terminal
    athc --help                      list top-level commands
    athc <command> --help            show help for one command
 
-For what each tool does, with examples, see docs\COMMANDS.txt in
-your settings folder (see below).
+For what each tool does, with examples, see COMMANDS.txt in the
+install folder (see INSTALLATION above).
 
 
-SETTINGS AND DOCS FOLDER
-------------------------
+SETTINGS FOLDER
+---------------
 
-After install, settings and documentation live together at:
+After install, your settings live at:
 
    %LOCALAPPDATA%\athc\
 
@@ -94,7 +87,6 @@ That folder will contain:
 
    athc.ini             your settings (edit to customize; the file
                         documents every setting inline)
-   docs\               this README plus per-command references
    leagues\PNFL\        the PNFL league:
       league.toml          your plays folder (play_path), league files
                            folder (path) and the league's category names
@@ -109,35 +101,33 @@ That folder will contain:
 To open this folder, run 'athc config reveal' (or paste
 %LOCALAPPDATA%\athc into File Explorer's address bar).
 
-What survives reinstalls:
-   athc.ini             YES -- your edits are preserved on every reinstall.
-                        Delete it to have install.bat seed a fresh PNFL
-                        starter copy on the next run.
-   leagues\*\league.toml YES -- preserved
-   leagues\*\standings\ YES -- preserved (files are only added, never replaced)
-   docs\                overwritten every install
-   leagues\*\*.toml     rule files, overwritten every install (league.toml is
-                        kept; copy a rule file before editing your own)
+Upgrading or reinstalling never overwrites a file in this folder: your
+edits to athc.ini, league.toml, the rule files and the standings are kept.
+It only adds files that are missing, so to get a fresh copy of a shipped
+file, delete it and run the setup.exe again.
 
 When a new version adds a tool with new settings:
    The new tool runs with sensible defaults out of the box -- you do
-   not have to edit anything.
+   not have to edit anything. To customize it, add its section to your
+   athc.ini.
 
-   To customize it, see the freshly-extracted athc.ini in this zip (it
-   lists every current setting), copy the new section into your athc.ini,
-   and edit the values.
+
+UNINSTALLING
+------------
+
+Uninstall "Assistant to the Head Coach" from Settings > Apps. This
+removes the program and the whole %LOCALAPPDATA%\athc\ folder,
+including your settings, league files and standings. Copy anything you
+want to keep first.
 
 
 TROUBLESHOOTING
 ---------------
 
-"uv is not recognized":
-    uv is not installed, or was installed without being added to PATH.
-    Follow the REQUIREMENTS section above.
-
 "athc is not recognized":
-    The installer hasn't been run yet, or it failed partway. Re-run
-    install.bat and watch the window for errors.
+    Open a new Command Prompt or PowerShell window; one opened before
+    the install does not see it. If it still fails, run the setup.exe
+    again.
 
 Settings changes aren't picking up:
     Close and reopen the terminal, then re-run the command.
@@ -151,8 +141,9 @@ sheets are empty:
     play_path in leagues\<NAME>\league.toml is not your plays folder.
 
 convert-pdb says "pdbtoexcel.toml: not found":
-    The league folder has no pdbtoexcel.toml. Copy the one from the zip's
-    leagues\PNFL\ folder and edit it.
+    The league folder has no pdbtoexcel.toml. For PNFL or PCFL, run the
+    setup.exe again to add it back; for another league, copy the one from
+    leagues\PNFL\ and edit it.
 
 convert-pdb says a game plan was not found:
     Fix the path after -o / -o2 / -d / -d2, or leave that option out.

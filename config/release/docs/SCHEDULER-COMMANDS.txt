@@ -5,7 +5,7 @@ Builds a league's season schedule. This tool is intentionally left out of the
 general COMMANDS.txt -- it is for the league Commissioner.
 
 The scheduler uses the OR-Tools solver, which the installer already includes.
-(If a broken install is missing it, athc says so; re-run install.bat.)
+(If a broken install is missing it, athc says so; re-run the setup.)
 
 
 generate-schedule  --  build the season schedule

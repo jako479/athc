@@ -1,71 +1,156 @@
 # athc installer
 
-How the athc release zip is built and how `install.bat` behaves on disk.
+How the athc and athc-admin setup.exe files are built, what they put on disk,
+and how they are tested. This one doc covers both; athc-admin's installer.md
+only points here.
+
+The build follows the Tamarack Habilitations `pdf-converter` tool
+(`C:\Users\Brian\Projects\Customer Projects\Tamarack Habilitations\pdf-converter`).
 
 ## End-user flow
 
-1. Download release zip.
-2. Extract.
-3. Double-click `install.bat`.
+1. Download `athc-<ver>-setup.exe`.
+2. Run it. No admin rights, no Python, no internet needed.
+3. Open a new terminal and run `athc`.
 
-Prerequisites (covered in the bundled `docs\README.txt`): Windows 10+, uv, internet at install time. Python is not required — uv downloads a managed Python automatically if none is present.
+## The pattern
 
-## Release zip
+Two tools, two steps:
 
-One wheel + docs + example config + season config + `install.bat` → `athc-<ver>.zip`. Produced by `config/release/release-build.ps1`, written to `dist/`. Dependencies are pulled from PyPI by `install.bat` (needs internet), not bundled.
+1. PyInstaller freezes athc into a one-folder bundle: a small `athc.exe`
+   launcher, a bundled Python interpreter, and every dependency.
+2. Inno Setup compiles that folder, the release docs and the seed config into
+   `athc-<ver>-setup.exe`: a per-user install, the install folder on the
+   user's PATH, config seeded once, and an uninstaller.
 
-## What lands on disk
+Why a frozen bundle and not an installer that installs Python: the users are
+not developers. The bundle needs no Python and no internet, and cannot collide
+with a Python they already have.
 
-All files deploy into `%LOCALAPPDATA%\athc\`.
+## Build
 
-| File | First install | Reinstall |
+The build files live in a top-level `packaging/` folder, the most common home
+for them in Python apps that ship a Windows installer (Thonny, Rare, Cura,
+Gaphor). `config/release/` holds only the files that get installed:
+`athc.ini`, `docs\` and `leagues\`.
+
+| File | What it does |
+|---|---|
+| `packaging/release-build.ps1` | Installs the locked versions into a throwaway Python 3.13 build venv, freezes athc, then compiles `dist/athc-<ver>-setup.exe`, showing Inno Setup's messages. |
+| `packaging/entry.py` | The script PyInstaller freezes; calls athc's `main()`. |
+| `packaging/athc.iss` | The Inno Setup script. |
+| `packaging/release-test.ps1` | Runs the setup.exe life cycle in Windows Sandbox. |
+| `packaging/sandbox-steps.ps1` | The steps that run inside the sandbox. |
+
+The build installs the exact versions in `uv.lock`, the ones the tests ran
+against, and stops if `uv.lock` is out of date; this is the mainstream way
+(Electrum, qutebrowser, Picard, Gaphor). PyInstaller is locked too, in a
+`build` dependency group, and goes into the build venv only.
+
+What the freeze needs beyond PyInstaller's defaults:
+
+| Concern | Why | What the build does |
 |---|---|---|
-| `athc.ini` | seeded | **preserved** (user edits survive) |
-| `leagues\<NAME>\league.toml` | seeded | **preserved** |
-| `leagues\<NAME>\standings\*.league.ini` | seeded | **preserved** (commish edits survive) |
-| `leagues\<NAME>\*.toml` (rule files; not `league.toml`) | created | overwritten |
-| `docs\*.txt` | created | overwritten |
+| Subcommands | athc finds its subcommands through `importlib.metadata` entry points, which load the modules by name from dist-info metadata. | Copies athc's metadata and every athc module into the bundle. |
+| Package data | The autocontinue PNGs and the pdbtoexcel `.bin` resources are not found by import scanning. | Collects athc's data files. |
+| ortools | ortools keeps its native DLLs in `ortools\.libs`, which PyInstaller cannot resolve and has no hook for. | Collects ortools' binaries. |
 
-The seeded `athc.ini` selects PNFL; the only value a user must edit is `play_path` in `leagues\PNFL\league.toml` (their FbPro98 plays folder), plus `path` (the folder holding their league's files) to run `check-ppp` on a folder. `athc.ini` is a single self-documenting file — every setting is commented inline; there's no separate `.example` reference (the pgcli/mycli model). Layout: [architecture.md](architecture.md#config).
+Build tooling, one time: uv, Inno Setup 6
+(`winget install JRSoftware.InnoSetup`), and the Windows Sandbox optional
+feature with its `wsb` command line for the test.
 
-The wheel goes into a uv-managed tool venv; executables on PATH at `%USERPROFILE%\.local\bin\`.
+## What the setup.exe does
+
+- Shows as "Assistant to the Head Coach" (Apps & features, Start menu) and
+  installs per user into `%LOCALAPPDATA%\Programs\Assistant to the Head Coach`.
+  The command is `athc.exe`.
+- Installs on 64-bit Windows only, since the bundled Python is 64-bit.
+- Wipes the old bundle's `_internal` folder before copying, because
+  PyInstaller renames internals between builds.
+- Adds the install folder to the user's PATH.
+- Installs the release docs into the install folder, refreshed on every
+  install: `README.txt`, `COMMANDS.txt`, `SCHEDULER-COMMANDS.txt`,
+  `CHANGELOG.txt` and `LICENSE.txt`. Adds a Start-menu shortcut to the README
+  and opens it after install.
+- Seeds every file in `%LOCALAPPDATA%\athc` only if it is missing: `athc.ini`,
+  and each league's `league.toml`, standings and rule TOMLs.
+- Uninstall removes the program, its PATH entry, the Start-menu shortcut and
+  the whole `%LOCALAPPDATA%\athc` folder, user edits included.
+
+The seeded `athc.ini` selects PNFL; the only value a user must edit is
+`play_path` in `leagues\PNFL\league.toml`, plus `path` to run `check-ppp` on a
+folder. Layout: [architecture.md](architecture.md#config).
+
+## Install, upgrade, reinstall, uninstall
+
+Upgrade and reinstall both mean running a setup.exe over an existing install;
+the uninstaller does not run.
+
+| | Program and docs (install folder) | `%LOCALAPPDATA%\athc` files | PATH entry |
+|---|---|---|---|
+| First install | installed | all seeded | added |
+| Upgrade or reinstall | replaced | kept as they are; only missing files are added | kept |
+| Uninstall | removed | whole folder removed, edits included | removed |
+| Uninstall, then install | installed fresh | all seeded fresh | added |
+
+When a release must replace a specific seeded file, its setup.exe gives that
+one file its own overwrite entry.
 
 ## Config evolution
 
-In-code defaults are authoritative. Every section/key in `athc.ini` is optional; missing → tool uses the default from its own `config.py`.
+In-code defaults are authoritative. Every section and key in `athc.ini` is
+optional; a missing one uses the tool's default.
 
-Adding a new tool's `[logparser]` section in a release:
+A release that adds a tool's section:
 
-1. Tool runs with code defaults — user does nothing.
-2. To customize, the user looks at the freshly-extracted `athc.ini` in the new zip (always the current commented reference), copies the new section into their own `athc.ini`, and edits.
+1. The tool runs on its defaults; the user does nothing.
+2. To customize, the user adds the section to their own `athc.ini`.
 
-`athc.ini` is never touched after first install. No migration step, no merge prompts, no clobber risk.
-
-Pattern follows pgcli/mycli: a single self-documenting config, seeded once and left alone; defaults live in code, so new keys take effect without editing.
+No migration step, no merge prompts, no clobber risk. Pattern follows
+pgcli/mycli: a single self-documenting config, seeded once and left alone.
 
 ## Deprecation
 
-When a tool sees a deprecated key: log a one-line startup warning, keep reading it for 2–3 releases, then drop. Pattern follows VS Code's `deprecationMessage`.
+When a tool sees a deprecated key: log a one-line startup warning, keep reading
+it for 2-3 releases, then drop. Pattern follows VS Code's `deprecationMessage`.
 
-## Build pipeline
+## Testing
 
-`config/release/` contains: `release-build.ps1`, `install.bat`, `athc.ini`, and the `docs\` + `leagues\` folders.
+`packaging/release-test.ps1` runs the setup.exe in Windows Sandbox with no
+network, which also proves it installs offline:
 
-`release-build.ps1`:
+1. Silent install: program, docs, seeded config, shortcut and PATH entry.
+2. Every command and subcommand runs on the integration-test fixtures; reports,
+   lists, diffs and schedules match the goldens.
+3. Upgrade over the install: a stale `_internal` file is gone, the docs are
+   refreshed, an edited `athc.ini` and rule TOML are kept, a deleted seeded
+   file comes back.
+4. Silent uninstall: the program, `%LOCALAPPDATA%\athc`, the shortcut and the
+   PATH entry are gone.
 
-1. Reads version from `pyproject.toml`.
-2. Runs `uv build --wheel` to produce the project wheel.
-3. Stages the wheel, `install.bat`, `athc.ini`, and the `docs\` + `leagues\` folders into `dist/<bundle-name>/`.
-4. Zips to `dist/<bundle-name>.zip`.
+It prints PASS/FAIL lines, exits non-zero on any failure, and closes the
+sandbox when done.
 
-Final user-facing artifact lands in `dist/` (standard Python build output).
+## Admin build
 
-`install.bat`:
+athc-admin builds `athc-admin-<ver>-setup.exe`, which freezes athc and
+athc-admin together into one `athc.exe`. athc-admin's commands then show up
+the same way athc's do, with no code changes.
 
-1. Checks `uv` is on PATH (fails with the winget install command if not).
-2. `uv tool install <bundled-wheel> --reinstall` — installs athc from the bundled wheel; **uv resolves the dependencies from PyPI** (needs internet).
-3. `uv tool update-shell` so the tool's bin dir is on PATH.
-4. Copies docs and each league's rule TOMLs into `%LOCALAPPDATA%\athc\` (overwrite).
-5. Conditionally copies `athc.ini` and each season config file if missing.
-
-Dependencies resolve from PyPI at install time (the normal approach), so uv picks wheels matching the Python it selects — no pre-bundled compiled wheels (ortools, opencv) to mismatch. Trade-off: install needs internet.
+- athc-admin follows the same layout: scripts in its own `packaging/`, admin
+  docs in its own `config/release/docs/`.
+- Its `release-build.ps1` reuses athc's `packaging/entry.py` and `athc.iss`
+  from the athc checkout beside it (or `-AthcRoot`). It installs the exact
+  versions in athc's `uv.lock`, so both bundles carry the same libraries, and
+  also bundles athc-admin's metadata, modules and `sql\*.sql`.
+- It installs athc's docs plus `README-admin.txt` and `COMMANDS-admin.txt`.
+- It has the same app identity and install folder as the public setup.exe, so
+  it installs over a public install in place: one `athc.exe` on PATH, one
+  uninstall entry.
+- The public setup.exe refuses to install over the admin edition, which would
+  drop the admin commands and leave their docs behind. The admin install
+  leaves a registry marker for this; its uninstall removes it.
+- Its `release-test.ps1` runs athc's sandbox test on the admin setup.exe, plus
+  its own `sandbox-steps.ps1` for the logparser commands and for the public
+  setup.exe refusing to install over it.
+- athc and athc-admin versions stay in lockstep (athc-admin's release.md).

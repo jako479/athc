@@ -114,7 +114,7 @@ Source runs read a per-machine **dev config** instead of the installed one: `ATH
 **Windows 10 / 11 (default target):**
 - Python 3.12+ (athc itself only needs 3.10 today; the predecessor codebase used PEP 695 type-alias syntax which requires 3.12, so 3.12 is the forward-looking floor for the eventual port).
 - uv (binding constraint — uv requires Windows 10 or newer).
-- Distribution: a PyInstaller-built installer `.exe` is the plan ([TODO.md](../../TODO.md)); the `install.bat` + wheel zip is gone.
+- Distribution: a per-user `athc-<ver>-setup.exe`, a PyInstaller bundle wrapped by Inno Setup, carrying its own Python ([installer.md](installer.md)).
 - No package-version pins required for this path; all athc deps have modern wheels.
 
 **Windows 7 (special-case path, not currently planned):**
@@ -131,13 +131,13 @@ Source runs read a per-machine **dev config** instead of the installed one: `ATH
 ## Build / install / release
 
 **Development**
-- Per-repo `.venv`: `uv sync`. Dev tools live in the `dev` dependency group and install by default.
+- Per-repo `.venv`: `uv sync`. Dev tools live in the `dev` dependency group and install by default. PyInstaller lives in a `build` group, used only by the release build.
 
 **Build wheels**
 - `uv build` writes wheel + sdist to `dist/`.
 
 **End-user install**
-- The release zip script and `install.bat` are gone; the installer is a TODO ([TODO.md](../../TODO.md)). Config deploy/upgrade rules: [installer.md](installer.md). Versioning and release flow: [release.md](release.md).
+- `packaging/release-build.ps1` builds `dist/athc-<ver>-setup.exe`; `packaging/release-test.ps1` tests it in Windows Sandbox. Build, config deploy and upgrade rules: [installer.md](installer.md). Versioning and release flow: [release.md](release.md).
 
 ## Cross-cutting conventions
 
@@ -202,5 +202,5 @@ Warnings never change the exit code. The code is computed once after the work lo
 - `athc config path | edit | reveal | set` locate, open, reveal and write `athc.ini`; thin wrappers over `click.launch` and ConfigUpdater (so comments survive; `configparser` drops them on write), no `[config]` section. `set league` validates the folder first.
 - An unreadable `athc.ini` or `league.toml` (wrong value type, bad label) raises `ConfigFileError`; a missing or unknown league raises `LeagueError`.
 - Each tool owns `<tool>/config.py`: a frozen `Config` dataclass with typed defaults and a `load(league)` that asks the resolved `LeagueConfig` for what the tool needs (`path(key)`, `rules_file(name)` / `rule_files(key, default)`, `categories`). `athc.ini` values come back as strings, so type conversion is the tool's job.
-- In-code defaults are authoritative: missing file, section or key means defaults; a tool errors only when a value it needs at runtime can't be resolved (`play_path` not on disk). A new tool's `[section]` runs on defaults after an upgrade; the user copies it from the freshly shipped, self-documenting `athc.ini` (the pgcli/mycli model; deploy rules in [installer.md](installer.md)).
+- In-code defaults are authoritative: missing file, section or key means defaults; a tool errors only when a value it needs at runtime can't be resolved (`play_path` not on disk). A new tool's `[section]` runs on defaults after an upgrade, which never overwrites `athc.ini`; to customize, the user adds the section to their own (the pgcli/mycli model; deploy rules in [installer.md](installer.md)).
 - A deprecated key keeps working for 2–3 releases with a one-line stderr warning at startup naming the replacement (VS Code's `deprecationMessage` pattern), then goes.

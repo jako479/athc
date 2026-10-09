@@ -67,8 +67,8 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   `league.toml` replaces the fixed file.
 - Rule files live only in league folders; there is no shared default
   `playpool.toml` next to `athc.ini`.
-- The installer ships the tree below; `league.toml` and standings survive a
-  reinstall, rule files are replaced.
+- The installer seeds the tree below once; an upgrade never overwrites a file
+  in it, only adds missing ones.
 - Unreadable config files, blank or unknown league names and a missing league
   each stop with a one-line message. No old-layout compatibility code: nothing
   has been released.
@@ -121,11 +121,14 @@ leagues\
   `.gitattributes`.
 - Config stays INI. Logging is designed but not wired — one `basicConfig` in
   `cli()`, per [docs/design/architecture.md](docs/design/architecture.md#output-streams).
-- Install is `install.bat` plus a wheel in a zip; uv downloads a managed
-  Python, so Python is no longer a prerequisite.
+- Install is a per-user `athc-<ver>-setup.exe`: a PyInstaller bundle with its
+  own Python, wrapped by Inno Setup; no Python, uv or internet needed. Built
+  from the exact versions in `uv.lock`. Scripts in `packaging/`; a Windows
+  Sandbox test installs it, runs every command against the goldens, upgrades
+  and uninstalls. athc-admin builds its own setup.exe from the same scripts;
+  the public setup.exe refuses to install over it. Design: [docs/design/installer.md](docs/design/installer.md).
 
-Open: a PyInstaller `.exe` installer in place of `install.bat` and the uv
-prerequisite · wire the logging design into `cli()` · athc-admin's tests still
+Open: wire the logging design into `cli()` · athc-admin's tests still
 write the old `[league.PNFL]` layout and need updating when it picks up this
 athc.
 
@@ -397,9 +400,8 @@ construction, never pruned · then the quirk budget in
   thread count, so the report shows the count and it stays config-only.
 - **The config command is `reveal`, not `explorer`.** It opens the config dir
   in Explorer, but the name should not promise Windows.
-- **A bundled `.exe` still needs a real config folder.** Whatever ships can
-  only carry a read-only template, so the editable config is written on first
-  run.
+- **A bundled `.exe` still needs a real config folder.** The bundle carries no
+  editable config, so the setup.exe seeds it into `%LOCALAPPDATA%\athc`.
 - **STATUS carries no test counts.** They change every run.
 - **The tools stay PNFL-specific.** playpool, gameplan and profile all lean on
   PNFL conventions, and making them fully league-agnostic would cost more than
