@@ -44,7 +44,7 @@ Keep the two apart so source vs. target is obvious: **`data/` = source inputs, `
 
 ## Test shape
 
-Per command: build args → `CliRunner().invoke(main, [...])` in an isolated dir → assert `exit_code == 0` and the output exists → compare it to its expected file (byte or semantic). Parametrize over the `data/` ↔ `expected/` pairs.
+Per command: build args → `CliRunner().invoke(main, [...])` in an isolated dir → assert `exit_code == 0` and the output exists → compare it to its expected file (byte or semantic). Parametrize over the `data/` ↔ `expected/` pairs. A stream that is one line is pinned whole (`result.stderr == "FAIL ...\n"`); a substring is for a line among many. The lines every command shares (no league, league not found, no rules, a TOML error, an OS error) come from the helpers in `tests/conftest.py`, so a wording change is one edit.
 
 ## Documentation
 

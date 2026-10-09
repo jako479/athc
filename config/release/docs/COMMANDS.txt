@@ -221,8 +221,9 @@ unless the command is given --league NAME.
    must be the same side, and the league's profile.toml decides whether
    profile categories with no custom play in the game plan, and game plan
    categories the profile never uses, fail the check. Unused game plan
-   categories that don't fail are listed as info only. Every error is
-   reported, not just the first.
+   categories that don't fail are listed as info only. Every bad or missing
+   file is reported, not just the first; a config or rules problem stops
+   the run at once.
 
    Show help:
       athc check-ppp -h
@@ -329,21 +330,27 @@ unless the command is given --league NAME.
 EXIT CODES
 ==========
 
-   0 always means success. The meaning of 1 and 2 depends on the command.
+   The same numbers in every command, so a script can treat 2 as "athc
+   could not do it" everywhere:
+      0    done -- clean, or with warnings only
+      1    findings -- ran fine and reported problems in valid input
+           (violations, play pool issues, differences, a play found
+           nowhere, nothing replaced); only gameplan check, find-play,
+           replace-play, profile check, profile diff, check-ppp and
+           playpool check use it
+      2    error -- could not do the job: bad arguments, a config, league
+           or rules problem, a missing or bad file, a file that failed
+           inside a batch, a missing dependency, or a bug
+      130  stopped with Ctrl-C (autocontinue stops that way on purpose, so
+           there it is 0)
 
-   Checks and comparisons -- gameplan check, profile check, check-ppp,
-   playpool check, profile diff, find-play, and the bulk editors
-   set-specials, replace-play, and profile copy:
-      0   clean -- nothing to report
-      1   ran, but found problems (violations, play pool issues,
-          differences, no play found, nothing replaced, or some files
-          failed)
-      2   could not run (bad arguments, config or I/O error, no rules, a
-          profile and game plan of different sides, or the replacement play
-          is not in the pool)
+   A batch (a folder or a list of files) processes every file, then exits
+   with the worst outcome: error beats findings beats clean. Warnings never
+   change the code.
 
-   All other commands either succeed or fail:
-      0   success
-      1   an error (could not read/write a file, bad config, missing
-          dependency)
-      2   bad command-line arguments
+   A status line starts with a label: OK (done), SKIP (left alone on
+   purpose), WARN (noted, nothing failed), FAIL (that item, or the run,
+   failed). Results, OK and SKIP go to standard output; progress, WARN and
+   FAIL to standard error, so  > out.txt  keeps the results and  2> err.txt
+   the problems. Every status line is also in the run log,
+   %LOCALAPPDATA%\athc\Logs\athc.log.

@@ -46,7 +46,7 @@ Install the project and its dev tools:
 uv sync
 ```
 
-Source runs read the dev config in `config/dev/` (a full `athc.ini` plus league folders, shared with athc-admin) instead of the installed one: point `ATHC_CONFIG_DIR` at that folder. For the VS Code terminal, in `.vscode/settings.json` (in a multi-root workspace, in the `.code-workspace` `settings` with `${workspaceFolder:athc}`; open a new terminal to pick it up):
+Source runs read the dev config in `config/dev/` (a full `athc.ini` plus league folders, shared with athc-admin) instead of the installed one: point `ATHC_CONFIG_DIR` at that folder. `ATHC_LOG_DIR` does the same for the run log (`athc.log`), so a dev run never writes the installed one; set it the same way. For the VS Code terminal, in `.vscode/settings.json` (in a multi-root workspace, in the `.code-workspace` `settings` with `${workspaceFolder:athc}`; open a new terminal to pick it up):
 
 ```json
 "terminal.integrated.env.windows": {

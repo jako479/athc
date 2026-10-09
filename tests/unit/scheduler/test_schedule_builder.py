@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
+from athc.errors import ConfigFileError
 from athc.scheduler.config import (
-    ConfigError,
     Phase2Config,
     RivalriesConfig,
     resolve_rivalries,
@@ -108,7 +108,7 @@ def test_home_away_toggles_add_constraints_only_when_on(toggle: str) -> None:
 
 
 def test_streak_caps_off_with_divisions_is_a_config_error() -> None:
-    with pytest.raises(ConfigError, match="require_home_away_streak_caps"):
+    with pytest.raises(ConfigFileError, match="require_home_away_streak_caps"):
         ScheduleBuilder(
             ONE_PLAYOFF_TEAM_FROM_4_TEAM_DIVISION,
             SchedulerError,

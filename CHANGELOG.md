@@ -7,6 +7,21 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- gameplan: `set-normals` / `set-specials` input errors from the console no longer start with `- `; `find-play` prints no tally for a single path that failed
+- playpool: `check` on a folder that does not exist says `not found`, and `not a directory` only for a file in its place
+- athc: bare `athc` no longer writes its whole help text into the run log
+- athc: a run-log folder that cannot be written is one `FAIL` line and exit 2 instead of a traceback
+- athc: a named file that does not exist is `FAIL <file>: not found` in every command, never Python's `[Errno 2]` text
+- athc: a config or rules file that cannot be read names it once (`<file>: No such file or directory`), not again inside Python's text
+- athc: an error about a file names it once, first (`FAIL <file>: <why>`), in every command; the scheduler's config errors read the same way
+- athc: every command prints the same way: `OK` / `SKIP` / `WARN` / `FAIL` status lines, the label colored on a terminal (`NO_COLOR` turns it off); results, `OK` and `SKIP` on stdout, progress, `WARN` and `FAIL` on stderr
+- athc: every run writes a run log, `%LOCALAPPDATA%\athc\Logs\athc.log` (1 MB, five files kept): the command line, every status line, every traceback and the exit code
+- athc: one exit scheme in every command: 0 done (warnings included), 1 findings (the checkers and finders only), 2 any error, 130 Ctrl-C; a batch processes every file and the worst outcome wins
+- athc: a bug prints one `FAIL ... unexpected error (see log: ...)` line instead of a traceback; `ATHC_DEBUG` is gone
+- convert-pdb: a league without `play_path` is an error, not an empty workbook
+- convert-pdb: progress on stderr, a `WARN` line per play-pool, rules, PDB or workbook notice, then `OK   <file>: <n> play(s)`
+- generate-schedule: progress on stderr, an `OK` line per file written, then `Generated <n> games (seed <s>)`
+- autocontinue: its status lines go to stderr and the run log
 - athc: Python 3.13 is the minimum version
 - athc: every frozen dataclass, the Config ones included, uses `slots=True`
 - install: athc ships as `athc-<ver>-setup.exe`, which needs no Python, uv or internet; a per-user install with `athc` on PATH, settings seeded once and never overwritten, and an uninstaller that removes everything

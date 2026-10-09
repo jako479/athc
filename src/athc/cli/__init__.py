@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-import logging
-import os
 import sys
-from collections.abc import Callable
-from importlib.metadata import entry_points
-from typing import Any
+from collections.abc import Callable, Sequence
+from importlib.metadata import entry_points, version
+from typing import Any, NoReturn
 
 import click
+
+from athc.console import console
+from athc.errors import AthcError, reason_of
+from athc.log import logger, setup_logging
 
 ENTRY_POINT_GROUP = "athc.commands"
 
@@ -65,7 +67,65 @@ def _write_usage(formatter: click.HelpFormatter, prog: str, pieces: list[str]) -
     formatter.write("\n".join(lines) + "\n")
 
 
-class AthcCommand(click.Command):
+class _OnePlace(click.Command):
+    """The one place errors become a line, a log entry and an exit code.
+
+    `main` opens the run log, writes the start line, runs Click in
+    non-standalone mode and handles whatever comes out, then writes the end
+    line and exits. It sits on the command classes rather than only in the
+    `athc` script so a command run under `CliRunner` behaves exactly like the
+    real process. Click calls a subcommand's `invoke`, not its `main`, so it
+    runs once per process.
+    """
+
+    def main(  # type: ignore[override]
+        self,
+        args: Sequence[str] | None = None,
+        prog_name: str | None = None,
+        complete_var: str | None = None,
+        standalone_mode: bool = True,
+        windows_expand_args: bool = True,
+        **extra: Any,
+    ) -> NoReturn:
+        try:
+            setup_logging()
+        except OSError as error:  # the log folder cannot be written: no run
+            console.fail(str(AthcError(reason_of(error), error.filename)))
+            sys.exit(2)
+        argv = list(args) if args is not None else sys.argv[1:]
+        logger.info("%s", " ".join(["athc", version("athc"), *argv]))
+        try:
+            returned = super().main(
+                args=args,
+                prog_name=prog_name,
+                complete_var=complete_var,
+                standalone_mode=False,
+                windows_expand_args=windows_expand_args,
+                **extra,
+            )
+            code = returned if isinstance(returned, int) else 0
+        except click.exceptions.NoArgsIsHelpError as error:  # bare `athc`
+            error.show()  # the help, on stderr, exit 2; the log gets one line
+            logger.error("no command given; help shown")
+            code = error.exit_code
+        except click.ClickException as error:  # usage: Click's own text, 2
+            error.show()
+            logger.error("%s", error.format_message())
+            code = error.exit_code
+        except click.Abort:  # Ctrl-C (Click turns KeyboardInterrupt into it)
+            console.fail("interrupted")
+            code = 130
+        except (AthcError, OSError) as error:  # an expected failure
+            console.fail(str(error))
+            code = 2
+        except Exception:  # a bug
+            console.unexpected()
+            code = 2
+        logger.info("exit %d", code)
+        sys.exit(code)
+
+
+class AthcCommand(_OnePlace):
     """A command whose usage line lists each option."""
 
     def collect_usage_pieces(self, ctx: click.Context) -> list[str]:
@@ -75,7 +135,7 @@ class AthcCommand(click.Command):
         _write_usage(formatter, ctx.command_path, self.collect_usage_pieces(ctx))
 
 
-class CommandGroup(click.Group):
+class CommandGroup(_OnePlace, click.Group):
     """A group whose usage line lists each option, and whose subcommands (and
     subgroups) are built the same way."""
 
@@ -141,17 +201,6 @@ def cli() -> None:
 
 
 def main() -> None:
-    """CLI entry point. Click handles usage errors and each command handles its
-    own failures; this backstop turns any *unexpected* exception into a one-line
-    message instead of a traceback. Set `ATHC_DEBUG=1` to re-raise for debugging.
-    """
-    try:
-        cli()
-    except Exception as error:
-        if os.environ.get("ATHC_DEBUG"):
-            raise
-        logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
-        logging.getLogger("athc").error(
-            "unexpected error: %s (set ATHC_DEBUG=1 for the full traceback)", error
-        )
-        sys.exit(2)
+    """The `athc` console script; `python -m athc` calls it too. Everything
+    that follows is `_OnePlace.main` on the root group."""
+    cli()

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import sys
 from pathlib import Path
 
@@ -10,18 +9,13 @@ import click
 
 from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.gameplan import gameplan
-from athc.cli.gameplan._common import build_pool, parse_play_list
-from athc.fbpro98_gameplan import (
-    GamePlan,
-    InvalidGamePlanError,
-    read_gameplan,
-    write_gameplan,
-)
-from athc.gameplan.config import ConfigFileError, load_config
+from athc.cli.gameplan._common import build_pool, named_file, parse_play_list
+from athc.console import console
+from athc.errors import AthcError
+from athc.fbpro98_gameplan import GamePlan, read_gameplan, write_gameplan
+from athc.gameplan.config import load_config
 from athc.gameplan.writer import InvalidPlayInputError, apply_normal_plays
 
-PROG = "athc gameplan set-normals"
-logger = logging.getLogger(__name__)
 NORMAL_COUNT = GamePlan.NUMBER_NORMAL_PLAYS
 
 
@@ -48,32 +42,18 @@ def set_normals(
     `::` comment lines and ` ::` trailers are ignored. The league's play pool
     resolves names; run `check` to validate the result.
     """
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    try:
-        if str(input_path) == "-":
-            text = sys.stdin.read()
-        else:
-            text = input_path.read_text(encoding="utf-8")
-        lines = parse_play_list(text)
-        if len(lines) > NORMAL_COUNT:
-            logger.error(
-                "%s: input has %d play(s), max is %d", PROG, len(lines), NORMAL_COUNT
-            )
-            ctx.exit(1)
-        config = load_config(league, rule_files=())  # no gameplan rules needed
-    except (ConfigFileError, ValueError, OSError) as error:
-        logger.error("%s: %s", PROG, error)
-        ctx.exit(1)
-
-    pool = build_pool(
-        config.play_path,
-        config.playpool_rules,
-        config.categories,
-        prog=PROG,
-        logger=logger,
-    )
-    if pool is None:
-        ctx.exit(1)
+    gameplan_path = named_file(gameplan_path)
+    if str(input_path) == "-":
+        text = sys.stdin.read()
+        source = ""  # a list from the console has no file to name
+    else:
+        text = named_file(input_path).read_text(encoding="utf-8")
+        source = f"{input_path} "
+    lines = parse_play_list(text)
+    if len(lines) > NORMAL_COUNT:
+        raise AthcError(f"input has {len(lines)} play(s), max is {NORMAL_COUNT}")
+    config = load_config(league, rule_files=())  # no gameplan rules needed
+    pool = build_pool(config.play_path, config.playpool_rules, config.categories)
 
     specials = [
         f"line {i}: '{name}' is a special teams play; use set-specials"
@@ -82,26 +62,17 @@ def set_normals(
     ]
     if specials:
         for err in specials:
-            logger.error("%s: %s", PROG, err)
-        ctx.exit(1)
+            console.fail(f"{source}{err}")
+        ctx.exit(2)
 
+    gp = read_gameplan(gameplan_path)
     try:
-        gp = read_gameplan(str(gameplan_path))
         updated = apply_normal_plays(gp, lines, pool)
     except InvalidPlayInputError as error:
         for violation in error.violations:
-            logger.error("%s", violation)
-        logger.error(
-            "%s: %d invalid input line(s). Gameplan NOT updated.",
-            PROG,
-            len(error.violations),
-        )
-        ctx.exit(1)
-    except (OSError, InvalidGamePlanError, ValueError) as error:
-        logger.error("%s: %s", PROG, error)
-        ctx.exit(1)
-
+            console.fail(f"{source}{violation}")
+        ctx.exit(2)
     write_gameplan(updated, gameplan_path)
     count = sum(1 for p in updated.normal_plays if p is not None)
     if not quiet:
-        click.echo(f"Updated {gameplan_path}: {count} normal play(s).")
+        console.ok(f"{gameplan_path}: {count} normal play(s)")

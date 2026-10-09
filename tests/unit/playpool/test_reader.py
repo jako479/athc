@@ -113,75 +113,68 @@ def test_find_across_sides(request: pytest.FixtureRequest, pool_name: str) -> No
 
 @pytest.mark.parametrize("tree", ["league", "flat", "arbitrary"])
 def test_no_warnings_on_consistent_trees(
-    request: pytest.FixtureRequest, tree: str, caplog: pytest.LogCaptureFixture
+    request: pytest.FixtureRequest, tree: str
 ) -> None:
     """League-layout plays match their folders; the others have no recognized folders."""
     root = PLAYS if tree == "league" else request.getfixturevalue(f"{tree}_tree")
-    with caplog.at_level(logging.WARNING, logger="athc.playpool.reader"):
-        read_play_pool(root, labels=PNFL_LABELS)
-    assert "play in" not in caplog.text  # no side/category mismatch warnings
+    issues = read_play_pool(root, labels=PNFL_LABELS).issues
+    assert not [i for i in issues if "play in" in i]  # no side/category mismatch
 
 
-def test_invalid_skipped(caplog: pytest.LogCaptureFixture) -> None:
+def test_invalid_skipped() -> None:
     assert (PLAYS / "Offense" / "PML" / "PS7Xmids.ply").is_file()
-    with caplog.at_level(logging.WARNING, logger="athc.playpool.reader"):
-        pool = read_play_pool(PLAYS, labels=PNFL_LABELS)
-    assert "Skipping invalid play file" in caplog.text and "PS7Xmids" in caplog.text
+    pool = read_play_pool(PLAYS, labels=PNFL_LABELS)
+    assert any(
+        i.startswith("Skipping invalid play file") and "PS7Xmids" in i
+        for i in pool.issues
+    )
     assert pool.find_by_name("PS7Xmids") is None
 
 
-def test_flat_play_classified_from_file(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_flat_play_classified_from_file(tmp_path: Path) -> None:
     """A loose .ply (no folders) is classified from its file, not skipped."""
     src = next(PLAYS.glob("**/AF21rm12.ply"))  # offensive Run Middle
     shutil.copy(src, tmp_path / "loose.ply")
-    with caplog.at_level(logging.WARNING, logger="athc.playpool.reader"):
-        play = read_play_pool(tmp_path, labels=PNFL_LABELS).find_by_name("loose")
+    pool = read_play_pool(tmp_path, labels=PNFL_LABELS)
+    play = pool.find_by_name("loose")
     assert isinstance(play, OffensivePlay)
     assert play.category.long == "Run Middle"
-    assert "play in" not in caplog.text
+    assert pool.issues == []
 
 
-# ── file wins over folder; mismatches warn (end-to-end) ───────────────────────
+# ── file wins over folder; mismatches are issues (end-to-end) ─────────────────
 
 
-def test_wrong_side_folder_file_wins_and_warns(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """A defensive play under an offense folder stays defensive, but warns."""
+def test_wrong_side_folder_file_wins_and_warns(tmp_path: Path) -> None:
+    """A defensive play under an offense folder stays defensive, but is an issue."""
     src = next(PLAYS.glob("**/AF32gp02.ply"))  # defensive
     dst = tmp_path / "Offense" / "Screens"
     dst.mkdir(parents=True)
     shutil.copy(src, dst / "AF32gp02.ply")
-    with caplog.at_level(logging.WARNING, logger="athc.playpool.reader"):
-        play = read_play_pool(tmp_path, labels=PNFL_LABELS).find_by_name("AF32gp02")
-    assert isinstance(play, DefensivePlay)  # file wins
-    assert (
+    pool = read_play_pool(tmp_path, labels=PNFL_LABELS)
+    assert isinstance(pool.find_by_name("AF32gp02"), DefensivePlay)  # file wins
+    assert pool.issues == [
         "Defensive play in the offense tree: Offense/Screens/AF32gp02.ply"
-        in caplog.text
-    )
+    ]
 
 
-def test_wrong_category_folder_warns(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """An offense play in the wrong category folder warns but classifies by file."""
+def test_wrong_category_folder_warns(tmp_path: Path) -> None:
+    """An offense play in the wrong category folder is an issue but classifies
+    by file."""
     src = next(PLAYS.glob("**/AF2AshtZ.ply"))  # Pass Short Middle
     dst = tmp_path / "Offense" / "PML"  # folder says Pass Medium Left
     dst.mkdir(parents=True)
     shutil.copy(src, dst / "AF2AshtZ.ply")
-    with caplog.at_level(logging.WARNING, logger="athc.playpool.reader"):
-        play = read_play_pool(tmp_path, labels=PNFL_LABELS).find_by_name("AF2AshtZ")
+    pool = read_play_pool(tmp_path, labels=PNFL_LABELS)
+    play = pool.find_by_name("AF2AshtZ")
     assert isinstance(play, OffensivePlay)
     assert play.category.long == "Pass Short Middle"
-    assert (
+    assert pool.issues == [
         "Pass Short Middle play in a Pass Medium Left folder: Offense/PML/AF2AshtZ.ply"
-        in caplog.text
-    )
+    ]
 
 
-# ── issues: every warning is also kept on the pool, word for word ─────────────
+# ── issues: every problem is kept on the pool, word for word ──────────────────
 
 
 def _copy_play(name: str, folder: Path) -> None:
@@ -247,17 +240,16 @@ def test_invalid_file_is_an_issue(tmp_path: Path) -> None:
     assert "bad.ply" in issues[0]
 
 
-def test_issues_match_the_logged_warnings(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_issues_keep_path_order(tmp_path: Path) -> None:
+    """Issues come in the reader's path order (Windows sorts paths without
+    regard to case, so `b` precedes `Offense`)."""
     _copy_play("AF2AshtZ", tmp_path / "Offense" / "PML")
     _copy_play("AF21rm12", tmp_path / "a")
     _copy_play("AF21rm12", tmp_path / "b")
-    with caplog.at_level(logging.WARNING, logger="athc.playpool.reader"):
-        pool = read_play_pool(tmp_path, labels=PNFL_LABELS)
-    logged = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
-    assert len(pool.issues) == 2
-    assert pool.issues == logged
+    assert read_play_pool(tmp_path, labels=PNFL_LABELS).issues == [
+        "Duplicate play name 'AF21rm12'; last loaded wins",
+        "Pass Short Middle play in a Pass Medium Left folder: Offense/PML/AF2AshtZ.ply",
+    ]
 
 
 # ── folder_warnings unit cases (pure; exhaustive over mismatch kinds) ──────────
@@ -356,3 +348,15 @@ def test_front_prefix_uses_defense_labels(make_play: MakePlay) -> None:
     assert (
         folder_warnings("34PML/X.ply", play, PNFL_LABELS) == []
     )  # not a defense label
+
+
+# ── the reader never logs: every problem is an issue on the pool ──────────────
+
+
+def test_reader_never_logs(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    _copy_play("AF2AshtZ", tmp_path / "Offense" / "PML")
+    (tmp_path / "bad.ply").write_bytes(b"\x00\x01\x02")
+    with caplog.at_level(logging.DEBUG):
+        pool = read_play_pool(tmp_path, labels=PNFL_LABELS)
+    assert caplog.records == []
+    assert len(pool.issues) == 2

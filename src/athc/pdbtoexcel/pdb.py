@@ -8,12 +8,11 @@ down-and-distance tendencies (TENDENCY_DATA / DOWN_DATA), and the wrapper class
 from __future__ import annotations
 
 import ctypes
-import logging
 from enum import IntEnum
 from pathlib import Path
 from typing import ClassVar
 
-logger = logging.getLogger(__name__)
+from athc.errors import AthcError
 
 # WinLogStats records a few plays under the wrong name; rewrite on load.
 RENAMED_PLAYS = {
@@ -135,7 +134,7 @@ class TENDENCY_DATA(ctypes.LittleEndianStructure):
         return len(self.team_name) > 0
 
 
-class InvalidPDBError(ValueError):
+class InvalidPDBError(AthcError):
     """Raised when a `.pdb` file has a structurally invalid record."""
 
 
@@ -151,14 +150,16 @@ class PDB:
 
         Populates `self.plays` (PLAY_TYPE → {(team, play): PLAY_DATA}) and
         `self.tendencies` (list, sorted by team). Duplicate (team, play) records
-        merge via `+=`; names in RENAMED_PLAYS are rewritten. Raises
-        InvalidPDBError on a bad record-type byte.
+        merge via `+=`; names in RENAMED_PLAYS are rewritten. A record that
+        fails its own validity check is skipped with a line in
+        `self.warnings`. Raises InvalidPDBError on a bad record-type byte.
         """
         self.filename = filename
         self.plays: dict[PLAY_DATA.PLAY_TYPE, dict[tuple[str, str], PLAY_DATA]] = {
             play_type: {} for play_type in PLAY_DATA.PLAY_TYPE
         }
         self.tendencies: list[TENDENCY_DATA] = []
+        self.warnings: list[str] = []
         file_path = Path(filename)
 
         with file_path.open("rb") as pdb:
@@ -173,8 +174,7 @@ class PDB:
                     or data_type > self.DATA_TYPE.TENDENCY
                 ):
                     raise InvalidPDBError(
-                        f"invalid data type {data!r} "
-                        f"at {pdb.tell() - 1:#x} in {file_path}"
+                        f"invalid data type {data!r} at {pdb.tell() - 1:#x}", file_path
                     )
                 if data_type == self.DATA_TYPE.PLAY:
                     self._read_play(pdb)
@@ -184,10 +184,8 @@ class PDB:
     def _read_play(self, pdb) -> None:
         play_in_pdb = PLAY_DATA.from_buffer_copy(pdb.read(ctypes.sizeof(PLAY_DATA)))
         if not play_in_pdb.is_valid():
-            logger.warning(
-                "Skipping invalid play data at %#x",
-                pdb.tell() - ctypes.sizeof(PLAY_DATA),
-            )
+            offset = pdb.tell() - ctypes.sizeof(PLAY_DATA)
+            self.warnings.append(f"Skipping invalid play data at {offset:#x}")
             return
         play_name = play_in_pdb.play_name.decode("ASCII")
         if play_name in ("RUNCLOCK", "STOPCLOK"):
@@ -209,10 +207,8 @@ class PDB:
         if tendency.is_valid():
             self.tendencies.append(tendency)
         else:
-            logger.warning(
-                "Skipping invalid tendency data at %#x",
-                pdb.tell() - ctypes.sizeof(TENDENCY_DATA),
-            )
+            offset = pdb.tell() - ctypes.sizeof(TENDENCY_DATA)
+            self.warnings.append(f"Skipping invalid tendency data at {offset:#x}")
 
     def convert_invalid_play_data(self, play_pool) -> None:
         """Reclassify offensive plays the engine logged under the wrong play_type.

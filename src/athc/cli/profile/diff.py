@@ -8,24 +8,17 @@ from __future__ import annotations
 
 import csv
 import io
-import logging
 from pathlib import Path
 
 import click
 
 from athc.cli import CONTEXT_SETTINGS
 from athc.cli.profile import profile
-from athc.fbpro98_profile import (
-    InvalidProfileError,
-    ProfileType,
-    UnsupportedProfileError,
-    read_profile,
-)
+from athc.cli.profile._common import named_file
+from athc.console import console
+from athc.fbpro98_profile import ProfileType, read_profile
 from athc.profile import ProfileDiff, SituationChange, SlotChange, diff_profiles
 from athc.profile.display import category_label
-
-PROG = "athc profile diff"
-logger = logging.getLogger(__name__)
 
 _OUTPUT_FORMATS = ("csv", "txt")
 
@@ -51,53 +44,26 @@ def diff(ctx: click.Context, a: Path, b: Path, output: Path | None) -> None:
     Compares situations, PAT situations, substitution percentages, field-goal
     range, and audibles; only changed records are shown.
     """
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-
     fmt = None
     if output is not None:
         fmt = _infer_format(output)
         if fmt is None:
-            logger.error(
-                "%s: %s: can't infer format from extension; use .txt or .csv",
-                PROG,
-                output,
+            raise click.BadParameter(
+                "format from the extension: use .txt or .csv", param_hint="--output"
             )
-            ctx.exit(2)
 
-    profiles = []
-    for path in (a, b):
-        try:
-            profiles.append(read_profile(str(path)))
-        except (OSError, InvalidProfileError, UnsupportedProfileError) as error:
-            logger.error("%s: %s: %s", PROG, path, error)
-            ctx.exit(2)
-    pa, pb = profiles
-    if pa.profile_type != pb.profile_type:
-        logger.error(
-            "%s: cannot diff %s against %s (%s vs %s)",
-            PROG,
-            a,
-            b,
-            pa.profile_type.name,
-            pb.profile_type.name,
-        )
-        ctx.exit(2)
-
-    result = diff_profiles(pa, pb)
+    result = diff_profiles(read_profile(named_file(a)), read_profile(named_file(b)))
     if output is None:
-        click.echo(render(result, str(a), str(b)))
+        console.print(render(result, str(a), str(b)))
     else:
         content = (
             render_csv(result, str(a), str(b))
             if fmt == "csv"
             else render(result, str(a), str(b)) + "\n"
         )
-        try:
-            output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_bytes(content.encode("utf-8"))
-        except OSError as error:
-            logger.error("%s: %s: %s", PROG, output, error)
-            ctx.exit(2)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(content.encode("utf-8"))
+        console.ok(f"{output}: written")
     ctx.exit(0 if result.is_empty else 1)
 
 

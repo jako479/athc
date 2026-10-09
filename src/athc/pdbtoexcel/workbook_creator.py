@@ -7,8 +7,7 @@ grouped by their category (from the play file), shown under the league's label.
 
 from __future__ import annotations
 
-import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from os import PathLike
 
 from athc.fbpro98_gameplan import GamePlan, read_gameplan
@@ -23,8 +22,6 @@ from athc.playpool import (
     read_play_pool,
     rule_warnings,
 )
-
-logger = logging.getLogger(__name__)
 
 StrPath = str | PathLike[str]
 
@@ -47,6 +44,9 @@ class PdbWorkbookCreator:
         self.config = config
         self.play_pool = play_pool
         self.pdb = pdb
+        # Every notice met while reading the inputs and writing the workbook,
+        # in order; the command decides how to show them.
+        self.warnings: list[str] = []
         # Deleted plays match case-insensitively (the pool's names do too).
         self._deleted_upper = {name.upper() for name in config.deleted_plays}
         self.pln_defense = pln_defense
@@ -67,19 +67,23 @@ class PdbWorkbookCreator:
         """Build all dependencies from file paths. Tests call `__init__` with fakes.
 
         The playpool rules' include / exclude names are checked against the pool
-        once it is read; each problem is logged as a warning."""
+        once it is read; each problem, each play-pool issue and each PDB notice
+        lands in the creator's `warnings`."""
+        notices: list[str] = []
         if config.playpool_rules:
             rules = load_rules(config.playpool_rules)
             play_pool = read_play_pool(
                 config.play_path, rules=rules, labels=config.categories
             )
-            for message in rule_warnings(play_pool, rules):
-                logger.warning("%s: %s", config.playpool_rules.name, message)
+            name = config.playpool_rules.name
+            notices.extend(f"{name}: {m}" for m in rule_warnings(play_pool, rules))
         else:
             play_pool = read_play_pool(config.play_path, labels=config.categories)
+        notices.extend(play_pool.issues)
         pdb = PDB(str(pdb_filename))
+        notices.extend(pdb.warnings)
         pdb.convert_invalid_play_data(play_pool)
-        return cls(
+        creator = cls(
             config,
             play_pool,
             pdb,
@@ -88,16 +92,25 @@ class PdbWorkbookCreator:
             read_gameplan(pln_def_filename_2) if pln_def_filename_2 else None,
             read_gameplan(pln_off_filename_2) if pln_off_filename_2 else None,
         )
+        creator.warnings.extend(notices)
+        return creator
 
     def create_workbook(
-        self, filename: StrPath, perform_calculations: bool, calculate_totals: bool
-    ) -> None:
-        """Build the Excel workbook at `filename`.
+        self,
+        filename: StrPath,
+        perform_calculations: bool,
+        calculate_totals: bool,
+        *,
+        progress: Callable[[str], None] | None = None,
+    ) -> int:
+        """Build the Excel workbook at `filename`; returns the play rows written.
 
         `perform_calculations=False` omits derived percentage columns.
         `calculate_totals=True` appends a "Total Stats" team summing all teams.
+        `progress` hears each progress line; nothing is printed or logged here.
         """
-        logger.info("Creating '%s'", filename)
+        say = progress or (lambda _: None)
+        say(f"Creating '{filename}'")
         self._warn_stale_deleted_plays()
         offense_slots = (1 if self.pln_offense else 0) + (
             1 if self.pln_offense_2 else 0
@@ -143,18 +156,16 @@ class PdbWorkbookCreator:
                     workbook, resolved_plays, calculate_totals
                 )
 
-        logger.info("Conversion complete")
+        return len(resolved_plays)
 
     def _warn_stale_deleted_plays(self) -> None:
         """A `[deleted_plays]` entry that is still in the pool is stale; say so
         (its stats are skipped all the same)."""
         for name in sorted(self.config.deleted_plays):
             if self.play_pool.find_by_name(name) is not None:
-                logger.warning(
-                    "'%s' is listed in [%s] but is in the play pool; its stats are "
-                    "skipped",
-                    name,
-                    "deleted_plays",
+                self.warnings.append(
+                    f"'{name}' is listed in [deleted_plays] but is in the play "
+                    "pool; its stats are skipped"
                 )
 
     def _category_rank(self, play_record: Play, play_type: PLAY_DATA.PLAY_TYPE) -> int:
@@ -172,22 +183,19 @@ class PdbWorkbookCreator:
 
     def _iter_source_plays(self) -> Iterator[ResolvedPlay]:
         """Every exportable PDB stat line with its pool record. A deleted play is
-        skipped with one info line, a play missing from the pool with one
-        warning; both are reported once per name, not per team."""
-        seen: set[str] = set()
+        skipped quietly; a play missing from the pool is skipped with one
+        warning per name, not per team."""
+        missing: set[str] = set()
         for play_in_pdb in self._iter_tracked_plays():
             play_name = play_in_pdb.play_name.decode("ASCII")
             team_name = play_in_pdb.team_name.decode("ASCII")
             if play_name.upper() in self._deleted_upper:
-                if play_name not in seen:
-                    logger.info("Skipping deleted play '%s'", play_name)
-                    seen.add(play_name)
                 continue
             play_record = self.play_pool.find_by_name(play_name)
             if play_record is None:
-                if play_name not in seen:
-                    logger.warning("Play file not found for play '%s'", play_name)
-                    seen.add(play_name)
+                if play_name not in missing:
+                    self.warnings.append(f"Play file not found for play '{play_name}'")
+                    missing.add(play_name)
                 continue
             if self._should_export(play_in_pdb, play_record):
                 yield play_in_pdb, play_name, team_name, play_record

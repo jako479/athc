@@ -12,8 +12,10 @@ from pathlib import Path
 from typing import Any
 
 import xlsxwriter
+from xlsxwriter.exceptions import XlsxWriterException
 from xlsxwriter.worksheet import Worksheet
 
+from athc.errors import AthcError
 from athc.pdbtoexcel.config import Config, get_runtime_path
 from athc.pdbtoexcel.pdb import PLAY_DATA
 from athc.playpool import DefensivePlay, OffensivePlay, Play
@@ -102,7 +104,18 @@ class ExcelPdbWorkbook:
                     self.workbook.add_vba_project(
                         str(get_runtime_path("vbaProject.bin"))
                     )
-            self.workbook.close()
+            try:
+                self.workbook.close()
+            except XlsxWriterException as error:
+                # XlsxWriter wraps the OSError (the old workbook still open in
+                # Excel, a folder in the way); that is a failed write, not a bug.
+                cause = error.args[0] if error.args else None
+                reason = (
+                    cause.strerror
+                    if isinstance(cause, OSError) and cause.strerror
+                    else str(error)
+                )
+                raise AthcError(reason, self.filename) from error
 
     # -- Public API -----------------------------------------------------------
 

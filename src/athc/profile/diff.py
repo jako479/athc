@@ -17,6 +17,7 @@ from athc.fbpro98_profile import (
     Situation,
 )
 from athc.profile.display import SUB_GROUPS, pat_label, situation_label, sub_label
+from athc.profile.errors import ProfileTypeMismatchError
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,10 +63,13 @@ class ProfileDiff:
 
 
 def diff_profiles(a: Profile, b: Profile) -> ProfileDiff:
-    """Return the differences from `a` to `b`. Raises ValueError if the sides differ."""
+    """Return the differences from `a` to `b`. ProfileTypeMismatchError when the
+    sides differ."""
     if a.profile_type != b.profile_type:
-        raise ValueError(
-            f"cannot diff {a.profile_type.name} against {b.profile_type.name}"
+        raise ProfileTypeMismatchError(
+            a.profile_type,
+            b.profile_type,
+            f"cannot diff {a.profile_type.name} against {b.profile_type.name}",
         )
     return ProfileDiff(
         profile_type=a.profile_type,

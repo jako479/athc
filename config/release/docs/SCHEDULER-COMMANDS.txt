@@ -32,8 +32,9 @@ generate-schedule  --  build the season schedule
       --time-limit number   override the solver time limit (CP-SAT
                             deterministic time, not wall-clock seconds)
 
-   Exit 0 = written, 1 = error (league, config, no feasible schedule),
-   2 = bad arguments.
+   Progress prints as it runs; each file written gets an OK line, then
+   "Generated <n> games (seed <s>)". Exit 0 = written, 2 = bad arguments
+   or an error (league, config, no feasible schedule).
 
 
 CONFIG FILES (in %LOCALAPPDATA%\athc\leagues\<NAME>\)

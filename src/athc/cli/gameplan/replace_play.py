@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import replace
 from pathlib import Path
 
@@ -16,22 +15,20 @@ from athc.cli.gameplan._common import (
     collect_files,
     find_in_gameplan,
 )
+from athc.console import console
+from athc.errors import AthcError
 from athc.fbpro98_gameplan import (
     CustomPlayRef,
     GamePlan,
-    InvalidGamePlanError,
     PlayRef,
     read_gameplan,
     write_gameplan,
 )
 from athc.fbpro98_play import CategoryLabels
-from athc.gameplan.config import ConfigFileError, load_config
+from athc.gameplan.config import load_config
 from athc.gameplan.writer import build_custom_play
 
 Hits = list[tuple[int, PlayRef]]
-
-PROG = "athc gameplan replace-play"
-logger = logging.getLogger(__name__)
 
 
 def _label(play: PlayRef, labels: CategoryLabels) -> str:
@@ -72,13 +69,13 @@ def format_replacement_lines(
 
 
 def replace_in_gameplan(
-    gp: GamePlan, target: str, entry: CustomPlayRef
+    gp: GamePlan, target: str, entry: CustomPlayRef, path: Path | None = None
 ) -> tuple[GamePlan, Hits, Hits]:
     """Replace every occurrence of `target` (case-insensitive, across normal +
     custom-special slots) with `entry`. Returns `(updated, normal_hits, special_hits)`;
-    no hits leaves the gameplan unchanged. The GamePlan model validates the result,
-    raising ValueError when `entry` is wrong for a slot (wrong side, or a
-    special-category that does not match the slot)."""
+    no hits leaves the gameplan unchanged. The GamePlan model validates the
+    result; AthcError, naming `path` when given, when `entry` is wrong for a
+    slot (wrong side, or a special-category that does not match the slot)."""
     normal_hits, special_hits = find_in_gameplan(gp, target)
     if not normal_hits and not special_hits:
         return gp, normal_hits, special_hits
@@ -88,29 +85,13 @@ def replace_in_gameplan(
     specials = list(gp.special_plays)
     for category, _ in special_hits:
         specials[category - 1] = replace(specials[category - 1], custom=entry)
-    updated = replace(gp, normal_plays=tuple(normals), special_plays=tuple(specials))
-    return updated, normal_hits, special_hits
-
-
-def _replace_one(
-    path: Path, target: str, entry: CustomPlayRef, labels: CategoryLabels
-) -> tuple[str, list[str], int]:
-    """Apply the replacement to one .pln. Returns `(status, lines, count)`; status is
-    'updated', 'absent', or 'failed', and `lines` are the stdout lines for it."""
     try:
-        gp = read_gameplan(str(path))
-        updated, normal_hits, special_hits = replace_in_gameplan(gp, target, entry)
-    except (OSError, InvalidGamePlanError, ValueError) as error:
-        return "failed", [f"{path}: failed ({error})"], 0
-    count = len(normal_hits) + len(special_hits)
-    if count == 0:
-        return "absent", [], 0
-    write_gameplan(updated, path)
-    return (
-        "updated",
-        format_replacement_lines(path, normal_hits, special_hits, entry, labels),
-        count,
-    )
+        updated = replace(
+            gp, normal_plays=tuple(normals), special_plays=tuple(specials)
+        )
+    except ValueError as error:  # the model refused the entry for a slot
+        raise AthcError(str(error), path) from error
+    return updated, normal_hits, special_hits
 
 
 @gameplan.command(name="replace-play", context_settings=CONTEXT_SETTINGS)
@@ -141,56 +122,56 @@ def replace_play(
     already be gone). Normal and custom-special slots are searched. Rules are not
     checked; run `check` afterward to validate.
     """
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     # Pool needs no playpool rules: replace-play uses each play's category bytes, not
     # the filename-derived attributes those rules add.
-    try:
-        config = load_config(league, rule_files=())
-    except (ConfigFileError, ValueError, OSError) as error:
-        logger.error("%s: %s", PROG, error)
-        ctx.exit(2)
-
-    pool = build_pool(
-        config.play_path, None, config.categories, prog=PROG, logger=logger
-    )
-    if pool is None:
-        ctx.exit(2)
-
+    config = load_config(league, rule_files=())
+    pool = build_pool(config.play_path, None, config.categories)
     record = pool.find_by_name(replacement)
     if record is None:
-        logger.error(
-            "%s: replacement play '%s' not found in the play pool", PROG, replacement
-        )
-        ctx.exit(2)
+        raise AthcError(f"replacement play '{replacement}' not found in the play pool")
     entry = build_custom_play(record, pool.root_dir)
 
-    files, path_errors = collect_files([str(path)], suffix=".pln", recursive=recursive)
-    for error in path_errors:
-        logger.error("%s: %s", PROG, error)
-    if not files:
-        ctx.exit(2)
+    collected = collect_files([str(path)], suffix=".pln", recursive=recursive)
+    for line in collected.errors:
+        console.fail(line)
+    for line in collected.warnings:
+        console.warn(line)
 
-    single_file = Path(path).is_file()
-    updated = failed = replaced_total = 0
-    for file in files:
-        status, lines, count = _replace_one(file, play, entry, config.categories)
-        for line in lines:
-            click.echo(line)
-        if status == "updated":
-            updated += 1
-            replaced_total += count
-        elif status == "failed":
+    single_path = not Path(path).is_dir()  # one file, found or not: no tally
+    updated = replaced_total = 0
+    failed = len(collected.errors)
+    for file in collected.files:
+        try:
+            gp = read_gameplan(str(file))
+            new_gp, normal_hits, special_hits = replace_in_gameplan(
+                gp, play, entry, file
+            )
+            count = len(normal_hits) + len(special_hits)
+            if count:
+                write_gameplan(new_gp, file)
+        except (AthcError, OSError) as error:
+            console.fail(str(error))
             failed += 1
-        elif single_file:  # absent in single-file mode: a find-play-style miss
-            click.echo(f"{file}: '{play}' not found")
+            continue
+        except Exception:
+            console.unexpected(str(file))
+            failed += 1
+            continue
+        if count == 0:
+            if single_path:  # a find-play-style miss; silent in a directory
+                console.result(f"{file}: '{play}' not found")
+            continue
+        updated += 1
+        replaced_total += count
+        for line in format_replacement_lines(
+            file, normal_hits, special_hits, entry, config.categories
+        ):
+            console.ok(line)
 
-    if not single_file:
-        click.echo()
-        click.echo(
+    if not single_path:
+        console.print()
+        console.result(
             f"'{play}' -> '{replacement}': replaced {replaced_total} instance(s) "
-            f"in {updated} gameplan(s); {failed} failed."
+            f"in {updated} gameplan(s), {failed} failed"
         )
-
-    if failed:
-        ctx.exit(1)
-    ctx.exit(0 if replaced_total > 0 else 1)
+    ctx.exit(2 if failed else 1 if replaced_total == 0 else 0)

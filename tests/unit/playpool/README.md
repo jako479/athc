@@ -85,7 +85,6 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 | Duplicate name | tmp | the warning text | `test_duplicate_name_is_an_issue` | ☑ |
 | Invalid file | tmp | "Skipping invalid play file" | `test_invalid_file_is_an_issue` | ☑ |
 | Unreadable file (a folder named `.ply`) | tmp | "Skipping unreadable play file"; rest loads | `test_unreadable_file_is_an_issue` | ☑ |
-| Issues equal the logged warnings | tmp | same list | `test_issues_match_the_logged_warnings` | ☑ |
 
 ## reader.py — `folder_warnings` (recognized league folder vs the play file)
 

@@ -14,6 +14,7 @@ from athc.profile.diff import (
     diff_profiles,
 )
 from athc.profile.display import category_label, pat_label, situation_label
+from athc.profile.errors import ProfileTypeMismatchError
 from athc.profile.model import RuleName, Violation
 from athc.profile.rules import (
     DEFENSE_CATEGORIES,
@@ -26,7 +27,7 @@ from athc.profile.rules import (
     load_rules,
 )
 from athc.profile.validators import validate_profile
-from athc.profile.writer import ProfileTypeMismatchError, ProfileWriter
+from athc.profile.writer import ProfileWriter
 
 __all__ = [
     "DEFENSE_CATEGORIES",

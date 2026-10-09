@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import random
 import subprocess
 import sys
@@ -11,17 +10,11 @@ from pathlib import Path
 import click
 
 from athc.cli import CONTEXT_SETTINGS, AthcCommand, league_option
-from athc.config import ConfigFileError, LeagueError, resolve_league
-from athc.scheduler.config import (
-    ConfigError,
-    find_league_path,
-    scheduler_rules_path,
-)
+from athc.config import resolve_league
+from athc.console import console
+from athc.errors import AthcError
+from athc.scheduler.config import find_league_path, scheduler_rules_path
 from athc.scheduler.main import generate_schedule as run_generate
-from athc.scheduler.schedulers.errors import SchedulerError
-
-PROG = "athc generate-schedule"
-logger = logging.getLogger(__name__)
 
 
 @click.command(
@@ -55,9 +48,7 @@ logger = logging.getLogger(__name__)
     ),
 )
 @league_option
-@click.pass_context
 def generate_schedule(
-    ctx: click.Context,
     season: int,
     seed: int | None,
     time_limit: int | None,
@@ -76,12 +67,10 @@ def generate_schedule(
     Writes a .txt and .html schedule plus an .html report to the current
     directory, named `schedule_<season>_<timestamp>`.
     """
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     chosen_seed = seed if seed is not None else random.randint(0, 1_000_000)
-
+    name = resolve_league(league)
     try:
-        name = resolve_league(league)
-        run_generate(
+        generated = run_generate(
             league=name,
             season=season,
             config_path=scheduler_rules_path(name),
@@ -91,18 +80,13 @@ def generate_schedule(
             time_limit=time_limit,
             # argv[1:] already starts with the subcommand name.
             command_line=subprocess.list2cmdline(["athc", *sys.argv[1:]]),
+            progress=console.progress,
         )
-    except (
-        ConfigError,
-        ConfigFileError,
-        LeagueError,
-        SchedulerError,
-        OSError,
-    ) as error:
-        logger.error("%s: %s", PROG, error)
-        ctx.exit(1)
     except ImportError as error:
-        logger.error(
-            "%s: missing dependency %s -- reinstall athc", PROG, error.name or "ortools"
-        )
-        ctx.exit(1)
+        raise AthcError(
+            f"missing {error.name or 'ortools'} -- reinstall athc"
+        ) from error
+    for path in generated.files:
+        console.ok(str(path))
+    games = len(generated.result.schedule.games)
+    console.result(f"Generated {games} games (seed {generated.seed})")

@@ -10,8 +10,12 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
+from os import PathLike
 
+from athc.errors import ConfigFileError
 from athc.fbpro98_play.model import DefensiveCategory, OffensiveCategory, PlayCategory
+
+StrPath = str | PathLike[str]
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,16 +29,20 @@ class CategoryLabels:
 
     @classmethod
     def from_tables(
-        cls, offense: Mapping[str, object], defense: Mapping[str, object]
+        cls,
+        offense: Mapping[str, object],
+        defense: Mapping[str, object],
+        path: StrPath | None = None,
     ) -> CategoryLabels:
         """Build from two game-name -> label tables (the `[categories.offense]`
-        and `[categories.defense]` tables of league.toml). ValueError names the
+        and `[categories.defense]` tables of league.toml). ConfigFileError,
+        carrying `path` (the file the tables came from) when given, names the
         first bad entry: a key that is not a category of that side, a label that
         is not a non-empty string, repeats within the side, or equals one of the
         side's category names."""
         return cls(
-            _validate("offense", offense, list(OffensiveCategory)),
-            _validate("defense", defense, list(DefensiveCategory)),
+            _validate("offense", offense, list(OffensiveCategory), path),
+            _validate("defense", defense, list(DefensiveCategory), path),
         )
 
     def label(self, category: PlayCategory) -> str:
@@ -55,7 +63,7 @@ class CategoryLabels:
 
 
 def _validate[C: PlayCategory](
-    side: str, table: Mapping[str, object], members: Iterable[C]
+    side: str, table: Mapping[str, object], members: Iterable[C], path: StrPath | None
 ) -> dict[C, str]:
     by_name = {m.long: m for m in members}
     result: dict[C, str] = {}
@@ -64,16 +72,16 @@ def _validate[C: PlayCategory](
         where = f"[categories.{side}] {name!r}"
         member = by_name.get(name)
         if member is None:
-            raise ValueError(f"{where}: not a game category name for {side}")
+            raise ConfigFileError(f"{where}: not a game category name for {side}", path)
         if not isinstance(value, str) or not value.strip():
-            raise ValueError(f"{where}: label must be a non-empty string")
+            raise ConfigFileError(f"{where}: label must be a non-empty string", path)
         if value in by_name:
-            raise ValueError(
-                f"{where}: label {value!r} is a game category name for {side}"
+            raise ConfigFileError(
+                f"{where}: label {value!r} is a game category name for {side}", path
             )
         if value in used:
-            raise ValueError(
-                f"{where}: label {value!r} already used by {used[value]!r}"
+            raise ConfigFileError(
+                f"{where}: label {value!r} already used by {used[value]!r}", path
             )
         used[value] = name
         result[member] = value

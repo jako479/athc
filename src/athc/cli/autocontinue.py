@@ -3,16 +3,11 @@
 
 from __future__ import annotations
 
-import logging
-import time
-
 import click
 
-from athc.autocontinue.config import ConfigError
 from athc.cli import CONTEXT_SETTINGS, AthcCommand
-
-PROG = "athc autocontinue"
-logger = logging.getLogger(__name__)
+from athc.console import console
+from athc.errors import AthcError
 
 
 @click.command(name="autocontinue", cls=AthcCommand, context_settings=CONTEXT_SETTINGS)
@@ -21,8 +16,7 @@ logger = logging.getLogger(__name__)
     default=None,
     help="Stop when the mouse hits the top-left corner (overrides config; default on).",
 )
-@click.pass_context
-def autocontinue(ctx: click.Context, hot_corner: bool | None) -> None:
+def autocontinue(hot_corner: bool | None) -> None:
     """Watch for the 'Continue' button between plays and click it.
 
     Clicks the 'Continue' button in Front Page Sports Football Pro '98. Stop with
@@ -31,26 +25,18 @@ def autocontinue(ctx: click.Context, hot_corner: bool | None) -> None:
     `[autocontinue]` (mouse_move_duration, delay_before_continue, hot_corner) from
     athc.ini, re-reading whenever the file changes so edits apply while it runs.
     """
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     try:
         # Lazy import: pulls in pyautogui only when the watcher actually runs.
         from athc.autocontinue.main import auto_continue
     except ImportError as error:
-        logger.error(
-            "%s: missing dependency %s -- reinstall athc",
-            PROG,
-            error.name or "pyautogui",
-        )
-        ctx.exit(1)
+        raise AthcError(
+            f"missing {error.name or 'pyautogui'} -- reinstall athc"
+        ) from error
 
     try:
-        auto_continue(hot_corner=hot_corner)
-    except (ConfigError, OSError) as error:
-        logger.error("%s: %s", PROG, error)
-        ctx.exit(1)
+        auto_continue(
+            hot_corner=hot_corner, progress=console.progress, warn=console.warn
+        )
     except KeyboardInterrupt:
-        # Ctrl-C and the top-left fail-safe both land here; animated goodbye.
-        click.echo("\r\nShutting down AutoContinue", nl=False)
-        for dot in "....\n":
-            time.sleep(0.5)
-            click.echo(dot, nl=False)
+        # Ctrl-C and the top-left fail-safe both land here: the normal stop.
+        console.result("Shutting down AutoContinue")

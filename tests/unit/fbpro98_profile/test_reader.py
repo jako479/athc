@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from athc.errors import AthcError
 from athc.fbpro98_profile import (
     CategoryWeights,
     InvalidProfileError,
@@ -514,12 +515,12 @@ def test_parse_profile_from_buffer_matches_read_profile() -> None:
     assert from_buffer.pat_situations == from_file.pat_situations
 
 
-def test_invalid_profile_error_is_value_error_subclass() -> None:
-    assert issubclass(InvalidProfileError, ValueError)
+def test_invalid_profile_error_is_athc_error_subclass() -> None:
+    assert issubclass(InvalidProfileError, AthcError)
 
 
-def test_unsupported_profile_error_is_value_error_subclass() -> None:
-    assert issubclass(UnsupportedProfileError, ValueError)
+def test_unsupported_profile_error_is_athc_error_subclass() -> None:
+    assert issubclass(UnsupportedProfileError, AthcError)
 
 
 # ---------- structural validation: error paths ----------
@@ -530,6 +531,15 @@ def test_file_too_small_raises(tmp_path):
     profile_path.write_bytes(b"F95:" + b"\x00" * 4)
     with pytest.raises(InvalidProfileError, match="too small"):
         read_profile(profile_path)
+
+
+def test_error_names_the_path_first(tmp_path):
+    profile_path = tmp_path / "tiny.prf"
+    profile_path.write_bytes(b"")
+    with pytest.raises(InvalidProfileError) as exc:
+        read_profile(profile_path)
+    assert str(exc.value) == f"{profile_path}: File too small to contain F95 block"
+    assert exc.value.path == profile_path
 
 
 def test_invalid_f95_header_raises(tmp_path):

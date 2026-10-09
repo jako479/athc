@@ -17,7 +17,7 @@ src/athc/config.py  # config_dir() + config_file() helpers (shared base module)
 
 ## How it works
 
-- `path` → `click.echo(config_file())`.
+- `path` → `console.print(str(config_file()))`.
 - `edit` → create `athc.ini` if missing, then `click.launch(path)` (the file's default app on Windows).
 - `reveal` → `click.launch(<athc.ini>, locate=True)` (selects the file), or `click.launch(config_dir())` if it's absent — opens Explorer on Windows.
 

@@ -2,7 +2,7 @@
 
 ## 1.0.0
 
-- [ ] gameplan: set-normals: decide whether to keep `-q/--quiet`, the only quiet option in athc: drop it, keep it, or give every file-writing command one; see [logging](docs/design/TODO/logging.md#open)
+- [ ] gameplan: set-normals: decide whether to keep `-q/--quiet`, the only quiet option in athc: drop it, keep it, or give every file-writing command one; pdf-converter has none
 - [ ]
 - [ ] convert-pdb: add a problems section to the release docs
 - [ ] gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run
@@ -15,23 +15,23 @@
 - [ ] athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
 - [ ] athc: clear usage and help text for all commands
 - [ ] athc: STATUS.md, WORKLOG.md, CHANGELOG.md: clean and clear
-- [ ] athc: console, run log, errors and exit codes the pdf-converter way; design in [logging](docs/design/TODO/logging.md) and [logging-by-command](docs/design/TODO/logging-by-command.md); one session per subtask, in this order:
+- [x] athc: console, run log, errors and exit codes the pdf-converter way; rules in [architecture](docs/design/architecture.md#console-run-log-and-errors), each command's lines in its tool README; one session per subtask, in this order:
   - [x] Python 3.13: raise the floor (pyproject, ruff, pyright, AGENTS.md, architecture.md)
-  - [ ] errors: `athc/errors.py` with the base `AthcError` and the shared `ConfigFileError`, `LeagueError`, `RulesFileError`; every library error subclasses it; duplicate class names and the two `ConfigError`s gone; readers wrap model `ValueError`s; `load_config` wraps `configparser` errors
-  - [ ] console: `athc/console.py` on Rich (print / ok / skip / result / progress / warn / fail / unexpected; prefix-only color; stdout/stderr split; soft wrap; `NO_COLOR`); every command's lines go through it, `generate-schedule` and `convert-pdb` included; no `athc <command>:` prefixes; `click.echo` gone
-  - [ ] run log: `athc/log.py`, rotating `athc.log` under the per-user log folder, set up once in `main()`; the console writes each log line itself; the 15 per-command `basicConfig` calls go
-  - [ ] main(): `cli(standalone_mode=False)`; one place turns usage errors, `AthcError`, `OSError`, Ctrl-C and bugs into the line, the log entry and the exit code; `ATHC_DEBUG` goes; `__main__.py` goes through it
-  - [ ] exit codes: 0 / 1 findings / 2 error in every command; a per-item catch keeps a batch going and the worst outcome wins; Ctrl-C 130; a directory with no files warns and exits 0
-  - [ ] library warnings and progress: libraries return warnings and findings as values and take a `progress` callback (`warn` too for autocontinue); no library logs or prints
+  - [x] errors: `athc/errors.py` with the base `AthcError` and the shared `ConfigFileError`, `LeagueError`, `RulesFileError`; every library error subclasses it; duplicate class names and the two `ConfigError`s gone; readers wrap model `ValueError`s; `load_config` wraps `configparser` errors
+  - [x] console: `athc/console.py` on Rich (print / ok / skip / result / progress / warn / fail / unexpected; prefix-only color; stdout/stderr split; soft wrap; `NO_COLOR`); every command's lines go through it, `generate-schedule` and `convert-pdb` included; no `athc <command>:` prefixes; `click.echo` gone
+  - [x] run log: `athc/log.py`, rotating `athc.log` under the per-user log folder, set up once in `main()`; the console writes each log line itself; the 15 per-command `basicConfig` calls go
+  - [x] main(): `cli(standalone_mode=False)`; one place turns usage errors, `AthcError`, `OSError`, Ctrl-C and bugs into the line, the log entry and the exit code; `ATHC_DEBUG` goes; `__main__.py` goes through it
+  - [x] exit codes: 0 / 1 findings / 2 error in every command; a per-item catch keeps a batch going and the worst outcome wins; Ctrl-C 130; a directory with no files warns and exits 0
+  - [x] library warnings and progress: libraries return warnings and findings as values and take a `progress` callback (`warn` too for autocontinue); no library logs or prints
   - [x] config: `slots=True` on the frozen Config dataclasses
-  - [ ] tests: every CLI test asserts stdout and stderr separately; console color, `NO_COLOR` and log-file tests
-  - [ ] docs: architecture.md describes the code as it is; per-tool READMEs carry their lines and codes; logging.md, logging-by-command.md and the older logging/error-handling TODO lines retired; athc-admin follow-on TODO added
+  - [x] tests: every CLI test asserts stdout and stderr separately; console color, `NO_COLOR` and log-file tests
+  - [x] docs: architecture.md describes the code as it is; per-tool READMEs carry their lines and codes; logging.md, logging-by-command.md and the older logging/error-handling TODO lines retired; athc-admin follow-on TODO added
 - [x] build a PyInstaller-built installer (exe); replacing the `install.bat` + wheel zip and uv prereq; design in [installer](docs/design/installer.md)
   - [ ] exclude autocontinue
 - [ ] athc: Release Docs:
   - [ ] clear user documentation
   - [ ] list of commands
-  - [ ] explain each command's messages in the release docs, from [logging-by-command](docs/design/TODO/logging-by-command.md)
+  - [ ] explain each command's messages in the release docs, from the per-tool READMEs ([gameplan](docs/gameplan/README.md), [profile](docs/profile/README.md), [check-ppp](docs/check_ppp/README.md), [playpool](docs/playpool/README.md), [convert-pdb](docs/pdbtoexcel/README.md), [generate-schedule](docs/scheduler/README.md), [autocontinue](docs/autocontinue/README.md), [config](docs/config/README.md))
 - [ ] RELEASE!!!
   - [ ] upload installer to Google Drive
   - [ ] post in forum

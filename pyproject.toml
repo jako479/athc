@@ -24,6 +24,7 @@ dependencies = [
     "opencv-python>=4.7",
     "ortools>=9.10",  # generate-schedule solver
     "configupdater>=3.2",
+    "rich>=15.0.0",
 ]
 
 # Dev tooling is a dependency group, not an extra: extras ship to whoever

@@ -251,6 +251,7 @@ def test_non_ascii_byte_decodes_as_replacement(make_entry, make_team, make_entri
     assert lg2.teams[0].first_half.offense.profile == "Jos\ufffd\\O1.prf"
 
 
-def test_error_names_the_path(make_team):
-    with pytest.raises(InvalidLg2Error, match=r"in league\.lg2"):
+def test_error_names_the_path_first(make_team):
+    with pytest.raises(InvalidLg2Error, match=r"^league\.lg2: ") as exc:
         parse_lg2(make_team()[:-1], "league.lg2")
+    assert exc.value.path == Path("league.lg2")

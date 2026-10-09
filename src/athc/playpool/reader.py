@@ -11,7 +11,6 @@ flags (`rollout`, `qb_draw`, `pass_logic`) come from the league's `PlaypoolRules
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePath
@@ -41,8 +40,6 @@ from athc.playpool.rules import (
     PlaypoolRules,
     StrPath,
 )
-
-logger = logging.getLogger(__name__)
 
 # ── League folder conventions (optional; only these names mean anything). The
 # side, screen and front folder names are fixed; category folders are named by
@@ -155,8 +152,7 @@ def folder_warnings(
 
 
 def _warn(pool: PlayPool, message: str) -> None:
-    """Log a warning and keep it on the pool as an issue."""
-    logger.warning(message)
+    """Keep a problem on the pool as an issue; the reader never logs."""
     pool.issues.append(message)
 
 
@@ -195,7 +191,7 @@ def _read_play_file(
     pool: PlayPool, file_path: Path, rules: PlaypoolRules, labels: CategoryLabels
 ) -> None:
     """Parse one .ply, classify it from its file and folders, and add it to
-    `pool`; an invalid or unreadable file is skipped with a warning."""
+    `pool`; an invalid or unreadable file is skipped and noted as an issue."""
     try:
         play_file = read_play(file_path)
     except InvalidPlayFileError as exc:
@@ -239,7 +235,6 @@ def read_play_pool(
     pool = PlayPool(root_dir)
     rules = rules if rules is not None else PlaypoolRules()
     labels = labels if labels is not None else CategoryLabels()
-    logger.info("Processing .ply files in '%s'", pool.root_dir)
     for file_path in sorted(pool.root_dir.glob("**/*.ply")):
         _read_play_file(pool, file_path, rules, labels)
     return pool

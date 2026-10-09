@@ -5,15 +5,13 @@ Validate and compare FbPro98 coaching profiles (`.prf`). Built on
 
 ## Results and exit codes
 
-| Exit | Meaning |
-|---|---|
-| `0` | **Clean** — no violations or issues (`check`), identical (`diff`), done (`copy`). |
-| `1` | **Findings** — rule violations (`check`), differences (`diff`), or a per-file failure (`copy`). |
-| `2` | **Error** — couldn't run: I/O, parse, side mismatch, or usage. |
+Every command prints through the shared console ([architecture](../design/architecture.md#console-run-log-and-errors)): results, `OK` and `SKIP` lines on stdout; `WARN` and `FAIL` lines, progress and usage errors on stderr; every status line also in the run log. The same codes everywhere: `0` done (warnings included), `1` findings, `2` error (usage, config, a bad or missing file, a file that failed inside a batch, a bug). A batch processes every file and exits with the worst outcome. A named file that does not exist is `FAIL <file>: not found`.
 
-An **error** means the check couldn't run; a **finding** is a real problem to
-fix. Every check runs to the end — one bad file or violation does not stop the
-rest.
+| Command | Lines | Exit 1 (findings) |
+|---|---|---|
+| `check` | per file `OK   <file>: <side>, FG range ...` or the headline `<file>: <n> violation(s) (...)` with its indented detail lines; a blank line; `<n> file(s) checked, <n> with violations, <n> failed` | violations |
+| `copy` | `OK   <file>: updated (stop-clock, ...)`, `SKIP <file>: <other side> profile` and `SKIP <file>: the source profile`, `FAIL <file>: <why>`; a tally `<n> file(s) processed, <n> updated, <n> skipped, <n> failed`; no copy flag is a usage error | never (a failed file is exit 2) |
+| `diff` | the report; with `-o`, `OK   <file>: written`; different sides are `FAIL cannot diff OFFENSE against DEFENSE`, 2; a bad `-o` extension is a usage error | any difference |
 
 ## check
 

@@ -12,7 +12,7 @@ season decides rivalry hosting when it rotates.
 
 from __future__ import annotations
 
-import logging
+from collections.abc import Callable
 
 from athc.scheduler.config import (
     SchedulerConfig,
@@ -27,8 +27,6 @@ from athc.scheduler.schedulers.schedule_builder import ScheduleBuilder
 from athc.scheduler.schedulers.types import SchedulerResult
 from athc.scheduler.schedulers.utils import resolve_workers
 
-logger = logging.getLogger(__name__)
-
 
 def generate_schedule(
     league: League,
@@ -36,8 +34,11 @@ def generate_schedule(
     scheduler_config: SchedulerConfig | None = None,
     *,
     season: int,
+    progress: Callable[[str], None] | None = None,
 ) -> SchedulerResult:
-    """Build matchups, then build the final schedule for `season`."""
+    """Build matchups, then build the final schedule for `season`. `progress`
+    hears the start of each phase; nothing is printed or logged here."""
+    say = progress or (lambda _: None)
     config = scheduler_config or SchedulerConfig()
     weeks = config.league.weeks
     check_weeks(league, weeks)
@@ -47,7 +48,7 @@ def generate_schedule(
     # the report can show it.
     workers = resolve_workers(config.solver.solver_workers)
 
-    logger.info("Phase 1: selecting matchups")
+    say("Phase 1: selecting matchups")
     matchup_plan = MatchupBuilder(
         league,
         weeks=weeks,
@@ -58,9 +59,9 @@ def generate_schedule(
         seed=seed,
     ).build_matchup_plan()
 
-    logger.info(
+    say(
         "Phase 2: placing games into weeks. This usually takes several "
-        "minutes and can take 30 minutes or more.",
+        "minutes and can take 30 minutes or more."
     )
     schedule_builder = ScheduleBuilder(
         league,

@@ -42,25 +42,26 @@ src/athc/cli/generate_schedule.py   # Click command (lazy solver import)
 CLI-level (Click → exit 2):
 - `--season` provided; `--time-limit` an integer
 
-Config (`ConfigError`, `LeagueError` → exit 1) — found via `config_dir()` / `ATHC_CONFIG_DIR`, no `--config` flag:
+Config (`ConfigFileError`, `LeagueError` → `FAIL`, exit 2) — found via `config_dir()` / `ATHC_CONFIG_DIR`, no `--config` flag:
 - The league (`--league`, else `[athc] league`) must have a folder `leagues\<NAME>\`.
 - `leagues\<NAME>\standings\<season>.league.ini` is **required**: `[OverallStandings]` plus exactly one of `[DivisionStandings]` (keys `<CONFERENCE>_<DIVISION>`, division sizes from the file) or `[ConferenceStandings]` (two conferences of nine).
 - `leagues\<NAME>\scheduler.toml` is **optional**; every key defaults; invalid TOML or a bad value is an error.
 - League-resolved rules: `weeks` must fit the league, `opening_nonconference_weeks` must leave room for every same-conference game, `[rivalries]` must name every team once with exactly one cross-conference pair.
 
-Domain (`ValueError`, surfaced as `ConfigError`):
+Domain (`ValueError`, surfaced as `ConfigFileError`):
 - Exactly two conferences of nine teams; no team twice; a division key names its conference.
 
-Solver (`SchedulerError` → exit 1):
+Solver (`SchedulerError` → `FAIL`, exit 2):
 - No feasible inventory or schedule within the limits is a one-line error, not a traceback.
 
 ## Exit codes
 
 | Exit | Meaning |
 |---|---|
-| `0` | **OK** — schedule (and report) written. |
-| `1` | **Error** — league, config, no feasible schedule, I/O, or missing solver (ortools). |
-| `2` | **Usage** — bad `--season` / `--time-limit` (Click). |
+| `0` | **Done** — schedule (and report) written. |
+| `2` | **Error** — a `FAIL` line: league, config, no feasible schedule, I/O, or missing solver (ortools); or usage, bad `--season` / `--time-limit` (Click). |
+
+The shared scheme: [architecture.md](../design/architecture.md#console-run-log-and-errors).
 
 ## The scheduler
 

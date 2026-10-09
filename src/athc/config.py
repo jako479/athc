@@ -10,6 +10,7 @@ from typing import Any
 
 from platformdirs import user_config_path
 
+from athc.errors import ConfigFileError, LeagueError, ini_reason, reason_of
 from athc.fbpro98_play import CategoryLabels
 
 CONFIG_FILE = "athc.ini"
@@ -45,20 +46,16 @@ def resolve_path(value: str | os.PathLike[str]) -> Path:
 
 
 def load_config() -> dict[str, dict[str, str]]:
+    """`athc.ini` as `{section: {key: value}}`; `{}` when the file is absent.
+    ConfigFileError, naming the file, when it cannot be parsed."""
     path = config_dir() / CONFIG_FILE
     cp = configparser.ConfigParser(interpolation=None)
     if path.is_file():
-        cp.read(path, encoding="utf-8")
+        try:
+            cp.read(path, encoding="utf-8")
+        except configparser.Error as e:
+            raise ConfigFileError(ini_reason(e), path) from e
     return {section: dict(cp[section]) for section in cp.sections()}
-
-
-class LeagueError(ValueError):
-    """Raised when no league can be resolved for a league-specific tool."""
-
-
-class ConfigFileError(ValueError):
-    """athc.ini or a league.toml cannot be read: malformed file, bad
-    %-interpolation in athc.ini, a wrong value type or a bad category label."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,8 +76,8 @@ class LeagueConfig:
         ConfigFileError when the key was written as an array."""
         if key in self.lists:
             raise ConfigFileError(
-                f"{self.dir / LEAGUE_FILE}: [{LEAGUE_SECTION}] {key}: expected a "
-                "string, got an array"
+                f"[{LEAGUE_SECTION}] {key}: expected a string, got an array",
+                self.dir / LEAGUE_FILE,
             )
         raw = self.values.get(key)
         if not raw:
@@ -103,8 +100,8 @@ class LeagueConfig:
         ConfigFileError when the key was written as a single string."""
         if key in self.values:
             raise ConfigFileError(
-                f"{self.dir / LEAGUE_FILE}: [{LEAGUE_SECTION}] {key}: expected an "
-                "array of strings, got a string"
+                f"[{LEAGUE_SECTION}] {key}: expected an array of strings, got a string",
+                self.dir / LEAGUE_FILE,
             )
         names = self.lists.get(key)
         if names:
@@ -150,11 +147,7 @@ def league_dir(name: str) -> Path:
 def configured_league() -> str | None:
     """`[athc] league` from `athc.ini`, or None when absent or blank.
     ConfigFileError when `athc.ini` cannot be parsed."""
-    try:
-        raw = load_config()
-    except configparser.Error as e:
-        raise ConfigFileError(f"{config_file()}: {e}") from e
-    return raw.get("athc", {}).get("league", "").strip() or None
+    return load_config().get("athc", {}).get("league", "").strip() or None
 
 
 def resolve_league(league: str | None = None) -> str:
@@ -184,8 +177,10 @@ def load_league_config(league: str | None = None) -> LeagueConfig:
         return LeagueConfig(name=name, dir=folder, values={})
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8-sig"))
-    except (OSError, tomllib.TOMLDecodeError) as e:
-        raise ConfigFileError(f"{path}: {e}") from e
+    except OSError as e:
+        raise ConfigFileError(reason_of(e), path) from e
+    except tomllib.TOMLDecodeError as e:
+        raise ConfigFileError(str(e), path) from e
     values, lists = _league_values(_table(data, LEAGUE_SECTION, path), path)
     categories = _category_labels(_table(data, CATEGORIES_SECTION, path), path)
     return LeagueConfig(
@@ -200,7 +195,7 @@ def _table(
     `name` is the table's full dotted name for the message."""
     value = data.get(key, {})
     if not isinstance(value, Mapping):
-        raise ConfigFileError(f"{path}: [{name or key}] must be a table")
+        raise ConfigFileError(f"[{name or key}] must be a table", path)
     return value
 
 
@@ -218,8 +213,8 @@ def _league_values(
             lists[key] = tuple(value)
         else:
             raise ConfigFileError(
-                f"{path}: [{LEAGUE_SECTION}] {key}: expected a string or an array "
-                "of strings"
+                f"[{LEAGUE_SECTION}] {key}: expected a string or an array of strings",
+                path,
             )
     return values, lists
 
@@ -228,10 +223,7 @@ def _category_labels(table: Mapping[str, Any], path: Path) -> CategoryLabels:
     """`[categories.offense]` / `[categories.defense]` as the league's labels."""
     offense = _table(table, "offense", path, f"{CATEGORIES_SECTION}.offense")
     defense = _table(table, "defense", path, f"{CATEGORIES_SECTION}.defense")
-    try:
-        return CategoryLabels.from_tables(offense, defense)
-    except ValueError as e:
-        raise ConfigFileError(f"{path}: {e}") from e
+    return CategoryLabels.from_tables(offense, defense, path)
 
 
 def load_league(league: str | None = None) -> dict[str, str]:
@@ -254,7 +246,7 @@ def set_config_value(key: str, value: str) -> Path:
         try:
             updater.read(path, encoding="utf-8")
         except configparser.Error as e:  # ConfigUpdater raises configparser's classes
-            raise ConfigFileError(f"{path}: {e}") from e
+            raise ConfigFileError(ini_reason(e), path) from e
     if not updater.has_section("athc"):
         if updater.sections():
             updater[updater.sections()[0]].add_before.section("athc").space(1)

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import shutil
 from collections.abc import Callable
 from pathlib import Path
@@ -86,7 +85,7 @@ def test_removed_options_rejected(runner, tmp_path: Path, extra: list[str]) -> N
     inp = _input(tmp_path, SPECIAL + "\n")
     result = runner.invoke(set_specials, [str(p), str(inp), *extra])
     assert result.exit_code == 2
-    assert "No such option" in result.output
+    assert "No such option" in result.stderr
 
 
 # ── single file ───────────────────────────────────────────────────────────────
@@ -126,7 +125,7 @@ def test_writes_no_backup(runner, tmp_path: Path) -> None:
     )
     assert result.exit_code == 0
     assert list(tmp_path.glob("*.bak")) == []
-    assert "; backup " not in result.output  # the old "(N special play(s); backup X)"
+    assert "; backup " not in result.stdout  # the old "(N special play(s); backup X)"
 
 
 def test_skips_and_strips_comments(runner, tmp_path: Path) -> None:
@@ -144,39 +143,49 @@ def test_dash_reads_from_console(runner, tmp_path: Path) -> None:
     assert _name(read_gameplan(str(p)).custom_special_plays[1]) == SPECIAL
 
 
+def test_dash_input_errors_name_no_file(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    result = runner.invoke(set_specials, [str(p), "-"], input=NORMAL + "\n")
+    assert result.exit_code == 2
+    assert (
+        f"FAIL line 1: '{NORMAL}' is not a special teams play; use set-normals\n"
+        in result.stderr
+    )
+    assert "FAIL - " not in result.stderr
+
+
 # ── validation (no file written) ──────────────────────────────────────────────
 
 
-def test_rejects_normal_play(runner, tmp_path: Path, caplog) -> None:
+def test_rejects_normal_play(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
     original = p.read_bytes()
-    with caplog.at_level(logging.ERROR, logger="athc.cli.gameplan.set_specials"):
-        result = runner.invoke(
-            set_specials, [str(p), str(_input(tmp_path, NORMAL + "\n"))]
-        )
+    result = runner.invoke(set_specials, [str(p), str(_input(tmp_path, NORMAL + "\n"))])
     assert result.exit_code == 2
-    assert "not a special teams play" in caplog.text and "set-normals" in caplog.text
+    assert result.stderr.splitlines()[-1].startswith("FAIL ")  # after the WARN lines
+    assert (
+        "not a special teams play" in result.stderr and "set-normals" in result.stderr
+    )
     assert p.read_bytes() == original
 
 
-def test_rejects_duplicate_play(runner, tmp_path: Path, caplog) -> None:
+def test_rejects_duplicate_play(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
-    with caplog.at_level(logging.ERROR, logger="athc.cli.gameplan.set_specials"):
-        result = runner.invoke(
-            set_specials, [str(p), str(_input(tmp_path, f"{SPECIAL}\n{SPECIAL}\n"))]
-        )
+    result = runner.invoke(
+        set_specials, [str(p), str(_input(tmp_path, f"{SPECIAL}\n{SPECIAL}\n"))]
+    )
     assert result.exit_code == 2
-    assert "duplicate" in caplog.text.lower()
+    assert result.stderr.splitlines()[-1].startswith("FAIL ")  # after the WARN lines
+    assert "duplicate" in result.stderr.lower()
 
 
-def test_too_many_plays_rejected(runner, tmp_path: Path, caplog) -> None:
+def test_too_many_plays_rejected(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
-    with caplog.at_level(logging.ERROR, logger="athc.cli.gameplan.set_specials"):
-        result = runner.invoke(
-            set_specials, [str(p), str(_input(tmp_path, (SPECIAL + "\n") * 11))]
-        )
+    result = runner.invoke(
+        set_specials, [str(p), str(_input(tmp_path, (SPECIAL + "\n") * 11))]
+    )
     assert result.exit_code == 2
-    assert "max is 10" in caplog.text
+    assert result.stderr == "FAIL input has 11 play(s), max is 10\n"
 
 
 def test_missing_target(runner, tmp_path: Path) -> None:
@@ -185,17 +194,25 @@ def test_missing_target(runner, tmp_path: Path) -> None:
     assert result.exit_code == 2
 
 
-def test_invalid_play_path(runner, league: Path, tmp_path: Path, caplog) -> None:
+def test_missing_input_file(runner, tmp_path: Path) -> None:
+    plans = _plans(tmp_path)
+    result = runner.invoke(set_specials, [str(plans), str(tmp_path / "nope.txt")])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {tmp_path / 'nope.txt'}: not found\n"
+
+
+def test_invalid_play_path(runner, league: Path, tmp_path: Path) -> None:
     (league / "league.toml").write_text(
         league_toml(tmp_path / "missing"), encoding="utf-8"
     )
     p = _copy(tmp_path)
-    with caplog.at_level(logging.ERROR, logger="athc.cli.gameplan.set_specials"):
-        result = runner.invoke(
-            set_specials, [str(p), str(_input(tmp_path, SPECIAL + "\n"))]
-        )
+    result = runner.invoke(
+        set_specials, [str(p), str(_input(tmp_path, SPECIAL + "\n"))]
+    )
     assert result.exit_code == 2
-    assert "not a directory" in caplog.text
+    assert result.stderr == (
+        f"FAIL {tmp_path / 'missing'}: play path is not a directory\n"
+    )
 
 
 # ── bulk: directory / tree / side-skip / per-file failure ─────────────────────
@@ -213,7 +230,7 @@ def test_directory_top_level_only(runner, tmp_path: Path) -> None:
         set_specials, [str(plans), str(_input(tmp_path, SPECIAL + "\n"))]
     )
     assert result.exit_code == 0
-    assert "2 file(s) processed" in result.output and "2 updated" in result.output
+    assert "2 file(s) processed" in result.stdout and "2 updated" in result.stdout
     assert deep.read_bytes() == deep_pre
 
 
@@ -227,7 +244,7 @@ def test_directory_recursive(runner, tmp_path: Path) -> None:
         set_specials, [str(plans), str(_input(tmp_path, SPECIAL + "\n")), "-r"]
     )
     assert result.exit_code == 0
-    assert "2 file(s) processed" in result.output
+    assert "2 file(s) processed" in result.stdout
 
 
 def test_offense_input_skips_defense_files(runner, tmp_path: Path) -> None:
@@ -239,7 +256,8 @@ def test_offense_input_skips_defense_files(runner, tmp_path: Path) -> None:
         set_specials, [str(plans), str(_input(tmp_path, SPECIAL + "\n"))]
     )
     assert result.exit_code == 0
-    assert "1 file(s) processed" in result.output and "1 updated" in result.output
+    assert f"SKIP {deff}: defense gameplan" in result.stdout
+    assert "2 file(s) processed, 1 updated, 1 skipped, 0 failed" in result.stdout
     assert deff.read_bytes() == def_pre
 
 
@@ -251,6 +269,8 @@ def test_continues_past_failed_file(runner, tmp_path: Path) -> None:
     result = runner.invoke(
         set_specials, [str(plans), str(_input(tmp_path, SPECIAL + "\n"))]
     )
-    assert result.exit_code == 1
-    assert f"{good}: updated" in result.output and f"{bad}: failed" in result.output
-    assert "1 updated" in result.output and "1 failed" in result.output
+    assert result.exit_code == 2
+    assert f"OK   {good}: updated" in result.stdout
+    assert f"FAIL {bad}: Invalid header" in result.stderr
+    assert result.stderr.count(str(bad)) == 1
+    assert "2 file(s) processed, 1 updated, 0 skipped, 1 failed" in result.stdout

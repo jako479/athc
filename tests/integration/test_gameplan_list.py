@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import shutil
 from collections.abc import Callable
 from pathlib import Path
@@ -12,7 +11,14 @@ import pytest
 from athc.cli.gameplan.list_normals import list_normals
 from athc.cli.gameplan.list_specials import list_specials
 from athc.fbpro98_gameplan import ProfileType, write_gameplan
-from tests.conftest import LEAGUE, OTHER_LEAGUE, league_toml
+from tests.conftest import (
+    LEAGUE,
+    OTHER_LEAGUE,
+    league_toml,
+    no_league_selected,
+    os_error,
+    toml_error,
+)
 from tests.integration.conftest import (
     EXPECTED,
     GP_DEFENSE,
@@ -53,8 +59,8 @@ def test_normals_rejects_invalid_sort(runner) -> None:
 def test_normals_help_uses_lowercase_names(runner) -> None:
     result = runner.invoke(list_normals, ["--help"])
     assert result.exit_code == 0
-    assert "] gameplan [output_file]" in " ".join(result.output.split())  # wraps
-    assert "GAMEPLAN" not in result.output and "OUTPUT_PATH" not in result.output
+    assert "] gameplan [output_file]" in " ".join(result.stdout.split())  # wraps
+    assert "GAMEPLAN" not in result.stdout and "OUTPUT_PATH" not in result.stdout
 
 
 @pytest.mark.parametrize("option", ["--force", "--output"])
@@ -62,7 +68,7 @@ def test_normals_removed_options_rejected(runner, tmp_path: Path, option: str) -
     out = tmp_path / "plays.txt"
     result = runner.invoke(list_normals, [str(GP_OFFENSE), option, str(out)])
     assert result.exit_code == 2
-    assert "No such option" in result.output
+    assert "No such option" in result.stderr
 
 
 def test_normals_default_writes_next_to_gameplan(runner, tmp_path: Path) -> None:
@@ -92,13 +98,13 @@ def test_normals_creates_missing_folders_in_full(runner, tmp_path: Path) -> None
     assert out.is_file()
 
 
-def test_normals_output_folder_is_a_file_exit_1(runner, tmp_path: Path, caplog) -> None:
+def test_normals_output_folder_is_a_file_exit_2(runner, tmp_path: Path) -> None:
     (tmp_path / "lists").write_text("x", encoding="utf-8")
     out = tmp_path / "lists" / "plays.txt"
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(list_normals, [str(GP_OFFENSE), str(out)])
-    assert result.exit_code == 1
-    assert out.parent.name in caplog.text
+    result = runner.invoke(list_normals, [str(GP_OFFENSE), str(out)])
+    assert result.exit_code == 2
+    blocked = os_error(lambda: out.parent.mkdir(parents=True, exist_ok=True))
+    assert result.stderr == f"FAIL {blocked}\n"
 
 
 def test_normals_overwrites_existing_file(runner, tmp_path: Path) -> None:
@@ -114,31 +120,31 @@ def test_normals_overwrites_existing_file(runner, tmp_path: Path) -> None:
 def test_normals_dash_offense_slot(runner) -> None:
     result = runner.invoke(list_normals, [str(GP_OFFENSE), "-"])
     assert result.exit_code == 0
-    assert result.output.splitlines() == _expected("offense_normals_slot.txt")
+    assert result.stdout.splitlines() == _expected("offense_normals_slot.txt")
 
 
 def test_normals_dash_defense_slot(runner) -> None:
     result = runner.invoke(list_normals, [str(GP_DEFENSE), "-"])
     assert result.exit_code == 0
-    assert result.output.splitlines() == _expected("defense_normals_slot.txt")
+    assert result.stdout.splitlines() == _expected("defense_normals_slot.txt")
 
 
 def test_normals_dash_sort_name(runner) -> None:
     result = runner.invoke(list_normals, [str(GP_OFFENSE), "-", "--sort", "name"])
     assert result.exit_code == 0
-    assert result.output.splitlines() == _expected("offense_normals_name.txt")
+    assert result.stdout.splitlines() == _expected("offense_normals_name.txt")
 
 
 def test_normals_dash_sort_category_offense(runner) -> None:
     result = runner.invoke(list_normals, [str(GP_OFFENSE), "-", "--sort", "category"])
     assert result.exit_code == 0
-    assert result.output.splitlines() == _expected("offense_normals_category.txt")
+    assert result.stdout.splitlines() == _expected("offense_normals_category.txt")
 
 
 def test_normals_dash_sort_category_defense(runner) -> None:
     result = runner.invoke(list_normals, [str(GP_DEFENSE), "-", "--sort", "category"])
     assert result.exit_code == 0
-    assert result.output.splitlines() == _expected("defense_normals_category.txt")
+    assert result.stdout.splitlines() == _expected("defense_normals_category.txt")
 
 
 def test_normals_sort_category_game_name_without_label(runner, tmp_path: Path) -> None:
@@ -159,7 +165,7 @@ def test_normals_sort_category_game_name_without_label(runner, tmp_path: Path) -
     write_gameplan(gp, path)
     result = runner.invoke(list_normals, [str(path), "-", "--sort", "category"])
     assert result.exit_code == 0
-    assert result.output.splitlines() == [
+    assert result.stdout.splitlines() == [
         ":: Pass Long Left", "PLL1", "PLL2",
         ":: Pass Long Middle", "PLM1",
         ":: PLR", "PLR1",
@@ -173,7 +179,7 @@ def test_normals_sort_category_without_league_labels(runner, league: Path) -> No
     (league / "league.toml").write_text(league_toml(labels=False), encoding="utf-8")
     result = runner.invoke(list_normals, [str(GP_OFFENSE), "-", "--sort", "category"])
     assert result.exit_code == 0
-    lines = result.output.splitlines()
+    lines = result.stdout.splitlines()
     assert lines[0] == ":: Run Left"
     assert ":: Goal Line Pass" in lines
     assert ":: RL" not in lines
@@ -186,23 +192,26 @@ def test_normals_league_option_picks_league(runner, make_league: MakeLeague) -> 
         [str(GP_OFFENSE), "-", "--sort", "category", "--league", OTHER_LEAGUE],
     )
     assert result.exit_code == 0
-    assert result.output.splitlines()[0] == ":: Run Left"
+    assert result.stdout.splitlines()[0] == ":: Run Left"
 
 
-def test_normals_no_league_exit_1(runner, write_config: WriteConfig, caplog) -> None:
+def test_normals_no_league_exit_2(
+    runner, config_dir: Path, write_config: WriteConfig
+) -> None:
     write_config("[athc]\n")
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(list_normals, [str(GP_OFFENSE), "-"])
-    assert result.exit_code == 1
-    assert "no league selected" in caplog.text
+    result = runner.invoke(list_normals, [str(GP_OFFENSE), "-"])
+    assert result.exit_code == 2
+    assert result.stderr == no_league_selected(config_dir, LEAGUE)
+    assert result.stdout == ""
 
 
-def test_normals_bad_league_toml_exit_1(runner, league: Path, caplog) -> None:
+def test_normals_bad_league_toml_exit_2(runner, league: Path) -> None:
     (league / "league.toml").write_text("[league\n", encoding="utf-8")
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(list_normals, [str(GP_OFFENSE), "-"])
-    assert result.exit_code == 1
-    assert "league.toml" in caplog.text
+    result = runner.invoke(list_normals, [str(GP_OFFENSE), "-"])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {league / 'league.toml'}: {toml_error('[league' + chr(10))}\n"
+    )
 
 
 def test_normals_file_sort_category(runner, tmp_path: Path) -> None:
@@ -224,7 +233,7 @@ def test_normals_file_sort_category_counts_plays_not_headers(
         list_normals, [str(GP_OFFENSE), str(out), "--sort", "category"]
     )
     assert result.exit_code == 0
-    assert f"Wrote 64 normal play(s) to {out}" in result.output
+    assert result.stdout == f"OK   {out}: 64 normal play(s)\n"
 
 
 def test_normals_file_writes_header_and_plays(runner, tmp_path: Path) -> None:
@@ -249,23 +258,32 @@ def test_normals_file_logs_count(runner, tmp_path: Path) -> None:
     out = tmp_path / "plays.txt"
     result = runner.invoke(list_normals, [str(GP_OFFENSE), str(out)])
     assert result.exit_code == 0
-    assert f"Wrote 64 normal play(s) to {out}" in result.output
+    assert result.stdout == f"OK   {out}: 64 normal play(s)\n"
 
 
-def test_normals_missing_gameplan(runner, tmp_path: Path, caplog) -> None:
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(list_normals, [str(tmp_path / "nope.pln")])
-    assert result.exit_code == 1
-    assert any(r.levelname == "ERROR" for r in caplog.records)
+def test_normals_missing_gameplan(runner, tmp_path: Path) -> None:
+    result = runner.invoke(list_normals, [str(tmp_path / "nope.pln")])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {tmp_path / 'nope.pln'}: not found\n"
+    assert result.stdout == ""
 
 
-def test_normals_malformed_file_mode_no_output(runner, tmp_path: Path, caplog) -> None:
+def test_specials_missing_gameplan(runner, tmp_path: Path) -> None:
+    result = runner.invoke(list_specials, [str(tmp_path / "nope.pln")])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {tmp_path / 'nope.pln'}: not found\n"
+    assert result.stdout == ""
+
+
+def test_normals_malformed_file_mode_no_output(runner, tmp_path: Path) -> None:
     bad = tmp_path / "bad.pln"
     bad.write_bytes(b"\x00\x01\x02")
     out = tmp_path / "plays.txt"
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(list_normals, [str(bad), str(out)])
-    assert result.exit_code == 1
+    result = runner.invoke(list_normals, [str(bad), str(out)])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {bad}: File too small to contain PLN header and offsets table\n"
+    )
     assert not out.exists()
 
 
@@ -279,8 +297,8 @@ def test_specials_requires_path(runner) -> None:
 def test_specials_help_uses_lowercase_names(runner) -> None:
     result = runner.invoke(list_specials, ["--help"])
     assert result.exit_code == 0
-    assert "] gameplan [output_file]" in result.output
-    assert "GAMEPLAN" not in result.output and "OUTPUT_PATH" not in result.output
+    assert "] gameplan [output_file]" in result.stdout
+    assert "GAMEPLAN" not in result.stdout and "OUTPUT_PATH" not in result.stdout
 
 
 @pytest.mark.parametrize("option", ["--force", "--output"])
@@ -288,7 +306,7 @@ def test_specials_removed_options_rejected(runner, tmp_path: Path, option: str) 
     out = tmp_path / "spec.txt"
     result = runner.invoke(list_specials, [str(GP_OFFENSE), option, str(out)])
     assert result.exit_code == 2
-    assert "No such option" in result.output
+    assert "No such option" in result.stderr
 
 
 def test_specials_default_writes_next_to_gameplan(runner, tmp_path: Path) -> None:
@@ -329,13 +347,13 @@ def test_specials_overwrites_existing_file(runner, tmp_path: Path) -> None:
 def test_specials_dash_offense(runner) -> None:
     result = runner.invoke(list_specials, [str(GP_OFFENSE), "-"])
     assert result.exit_code == 0
-    assert result.output.splitlines() == _expected("offense_specials.txt")
+    assert result.stdout.splitlines() == _expected("offense_specials.txt")
 
 
 def test_specials_dash_defense(runner) -> None:
     result = runner.invoke(list_specials, [str(GP_DEFENSE), "-"])
     assert result.exit_code == 0
-    assert result.output.splitlines() == _expected("defense_specials.txt")
+    assert result.stdout.splitlines() == _expected("defense_specials.txt")
 
 
 def test_specials_file_writes_header_and_plays(runner, tmp_path: Path) -> None:
@@ -351,14 +369,16 @@ def test_specials_file_logs_count(runner, tmp_path: Path) -> None:
     out = tmp_path / "spec.txt"
     result = runner.invoke(list_specials, [str(GP_OFFENSE), str(out)])
     assert result.exit_code == 0
-    assert f"Wrote 6 special play(s) to {out}" in result.output
+    assert result.stdout == f"OK   {out}: 6 special play(s)\n"
 
 
-def test_specials_malformed_file_mode_no_output(runner, tmp_path: Path, caplog) -> None:
+def test_specials_malformed_file_mode_no_output(runner, tmp_path: Path) -> None:
     bad = tmp_path / "bad.pln"
     bad.write_bytes(b"\x00\x01\x02")
     out = tmp_path / "spec.txt"
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(list_specials, [str(bad), str(out)])
-    assert result.exit_code == 1
+    result = runner.invoke(list_specials, [str(bad), str(out)])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {bad}: File too small to contain PLN header and offsets table\n"
+    )
     assert not out.exists()

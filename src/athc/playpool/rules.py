@@ -10,11 +10,13 @@ from __future__ import annotations
 
 import re
 import tomllib
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
 from typing import Any, Final
+
+from athc.errors import RulesFileError, reason_of
 
 StrPath = str | PathLike[str]
 
@@ -29,16 +31,6 @@ _SECTIONS: Final[frozenset[str]] = frozenset(
 _FILTER_KEYS: Final[frozenset[str]] = frozenset(
     {"suffix_any", "suffix_none", "regex_any", "regex_none", "include", "exclude"}
 )
-
-
-class RulesFileError(ValueError):
-    """Raised when a playpool rules TOML file cannot be parsed or validated.
-    Carries one or more messages (`errors`); every detected problem is reported
-    together."""
-
-    def __init__(self, errors: str | Iterable[str]) -> None:
-        self.errors: list[str] = [errors] if isinstance(errors, str) else list(errors)
-        super().__init__("\n".join(self.errors))
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,11 +80,11 @@ def load_rules(path: StrPath) -> PlaypoolRules:
     try:
         text = p.read_text(encoding="utf-8-sig")
     except OSError as e:
-        raise RulesFileError(f"{p}: {e}") from e
+        raise RulesFileError(reason_of(e), p) from e
     try:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError as e:
-        raise RulesFileError(f"{p}: TOML parse error: {e}") from e
+        raise RulesFileError(f"TOML parse error: {e}", p) from e
     return build_rules(data, source=p)
 
 
@@ -104,8 +96,10 @@ def build_rules(
     errors: list[str] = []
     for key in data:
         if key not in _SECTIONS:
-            errors.append(
-                f"{source}: unknown section [{key}] (expected {sorted(_SECTIONS)})"
+            errors.extend(
+                RulesFileError(
+                    f"unknown section [{key}] (expected {sorted(_SECTIONS)})", source
+                ).errors
             )
     rules = PlaypoolRules(
         timed=_build_filter(data.get(SECTION_TIMED), source, SECTION_TIMED, errors),
@@ -135,53 +129,60 @@ def _build_filter(
     if section is None:
         return FilenameFilter()
     if not isinstance(section, dict):
-        errors.append(f"{source}: [{name}] must be a table")
+        errors.extend(RulesFileError(f"[{name}] must be a table", source).errors)
         return FilenameFilter()
     unknown = sorted(set(section) - _FILTER_KEYS)
     for key in unknown:
-        errors.append(f"{source}: [{name}]: unknown key(s): {key}")
-    where = f"{source}: [{name}]"
+        errors.extend(RulesFileError(f"[{name}]: unknown key(s): {key}", source).errors)
+    where = f"[{name}]"
     return FilenameFilter(
         suffix_any=_attempt(
-            errors, lambda: _str_list(section.get("suffix_any"), f"{where}.suffix_any")
+            errors,
+            lambda: _str_list(section.get("suffix_any"), f"{where}.suffix_any", source),
         )
         or (),
         suffix_none=_attempt(
             errors,
-            lambda: _str_list(section.get("suffix_none"), f"{where}.suffix_none"),
+            lambda: _str_list(
+                section.get("suffix_none"), f"{where}.suffix_none", source
+            ),
         )
         or (),
-        regex_any=_regex_list(section.get("regex_any"), f"{where}.regex_any", errors),
+        regex_any=_regex_list(
+            section.get("regex_any"), f"{where}.regex_any", source, errors
+        ),
         regex_none=_regex_list(
-            section.get("regex_none"), f"{where}.regex_none", errors
+            section.get("regex_none"), f"{where}.regex_none", source, errors
         ),
         include=frozenset(
             _attempt(
-                errors, lambda: _str_list(section.get("include"), f"{where}.include")
+                errors,
+                lambda: _str_list(section.get("include"), f"{where}.include", source),
             )
             or ()
         ),
         exclude=frozenset(
             _attempt(
-                errors, lambda: _str_list(section.get("exclude"), f"{where}.exclude")
+                errors,
+                lambda: _str_list(section.get("exclude"), f"{where}.exclude", source),
             )
             or ()
         ),
     )
 
 
-def _str_list(value: object, where: str) -> tuple[str, ...]:
+def _str_list(value: object, where: str, source: StrPath) -> tuple[str, ...]:
     if value is None:
         return ()
     if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
-        raise RulesFileError(f"{where}: must be a list of strings")
+        raise RulesFileError(f"{where}: must be a list of strings", source)
     return tuple(value)
 
 
 def _regex_list(
-    value: object, where: str, errors: list[str]
+    value: object, where: str, source: StrPath, errors: list[str]
 ) -> tuple[re.Pattern[str], ...]:
-    patterns = _attempt(errors, lambda: _str_list(value, where))
+    patterns = _attempt(errors, lambda: _str_list(value, where, source))
     if not patterns:
         return ()
     compiled: list[re.Pattern[str]] = []
@@ -189,7 +190,9 @@ def _regex_list(
         try:
             compiled.append(re.compile(pat))
         except re.error as e:
-            errors.append(f"{where}: invalid regex {pat!r}: {e}")
+            errors.extend(
+                RulesFileError(f"{where}: invalid regex {pat!r}: {e}", source).errors
+            )
     return tuple(compiled)
 
 

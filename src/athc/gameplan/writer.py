@@ -9,13 +9,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
+from athc.errors import AthcError
 from athc.fbpro98_gameplan import CustomPlayRef, GamePlan
 from athc.playpool import Play, PlayPool
 
 MAX_NORMAL_PLAYS = GamePlan.NUMBER_NORMAL_PLAYS
 
 
-class InvalidPlayInputError(ValueError):
+class InvalidPlayInputError(AthcError):
     """Aggregates per-line input violations so the user sees every problem at once."""
 
     def __init__(self, violations: Sequence[str]) -> None:
@@ -88,26 +89,24 @@ def _resolve_normal_line(
     record = pool.find_by_name(name)
     if record is None:
         violations.append(
-            f"Play not found in play pool at line {line_no} (slot {grid}): {name}"
+            f"line {line_no}: '{name}' not found in the play pool (slot {grid})"
         )
         return None
     pf = record.play_file
     if pf.is_special_teams:
         violations.append(
-            f"Play '{name}' at line {line_no} (slot {grid}) is a special teams play, "
-            "cannot add to normal slots"
+            f"line {line_no}: '{name}' is a special teams play, cannot add to "
+            "normal slots"
         )
         return None
     if gp.is_offense and pf.is_defensive:
         violations.append(
-            f"Play '{name}' at line {line_no} (slot {grid}) is a defensive play "
-            "but gameplan is offensive"
+            f"line {line_no}: '{name}' is a defensive play but gameplan is offensive"
         )
         return None
     if gp.is_defense and pf.is_offensive:
         violations.append(
-            f"Play '{name}' at line {line_no} (slot {grid}) is an offensive play "
-            "but gameplan is defensive"
+            f"line {line_no}: '{name}' is an offensive play but gameplan is defensive"
         )
         return None
     return build_custom_play(record, pool.root_dir)
@@ -126,44 +125,40 @@ def _resolve_special_line(
     line_no = index + 1
     if upper in seen_names:
         violations.append(
-            f"Duplicate special play '{name}' at line {line_no}, "
+            f"line {line_no}: duplicate special play '{name}', "
             f"already used for special category {seen_names[upper]}"
         )
         return None
     record = pool.find_by_name(name)
     if record is None:
-        violations.append(
-            f"Special play not found in play pool at line {line_no}: {name}"
-        )
+        violations.append(f"line {line_no}: '{name}' not found in the play pool")
         return None
     pf = record.play_file
     if not pf.is_special_teams:
-        violations.append(
-            f"Play '{name}' at line {line_no} is not a special teams play"
-        )
+        violations.append(f"line {line_no}: '{name}' is not a special teams play")
         return None
     if gp.is_offense and not pf.is_offensive:
         violations.append(
-            f"Play '{name}' at line {line_no} is a defensive special play "
+            f"line {line_no}: '{name}' is a defensive special play "
             "but gameplan is offensive"
         )
         return None
     if gp.is_defense and not pf.is_defensive:
         violations.append(
-            f"Play '{name}' at line {line_no} is an offensive special play "
+            f"line {line_no}: '{name}' is an offensive special play "
             "but gameplan is defensive"
         )
         return None
     cat = pf.special_category
     if cat not in GamePlan.CUSTOM_SPECIAL_CATEGORIES:
         violations.append(
-            f"Special play '{name}' at line {line_no} is in special category {cat}, "
+            f"line {line_no}: '{name}' is in special category {cat}, "
             "which has no custom slot"
         )
         return None
     if cat in seen_categories:
         violations.append(
-            f"Special play '{name}' at line {line_no} targets special category {cat}, "
+            f"line {line_no}: '{name}' targets special category {cat}, "
             "already filled by another play"
         )
         return None

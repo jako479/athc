@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import shutil
 from dataclasses import replace
 from pathlib import Path
@@ -193,8 +192,8 @@ def test_cli_single_arg_searches_current_directory(
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(find_play, [KNOWN_NORMAL])
     assert result.exit_code == 0
-    assert f"off.pln: '{KNOWN_NORMAL}' found in slot 1-1" in result.output
-    assert f"'{KNOWN_NORMAL}': Found 1 instance(s) in 1 gameplan(s)." in result.output
+    assert f"off.pln: '{KNOWN_NORMAL}' found in slot 1-1" in result.stdout
+    assert f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 gameplan(s)" in result.stdout
 
 
 def test_cli_single_arg_recursive(
@@ -206,62 +205,58 @@ def test_cli_single_arg_recursive(
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(find_play, [KNOWN_NORMAL, "-r"])
     assert result.exit_code == 0
-    assert f"'{KNOWN_NORMAL}': Found 1 instance(s) in 1 gameplan(s)." in result.output
+    assert f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 gameplan(s)" in result.stdout
 
 
-def test_cli_single_arg_empty_directory_exit_2(
-    runner,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
+def test_cli_single_arg_empty_directory_exit_1(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """An empty directory is a warning; nothing was found, so exit 1."""
     monkeypatch.chdir(tmp_path)
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(find_play, [KNOWN_NORMAL])
-    assert result.exit_code == 2
-    assert ".: no .pln files in directory" in caplog.text
+    result = runner.invoke(find_play, [KNOWN_NORMAL])
+    assert result.exit_code == 1
+    assert result.stderr == "WARN .: no .pln files\n"
+    assert f"'{KNOWN_NORMAL}': found 0 instance(s) in 0 gameplan(s)" in result.stdout
 
 
 def test_cli_two_args_last_is_the_path(
-    runner,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """With two or more positionals the last is always the path, never a play."""
     shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
     monkeypatch.chdir(tmp_path)
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(find_play, [KNOWN_NORMAL, KNOWN_SPECIAL])
+    result = runner.invoke(find_play, [KNOWN_NORMAL, KNOWN_SPECIAL])
     assert result.exit_code == 2
-    assert f"{KNOWN_SPECIAL}: path does not exist" in caplog.text
+    assert result.stderr == f"FAIL {KNOWN_SPECIAL}: not found\n"
+    assert result.stdout == ""
 
 
 def test_cli_single_file_hit(runner) -> None:
     result = runner.invoke(find_play, [KNOWN_NORMAL, str(GP_OFFENSE)])
     assert result.exit_code == 0
-    assert f"'{KNOWN_NORMAL}' found in slot 1-1" in result.output
-    assert "Found " not in result.output  # no summary in single-file mode
+    assert result.stdout == f"{GP_OFFENSE}: '{KNOWN_NORMAL}' found in slot 1-1\n"
 
 
 def test_cli_single_file_miss_exit_1(runner) -> None:
     result = runner.invoke(find_play, [MISSING, str(GP_OFFENSE)])
     assert result.exit_code == 1
-    assert f"'{MISSING}' not found" in result.output
+    assert result.stdout == f"{GP_OFFENSE}: '{MISSING}' not found\n"
 
 
 def test_cli_single_file_case_insensitive(runner) -> None:
     result = runner.invoke(find_play, [KNOWN_NORMAL.lower(), str(GP_OFFENSE)])
     assert result.exit_code == 0
-    assert "found in slot 1-1" in result.output  # hit despite lowercase
+    assert result.stdout == (  # hit despite lowercase, echoed as typed
+        f"{GP_OFFENSE}: '{KNOWN_NORMAL.lower()}' found in slot 1-1\n"
+    )
 
 
 def test_cli_finds_custom_special(runner) -> None:
     result = runner.invoke(find_play, [KNOWN_SPECIAL, str(GP_OFFENSE)])
     assert result.exit_code == 0
-    assert (
-        f"'{KNOWN_SPECIAL}' found in special slot 1 ({KNOWN_SPECIAL_CATEGORY})"
-        in result.output
+    assert result.stdout == (
+        f"{GP_OFFENSE}: '{KNOWN_SPECIAL}' found in special slot 1 "
+        f"({KNOWN_SPECIAL_CATEGORY})\n"
     )
 
 
@@ -281,10 +276,10 @@ def test_cli_multiple_plays_all_hit(runner, tmp_path: Path) -> None:
     _write(gp2, tmp_path, "gp2.pln")
     result = runner.invoke(find_play, ["OR45RL01", "DUPRM", str(tmp_path)])
     assert result.exit_code == 0
-    assert "'OR45RL01' found in slots 1-1, 2-3" in result.output  # two slots in gp1
-    assert "'DUPRM' found in slot 2-2" in result.output  # a 2nd different play in gp1
-    assert "'OR45RL01': Found 3 instance(s) in 2 gameplan(s)." in result.output
-    assert "'DUPRM': Found 1 instance(s) in 1 gameplan(s)." in result.output
+    assert "'OR45RL01' found in slots 1-1, 2-3" in result.stdout  # two slots in gp1
+    assert "'DUPRM' found in slot 2-2" in result.stdout  # a 2nd different play in gp1
+    assert "'OR45RL01': found 3 instance(s) in 2 gameplan(s)" in result.stdout
+    assert "'DUPRM': found 1 instance(s) in 1 gameplan(s)" in result.stdout
 
 
 def test_cli_one_play_found_exit_0(runner) -> None:
@@ -292,15 +287,15 @@ def test_cli_one_play_found_exit_0(runner) -> None:
     result = runner.invoke(find_play, [KNOWN_NORMAL, MISSING, str(GP_OFFENSE)])
     assert result.exit_code == 0
     assert (
-        f"'{KNOWN_NORMAL}'" in result.output
-        and f"'{MISSING}' not found" in result.output
+        f"'{KNOWN_NORMAL}'" in result.stdout
+        and f"'{MISSING}' not found" in result.stdout
     )
 
 
 def test_cli_no_play_found_exit_1(runner) -> None:
     result = runner.invoke(find_play, [MISSING, "NOSUCHPLAYYY", str(GP_OFFENSE)])
     assert result.exit_code == 1
-    assert f"'{MISSING}' not found" in result.output
+    assert f"'{MISSING}' not found" in result.stdout
 
 
 # ── command: directory / tree ─────────────────────────────────────────────────
@@ -312,24 +307,24 @@ def test_cli_directory_reports_hit_and_miss_per_file(runner, tmp_path: Path) -> 
     shutil.copy2(GP_DEFENSE, tmp_path / "def.pln")
     result = runner.invoke(find_play, [KNOWN_SPECIAL, str(tmp_path)])
     assert result.exit_code == 0
-    assert f"off.pln: '{KNOWN_SPECIAL}' found in special slot 1" in result.output
-    assert f"def.pln: '{KNOWN_SPECIAL}' not found" in result.output
-    assert f"'{KNOWN_SPECIAL}': Found 1 instance(s) in 1 gameplan(s)." in result.output
+    assert f"off.pln: '{KNOWN_SPECIAL}' found in special slot 1" in result.stdout
+    assert f"def.pln: '{KNOWN_SPECIAL}' not found" in result.stdout
+    assert f"'{KNOWN_SPECIAL}': found 1 instance(s) in 1 gameplan(s)" in result.stdout
 
 
 def test_cli_directory_misses_are_reported(runner, tmp_path: Path) -> None:
     shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
     result = runner.invoke(find_play, [MISSING, str(tmp_path)])
     assert result.exit_code == 1
-    assert f"off.pln: '{MISSING}' not found" in result.output
-    assert f"'{MISSING}': Found 0 instance(s) in 0 gameplan(s)." in result.output
+    assert f"off.pln: '{MISSING}' not found" in result.stdout
+    assert f"'{MISSING}': found 0 instance(s) in 0 gameplan(s)" in result.stdout
 
 
 def test_cli_verbose_option_is_rejected(runner) -> None:
     """`--verbose` was removed; misses are always reported."""
     result = runner.invoke(find_play, [KNOWN_NORMAL, str(GP_OFFENSE), "--verbose"])
     assert result.exit_code == 2
-    assert "No such option '--verbose'" in result.output
+    assert "No such option '--verbose'" in result.stderr
 
 
 def test_cli_directory_summary_counts_multiple_hits(runner, tmp_path: Path) -> None:
@@ -337,7 +332,7 @@ def test_cli_directory_summary_counts_multiple_hits(runner, tmp_path: Path) -> N
     shutil.copy2(GP_OFFENSE, tmp_path / "off2.pln")
     result = runner.invoke(find_play, [KNOWN_NORMAL, str(tmp_path)])
     assert result.exit_code == 0
-    assert f"'{KNOWN_NORMAL}': Found 2 instance(s) in 2 gameplan(s)." in result.output
+    assert f"'{KNOWN_NORMAL}': found 2 instance(s) in 2 gameplan(s)" in result.stdout
 
 
 def test_cli_directory_per_play_summary(runner, tmp_path: Path) -> None:
@@ -346,8 +341,8 @@ def test_cli_directory_per_play_summary(runner, tmp_path: Path) -> None:
         find_play, [KNOWN_NORMAL, KNOWN_SPECIAL, MISSING, str(tmp_path)]
     )
     assert result.exit_code == 0  # some plays found
-    assert f"'{KNOWN_NORMAL}': Found 1 instance(s) in 1 gameplan(s)." in result.output
-    assert f"'{MISSING}': Found 0 instance(s) in 0 gameplan(s)." in result.output
+    assert f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 gameplan(s)" in result.stdout
+    assert f"'{MISSING}': found 0 instance(s) in 0 gameplan(s)" in result.stdout
 
 
 def test_cli_recursive_finds_in_subdir(runner, tmp_path: Path) -> None:
@@ -356,17 +351,18 @@ def test_cli_recursive_finds_in_subdir(runner, tmp_path: Path) -> None:
     shutil.copy2(GP_OFFENSE, sub / "off.pln")
     result = runner.invoke(find_play, [KNOWN_NORMAL, str(tmp_path), "-r"])
     assert result.exit_code == 0
-    assert f"'{KNOWN_NORMAL}': Found 1 instance(s) in 1 gameplan(s)." in result.output
+    assert f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 gameplan(s)" in result.stdout
 
 
 # ── command: error paths ──────────────────────────────────────────────────────
 
 
-def test_cli_missing_path_exit_2(runner, tmp_path: Path, caplog) -> None:
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(find_play, [KNOWN_NORMAL, str(tmp_path / "nope.pln")])
+def test_cli_missing_path_exit_2(runner, tmp_path: Path) -> None:
+    missing = tmp_path / "nope.pln"
+    result = runner.invoke(find_play, [KNOWN_NORMAL, str(missing)])
     assert result.exit_code == 2
-    assert "does not exist" in caplog.text
+    assert result.stderr == f"FAIL {missing}: not found\n"
+    assert result.stdout == ""  # a single path that failed: no tally
 
 
 def test_cli_malformed_pln_exit_2(runner, tmp_path: Path) -> None:
@@ -374,7 +370,10 @@ def test_cli_malformed_pln_exit_2(runner, tmp_path: Path) -> None:
     bad.write_bytes(b"\x00\x01\x02")
     result = runner.invoke(find_play, [KNOWN_NORMAL, str(bad)])
     assert result.exit_code == 2
-    assert "ERROR" in result.output
+    assert (
+        result.stderr
+        == f"FAIL {bad}: File too small to contain PLN header and offsets table\n"
+    )
 
 
 def test_cli_wildcard_path_is_rejected(runner, tmp_path: Path) -> None:
@@ -382,5 +381,5 @@ def test_cli_wildcard_path_is_rejected(runner, tmp_path: Path) -> None:
     shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
     result = runner.invoke(find_play, [KNOWN_NORMAL, str(tmp_path / "*.pln")])
     assert result.exit_code == 2
-    assert "wildcards are not supported" in result.output
-    assert "found in slot" not in result.output
+    assert "wildcards are not supported" in result.stderr
+    assert "found in slot" not in result.stdout

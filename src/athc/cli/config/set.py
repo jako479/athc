@@ -6,7 +6,8 @@ import click
 
 from athc.cli import CONTEXT_SETTINGS
 from athc.cli.config import config
-from athc.config import ConfigFileError, LeagueError, league_dir, set_config_value
+from athc.config import LeagueError, league_dir, set_config_value
+from athc.console import console
 
 KNOWN_KEYS = ("league",)
 
@@ -30,8 +31,5 @@ def set_(key: str, value: str) -> None:
             league_dir(value)
         except LeagueError as error:
             raise click.BadParameter(str(error), param_hint="value") from error
-    try:
-        set_config_value(key, value)
-    except ConfigFileError as error:
-        raise click.UsageError(str(error)) from error
-    click.echo(f"Set {key} = {value}")
+    set_config_value(key, value)  # an unreadable athc.ini is a FAIL, not a usage error
+    console.result(f"Set {key} = {value}")

@@ -7,7 +7,7 @@ A `athc autocontinue` command that polls the screen for the FbPro '98 'Continue'
 ```
 src/athc/autocontinue/
 ├── __init__.py
-├── config.py        # Config, ConfigError, load_config, config_signature, get_runtime_path
+├── config.py        # Config, load_config (raises ConfigFileError), config_signature, get_runtime_path
 ├── main.py          # auto_continue() watch loop, screen helpers (pyautogui, ctypes)
 └── images/
     └── continue_button.png   # pyautogui match target (package_data)
@@ -30,7 +30,7 @@ src/athc/cli/autocontinue.py  # Click command; lazy-imports main so pyautogui lo
 - **Primary monitor only** — pyautogui/`ImageGrab` captures the primary display, so the game must run there. A single-display VM sidesteps this (the guest has one monitor, freeing the host's other monitors). Full multi-monitor support is out of scope (PIL has known multi-monitor/negative-coordinate bugs).
 - No `--config` flag — config is `config_dir()/athc.ini` (`ATHC_CONFIG_DIR`), per [architecture.md](../design/architecture.md#config); tests isolate by setting that env var.
 - `--hot-corner/--no-hot-corner` (default unset) overrides the `hot_corner` config value; unset, the config wins. The override holds across live reloads.
-- pyautogui (+ opencv-python, which backs the confidence-based image match) is a **required dependency**, but the CLI still lazy-imports `main` so discovery and `--help` work even on a broken install; running without it then exits 1 with a "reinstall" hint.
+- pyautogui (+ opencv-python, which backs the confidence-based image match) is a **required dependency**, but the CLI still lazy-imports `main` so discovery and `--help` work even on a broken install; running without it then prints `FAIL missing pyautogui -- reinstall athc` and exits 2.
 - Sees pixels only — never inspects or edits game files.
 - The watch loop is **manual-tested only** (depends on the live display). `config.py` + the CLI are covered by `pytest`.
 
@@ -44,12 +44,13 @@ src/athc/cli/autocontinue.py  # Click command; lazy-imports main so pyautogui lo
 | `delay_before_continue` | Seconds before clicking; `0.0` instant, `-1.0` finds but doesn't click. |
 | `hot_corner` | Optional bool; stop on the top-left corner. Missing/blank → enabled. |
 
-`ConfigError` covers a missing file, a missing `[autocontinue]` section, a missing/non-numeric timing setting, or a non-boolean `hot_corner` → the CLI logs it and exits 1.
+`ConfigFileError` covers a missing file, a missing `[autocontinue]` section, a missing/non-numeric timing setting, or a non-boolean `hot_corner` → a `FAIL` line, exit 2.
 
 ## Exit codes
 
 | Exit | Meaning |
 |---|---|
-| `0` | **OK** — ran, including a clean Ctrl-C stop. |
-| `1` | **Error** — config missing/invalid, or pyautogui not installed (reinstall hint). |
-| `2` | **Usage** — bad arguments (Click). |
+| `0` | **Done** — ran, including a clean Ctrl-C stop. |
+| `2` | **Error** — a `FAIL` line: config missing/invalid, or pyautogui not installed (reinstall hint); or usage, bad arguments (Click). |
+
+The shared scheme: [architecture.md](../design/architecture.md#console-run-log-and-errors).

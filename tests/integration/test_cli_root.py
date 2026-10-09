@@ -8,7 +8,6 @@ x` take theirs.
 
 from __future__ import annotations
 
-import logging
 import shutil
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -25,7 +24,7 @@ from athc.cli.gameplan.set_normals import set_normals
 from athc.cli.gameplan.set_specials import set_specials
 from athc.cli.generate_schedule import generate_schedule
 from athc.cli.profile.check import check as profile_check
-from tests.conftest import LEAGUE, OTHER_LEAGUE
+from tests.conftest import LEAGUE, OTHER_LEAGUE, league_not_found, no_league_selected
 from tests.integration.conftest import DATA, GP_OFFENSE, OFF1, RULES_TOML
 
 MakeLeague = Callable[..., Path]
@@ -45,20 +44,20 @@ LEAGUE_COMMANDS = [
 def test_root_help_has_no_league(runner) -> None:
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
-    assert "--league" not in result.output
+    assert "--league" not in result.stdout
 
 
 def test_root_rejects_league(runner) -> None:
     result = runner.invoke(cli, ["--league", LEAGUE, "profile", "check", str(OFF1)])
     assert result.exit_code == 2
-    assert "No such option" in result.output
+    assert "No such option" in result.stderr
 
 
 @pytest.mark.parametrize("command", LEAGUE_COMMANDS)
 def test_league_commands_take_league(runner, command: click.Command) -> None:
     result = runner.invoke(command, ["--help"])
     assert result.exit_code == 0
-    assert "--league name" in result.output
+    assert "--league name" in result.stdout
 
 
 def _unknown_league_args(command: click.Command, tmp_path: Path) -> list[str]:
@@ -84,16 +83,15 @@ def _unknown_league_args(command: click.Command, tmp_path: Path) -> list[str]:
 def test_league_flag_reaches_the_command(
     runner,
     make_league: MakeLeague,
+    config_dir: Path,
     tmp_path: Path,
-    caplog: pytest.LogCaptureFixture,
     command: click.Command,
 ) -> None:
     make_league()
     args = [*_unknown_league_args(command, tmp_path), "--league", "NOPE"]
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(command, args)
-    assert result.exit_code != 0
-    assert "league 'NOPE' not found" in caplog.text
+    result = runner.invoke(command, args)
+    assert result.exit_code == 2
+    assert result.stderr == league_not_found(config_dir, "NOPE", LEAGUE)
 
 
 def test_league_flag_picks_profile_rules(runner, make_league: MakeLeague) -> None:
@@ -128,7 +126,7 @@ COMMAND_PATHS = [(), *_command_paths(cli, click.Context(cli, info_name="athc"))]
 def test_short_help_option_on_every_command(runner, path: tuple[str, ...]) -> None:
     result = runner.invoke(cli, [*path, "-h"])
     assert result.exit_code == 0
-    assert "Usage:" in result.output
+    assert "Usage:" in result.stdout
 
 
 @pytest.mark.parametrize(
@@ -177,7 +175,7 @@ def test_help_uses_lowercase_names(
 ) -> None:
     result = runner.invoke(cli, [*path, "--help"])
     assert result.exit_code == 0
-    output = " ".join(result.output.split())  # a long usage line wraps
+    output = " ".join(result.stdout.split())  # a long usage line wraps
     for text in shown:
         assert text in output
     for text in hidden:
@@ -219,13 +217,13 @@ USAGE_CASES = [
 def test_usage_lists_each_option(runner, path: tuple[str, ...], usage: str) -> None:
     result = runner.invoke(cli, [*path, "-h"], prog_name="athc")
     assert result.exit_code == 0
-    block = result.output.split("\n\n", 1)[0]  # the usage line, however wrapped
+    block = result.stdout.split("\n\n", 1)[0]  # the usage line, however wrapped
     assert " ".join(block.split()) == f"Usage: {usage}"
 
 
 def test_long_usage_wraps_between_options(runner) -> None:
     result = runner.invoke(cli, ["convert-pdb", "-h"], prog_name="athc")
-    usage = result.output.split("\n\n", 1)[0].splitlines()
+    usage = result.stdout.split("\n\n", 1)[0].splitlines()
     assert len(usage) > 1  # long enough to wrap
     for line in usage:
         assert line.count("[") == line.count("]"), line  # no option split
@@ -234,13 +232,12 @@ def test_long_usage_wraps_between_options(runner) -> None:
 def test_root_ignores_athc_league_env(
     runner,
     make_league: MakeLeague,
+    config_dir: Path,
     monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
 ) -> None:
     other = make_league(OTHER_LEAGUE)
     shutil.copy(RULES_TOML, other / "profile.toml")
     monkeypatch.setenv("ATHC_LEAGUE", OTHER_LEAGUE)
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(cli, ["profile", "check", str(OFF1)])
+    result = runner.invoke(cli, ["profile", "check", str(OFF1)])
     assert result.exit_code == 2
-    assert "no league selected" in caplog.text
+    assert result.stderr == no_league_selected(config_dir, OTHER_LEAGUE)

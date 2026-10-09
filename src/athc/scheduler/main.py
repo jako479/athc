@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import logging
 import time
-from dataclasses import replace
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
@@ -22,9 +22,17 @@ from athc.scheduler.writers.html_writer import HtmlScheduleWriter
 from athc.scheduler.writers.report import HtmlReportWriter, build_schedule_report
 from athc.scheduler.writers.txt_writer import TxtScheduleWriter
 
-logger = logging.getLogger(__name__)
-
 StrPath = str | PathLike[str]
+
+
+@dataclass(frozen=True, slots=True)
+class GeneratedSchedule:
+    """A solved season: the solver result, the seed it ran with and the files
+    written (the `.txt` and `.html` schedules, then the `_report.html`)."""
+
+    result: SchedulerResult
+    seed: int
+    files: tuple[Path, ...]
 
 
 def generate_schedule(
@@ -37,13 +45,16 @@ def generate_schedule(
     seed: int,
     time_limit: int | None,
     command_line: str,
-) -> SchedulerResult:
+    progress: Callable[[str], None] | None = None,
+) -> GeneratedSchedule:
     """Solve `league`'s season schedule and write outputs to `output_dir`.
 
     Writes a `.txt` and `.html` schedule plus an `.html` report, all named
     `schedule_<season>_<YYYYMMDD_HHMM>` (the report adds a `_report` suffix);
-    the league name titles the HTML files. Returns the solver result.
+    the league name titles the HTML files. `progress` hears each progress
+    line, the solver's phases included; nothing is printed or logged here.
     """
+    say = progress or (lambda _: None)
     scheduler_config = load_scheduler_config(config_path, required=False)
     if time_limit is not None:  # CLI --time-limit overrides the configured value
         scheduler_config = replace(
@@ -52,24 +63,27 @@ def generate_schedule(
         )
     structure = load_league(league_path)  # either standings section
 
-    logger.info("Generating the %d schedule", season)
+    say(f"Generating the {season} schedule")
     started = time.perf_counter()
     result = get_scheduler()(
         league=structure,
         seed=seed,
         scheduler_config=scheduler_config,
         season=season,
+        progress=progress,
     )
     elapsed = time.perf_counter() - started
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M")
     base = Path(output_dir) / f"schedule_{season}_{stamp}"
+    txt_path = base.with_suffix(".txt")
+    html_path = base.with_suffix(".html")
     report_path = base.with_name(f"{base.name}_report.html")
 
-    TxtScheduleWriter(base.with_suffix(".txt")).write(result.schedule)
-    HtmlScheduleWriter(
-        base.with_suffix(".html"), league_name=league, season_label=str(season)
-    ).write(result.schedule)
+    TxtScheduleWriter(txt_path).write(result.schedule)
+    HtmlScheduleWriter(html_path, league_name=league, season_label=str(season)).write(
+        result.schedule
+    )
     report = build_schedule_report(
         schedule=result.schedule,
         matchup_plan=result.matchup_plan,
@@ -83,11 +97,4 @@ def generate_schedule(
         threads=result.workers,
     )
     HtmlReportWriter(report_path, league_name=league).write(report)
-    logger.info(
-        "Generated %d games -> %s.{txt,html}; report -> %s (seed %d)",
-        len(result.schedule.games),
-        base.name,
-        report_path.name,
-        seed,
-    )
-    return result
+    return GeneratedSchedule(result, seed, (txt_path, html_path, report_path))

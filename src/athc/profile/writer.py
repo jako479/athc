@@ -10,29 +10,16 @@ from athc.fbpro98_profile import (
     Down,
     FieldPosition,
     Profile,
-    ProfileType,
     Situation,
     read_profile,
 )
+from athc.profile.errors import ProfileTypeMismatchError
 
 StrPath = str | PathLike[str]
 
 GOAL_LINE_POSITIONS: frozenset[FieldPosition] = frozenset(
     {FieldPosition.INSIDE_DEF_5, FieldPosition.INSIDE_OFF_5}
 )
-
-
-class ProfileTypeMismatchError(ValueError):
-    """Raised when the source and target profile types differ."""
-
-    def __init__(self, source_type: ProfileType, target_type: ProfileType) -> None:
-        self.source_type = source_type
-        self.target_type = target_type
-        super().__init__(
-            f"Profile type mismatch: source is {source_type.name}, "
-            f"target is {target_type.name}. "
-            f"copy only copies offense -> offense or defense -> defense."
-        )
 
 
 class ProfileWriter:
@@ -62,7 +49,13 @@ class ProfileWriter:
         source = read_profile(str(self.source_path))
         target = read_profile(str(self.target_path))
         if source.profile_type != target.profile_type:
-            raise ProfileTypeMismatchError(source.profile_type, target.profile_type)
+            raise ProfileTypeMismatchError(
+                source.profile_type,
+                target.profile_type,
+                f"Profile type mismatch: source is {source.profile_type.name}, "
+                f"target is {target.profile_type.name}. "
+                "copy only copies offense -> offense or defense -> defense.",
+            )
         profile = target
         if copy_sub_percent:
             profile = replace(profile, substitutions=source.substitutions)

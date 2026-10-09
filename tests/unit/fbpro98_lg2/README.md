@@ -43,7 +43,7 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` =
 |---|---|---|---|---|
 | Later team with no files (all zeros) | make_team | "Empty filename" | `test_team_with_no_files_rejected` | ☑ |
 | Non-ASCII byte | make_team | decoded as U+FFFD | `test_non_ascii_byte_decodes_as_replacement` | ☑ |
-| Error names the path | make_team | "in league.lg2" | `test_error_names_the_path` | ☑ |
+| Error names the path first | make_team | "league.lg2: ..." and `.path` | `test_error_names_the_path_first` | ☑ |
 | Missing file | league + tmp folder | `OSError` naming `<league_dir>/<league>.lg2` | `test_missing_file_raises_oserror_for_built_path` | ☑ |
 
 ## model.py

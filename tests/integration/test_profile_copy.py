@@ -168,7 +168,7 @@ def test_cli_copies_pat_logic(runner, tmp_path: Path) -> None:
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     result = runner.invoke(copy, [str(source), str(target), "--pat-logic"])
     assert result.exit_code == 0
-    assert f"{target}: updated (pat-logic)" in result.output
+    assert f"{target}: updated (pat-logic)" in result.stdout
     assert (
         read_profile(str(target)).pat_situations
         == read_profile(str(source)).pat_situations
@@ -178,7 +178,7 @@ def test_cli_copies_pat_logic(runner, tmp_path: Path) -> None:
 def test_cli_help_lists_pat_logic(runner) -> None:
     result = runner.invoke(copy, ["--help"])
     assert result.exit_code == 0
-    assert "--pat-logic" in result.output
+    assert "--pat-logic" in result.stdout
 
 
 def test_cli_prints_updated_line_and_summary(runner, tmp_path: Path) -> None:
@@ -186,15 +186,15 @@ def test_cli_prints_updated_line_and_summary(runner, tmp_path: Path) -> None:
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     result = runner.invoke(copy, [str(source), str(target), "--stop-clock"])
     assert result.exit_code == 0
-    assert f"{target}: updated (stop-clock)" in result.output
-    assert "1 file(s) processed; 1 updated, 0 failed." in result.output
+    assert f"OK   {target}: updated (stop-clock)" in result.stdout
+    assert "1 file(s) processed, 1 updated, 0 skipped, 0 failed" in result.stdout
 
 
 def test_cli_help_uses_lowercase_names(runner) -> None:
     result = runner.invoke(copy, ["--help"])
     assert result.exit_code == 0
-    assert "] source target" in result.output
-    assert "SRC.prf" not in result.output and "TARGET" not in result.output
+    assert "] source target" in result.stdout
+    assert "SRC.prf" not in result.stdout and "TARGET" not in result.stdout
 
 
 # ── no backups ────────────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ def test_cli_writes_no_backup(runner, tmp_path: Path) -> None:
     result = runner.invoke(copy, [str(source), str(target), "--stop-clock"])
     assert result.exit_code == 0
     assert list(tmp_path.glob("*.bak")) == []
-    assert "; backup " not in result.output
+    assert "; backup " not in result.stdout
 
 
 def test_cli_no_backup_option_removed(runner, tmp_path: Path) -> None:
@@ -216,7 +216,7 @@ def test_cli_no_backup_option_removed(runner, tmp_path: Path) -> None:
         copy, [str(source), str(target), "--stop-clock", "--no-backup"]
     )
     assert result.exit_code == 2
-    assert "No such option" in result.output
+    assert "No such option" in result.stderr
 
 
 # ── bulk: directory + side filter ─────────────────────────────────────────────
@@ -232,7 +232,7 @@ def test_cli_directory_top_level_only(runner, tmp_path: Path) -> None:
     shutil.copy2(OFF1, targets / "sub" / "deep.prf")
     result = runner.invoke(copy, [str(source), str(targets), "--stop-clock"])
     assert result.exit_code == 0
-    assert "2 file(s) processed" in result.output and "2 updated" in result.output
+    assert "2 file(s) processed" in result.stdout and "2 updated" in result.stdout
 
 
 def test_cli_directory_recursive(runner, tmp_path: Path) -> None:
@@ -244,7 +244,7 @@ def test_cli_directory_recursive(runner, tmp_path: Path) -> None:
     shutil.copy2(OFF1, targets / "sub" / "deep.prf")
     result = runner.invoke(copy, [str(source), str(targets), "--stop-clock", "-r"])
     assert result.exit_code == 0
-    assert "2 file(s) processed" in result.output
+    assert "2 file(s) processed" in result.stdout
 
 
 def test_cli_offense_source_skips_defense_targets(runner, tmp_path: Path) -> None:
@@ -256,7 +256,8 @@ def test_cli_offense_source_skips_defense_targets(runner, tmp_path: Path) -> Non
     pre_def = (targets / "def.prf").read_bytes()
     result = runner.invoke(copy, [str(source), str(targets), "--stop-clock"])
     assert result.exit_code == 0
-    assert "1 file(s) processed" in result.output and "1 updated" in result.output
+    assert f"SKIP {targets / 'def.prf'}: defense profile" in result.stdout
+    assert "2 file(s) processed, 1 updated, 1 skipped, 0 failed" in result.stdout
     assert (targets / "def.prf").read_bytes() == pre_def
 
 
@@ -266,7 +267,8 @@ def test_cli_single_wrong_side_target_skipped(runner, tmp_path: Path) -> None:
     pre = target.read_bytes()
     result = runner.invoke(copy, [str(source), str(target), "--stop-clock"])
     assert result.exit_code == 0
-    assert "0 file(s) processed" in result.output
+    assert f"SKIP {target}: defense profile" in result.stdout
+    assert "1 file(s) processed, 0 updated, 1 skipped, 0 failed" in result.stdout
     assert target.read_bytes() == pre
 
 
@@ -282,9 +284,10 @@ def test_cli_continues_past_failed_file(runner, tmp_path: Path) -> None:
     bad = targets / "bad.prf"
     bad.write_bytes(b"\x00" * OFF1.stat().st_size)  # same (even) parity, but malformed
     result = runner.invoke(copy, [str(source), str(targets), "--stop-clock"])
-    assert result.exit_code == 1
-    assert f"{good}: updated" in result.output and f"{bad}: failed" in result.output
-    assert "1 updated" in result.output and "1 failed" in result.output
+    assert result.exit_code == 2
+    assert f"OK   {good}: updated" in result.stdout
+    assert result.stderr == f"FAIL {bad}: Invalid header '\x00\x00\x00\x00' at 0x0\n"
+    assert "2 file(s) processed, 1 updated, 0 skipped, 1 failed" in result.stdout
 
 
 def test_cli_missing_source_exit_2(runner, tmp_path: Path) -> None:
@@ -294,6 +297,7 @@ def test_cli_missing_source_exit_2(runner, tmp_path: Path) -> None:
         copy, [str(tmp_path / "nope.prf"), str(target), "--stop-clock"]
     )
     assert result.exit_code == 2
+    assert result.stderr == f"FAIL {tmp_path / 'nope.prf'}: not found\n"
     assert target.read_bytes() == pre  # untouched when source can't be read
 
 

@@ -13,6 +13,8 @@ athc config set league NAME    # set the league used when --league is not given
 
 `reveal` opens the file manager with `athc.ini` selected, or the folder if it doesn't exist yet.
 
+`path` prints the path on stdout; `set` prints `Set <key> = <value>`. An unknown key or a league with no folder is a usage error, 2; an unreadable `athc.ini` is `FAIL <why>`, 2. Shared console and codes: [architecture](../design/architecture.md#console-run-log-and-errors).
+
 ## Config
 
 Operates on `athc.ini`, found via `ATHC_CONFIG_DIR` / the default config dir (see [../design/architecture.md](../design/architecture.md#config)) — there is no `--config` flag and no `[config]` section; the group reads no settings.

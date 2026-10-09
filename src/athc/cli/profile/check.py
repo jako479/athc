@@ -2,25 +2,18 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 import click
 
 from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.profile import profile
-from athc.cli.profile._common import collect_files, resolve_rules
-from athc.config import ConfigFileError, LeagueError
-from athc.fbpro98_profile import (
-    InvalidProfileError,
-    UnsupportedProfileError,
-    read_profile,
-)
+from athc.cli.profile._common import collect_files, load_rules_or_raise
+from athc.console import console
+from athc.errors import AthcError
+from athc.fbpro98_profile import read_profile
 from athc.profile import ProfileRules, Violation, validate_profile
 from athc.profile.config import load_config
-
-PROG = "athc profile check"
-logger = logging.getLogger(__name__)
 
 
 @profile.command(name="check", context_settings=CONTEXT_SETTINGS)
@@ -44,58 +37,57 @@ def check(
     Each path is a .prf file, a directory (top level, or the whole tree with -r),
     or a glob. With no path, the current directory is checked.
     """
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-
     if not paths:
         paths = (".",)
-    files, path_errors = collect_files(paths, suffix=".prf", recursive=recursive)
-    for error in path_errors:
-        logger.error("%s: %s", PROG, error)
-    if not files:
-        ctx.exit(2)
+    config = load_config(league)
+    rules = load_rules_or_raise(config.rule_files)
 
-    try:
-        config = load_config(league)
-    except (ConfigFileError, LeagueError) as error:
-        logger.error("%s: %s", PROG, error)
-        ctx.exit(2)
+    collected = collect_files(paths, suffix=".prf", recursive=recursive)
+    for line in collected.errors:
+        console.fail(line)
+    for line in collected.warnings:
+        console.warn(line)
 
-    rules = resolve_rules(config.rule_files, prog=PROG, logger=logger)
-    if rules is None:
-        ctx.exit(2)
+    findings = 0
+    failed = len(collected.errors)
+    for path in collected.files:
+        try:
+            count, line = check_file(path, rules)
+        except (AthcError, OSError) as error:
+            console.fail(str(error))
+            failed += 1
+            continue
+        except Exception:
+            console.unexpected(str(path))
+            failed += 1
+            continue
+        if count > 0:
+            findings += 1
+            head, *details = line.split("\n")
+            console.result(head)
+            for detail in details:
+                console.print(detail)
+        else:
+            console.ok(line)
 
-    total = files_with_violations = total_violations = io_errors = 0
-    for path in files:
-        count, line = check_file(path, rules)
-        click.echo(line)
-        total += 1
-        if count < 0:
-            io_errors += 1
-        elif count > 0:
-            files_with_violations += 1
-            total_violations += count
-
-    click.echo()
-    click.echo(
-        f"{total} file(s) checked, {total_violations} violation(s) "
-        f"across {files_with_violations} file(s)."
+    console.print()
+    console.result(
+        f"{len(collected.files)} file(s) checked, {findings} with violations, "
+        f"{failed} failed"
     )
-    if io_errors or path_errors:
-        ctx.exit(2)
-    ctx.exit(1 if total_violations else 0)
+    ctx.exit(2 if failed else 1 if findings else 0)
 
 
 def check_file(path: Path, rules: ProfileRules) -> tuple[int, str]:
-    """Return `(count, line)`; a parse/I/O error returns `(-1, error line)`."""
-    try:
-        prof = read_profile(str(path))
-    except (OSError, InvalidProfileError, UnsupportedProfileError) as error:
-        return -1, f"{path}: ERROR: {error}"
+    """Return `(count, line)`: the file's report, headline first; a clean file
+    gives `(0, "<path>: <side>, FG range <n>")`. A file that cannot be read
+    raises the reader's error; the loop catches per item."""
+    prof = read_profile(path)
     violations = validate_profile(prof, rules)
     side = "offense" if prof.is_offense else "defense"
     summary = f"{side}, FG range {prof.field_goal_range}"
     if not violations:
-        return 0, f"{path}: OK ({summary})"
+        return 0, f"{path}: {summary}"
     lines = [f"{path}: {len(violations)} violation(s) ({summary})"]
     lines.extend(f"  {_format_violation(v)}" for v in violations)
     return len(violations), "\n".join(lines)

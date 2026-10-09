@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from athc.errors import AthcError
 from athc.fbpro98_gameplan import (
     CustomPlayRef,
     GamePlan,
@@ -246,8 +247,8 @@ def test_custom_play_name_strips_directory_and_extension() -> None:
     pytest.skip("Fixture has no CustomPlayRef in normal_plays")
 
 
-def test_invalid_gameplan_error_is_value_error_subclass() -> None:
-    assert issubclass(InvalidGamePlanError, ValueError)
+def test_invalid_gameplan_error_is_athc_error_subclass() -> None:
+    assert issubclass(InvalidGamePlanError, AthcError)
 
 
 # ---------- structural validation: error paths ----------
@@ -258,6 +259,17 @@ def test_file_too_small_raises(tmp_path):
     gameplan_path.write_bytes(b"G95:" + b"\x00" * 4)
     with pytest.raises(InvalidGamePlanError, match="File too small"):
         read_gameplan(gameplan_path)
+
+
+def test_error_names_the_path_first(tmp_path):
+    gameplan_path = tmp_path / "tiny.pln"
+    gameplan_path.write_bytes(b"")
+    with pytest.raises(InvalidGamePlanError) as exc:
+        read_gameplan(gameplan_path)
+    assert str(exc.value) == (
+        f"{gameplan_path}: File too small to contain PLN header and offsets table"
+    )
+    assert exc.value.path == gameplan_path
 
 
 def test_invalid_g95_header_raises(tmp_path):
@@ -355,8 +367,9 @@ def test_j95_count_mismatch_raises(tmp_path):
     struct.pack_into("<H", data, j95_data + 1, 9999)
     gameplan_path = tmp_path / "bad_j95_count.pln"
     gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="J95 counts"):
+    with pytest.raises(InvalidGamePlanError, match="J95 counts") as exc:
         read_gameplan(gameplan_path)
+    assert exc.value.path == gameplan_path
 
 
 def test_invalid_s98_header_raises(tmp_path):
@@ -455,7 +468,10 @@ def test_custom_play_in_clock_slot_raises(tmp_path):
     )
     gameplan_path = tmp_path / "custom_clock.pln"
     gameplan_path.write_bytes(data)
-    with pytest.raises(
-        ValueError, match="Special category 11: stock must be StockPlayRef"
-    ):
+    # The reader wraps the model's ValueError: a corrupt file, named first.
+    with pytest.raises(InvalidGamePlanError) as exc:
         read_gameplan(gameplan_path)
+    assert str(exc.value).startswith(
+        f"{gameplan_path}: Special category 11: stock must be StockPlayRef"
+    )
+    assert exc.value.path == gameplan_path

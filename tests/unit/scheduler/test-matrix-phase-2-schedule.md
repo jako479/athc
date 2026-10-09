@@ -42,4 +42,4 @@ Tests: `test_solved_schedule_obeys_every_rule`, `test_solved_schedule_realizes_t
 |---|---|---|---|
 | Phase-1 inventory has an unknown pair | raises | `test_unknown_pair_in_inventory_raises` | ☑ |
 | No feasible schedule (empty inventory) | raises | `test_empty_inventory_is_infeasible` | ☑ |
-| Streak caps off with divisions | `ConfigError` | `test_streak_caps_off_with_divisions_is_a_config_error` | ☑ |
+| Streak caps off with divisions | `ConfigFileError` | `test_streak_caps_off_with_divisions_is_a_config_error` | ☑ |

@@ -6,15 +6,16 @@ Library + CLI for FbPro98 gameplans (`.pln`). Validates a gameplan against leagu
 
 ## Results and exit codes
 
-| Exit | `check` / `find-play` / `set-specials` / `replace-play` | `list-*` / `set-normals` |
-|---|---|---|
-| `0` | **Clean** — no violations, a play found, all updated | ok / updated |
-| `1` | **Findings** — violations, no play found, nothing replaced, or some files failed | error (read, write, or invalid input) |
-| `2` | **Error** — couldn't run: usage, config, I/O, no rules, or replacement not in pool | usage (bad arguments) |
+Every command prints through the shared console ([architecture](../design/architecture.md#console-run-log-and-errors)): results, `OK` and `SKIP` lines on stdout; `WARN` and `FAIL` lines, progress and usage errors on stderr; every status line also in the run log. The same codes everywhere: `0` done (warnings included), `1` findings, `2` error (usage, config, a bad or missing file, a file that failed inside a batch, a bug). A batch processes every file and exits with the worst outcome. A named file that does not exist is `FAIL <file>: not found`.
 
-An **error** means the command couldn't run; a **finding** is a real problem to
-fix. Every check runs to the end — one bad file or violation does not stop the
-rest.
+| Command | Lines | Exit 1 (findings) |
+|---|---|---|
+| `check` | `WARN` per play-pool issue and rules notice, then per file `OK   <file>: <side>, <n> normal` or the headline `<file>: <n> violation(s) (<side>, <n> normal)` with its indented detail lines; a blank line; `<n> file(s) checked, <n> with violations, <n> failed` | violations |
+| `find-play` | per file and play `<file>: 'play' found in slot(s) ...` or `<file>: 'play' not found`; in directory mode a tally per play, `'play': found <n> instance(s) in <m> gameplan(s)`; a single path, found or not, gets no tally | a play found nowhere (2 if any file failed) |
+| `list-normals` / `list-specials` | the play names (with `-`), else `OK   <file>: <n> normal play(s)` / `... special play(s)` | never |
+| `replace-play` | `OK   <file>: 'old' (cat) replaced with 'new' (cat) [1-1][2-2]` per updated file; a single file without the play prints `<file>: 'play' not found`; in directory mode `'old' -> 'new': replaced <n> instance(s) in <m> gameplan(s), <f> failed` | nothing replaced anywhere; a replacement not in the pool is an error |
+| `set-normals` | `OK   <gameplan>: <n> normal play(s)` (`-q` skips it); a bad play list is one `FAIL <input_file> <what is wrong>` per bad line (`FAIL <what is wrong>` when the list came from the console), the game plan untouched, exit 2 | never |
+| `set-specials` | `OK   <file>: updated (<n> special play(s))`, `SKIP <file>: <other side> gameplan`, `FAIL <file>: <why>` for a file the list does not fit; a tally `<n> file(s) processed, <n> updated, <n> skipped, <n> failed` | never (a failed file is exit 2) |
 
 ## Setup
 

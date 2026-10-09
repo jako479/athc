@@ -25,10 +25,14 @@ athc/
     __init__.py
     __main__.py                          # python -m athc
     config.py                            # base INI reader + config_dir()/config_file()
+    errors.py                            # AthcError + the shared config, league and rules errors
+    console.py                           # the one console: prints every line, logs each status line
+    log.py                               # the athc logger and the rotating run log
 
     # CLI WIRING (Click decorators; no tool logic)
     cli/
-      __init__.py                        # AthcGroup + main() + shared decorators
+      __init__.py                        # AthcGroup / AthcCommand with main(), the one place; shared decorators
+      _files.py                          # collect_files for the batch commands
       check_ppp.py                       # athc check-ppp (leaf)
       generate_schedule.py               # athc generate-schedule (leaf)
       convert_pdb.py                     # athc convert-pdb (leaf)
@@ -51,8 +55,8 @@ athc/
     gameplan/        config.py  model.py  rules.py  reader.py  writer.py
     profile/         config.py  model.py  diff.py   display.py
     scheduler/       config.py  main.py   domain/  schedulers/  writers/
-    pdbtoexcel/      config.py  core.py
-    autocontinue/    config.py  core.py  images/
+    pdbtoexcel/      config.py  main.py  pdb.py  workbook_creator.py  excel_workbook.py
+    autocontinue/    config.py  main.py  images/
 
     # LIBRARIES (importable by tools and by other libs; playpool also has a CLI)
     playpool/                  py.typed  model.py  reader.py  rules.py
@@ -107,7 +111,7 @@ Extension packages can also extend athc libraries (e.g., a separate package impo
 
 ## Running from source
 
-Source runs read a per-machine **dev config** instead of the installed one: `ATHC_CONFIG_DIR`, if set, replaces the whole config dir (resolution: [`athc.config.config_dir()`](../../src/athc/config.py)); else the default `%LOCALAPPDATA%\athc` wins. The dev config is a full `athc.ini` plus league folders in `config/dev/` (mirrors `config/release/`), shared by athc and athc-admin. End users never set the var. Where to set it for VS Code and one-off runs: [README.md](../../README.md#development).
+Source runs read a per-machine **dev config** instead of the installed one: `ATHC_CONFIG_DIR`, if set, replaces the whole config dir (resolution: [`athc.config.config_dir()`](../../src/athc/config.py)); else the default `%LOCALAPPDATA%\athc` wins. The dev config is a full `athc.ini` plus league folders in `config/dev/` (mirrors `config/release/`), shared by athc and athc-admin. `ATHC_LOG_DIR` does the same for the run log folder ([Console, run log and errors](#console-run-log-and-errors)); the test suite sets both, so no test touches the real config or log. End users never set either. Where to set them for VS Code and one-off runs: [README.md](../../README.md#development).
 
 ## Windows version support
 
@@ -148,41 +152,63 @@ Rules that hold across every command and library. Each tool's own behavior is in
 - Every group and command passes `context_settings=CONTEXT_SETTINGS`, so `-h` and `--help` work everywhere and each command shows its own help.
 - The usage line is POSIX / argparse style, not Click's `[OPTIONS]`: each option, help first, then the arguments (`athc gameplan list-normals [-h] [--sort slot|name|category] [--league name] gameplan [output_file]`); a long line wraps between options, never inside one. Groups use `CommandGroup` (the root `AthcGroup` builds on it), standalone commands `cls=AthcCommand`; a group's subcommands get it automatically.
 - Argument names and option values show in lowercase with underscores (`metavar="pdb_file"`), never Click's capitals.
-- Bare `athc` prints help (`no_args_is_help=True`); `--version` reads the installed metadata (`click.version_option(package_name="athc")`), no hard-coded version; `python -m athc` works via `athc/__main__.py`.
+- Bare `athc` (or a bare group) prints help on stderr and exits 2 (`no_args_is_help=True`); the run log gets `ERROR no command given; help shown`, not the help text; `--version` reads the installed metadata (`click.version_option(package_name="athc")`), no hard-coded version; `python -m athc` works via `athc/__main__.py`.
 - Every command and group has a one-line help, written from the user's side ("Advance the sim to the next decision", not "Read the [autocontinue] section"); `show_default=True` where a default matters.
 - `--league name` is an option on each league-aware command (`gameplan check` / `replace-play` / `set-normals` / `set-specials` / `list-normals`, `profile check`, `check-ppp`, `playpool check`, `convert-pdb`, `generate-schedule`), applied with the shared `league_option` decorator and taken as `league: str | None`. It goes after the command name like `aws s3 ls --profile x` and `kubectl get --context x`; it is not on the root group because Click only takes a group's options before the subcommand name. Commands that never read league data don't have it. Selection: `--league` → `[athc] league` → an error naming `athc config set league` and listing the league folders.
-- All dependencies are required (no opt-in extras): the installer must deliver every tool working. A tool with a heavy dependency (`generate-schedule` / ortools, `autocontinue` / pyautogui) imports it lazily inside the command, so discovery and `--help` survive a broken install; on `ImportError` it logs `missing <module> -- reinstall athc`, exits 1, and has a test for the missing import.
+- All dependencies are required (no opt-in extras): the installer must deliver every tool working. A tool with a heavy dependency (`generate-schedule` / ortools, `autocontinue` / pyautogui) imports it lazily inside the command, so discovery and `--help` survive a broken install; on `ImportError` it raises `AthcError("missing <module> -- reinstall athc")`, so the user sees `FAIL missing <module> -- reinstall athc` and exit 2, and has a test for the missing import.
 
-### Exit codes
+### Console, run log and errors
 
-Whether `1` means findings or error depends on whether the command can report a **finding**: a problem in otherwise-valid input, distinct from the command failing to run. A new command picks its class by that one question. This split goes: the TODO design ([logging.md](TODO/logging.md)) gives every command one scheme, 0 / 1 findings / 2 error.
+The pattern is pdf-converter's, which the research of 2026-10-08 (git, ruff, grep, pip, Black, clig.dev, Rich) confirmed as the mainstream one: results on stdout, everything else on stderr, every status line also in a run log, one error base class, one place that turns errors into exit codes, the same codes in every command.
 
-**Commands with a findings tier** (`gameplan check`, `profile check`, `check-ppp`, `playpool check`, `profile diff`, `find-play`, and the multi-file editors `set-specials`, `replace-play`, `profile copy`) follow the grep/diff convention:
+| Piece | Module | Job |
+|---|---|---|
+| Console | `athc/console.py` | The one `AthcConsole` instance, `console`, prints every line a command shows, colors the label word and writes the matching log line. |
+| Run log | `athc/log.py` | The `athc` logger, `log_path()` and `setup_logging()`; the rotating `athc.log`. |
+| Errors | `athc/errors.py` | `AthcError(reason, path)`, the base of every expected error: it carries the reason and, when one file is to blame, that file's path, and composes `<path>: <reason>` itself, as `OSError` does; an `OSError` or `configparser` error wrapped with a path keeps only its reason (`reason_of`, `ini_reason`), so the path is named once. The shared `ConfigFileError`, `LeagueError`, `RulesFileError`; every library error subclasses it. |
+| The one place | `athc/cli/__init__.py` | `main` on `AthcCommand` and `CommandGroup` (so on `AthcGroup`): opens the log, runs Click in non-standalone mode and turns whatever comes out into a line, a log entry and an exit code. |
 
-| Exit | Meaning |
+**Message kinds.** Only these calls print; nothing in `src/athc` calls `click.echo`, `print()` or `logging.basicConfig`.
+
+| Kind | Call | Console line | Stream | Log |
+|---|---|---|---|---|
+| Result: the command's product (report lines, lists, a diff) | `console.print(text)` | plain | stdout | no |
+| One item done | `console.ok(msg)` | `OK   msg` | stdout | INFO |
+| One item skipped on purpose | `console.skip(msg)` | `SKIP msg` | stdout | INFO |
+| Tally, or one headline per item with findings | `console.result(msg)` | plain | stdout | INFO |
+| Progress of a long run | `console.progress(msg)` | plain | stderr | INFO |
+| Warning: noted, nothing failed | `console.warn(msg)` | `WARN msg` | stderr | WARNING |
+| Failure: one item, or the run | `console.fail(msg)` | `FAIL msg` | stderr | ERROR |
+| Bug | `console.unexpected(what)` | `FAIL what: unexpected error (see log: <path>)` | stderr | ERROR with traceback |
+
+- Only those four words are labels, padded to five characters. No `athc <command>:` prefix, no timestamps, no `INFO:` on the console.
+- A line about a file starts with its path, once: `OK   x.pln: updated (3 special play(s))`, `FAIL x.pln: not a .pln file`.
+- Findings (violations, play-pool issues, differences, a play not found) are results: a headline per file through `result`, so the log holds one line per file, then the detail lines through `print`.
+- A command that takes a directory ends with a tally through `result`; a single-file command does not.
+- The console writes each log line itself, so nothing is written twice and no command touches `logging`.
+
+**Color.** Rich decides: on for a terminal, off when piped or redirected; `NO_COLOR` set to anything non-empty turns it off, `FORCE_COLOR` turns it on; no athc option, no config key. Green `OK`, cyan `SKIP`, yellow `WARN`, red `FAIL`, only the word. Both consoles are built with `soft_wrap=True`, `highlight=False`, `markup=False` and `emoji=False`: a line is never wrapped, numbers and paths are never restyled, and a detail line such as `  [Run Left] message` or `:x:` prints verbatim instead of being read as markup or an emoji, so `2> err.log` holds whole plain lines.
+
+**Run log.** `athc.log` under `platformdirs.user_log_path("athc", appauthor=False)` (`%LOCALAPPDATA%\athc\Logs`), 1 MB x 5 files, UTF-8, `time LEVEL message`; `ATHC_LOG_DIR` replaces the folder the way `ATHC_CONFIG_DIR` replaces the config dir (tests, dev runs); no option, no config key. A log folder that cannot be created or written is one `FAIL <path>: <reason>` line and exit 2 before anything runs. Every run writes the start line (`athc <version> <args>`), every OK / SKIP / result / progress / WARN / FAIL line, every traceback and the end line (`exit <code>`); results are never logged. The `athc` logger never propagates and carries a `NullHandler` from import, so nothing from `logging` reaches the console, and a command run under `CliRunner` without the file handler never prints a line twice through `logging.lastResort`.
+
+**Exit codes.** The same numbers in every command, so a script treats 2 as "athc could not do it" everywhere.
+
+| Code | Meaning |
 |---|---|
-| `0` | Clean: no problems (identical; all files updated). |
-| `1` | Findings: ran, but found problems (violations, play pool issues, differences, no play found, some files failed). |
-| `2` | Error: couldn't run (usage, config, I/O, no rules, a profile/gameplan side mismatch). |
+| `0` | Done. Clean, or warnings only. |
+| `1` | Findings: ran fine and reported problems in valid input (violations, play-pool issues, differences, a play found nowhere, nothing replaced). Only the checker and finder commands ever use it: `gameplan check`, `find-play`, `replace-play`, `profile check`, `profile diff`, `check-ppp`, `playpool check`. |
+| `2` | Error: could not do the job. Usage, config, league, a missing or bad input, a file that failed inside a batch, a missing dependency, a bug. |
+| `130` | Ctrl-C. `autocontinue` stops on Ctrl-C by design, so there it is 0. |
 
-**Commands without** (`list-normals`, `list-specials`, `convert-pdb`, `set-normals`, `generate-schedule`, `autocontinue`, `config`) follow the common end-user-CLI convention (calibre, khal, beets):
+- Usage errors stay Click's: its `Usage: ... Error: ...` text on stderr, 2.
+- A batch processes every item, then exits with the worst outcome: error beats findings beats clean. Warnings never change the code. A bug is an error, not a special code; the log holds the traceback.
+- A command lets a startup problem (config, league, rules, the one named file) propagate; a named file that does not exist is `FAIL <path>: not found` (`not a file` for a folder) through `named_file` in `athc/cli/_files.py`, checked before anything reads it, so Python's `[Errno 2]` text never shows; uses `ctx.exit(1)` for findings; inside a batch loop catches `AthcError | OSError` per item (`FAIL` with the error's own text, which names the file; count, continue) and `Exception` per item (`unexpected`, count, continue); then exits `2 if failed else 1 if findings else 0`. The batch commands collect their files with `collect_files` in `athc/cli/_files.py`; a directory with no matching files is a `WARN`, the tally still prints, and the code is 0 (`find-play`: 1, nothing found).
+- The one place handles everything that comes out of Click: a `ClickException` shows its own text and exits with its code (Click's no-args help is logged as `no command given; help shown`, not as its text); `Abort` (Ctrl-C) prints `FAIL interrupted` and exits 130; `AthcError` or `OSError` prints `FAIL <message>` and exits 2; any other exception prints the `unexpected` line, logs the traceback and exits 2; a normal return exits with the command's code. `python -m athc` goes through it, and so does a command run under `CliRunner`, which is why the tests assert the lines and codes without a subprocess.
+- A tool with a heavy dependency (`generate-schedule` / ortools, `autocontinue` / pyautogui) turns the `ImportError` into `AthcError("missing <module> -- reinstall athc")`: `FAIL missing <module> -- reinstall athc`, 2.
 
-| Exit | Meaning |
-|---|---|
-| `0` | OK. |
-| `1` | Error: anything went wrong (I/O, config, missing dependency). |
-| `2` | Usage: bad arguments (Click's default). |
+**Libraries and tool packages** (the Click-free code) never print, never import the console, never configure `logging`, never log. A failure raises an `AthcError` subclass with the reason and, when one file is to blame, its path; the error composes `<path>: <reason>` itself, so a command prints `str(error)` and never adds a path of its own. Readers wrap every model `ValueError` in their own error, so a command never catches a bare `ValueError`. Warnings and findings come back as values with the result (`PlayPool.issues`, `rule_warnings()`, `PDB.warnings`, `ConversionResult.warnings`, `violations`). Live progress goes through an optional `progress: Callable[[str], None]` parameter that the command wires to `console.progress`; a loop that cannot return its warnings (`autocontinue`) takes a `warn` callback the same way.
 
-Warnings never change the exit code. The code is computed once after the work loop, so a multi-file run processes and reports every file before it exits. Per-tool specifics are in each tool's README.
-
-### Output streams
-
-- **stdout** (`click.echo`, never `print()`): everything the user reads, results and status alike (reports, lists, "Updated …", "Wrote N plays"), with no level prefixes so it pipes cleanly. A command that edits files in place still echoes its status line (the `cp -v` convention). `-q/--quiet`, where offered, skips the success line only.
-- **stderr** (`logging`): errors and warnings only. `logger.error` is a failure, fatal or per-item; the exit code comes from control flow, not the log level. CLI commands never call `logger.info` / `logger.warning`.
-- **Libraries** never print results and never configure handlers: `logger.warning` for a recoverable "skipped X" notice, `logger.info` for progress, never `logger.error` (the app decides what's fatal). So library progress such as `convert-pdb`'s "Conversion complete" lands on stderr.
-- The log level is fixed; there is no option or config key for it.
-- An unexpected exception (a bug, not an anticipated error) is caught once in the umbrella `main()`, logged as one line, exit 2, no traceback; `ATHC_DEBUG=1` re-raises it.
-- **Not yet as designed.** Today each leaf command calls `basicConfig`, output is uncolored and there is no run log. The target (Rich console, file-only run log, one error base, one exit-code scheme) is the TODO design [logging.md](TODO/logging.md), with its per-command companion [logging-by-command.md](TODO/logging-by-command.md).
+Per command: each tool's README carries its lines, what counts as a finding, and its codes.
 
 ### Output files
 
@@ -203,4 +229,4 @@ Warnings never change the exit code. The code is computed once after the work lo
 - An unreadable `athc.ini` or `league.toml` (wrong value type, bad label) raises `ConfigFileError`; a missing or unknown league raises `LeagueError`.
 - Each tool owns `<tool>/config.py`: a frozen `Config` dataclass with typed defaults and a `load(league)` that asks the resolved `LeagueConfig` for what the tool needs (`path(key)`, `rules_file(name)` / `rule_files(key, default)`, `categories`). `athc.ini` values come back as strings, so type conversion is the tool's job.
 - In-code defaults are authoritative: missing file, section or key means defaults; a tool errors only when a value it needs at runtime can't be resolved (`play_path` not on disk). A new tool's `[section]` runs on defaults after an upgrade, which never overwrites `athc.ini`; to customize, the user adds the section to their own (the pgcli/mycli model; deploy rules in [installer.md](installer.md)).
-- A deprecated key keeps working for 2–3 releases with a one-line stderr warning at startup naming the replacement (VS Code's `deprecationMessage` pattern), then goes.
+- A deprecated key keeps working for 2–3 releases with a one-line `WARN` at startup naming the replacement (VS Code's `deprecationMessage` pattern), then goes.

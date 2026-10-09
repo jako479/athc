@@ -24,4 +24,4 @@ Each team's non-conference count is `weeks` minus its structural games (a 4-team
 
 ## Validation
 
-`weeks × 9` total pairings and the league's non-conference total, no unfilled slots, and the solution must keep every forced pair, or it errors. An infeasible or timed-out solve errors (`SchedulerError`, exit 1).
+`weeks × 9` total pairings and the league's non-conference total, no unfilled slots, and the solution must keep every forced pair, or it errors. An infeasible or timed-out solve errors (`SchedulerError`, exit 2).

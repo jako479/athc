@@ -70,7 +70,7 @@ For special-teams updates, `with_custom_special_plays(plays)` places each `Custo
 
 ## API
 
-- `read_gameplan(path)` reads a `.pln` and returns a `GamePlan`; `write_gameplan(gameplan, path)` writes one. `parse_gameplan(buffer, path)` and `build_gameplan_bytes(gameplan)` are the bytes-in / bytes-out pair, `path` only naming the source in errors.
+- `read_gameplan(path)` reads a `.pln` and returns a `GamePlan`; `write_gameplan(gameplan, path)` writes one. `parse_gameplan(buffer, path)` and `build_gameplan_bytes(gameplan)` are the bytes-in / bytes-out pair, `path` only naming the source in errors (`<path>: <reason>`).
 - `GamePlan`: `profile_type` (`ProfileType.OFFENSE` / `DEFENSE`), `normal_plays` (64 `PlayRef | None`), `special_plays` (12 `SpecialSlot`, one per special category), `audible`, `map_filename`; `is_offense` / `is_defense`; `custom_special_plays`; `with_normal_plays(plays)` and `with_custom_special_plays(plays)` return edited copies. Constructing one that breaks a structural invariant (slot counts, side of ball, special-category alignment, stock-only clock categories) raises `ValueError`.
 - `CustomPlayRef`: `filename`, `play_category`, `special_category`, `user_category`, `name`. `StockPlayRef`: `play_name`, `map_offset`, `map_size`, the same three category bytes, `name`. `SpecialSlot`: `custom`, `stock`.
 - `InvalidGamePlanError`: any structural deviation from the format; the conditions are the validity rules in [`specs/pln.md`](specs/pln.md).

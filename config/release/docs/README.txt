@@ -137,8 +137,8 @@ Settings changes aren't picking up:
     Close and reopen the terminal, then re-run the command.
 
 An error with no detail (or filing a bug report):
-    Run  set ATHC_DEBUG=1  first, then re-run the command to see the
-    full technical traceback.
+    The run log holds the full technical detail, every traceback included:
+    %LOCALAPPDATA%\athc\Logs\athc.log. Attach it to the report.
 
 convert-pdb says "Play file not found" for every play, and the play
 sheets are empty:

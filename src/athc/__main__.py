@@ -1,3 +1,3 @@
-from athc.cli import cli
+from athc.cli import main
 
-cli()
+main()

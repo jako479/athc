@@ -8,16 +8,16 @@ stubbed so nothing touches the screen.
 
 from __future__ import annotations
 
-import logging
 import sys
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from athc.autocontinue import config
-from athc.autocontinue.config import ConfigError
 from athc.cli.autocontinue import autocontinue
+from athc.errors import ConfigFileError
 
 WriteConfig = Callable[..., Path]
 
@@ -44,25 +44,25 @@ def test_load_config_reads_valid_section(valid: Callable[..., Path]) -> None:
 
 
 def test_load_config_errors_when_no_config() -> None:
-    with pytest.raises(ConfigError):  # autouse config_dir gives an empty dir
+    with pytest.raises(ConfigFileError):  # autouse config_dir gives an empty dir
         config.load_config()
 
 
 def test_load_config_errors_when_section_missing(write_config: WriteConfig) -> None:
     write_config("[other]\nfoo = 1\n")
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         config.load_config()
 
 
 def test_load_config_errors_on_missing_setting(write_config: WriteConfig) -> None:
     write_config("[autocontinue]\nmouse_move_duration = 0.5\n")
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         config.load_config()
 
 
 def test_load_config_errors_on_invalid_value(valid: Callable[..., Path]) -> None:
     valid(mouse="fast")
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         config.load_config()
 
 
@@ -93,7 +93,7 @@ def test_hot_corner_invalid_value_errors(write_config: WriteConfig) -> None:
         "[autocontinue]\nmouse_move_duration = 0.0\ndelay_before_continue = 1.0\n"
         "hot_corner = maybe\n"
     )
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         config.load_config()
 
 
@@ -127,26 +127,24 @@ def test_signature_changes_when_rewritten(valid: Callable[..., Path]) -> None:
 
 def test_cli_help_describes_continue(runner) -> None:
     result = runner.invoke(autocontinue, ["--help"])
-    assert result.exit_code == 0 and "Continue" in result.output
+    assert result.exit_code == 0 and "Continue" in result.stdout
 
 
-def test_cli_no_config_exits_1(runner, caplog) -> None:
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(autocontinue, [])
-    assert result.exit_code == 1
-    assert any(r.levelname == "ERROR" for r in caplog.records)
+def test_cli_no_config_exits_2(runner) -> None:
+    result = runner.invoke(autocontinue, [])
+    assert result.exit_code == 2
+    assert result.stderr.startswith("FAIL No [autocontinue] config found")
 
 
-def test_cli_missing_dependency_exits_1(
-    runner, monkeypatch: pytest.MonkeyPatch, caplog
+def test_cli_missing_dependency_exits_2(
+    runner, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # Simulate pyautogui missing: the lazy import fails -> exit 1 naming the module.
+    # Simulate pyautogui missing: the lazy import fails -> exit 2 naming the module.
     monkeypatch.delitem(sys.modules, "athc.autocontinue.main", raising=False)
     monkeypatch.setitem(sys.modules, "pyautogui", None)
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(autocontinue, [])
-    assert result.exit_code == 1
-    assert any("pyautogui" in r.getMessage() for r in caplog.records)
+    result = runner.invoke(autocontinue, [])
+    assert result.exit_code == 2
+    assert result.stderr == "FAIL missing pyautogui -- reinstall athc\n"
 
 
 def test_cli_runs_with_config(
@@ -156,7 +154,7 @@ def test_cli_runs_with_config(
     calls: list[bool | None] = []
     monkeypatch.setattr(
         "athc.autocontinue.main.auto_continue",
-        lambda hot_corner=None: calls.append(hot_corner),
+        lambda hot_corner=None, **callbacks: calls.append(hot_corner),
     )
     result = runner.invoke(autocontinue, [])
     assert result.exit_code == 0 and calls == [None]
@@ -178,7 +176,7 @@ def test_cli_forwards_hot_corner_override(
     calls: list[bool | None] = []
     monkeypatch.setattr(
         "athc.autocontinue.main.auto_continue",
-        lambda hot_corner=None: calls.append(hot_corner),
+        lambda hot_corner=None, **callbacks: calls.append(hot_corner),
     )
     result = runner.invoke(autocontinue, args)
     assert result.exit_code == 0 and calls == [expected]
@@ -189,14 +187,13 @@ def test_cli_keyboard_interrupt_exits_clean(
 ) -> None:
     valid()
 
-    def _boom(hot_corner: bool | None = None) -> None:
+    def _boom(hot_corner: bool | None = None, **callbacks: object) -> None:
         raise KeyboardInterrupt
 
     monkeypatch.setattr("athc.autocontinue.main.auto_continue", _boom)
-    monkeypatch.setattr("athc.cli.autocontinue.time.sleep", lambda _: None)
     result = runner.invoke(autocontinue, [])
     assert result.exit_code == 0
-    assert "Shutting down AutoContinue" in result.output
+    assert result.stdout == "Shutting down AutoContinue\n"
 
 
 # ── focus gating ───────────────────────────────────────────────────────────────
@@ -218,3 +215,42 @@ def test_game_has_focus_matches_title(
 
     monkeypatch.setattr(main, "_foreground_window_title", lambda: title)
     assert main._game_has_focus() is expected
+
+
+# ── progress and warnings through the callbacks ───────────────────────────────
+
+
+def test_loop_status_goes_to_stderr_through_the_callbacks(
+    runner, valid: Callable[..., Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    valid()
+
+    def fake(hot_corner=None, *, progress, warn):
+        progress("AutoContinue is RUNNING. Press CTRL-C to exit.")
+        warn("Config reload failed; keeping previous settings. x")
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("athc.autocontinue.main.auto_continue", fake)
+    result = runner.invoke(autocontinue, [])
+    assert result.exit_code == 0
+    assert result.stderr == (
+        "AutoContinue is RUNNING. Press CTRL-C to exit.\n"
+        "WARN Config reload failed; keeping previous settings. x\n"
+    )
+    assert result.stdout == "Shutting down AutoContinue\n"
+
+
+def test_config_changes_are_said_through_the_callback() -> None:
+    from athc.autocontinue import main
+
+    said: list[str] = []
+    first = config.Config(mouse_move_duration=0.5, delay_before_continue=2.5)
+    main._say_config_changes(None, first, said.append)
+    main._say_config_changes(
+        first, replace(first, delay_before_continue=1.0), said.append
+    )
+    assert said == [
+        "MouseMoveDuration set to 0.5",
+        "DelayBeforeContinue set to 2.5",
+        "DelayBeforeContinue set to 1.0",
+    ]

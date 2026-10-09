@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -11,19 +10,19 @@ import click
 
 from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.gameplan import gameplan
-from athc.cli.gameplan._common import build_pool, collect_files, parse_play_list
-from athc.fbpro98_gameplan import (
-    GamePlan,
-    InvalidGamePlanError,
-    read_gameplan,
-    write_gameplan,
+from athc.cli.gameplan._common import (
+    build_pool,
+    collect_files,
+    named_file,
+    parse_play_list,
 )
-from athc.gameplan.config import ConfigFileError, load_config
+from athc.console import console
+from athc.errors import AthcError
+from athc.fbpro98_gameplan import GamePlan, read_gameplan, write_gameplan
+from athc.gameplan.config import load_config
 from athc.gameplan.writer import InvalidPlayInputError, apply_special_plays
 from athc.playpool import PlayPool
 
-PROG = "athc gameplan set-specials"
-logger = logging.getLogger(__name__)
 SPECIAL_COUNT = len(GamePlan.CUSTOM_SPECIAL_CATEGORIES)
 
 
@@ -81,20 +80,6 @@ def _determine_side(pool: PlayPool, lines: Sequence[str]) -> str | None:
     return None
 
 
-def _update_one(path: Path, lines: Sequence[str], pool: PlayPool) -> tuple[str, str]:
-    """Apply the special list to one .pln. Returns `(status, message)`."""
-    try:
-        gp = read_gameplan(str(path))
-        updated = apply_special_plays(gp, lines, pool)
-    except InvalidPlayInputError as error:
-        return "failed", error.violations[0] if error.violations else "invalid input"
-    except (OSError, InvalidGamePlanError, ValueError) as error:
-        return "failed", str(error)
-    write_gameplan(updated, path)
-    count = sum(1 for p in updated.custom_special_plays if p is not None)
-    return "updated", f"{count} special play(s)"
-
-
 @gameplan.command(name="set-specials", context_settings=CONTEXT_SETTINGS)
 @click.argument("target", metavar="path", type=click.Path(path_type=Path))
 @click.argument(
@@ -121,65 +106,66 @@ def set_specials(
 
     path is a .pln file or a directory (top level, or the tree with -r); an
     input_file of `-` reads the list from the console. Files of the wrong side are
-    skipped silently (offense .pln are even-sized, defense odd). Merge semantics:
-    unlisted special categories are preserved. The league's play pool resolves
-    names.
+    skipped (offense .pln are even-sized, defense odd). Merge semantics: unlisted
+    special categories are preserved. The league's play pool resolves names.
     """
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    try:
-        if str(input_path) == "-":
-            text = sys.stdin.read()
-        else:
-            text = input_path.read_text(encoding="utf-8")
-        lines = parse_play_list(text)
-        if len(lines) > SPECIAL_COUNT:
-            logger.error(
-                "%s: input has %d play(s), max is %d", PROG, len(lines), SPECIAL_COUNT
-            )
-            ctx.exit(2)
-        config = load_config(league, rule_files=())  # no gameplan rules needed
-    except (ConfigFileError, ValueError, OSError) as error:
-        logger.error("%s: %s", PROG, error)
-        ctx.exit(2)
-
-    pool = build_pool(
-        config.play_path,
-        config.playpool_rules,
-        config.categories,
-        prog=PROG,
-        logger=logger,
-    )
-    if pool is None:
-        ctx.exit(2)
+    if str(input_path) == "-":
+        text = sys.stdin.read()
+        source = ""  # a list from the console has no file to name
+    else:
+        text = named_file(input_path).read_text(encoding="utf-8")
+        source = f"{input_path} "
+    lines = parse_play_list(text)
+    if len(lines) > SPECIAL_COUNT:
+        raise AthcError(f"input has {len(lines)} play(s), max is {SPECIAL_COUNT}")
+    config = load_config(league, rule_files=())  # no gameplan rules needed
+    pool = build_pool(config.play_path, config.playpool_rules, config.categories)
 
     input_errors = validate_special_input(lines, pool)
     if input_errors:
         for err in input_errors:
-            logger.error("%s: %s", PROG, err)
+            console.fail(f"{source}{err}")
         ctx.exit(2)
 
     side = _determine_side(pool, lines)
-    files, path_errors = collect_files(
-        [str(target)], suffix=".pln", recursive=recursive
-    )
-    for error in path_errors:
-        logger.error("%s: %s", PROG, error)
-    if not files:
-        ctx.exit(2)
+    collected = collect_files([str(target)], suffix=".pln", recursive=recursive)
+    for line in collected.errors:
+        console.fail(line)
+    for line in collected.warnings:
+        console.warn(line)
 
-    updated = failed = 0
-    for path in files:
+    other_side = "defense" if side == "offense" else "offense"
+    updated = skipped = 0
+    failed = len(collected.errors)
+    for path in collected.files:
         if not _matches_side(path, side):
+            skipped += 1
+            console.skip(f"{path}: {other_side} gameplan")
             continue
-        status, message = _update_one(path, lines, pool)
-        click.echo(f"{path}: {status} ({message})")
-        if status == "updated":
-            updated += 1
-        else:
+        try:
+            gp = read_gameplan(str(path))
+            new_gp = apply_special_plays(gp, lines, pool)
+            write_gameplan(new_gp, path)
+        except InvalidPlayInputError as error:
+            for violation in error.violations:
+                console.fail(f"{path}: {violation}")
             failed += 1
+            continue
+        except (AthcError, OSError) as error:
+            console.fail(str(error))
+            failed += 1
+            continue
+        except Exception:
+            console.unexpected(str(path))
+            failed += 1
+            continue
+        updated += 1
+        count = sum(1 for p in new_gp.custom_special_plays if p is not None)
+        console.ok(f"{path}: updated ({count} special play(s))")
 
-    click.echo()
-    click.echo(
-        f"{updated + failed} file(s) processed; {updated} updated, {failed} failed."
+    console.print()
+    console.result(
+        f"{len(collected.files)} file(s) processed, {updated} updated, "
+        f"{skipped} skipped, {failed} failed"
     )
-    ctx.exit(1 if failed else 0)
+    ctx.exit(2 if failed else 0)

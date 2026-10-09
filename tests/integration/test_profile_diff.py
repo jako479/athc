@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import csv
 import io
-import logging
 import os
 import subprocess
 import sys
@@ -15,6 +14,7 @@ import pytest
 from athc.cli.profile.diff import _CSV_COLUMNS, _infer_format, diff, render, render_csv
 from athc.fbpro98_profile import ProfileType
 from athc.profile import ProfileDiff, SituationChange, SlotChange
+from tests.conftest import os_error
 from tests.integration.conftest import DATA, DEF1, EXPECTED, OFF1
 
 OFF2 = DATA / "TST-OFF2.prf"
@@ -36,38 +36,37 @@ def test_cli_requires_two_paths(runner) -> None:
 def test_cli_identical_exit_0(runner) -> None:
     result = runner.invoke(diff, [str(OFF1), str(OFF1)])
     assert result.exit_code == 0
-    assert "are identical." in result.output
+    assert result.stdout == f"{OFF1} and {OFF1} are identical.\n"
 
 
 def test_cli_differs_exit_1(runner) -> None:
     result = runner.invoke(diff, [str(OFF1), str(OFF2)])
     assert result.exit_code == 1
-    assert f"{OFF1} -> {OFF2}" in result.output
-    assert "[situations]" in result.output
-    assert "situation(s)," in result.output  # summary footer
+    assert f"{OFF1} -> {OFF2}" in result.stdout
+    assert "[situations]" in result.stdout
+    assert "situation(s)," in result.stdout  # summary footer
 
 
-def test_cli_cross_side_exit_2(runner, caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(diff, [str(OFF1), str(DEF1)])
+def test_cli_cross_side_exit_2(runner) -> None:
+    result = runner.invoke(diff, [str(OFF1), str(DEF1)])
     assert result.exit_code == 2
-    assert "cannot diff" in caplog.text
+    assert result.stderr == "FAIL cannot diff OFFENSE against DEFENSE\n"
+    assert result.stdout == ""
 
 
-def test_cli_missing_path_exit_2(runner, caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(diff, [str(DATA / "nope.prf"), str(OFF1)])
+def test_cli_missing_path_exit_2(runner) -> None:
+    result = runner.invoke(diff, [str(DATA / "nope.prf"), str(OFF1)])
     assert result.exit_code == 2
+    assert result.stderr == f"FAIL {DATA / 'nope.prf'}: not found\n"
+    assert result.stdout == ""
 
 
-def test_cli_malformed_prf_exit_2(
-    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_cli_malformed_prf_exit_2(runner, tmp_path: Path) -> None:
     bad = tmp_path / "broken.prf"
     bad.write_bytes(b"\x00\x01\x02")
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(diff, [str(bad), str(OFF1)])
+    result = runner.invoke(diff, [str(bad), str(OFF1)])
     assert result.exit_code == 2
+    assert result.stderr == f"FAIL {bad}: File too small to contain F95 block\n"
 
 
 # ── --output ──────────────────────────────────────────────────────────────────
@@ -79,7 +78,7 @@ def test_output_txt_matches_stdout(runner, tmp_path: Path) -> None:
     out = tmp_path / "report.txt"
     written = runner.invoke(diff, [str(OFF1), str(OFF2), "-o", str(out)])
     assert written.exit_code == 1
-    assert written.output == ""  # nothing to stdout when writing a file
+    assert written.stdout == f"OK   {out}: written\n"  # the report is in the file
     assert out.read_text(encoding="utf-8") == stdout.output
 
 
@@ -101,14 +100,11 @@ def test_output_csv_rows_and_crlf(runner, tmp_path: Path) -> None:
     assert data_rows and " ".join(data_rows[0][1:6]) == ">5 1st 0-1 <DEF5 Ahd8+"
 
 
-def test_output_unknown_extension_exit_2(
-    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_output_unknown_extension_is_a_usage_error(runner, tmp_path: Path) -> None:
     out = tmp_path / "report.json"
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(diff, [str(OFF1), str(OFF1), "-o", str(out)])
+    result = runner.invoke(diff, [str(OFF1), str(OFF1), "-o", str(out)])
     assert result.exit_code == 2
-    assert "can't infer format" in caplog.text
+    assert "Usage:" in result.stderr and "use .txt or .csv" in result.stderr
     assert not out.exists()
 
 
@@ -124,14 +120,13 @@ def test_output_creates_missing_folders_in_full(runner, tmp_path: Path) -> None:
     assert out.is_file()
 
 
-def test_output_write_failure_exit_2(
-    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_output_write_failure_exit_2(runner, tmp_path: Path) -> None:
     (tmp_path / "reports").write_text("x", encoding="utf-8")
     out = tmp_path / "reports" / "report.csv"
-    with caplog.at_level(logging.ERROR):
-        result = runner.invoke(diff, [str(BASE), str(MOD), "-o", str(out)])
+    result = runner.invoke(diff, [str(BASE), str(MOD), "-o", str(out)])
     assert result.exit_code == 2
+    blocked = os_error(lambda: out.parent.mkdir(parents=True, exist_ok=True))
+    assert result.stderr == f"FAIL {blocked}\n"
 
 
 # ── golden output (controlled synthetic pair touching every field) ────────────
@@ -208,8 +203,12 @@ def test_render_csv_slot_cell_formats() -> None:
 # ── packaging check (real subprocess) ─────────────────────────────────────────
 
 
-def test_entry_point_subprocess(tmp_path: Path) -> None:
-    env = {**os.environ, "ATHC_CONFIG_DIR": str(tmp_path)}
+def test_entry_point_subprocess(tmp_path: Path, log_dir: Path) -> None:
+    env = {
+        **os.environ,
+        "ATHC_CONFIG_DIR": str(tmp_path),
+        "ATHC_LOG_DIR": str(log_dir),
+    }
     result = subprocess.run(
         [sys.executable, "-m", "athc", "profile", "diff", str(OFF1), str(OFF2)],
         capture_output=True,
@@ -218,3 +217,4 @@ def test_entry_point_subprocess(tmp_path: Path) -> None:
     )
     assert result.returncode == 1
     assert "situation(s)," in result.stdout
+    assert result.stderr == ""

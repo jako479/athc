@@ -320,9 +320,10 @@ def test_read_play_rejects_unknown_category(make_ply, tmp_path) -> None:
     path = tmp_path / "weird.ply"
     path.write_bytes(make_ply(user_category=0x3F))  # 0x3F is not a known category
     with pytest.raises(
-        InvalidPlayFileError, match=r"Unrecognized play category in .*weird\.ply"
-    ):
+        InvalidPlayFileError, match=r"weird\.ply: Unrecognized play category"
+    ) as exc:
         read_play(path)
+    assert exc.value.path == path
 
 
 @pytest.mark.parametrize("buffer", [b"", b"P95", b"P95:abc"])

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Final, Literal
 
 from athc.config import STANDINGS_DIR, league_dir
+from athc.errors import ConfigFileError, ini_reason, reason_of
 from athc.scheduler.domain.league import (
     TEAMS_PER_CONFERENCE,
     League,
@@ -39,10 +40,6 @@ DEFAULT_DIFFICULTY_SPREAD = 2.5  # difficulty tilt on the 1-9 conference scale
 AUTO_WORKERS: Final = "auto"
 type SolverWorkers = int | Literal["auto"]
 DEFAULT_SOLVER_WORKERS: SolverWorkers = AUTO_WORKERS
-
-
-class ConfigError(Exception):
-    """The config file is missing, or present but invalid."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,14 +173,14 @@ def load_scheduler_config(path: StrPath, *, required: bool = True) -> SchedulerC
     resolved = Path(path)
     if not resolved.is_file():
         if required:
-            raise ConfigError(f"Config file not found: '{resolved}'.")
+            raise ConfigFileError("not found", resolved)
         return SchedulerConfig()
     try:
         data = tomllib.loads(resolved.read_text(encoding="utf-8-sig"))
-    except (OSError, tomllib.TOMLDecodeError) as error:
-        raise ConfigError(
-            f"Config file '{resolved}' is not valid TOML: {error}"
-        ) from error
+    except OSError as error:
+        raise ConfigFileError(reason_of(error), resolved) from error
+    except tomllib.TOMLDecodeError as error:
+        raise ConfigFileError(f"not valid TOML: {error}", resolved) from error
     difficulty = data.get("difficulty", {})
     solver = data.get("solver", {})
     return SchedulerConfig(
@@ -216,14 +213,15 @@ def load_league(path: StrPath) -> League:
     """
     resolved = Path(path)
     if not resolved.is_file():
-        raise ConfigError(f"Config file not found: '{resolved}'.")
+        raise ConfigFileError("not found", resolved)
     cp = _read_config(resolved)
     has_divisions = cp.has_section(DIVISION_SECTION)
     has_conferences = cp.has_section(CONFERENCE_SECTION)
     if has_divisions == has_conferences:
-        raise ConfigError(
-            f"Config file '{resolved}' must have exactly one of the "
-            f"[{DIVISION_SECTION}] and [{CONFERENCE_SECTION}] sections."
+        raise ConfigFileError(
+            "must have exactly one of the "
+            f"[{DIVISION_SECTION}] and [{CONFERENCE_SECTION}] sections.",
+            resolved,
         )
     _require_section(cp, resolved, "OverallStandings")
     overall = _required_multiline(cp, resolved, "OverallStandings", "Order")
@@ -232,17 +230,15 @@ def load_league(path: StrPath) -> League:
     try:
         return build_league(standings, overall, divisions=has_divisions)
     except ValueError as error:
-        raise ConfigError(
-            f"Config file '{resolved}' has invalid league data: {error}"
-        ) from error
+        raise ConfigFileError(f"invalid league data: {error}", resolved) from error
 
 
 def find_league_path(league: str, season: int) -> Path:
-    """`standings/<season>.league.ini` in the league's folder; ConfigError if
+    """`standings/<season>.league.ini` in the league's folder; ConfigFileError if
     missing, LeagueError when the league has no folder."""
     path = league_dir(league) / STANDINGS_DIR / f"{season}.league.ini"
     if not path.is_file():
-        raise ConfigError(
+        raise ConfigFileError(
             f"No standings file for {league} season {season}. Expected:\n  {path}\n"
             f"Run 'athc config path' to find the config dir, then add the file."
         )
@@ -254,7 +250,7 @@ def _number(section: Mapping[str, Any], key: str, default: float, path: Path) ->
         return default
     value = section[key]
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ConfigError(f"Config file '{path}': '{key}' must be a number.")
+        raise ConfigFileError(f"'{key}' must be a number.", path)
     return float(value)
 
 
@@ -263,7 +259,7 @@ def _bool(section: Mapping[str, Any], key: str, default: bool, path: Path) -> bo
         return default
     value = section[key]
     if not isinstance(value, bool):
-        raise ConfigError(f"Config file '{path}': '{key}' must be true or false.")
+        raise ConfigFileError(f"'{key}' must be true or false.", path)
     return value
 
 
@@ -272,7 +268,7 @@ def _int(section: Mapping[str, Any], key: str, default: int, path: Path) -> int:
         return default
     value = section[key]
     if isinstance(value, bool) or not isinstance(value, int):
-        raise ConfigError(f"Config file '{path}': '{key}' must be an integer.")
+        raise ConfigFileError(f"'{key}' must be an integer.", path)
     return value
 
 
@@ -283,9 +279,8 @@ def _workers(section: Mapping[str, Any], key: str, path: Path) -> SolverWorkers:
     if value == AUTO_WORKERS:
         return AUTO_WORKERS
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
-        raise ConfigError(
-            f"Config file '{path}': '{key}' must be a positive integer or "
-            f'"{AUTO_WORKERS}".'
+        raise ConfigFileError(
+            f"'{key}' must be a positive integer or \"{AUTO_WORKERS}\".", path
         )
     return value
 
@@ -300,9 +295,7 @@ def _reject_unknown(
 ) -> None:
     unknown = sorted(set(table) - known)
     if unknown:
-        raise ConfigError(
-            f"Config file '{path}': unknown [{name}] key(s): {', '.join(unknown)}."
-        )
+        raise ConfigFileError(f"unknown [{name}] key(s): {', '.join(unknown)}.", path)
 
 
 def _phase2(table: Mapping[str, Any], path: Path) -> Phase2Config:
@@ -314,9 +307,7 @@ def _phase2(table: Mapping[str, Any], path: Path) -> Phase2Config:
         parse = _bool if isinstance(default, bool) else _int
         values[f.name] = parse(table, f.name, default, path)
         if f.name in _NON_NEGATIVE_PHASE2_KEYS and values[f.name] < 0:
-            raise ConfigError(
-                f"Config file '{path}': '{f.name}' must be 0 (off) or positive."
-            )
+            raise ConfigFileError(f"'{f.name}' must be 0 (off) or positive.", path)
     return Phase2Config(**values)
 
 
@@ -324,9 +315,7 @@ def _league(table: Mapping[str, Any], path: Path) -> LeagueConfig:
     _reject_unknown(table, {"weeks"}, "league", path)
     weeks = _int(table, "weeks", DEFAULT_WEEKS, path)
     if weeks <= 0 or weeks % 2:
-        raise ConfigError(
-            f"Config file '{path}': 'weeks' must be a positive even integer."
-        )
+        raise ConfigFileError("'weeks' must be a positive even integer.", path)
     return LeagueConfig(weeks=weeks)
 
 
@@ -336,9 +325,7 @@ def _rivalries(table: Mapping[str, Any] | None, path: Path) -> RivalriesConfig:
     _reject_unknown(table, {"pairs", "rotate_home_by_season"}, "rivalries", path)
     raw = table.get("pairs")
     if not isinstance(raw, list) or not raw:
-        raise ConfigError(
-            f"Config file '{path}': [rivalries] needs a non-empty 'pairs' list."
-        )
+        raise ConfigFileError("[rivalries] needs a non-empty 'pairs' list.", path)
     pairs: list[tuple[str, str]] = []
     for entry in raw:
         if (
@@ -346,15 +333,13 @@ def _rivalries(table: Mapping[str, Any] | None, path: Path) -> RivalriesConfig:
             or len(entry) != 2
             or not all(isinstance(name, str) and name.strip() for name in entry)
         ):
-            raise ConfigError(
-                f"Config file '{path}': each [rivalries] pair is two team names; "
-                f"got {entry!r}."
+            raise ConfigFileError(
+                f"each [rivalries] pair is two team names; got {entry!r}.", path
             )
         first, second = (name.strip() for name in entry)
         if first == second:
-            raise ConfigError(
-                f"Config file '{path}': [rivalries] pair names the same team twice: "
-                f"{first!r}."
+            raise ConfigFileError(
+                f"[rivalries] pair names the same team twice: {first!r}.", path
             )
         pairs.append((first, second))
     return RivalriesConfig(
@@ -369,27 +354,23 @@ def _read_config(path: Path) -> configparser.ConfigParser:
     try:
         cp.read(path, encoding="utf-8")
     except configparser.Error as error:
-        raise ConfigError(f"Config file '{path}' is not valid INI: {error}") from error
+        raise ConfigFileError(f"not valid INI: {ini_reason(error)}", path) from error
     return cp
 
 
 def _require_section(cp: configparser.ConfigParser, path: Path, section: str) -> None:
     if not cp.has_section(section):
-        raise ConfigError(
-            f"Config file '{path}' is missing the required [{section}] section."
-        )
+        raise ConfigFileError(f"missing the required [{section}] section.", path)
 
 
 def _required_multiline(
     cp: configparser.ConfigParser, path: Path, section: str, key: str
 ) -> tuple[str, ...]:
     if not cp.has_option(section, key):
-        raise ConfigError(
-            f"Config file '{path}' is missing required setting '{key}' in [{section}]."
-        )
+        raise ConfigFileError(f"missing required setting '{key}' in [{section}].", path)
     values = _parse_multiline(cp, section, key)
     if not values:
-        raise ConfigError(f"Config file '{path}' has an empty '{key}' in [{section}].")
+        raise ConfigFileError(f"empty '{key}' in [{section}].", path)
     return values
 
 
@@ -409,13 +390,13 @@ def check_weeks(league: League, weeks: int) -> None:
     """`weeks` must be even and fit every team: more than its structural games,
     at most those plus one game against each other-conference team."""
     if weeks <= 0 or weeks % 2:
-        raise ConfigError(
+        raise ConfigFileError(
             f"[league] weeks must be a positive even integer; got {weeks}."
         )
     for team in league.teams:
         structural = league.structural_games(team)
         if not structural < weeks <= structural + MAX_NONCONFERENCE_GAMES:
-            raise ConfigError(
+            raise ConfigFileError(
                 f"[league] weeks = {weeks} does not fit {team.metro}: it plays "
                 f"{structural} structural games, so weeks must be "
                 f"{structural + 1}..{structural + MAX_NONCONFERENCE_GAMES}."
@@ -430,7 +411,7 @@ def check_opening_weeks(league: League, weeks: int, opening_weeks: int) -> None:
     same_conference = sum(league.structural_games(t) for t in league.teams) // 2
     per_week = sum(TEAMS_PER_CONFERENCE // 2 for _ in league.conferences)
     if (weeks - opening_weeks) * per_week < same_conference:
-        raise ConfigError(
+        raise ConfigFileError(
             f"[phase2] opening_nonconference_weeks = {opening_weeks} leaves "
             f"{weeks - opening_weeks} weeks for {same_conference} same-conference "
             f"games, but a week holds at most {per_week}."
@@ -446,7 +427,7 @@ def resolve_rivalries(
         return ()
     expected = len(league.teams) // 2
     if len(rivalries.pairs) != expected:
-        raise ConfigError(
+        raise ConfigFileError(
             f"[rivalries] must list {expected} pairs; got {len(rivalries.pairs)}."
         )
     pairs: list[RivalryPair] = []
@@ -458,17 +439,17 @@ def resolve_rivalries(
                 lookup_team(league.teams, second),
             )
         except ValueError as error:
-            raise ConfigError(f"[rivalries]: {error}") from error
+            raise ConfigFileError(f"[rivalries]: {error}") from error
         for team in teams:
             if team in seen:
-                raise ConfigError(
+                raise ConfigFileError(
                     f"[rivalries] must name every team once; {team.metro} repeats."
                 )
             seen.append(team)
         pairs.append(teams)
     cross = sum(1 for a, b in pairs if a.conference != b.conference)
     if cross != 1:
-        raise ConfigError(
+        raise ConfigFileError(
             f"[rivalries] must have exactly one cross-conference pair; got {cross}."
         )
     return tuple(pairs)

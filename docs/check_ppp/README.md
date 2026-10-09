@@ -52,21 +52,27 @@ defense, 2nd-half offense, 2nd-half defense.
     don't fail.
 
 The output is the same report lines those commands print: per pair, the
-profile, then the gameplan; then one summary line. Every error is reported in
-one run: a bad file does not hide the rest.
-
-A missing or bad rules file, league file or other setup error stops the rule
-checks and the summary; bad files and side mismatches are still reported. With
-two files, a side mismatch stops the checks too; in a directory, it is that
-pair's error line and the other pairs are still checked.
+profile, then the gameplan; then one summary line. Every bad or missing input
+file is reported before anything is checked. A missing or bad rules file,
+league file or other setup error stops the run at once. With two files, a side
+mismatch stops the checks too; in a directory, it is that pair's error line
+and the other pairs are still checked.
 
 ## Results and exit codes
 
+Every command prints through the shared console ([architecture](../design/architecture.md#console-run-log-and-errors)): results, `OK` and `SKIP` lines on stdout; `WARN` and `FAIL` lines and usage errors on stderr; every status line also in the run log.
+
+- Per pair, the `profile check` and `gameplan check` lines (`OK   <file>: ...`, or a `<file>: <n> violation(s) (...)` headline with its detail lines); a blank line; `<n> file(s) checked, <n> with violations, <n> failed`.
+- A side mismatch is a `FAIL` line for that pair: with two files it is the run's error, 2; in a directory the other pairs are still checked.
+- A missing, unreadable or wrong-type input file, or a second file of a kind, is a `FAIL` line each; every input error is reported, nothing is checked, 2.
+- A missing or bad rules file, league file or other setup problem stops the run before any file is read: one `FAIL` line, 2.
+- A directory with no pairs from the league file is `WARN <dir>: no profile and gameplan pairs from the league file in directory` (or `in tree` with `-r`), the tally, 0.
+
 | Exit | Meaning |
 |---|---|
-| `0` | **Clean** — no violations or issues. |
-| `1` | **Findings** — rule violations, or gameplan issues the league requires. |
-| `2` | **Error** — couldn't run: a bad argument, a missing, unreadable or wrong-type file, a side mismatch, or a config, rules or league file problem. |
+| `0` | Done: no violations or issues (warnings included). |
+| `1` | Findings: rule violations, or gameplan issues the league requires. |
+| `2` | Error: a bad argument, a missing, unreadable or wrong-type file, a side mismatch, a config, rules or league file problem, a failed pair, a bug. |
 
 ## Settings
 

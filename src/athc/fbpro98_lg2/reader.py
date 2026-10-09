@@ -5,6 +5,7 @@ from __future__ import annotations
 from os import PathLike
 from pathlib import Path
 
+from athc.errors import AthcError
 from athc.fbpro98_lg2.model import FilePair, HalfFiles, Lg2File, TeamFiles
 from athc.fbpro98_lg2.schema import (
     FILE_ENTRY_SIZE,
@@ -19,11 +20,11 @@ from athc.fbpro98_lg2.schema import (
 StrPath = str | PathLike[str]
 
 
-class InvalidLg2Error(ValueError):
+class InvalidLg2Error(AthcError):
     """Raised when a `.lg2` file is structurally invalid."""
 
 
-class UnsupportedLg2Error(ValueError):
+class UnsupportedLg2Error(AthcError):
     """Raised when the first folder field matches a stock league signature.
 
     Both stock layouts are rejected: modern (folder `STOCK`) and old (empty
@@ -72,12 +73,13 @@ def parse_lg2(buffer: bytes, path: StrPath = "<buffer>") -> Lg2File:
     """
     file_path = Path(path)
     if not buffer:
-        raise InvalidLg2Error(f"Empty file in {file_path}")
+        raise InvalidLg2Error("Empty file", file_path)
     team_count, remainder = divmod(len(buffer), TEAM_RECORD_SIZE)
     if remainder != 0:
         raise InvalidLg2Error(
             f"File size {len(buffer)} is not a whole number of "
-            f"{TEAM_RECORD_SIZE}-byte team records in {file_path}"
+            f"{TEAM_RECORD_SIZE}-byte team records",
+            file_path,
         )
     _check_stock(buffer, file_path)
     return Lg2File(
@@ -91,9 +93,9 @@ def parse_lg2(buffer: bytes, path: StrPath = "<buffer>") -> Lg2File:
 def _check_stock(buffer: bytes, path: Path) -> None:
     # Only the first entry decides; a later stock-looking entry is read as is.
     if buffer.startswith(MODERN_STOCK_FOLDER):
-        raise UnsupportedLg2Error(f"Modern stock league not supported in {path}")
+        raise UnsupportedLg2Error("Modern stock league not supported", path)
     if buffer.startswith(OLD_STOCK_FOLDER):
-        raise UnsupportedLg2Error(f"Old stock league not supported in {path}")
+        raise UnsupportedLg2Error("Old stock league not supported", path)
 
 
 def _parse_team(buffer: bytes, offset: int, path: Path) -> TeamFiles:
@@ -120,7 +122,7 @@ def _parse_entry(buffer: bytes, offset: int, path: Path) -> str:
     filename_offset = offset + FOLDER_SIZE
     filename = _read_string(buffer, filename_offset, FILENAME_SIZE, "filename", path)
     if not filename:
-        raise InvalidLg2Error(f"Empty filename at {filename_offset:#x} in {path}")
+        raise InvalidLg2Error(f"Empty filename at {filename_offset:#x}", path)
     return f"{folder}\\{filename}" if folder else filename
 
 
@@ -129,5 +131,5 @@ def _read_string(buffer: bytes, offset: int, size: int, label: str, path: Path) 
     field = buffer[offset : offset + size]
     end = field.find(b"\x00")
     if end == -1:
-        raise InvalidLg2Error(f"No NUL in {label} field at {offset:#x} in {path}")
+        raise InvalidLg2Error(f"No NUL in {label} field at {offset:#x}", path)
     return field[:end].decode("ASCII", errors="replace")

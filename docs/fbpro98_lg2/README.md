@@ -35,7 +35,7 @@ Locations are relative to the game folder. `parse_lg2(buffer)` is the bytes-in e
 
 ## API
 
-- `read_lg2(league, league_dir)` reads `<league_dir>/<league>.lg2` and returns an `Lg2File`; `parse_lg2(buffer, path)` parses raw bytes, `path` only naming the source in errors.
+- `read_lg2(league, league_dir)` reads `<league_dir>/<league>.lg2` and returns an `Lg2File`; `parse_lg2(buffer, path)` parses raw bytes, `path` only naming the source in errors (`<path>: <reason>`).
 - `Lg2File.teams`: one `TeamFiles` per team, in the league's `.lge` order; `first_half` / `second_half` → `offense` / `defense` → `profile` / `gameplan`, each a string `folder\filename` relative to the game folder, or just `filename` when the folder is empty.
 - `InvalidLg2Error`: empty file, a size that is not a whole number of team records, a folder or filename field without a NUL, or an empty filename.
 - `UnsupportedLg2Error`: a stock league, judged by the first file entry's folder field alone: `STOCK\0A\FBPRO97\STOCK\0` is modern stock (`NFLPI97.LG2`), an empty folder is old stock (`08_TEAMS.LG2`).

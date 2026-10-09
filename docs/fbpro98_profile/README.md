@@ -42,7 +42,7 @@ write_profile(modified, "TST-OFF1.prf")
 
 ## API
 
-- `read_profile(path)` reads a `.prf` and returns a `Profile`; `write_profile(profile, path)` writes one. `parse_profile(buffer, path)` and `build_profile_bytes(profile)` are the bytes-in / bytes-out pair, `path` only naming the source in errors.
+- `read_profile(path)` reads a `.prf` and returns a `Profile`; `write_profile(profile, path)` writes one. `parse_profile(buffer, path)` and `build_profile_bytes(profile)` are the bytes-in / bytes-out pair, `path` only naming the source in errors (`<path>: <reason>`).
 - `Profile`: `profile_type` (`ProfileType.OFFENSE` / `DEFENSE`), `substitutions` (a `SubstitutionSettings` of eight `SubstitutionPair`s, each `out_percent` / `in_percent`; `SubstitutionSettings.default()` is the game's 80/90 for every group), `situations` (2520 `Situation`), `pat_situations` (60 `PatSituation`), `field_goal_range`, `use_audibles`; `is_offense` / `is_defense`; `stop_clock_situations`.
 - `Situation`: `situation_number`, `minutes_remaining`, `down`, `yards_to_go`, `field_position`, `point_spread`, `stop_clock`, `category_weights`. `PatSituation`: `situation_number`, `minutes_remaining`, `point_spread`, `category_weights`. Both have `from_situation_number`. `CategoryWeights`: `play_category1` / `weight1` through `play_category3` / `weight3`. The buckets are the enums `MinutesRemaining`, `Down`, `YardsToGo`, `FieldPosition`, `PointSpread`, `PatMinutesRemaining` and `PatPointSpread`; `OFFENSE_DISPLAY_CATEGORIES` / `DEFENSE_DISPLAY_CATEGORIES` are the category codes the game labels on each side.
 - `InvalidProfileError`: malformed bytes; the conditions are the validity rules in [`specs/prf.md`](specs/prf.md).

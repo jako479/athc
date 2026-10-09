@@ -2,19 +2,15 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 import click
 
 from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.gameplan import gameplan
-from athc.cli.gameplan._common import emit_play_list, normal_play_lines
-from athc.config import ConfigFileError, LeagueError, load_league_config
-from athc.fbpro98_gameplan import InvalidGamePlanError, read_gameplan
-
-PROG = "athc gameplan list-normals"
-logger = logging.getLogger(__name__)
+from athc.cli.gameplan._common import emit_play_list, named_file, normal_play_lines
+from athc.config import load_league_config
+from athc.fbpro98_gameplan import read_gameplan
 
 
 @gameplan.command(name="list-normals", context_settings=CONTEXT_SETTINGS)
@@ -33,9 +29,7 @@ logger = logging.getLogger(__name__)
     help="Order of the listed plays.",
 )
 @league_option
-@click.pass_context
 def list_normals(
-    ctx: click.Context,
     gameplan_path: Path,
     output_path: Path | None,
     sort: str,
@@ -50,27 +44,15 @@ def list_normals(
     the plays by category, each group under a `::` header with the league's
     category name (RL, RunLeft, ...; the game's name where the league has none).
     """
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-    try:
-        labels = load_league_config(league).categories
-    except (LeagueError, ConfigFileError) as error:
-        logger.error("%s: %s", PROG, error)
-        ctx.exit(1)
-    try:
-        gp = read_gameplan(str(gameplan_path))
-    except (OSError, InvalidGamePlanError, ValueError) as error:
-        logger.error("%s: %s", PROG, error)
-        ctx.exit(1)
+    gameplan_path = named_file(gameplan_path)
+    labels = load_league_config(league).categories
+    gp = read_gameplan(gameplan_path)
     lines = normal_play_lines(gp, sort=sort, labels=labels)
     if output_path is None:
         output_path = gameplan_path.with_name(f"{gameplan_path.stem}.normals.txt")
-    ctx.exit(
-        emit_play_list(
-            lines,
-            None if str(output_path) == "-" else output_path,
-            gameplan_path,
-            prog=PROG,
-            logger=logger,
-            noun="normal",
-        )
+    emit_play_list(
+        lines,
+        None if str(output_path) == "-" else output_path,
+        gameplan_path,
+        noun="normal",
     )

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
 
+from athc.errors import ConfigFileError
 from athc.fbpro98_play import (
     CategoryLabels,
     DefensiveCategory,
@@ -103,5 +105,14 @@ def test_label_may_equal_the_other_sides_game_name() -> None:
 def test_from_tables_rejects(
     offense: dict[str, object], defense: dict[str, object], message: str
 ) -> None:
-    with pytest.raises(ValueError, match=re.escape(message)):
+    with pytest.raises(ConfigFileError, match=re.escape(message)):
         CategoryLabels.from_tables(offense, defense)
+
+
+def test_from_tables_names_the_file() -> None:
+    with pytest.raises(ConfigFileError) as exc:
+        CategoryLabels.from_tables({"Nope": "x"}, {}, Path("league.toml"))
+    assert str(exc.value) == (
+        "league.toml: [categories.offense] 'Nope': not a game category name for offense"
+    )
+    assert exc.value.path == Path("league.toml")

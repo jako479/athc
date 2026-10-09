@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 
 from athc.config import LeagueError
+from athc.errors import ConfigFileError
 from athc.scheduler import config
 from athc.scheduler.config import (
-    ConfigError,
     Phase2Config,
     RivalriesConfig,
     SchedulerConfig,
@@ -175,14 +175,14 @@ def test_load_scheduler_config_defaults_when_keys_missing(config_dir: Path) -> N
 
 def test_load_scheduler_config_errors_on_invalid_value(config_dir: Path) -> None:
     _write_scheduler_toml(config_dir, '[solver]\ntime_limit = "fast"\n')
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         _load()
 
 
 def test_load_scheduler_config_errors_on_non_integer_workers(config_dir: Path) -> None:
     # solver_workers is an integer count; a fractional value is invalid.
     _write_scheduler_toml(config_dir, "[solver]\nsolver_workers = 1.5\n")
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         _load()
 
 
@@ -203,25 +203,25 @@ def test_solver_workers_accepts_one(config_dir: Path) -> None:
 
 def test_solver_workers_rejects_zero(config_dir: Path) -> None:
     _write_scheduler_toml(config_dir, "[solver]\nsolver_workers = 0\n")
-    with pytest.raises(ConfigError, match="solver_workers"):
+    with pytest.raises(ConfigFileError, match="solver_workers"):
         _load()
 
 
 def test_solver_workers_rejects_other_text(config_dir: Path) -> None:
     _write_scheduler_toml(config_dir, '[solver]\nsolver_workers = "Auto"\n')
-    with pytest.raises(ConfigError, match="solver_workers"):
+    with pytest.raises(ConfigFileError, match="solver_workers"):
         _load()
 
 
 def test_load_scheduler_config_errors_on_invalid_spread(config_dir: Path) -> None:
     _write_scheduler_toml(config_dir, '[difficulty]\nspread = "steep"\n')
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         _load()
 
 
 def test_load_scheduler_config_errors_on_invalid_toml(config_dir: Path) -> None:
     _write_scheduler_toml(config_dir, "[solver\nbroken")
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         _load()
 
 
@@ -286,13 +286,13 @@ def test_soft_objective_defaults() -> None:
 
 def test_load_scheduler_config_rejects_unknown_phase2_key(config_dir: Path) -> None:
     _write_scheduler_toml(config_dir, "[phase2]\nbogus = 1\n")
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         _load()
 
 
 def test_load_scheduler_config_errors_on_non_integer_phase2(config_dir: Path) -> None:
     _write_scheduler_toml(config_dir, "[phase2]\nweek_16_divisional_games = 8.5\n")
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         _load()
 
 
@@ -315,7 +315,7 @@ def test_scheduler_rules_path_needs_the_league_folder() -> None:
 
 def test_find_league_path_errors_when_none_exist(config_dir: Path) -> None:
     folder = _league_folder(config_dir)
-    with pytest.raises(ConfigError) as exc:
+    with pytest.raises(ConfigFileError) as exc:
         find_league_path(LEAGUE, SEASON)
     assert str(folder / "standings" / f"{SEASON}.league.ini") in str(exc.value)
 
@@ -358,13 +358,13 @@ def test_load_league_errors_when_division_standings_section_missing(
 ) -> None:
     # [DivisionStandings] defines membership; without it there is no league.
     ini = _write(tmp_path / "league.ini", LEAGUE_MISSING_DIVISION_STANDINGS)
-    with pytest.raises(ConfigError, match="DivisionStandings"):
+    with pytest.raises(ConfigFileError, match="DivisionStandings"):
         load_league(ini)
 
 
 def test_load_league_errors_when_standings_section_missing(tmp_path: Path) -> None:
     ini = _write(tmp_path / "league.ini", DIVISION_STANDINGS)  # no [OverallStandings]
-    with pytest.raises(ConfigError, match="OverallStandings"):
+    with pytest.raises(ConfigFileError, match="OverallStandings"):
         load_league(ini)
 
 
@@ -372,7 +372,7 @@ def test_load_league_errors_on_duplicate_team(tmp_path: Path) -> None:
     # Same metro in two divisions (Miami replaces Cincinnati in AFC_WEST).
     text = VALID_LEAGUE.replace("    Cincinnati\n", "    Miami\n", 1)
     ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         load_league(ini)
 
 
@@ -383,7 +383,7 @@ def test_load_league_errors_when_standings_team_not_in_divisions(
     # New England in the overall order).
     text = VALID_LEAGUE.replace("Order =\n    New England", "Order =\n    Nowhere")
     ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         load_league(ini)
 
 
@@ -392,14 +392,14 @@ def test_load_league_errors_when_order_key_missing(tmp_path: Path) -> None:
         : VALID_LEAGUE.index("Order =")
     ]  # [OverallStandings] but no Order
     ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         load_league(ini)
 
 
 def test_load_league_errors_when_order_empty(tmp_path: Path) -> None:
     text = VALID_LEAGUE[: VALID_LEAGUE.index("Order =")] + "Order =\n"
     ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         load_league(ini)
 
 
@@ -409,18 +409,18 @@ def test_load_league_errors_on_invalid_league_data(tmp_path: Path) -> None:
         tmp_path / "league.ini",
         VALID_LEAGUE.replace("    Buffalo\nAFC_WEST =", "AFC_WEST ="),
     )
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         load_league(ini)
 
 
 def test_load_league_errors_on_invalid_ini(tmp_path: Path) -> None:
     ini = _write(tmp_path / "league.ini", "[DivisionStandings\nbroken")
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         load_league(ini)
 
 
 def test_load_league_errors_when_file_missing(tmp_path: Path) -> None:
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         load_league(tmp_path / "absent.ini")
 
 
@@ -430,7 +430,7 @@ def test_load_league_errors_on_division_key_without_conference(
     # A division key is <CONFERENCE>_<DIVISION>; no underscore, no conference.
     text = VALID_LEAGUE.replace("AFC_EAST =", "AFCEAST =", 1)
     ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError, match="CONFERENCE"):
+    with pytest.raises(ConfigFileError, match="CONFERENCE"):
         load_league(ini)
 
 
@@ -446,7 +446,7 @@ def test_load_league_errors_on_standings_duplicate(tmp_path: Path) -> None:
         "    Las Vegas\n    Seattle", "    Seattle\n    Seattle"
     )
     ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         load_league(ini)
 
 
@@ -528,7 +528,7 @@ def test_load_league_errors_when_division_missing(tmp_path: Path) -> None:
         1,
     )
     ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         load_league(ini)
 
 
@@ -539,7 +539,7 @@ def test_load_league_errors_on_division_standings_duplicate(tmp_path: Path) -> N
         "AFC_EAST =\n    New England\n    New England",
     )
     ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError):
+    with pytest.raises(ConfigFileError):
         load_league(ini)
 
 
@@ -561,13 +561,13 @@ def test_weeks_defaults_to_sixteen() -> None:
 @pytest.mark.parametrize("weeks", ["11", "0", "'12'"])
 def test_load_scheduler_config_rejects_bad_weeks(config_dir: Path, weeks: str) -> None:
     _write_scheduler_toml(config_dir, f"[league]\nweeks = {weeks}\n")
-    with pytest.raises(ConfigError, match="weeks"):
+    with pytest.raises(ConfigFileError, match="weeks"):
         _load()
 
 
 def test_load_scheduler_config_rejects_unknown_league_key(config_dir: Path) -> None:
     _write_scheduler_toml(config_dir, "[league]\nteams = 18\n")
-    with pytest.raises(ConfigError, match="unknown \\[league\\] key"):
+    with pytest.raises(ConfigFileError, match="unknown \\[league\\] key"):
         _load()
 
 
@@ -577,8 +577,41 @@ def test_load_scheduler_config_from_explicit_path(tmp_path: Path) -> None:
 
 
 def test_load_scheduler_config_explicit_path_must_exist(tmp_path: Path) -> None:
-    with pytest.raises(ConfigError, match="not found"):
-        load_scheduler_config(tmp_path / "missing.toml")
+    missing = tmp_path / "missing.toml"
+    with pytest.raises(ConfigFileError) as exc:
+        load_scheduler_config(missing)
+    assert str(exc.value) == f"{missing}: not found"
+    assert exc.value.path == missing
+
+
+def test_load_scheduler_config_bad_toml_names_the_file(tmp_path: Path) -> None:
+    path = _write(tmp_path / "bad.toml", "[league\n")
+    with pytest.raises(ConfigFileError) as exc:
+        load_scheduler_config(path)
+    assert str(exc.value).startswith(f"{path}: not valid TOML: ")
+
+
+def test_load_scheduler_config_bad_value_names_the_file(tmp_path: Path) -> None:
+    path = _write(tmp_path / "bad.toml", "[difficulty]\nspread = 'x'\n")
+    with pytest.raises(ConfigFileError) as exc:
+        load_scheduler_config(path)
+    assert str(exc.value) == f"{path}: 'spread' must be a number."
+
+
+def test_load_league_malformed_ini_names_the_file_once(tmp_path: Path) -> None:
+    path = _write(tmp_path / "2049.league.ini", "garbage\n")
+    with pytest.raises(ConfigFileError) as exc:
+        load_league(path)
+    assert str(exc.value) == (
+        f"{path}: not valid INI: line 1: no [section] header above it"
+    )
+
+
+def test_load_league_missing_file_names_it(tmp_path: Path) -> None:
+    missing = tmp_path / "2049.league.ini"
+    with pytest.raises(ConfigFileError) as exc:
+        load_league(missing)
+    assert str(exc.value) == f"{missing}: not found"
 
 
 def test_load_scheduler_config_optional_path_defaults_when_missing(
@@ -638,7 +671,7 @@ def test_zero_is_off_and_negative_is_rejected(config_dir: Path, key: str) -> Non
     _write_scheduler_toml(config_dir, f"[phase2]\n{key} = 0\n")
     assert getattr(_load().phase2, key) == 0
     _write_scheduler_toml(config_dir, f"[phase2]\n{key} = -1\n")
-    with pytest.raises(ConfigError, match=key):
+    with pytest.raises(ConfigFileError, match=key):
         _load()
 
 
@@ -686,7 +719,7 @@ def test_load_scheduler_config_rejects_bad_rivalries(
     config_dir: Path, body: str
 ) -> None:
     _write_scheduler_toml(config_dir, body)
-    with pytest.raises(ConfigError, match="rivalries"):
+    with pytest.raises(ConfigFileError, match="rivalries"):
         _load()
 
 
@@ -702,7 +735,7 @@ def test_check_weeks_accepts_conferences_range(weeks: int) -> None:
 
 @pytest.mark.parametrize("weeks", [8, 18, 11])
 def test_check_weeks_rejects_outside_conferences_range(weeks: int) -> None:
-    with pytest.raises(ConfigError, match="weeks"):
+    with pytest.raises(ConfigFileError, match="weeks"):
         check_weeks(CONFERENCES_LEAGUE, weeks)
 
 
@@ -713,7 +746,7 @@ def test_check_weeks_accepts_divisional_range(weeks: int) -> None:
 
 @pytest.mark.parametrize("weeks", [12, 22])
 def test_check_weeks_rejects_outside_divisional_range(weeks: int) -> None:
-    with pytest.raises(ConfigError, match="weeks"):
+    with pytest.raises(ConfigFileError, match="weeks"):
         check_weeks(ONE_PLAYOFF_TEAM_FROM_4_TEAM_DIVISION, weeks)
 
 
@@ -723,7 +756,7 @@ def test_check_opening_weeks_accepts(opening: int) -> None:
 
 
 def test_check_opening_weeks_rejects_four_for_the_conferences_league() -> None:
-    with pytest.raises(ConfigError, match="opening_nonconference_weeks"):
+    with pytest.raises(ConfigFileError, match="opening_nonconference_weeks"):
         check_opening_weeks(CONFERENCES_LEAGUE, 12, 4)
 
 
@@ -774,7 +807,7 @@ def test_resolve_rivalries_with_no_pairs_is_empty() -> None:
     ],
 )
 def test_resolve_rivalries_rejects(pairs, message: str) -> None:
-    with pytest.raises(ConfigError, match=message):
+    with pytest.raises(ConfigFileError, match=message):
         resolve_rivalries(CONFERENCES_LEAGUE, RivalriesConfig(pairs=pairs))
 
 
@@ -842,7 +875,9 @@ def test_load_league_reads_conference_standings(tmp_path: Path) -> None:
 
 def test_load_league_errors_with_both_sections(tmp_path: Path) -> None:
     ini = _write(tmp_path / "league.ini", VALID_LEAGUE + "\n" + CONFERENCE_STANDINGS)
-    with pytest.raises(ConfigError, match=r"DivisionStandings.*ConferenceStandings"):
+    with pytest.raises(
+        ConfigFileError, match=r"DivisionStandings.*ConferenceStandings"
+    ):
         load_league(ini)
 
 
@@ -852,7 +887,7 @@ def test_load_league_errors_on_wrong_conference_size(tmp_path: Path) -> None:
         + CONFERENCES_OVERALL_STANDINGS
     )
     ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigError, match="exactly 9 teams"):
+    with pytest.raises(ConfigFileError, match="exactly 9 teams"):
         load_league(ini)
 
 

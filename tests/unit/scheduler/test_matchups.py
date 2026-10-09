@@ -403,3 +403,29 @@ def test_difficulty_target_line() -> None:
         )
     targets = [difficulty_target(r) for r in range(1, 10)]
     assert targets == sorted(targets)
+
+
+def test_scheduler_says_both_phases_through_progress(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Progress is a callback the command wires to its console; the library
+    # never logs.
+    monkeypatch.setattr(
+        scheduler.ScheduleBuilder,
+        "build_schedule",
+        lambda self, **kwargs: Schedule(games=()),
+    )
+    said: list[str] = []
+    case = MATCHUP_CASES[0]
+    scheduler.generate_schedule(
+        case.league,
+        seed=5,
+        scheduler_config=case.config,
+        season=case.season,
+        progress=said.append,
+    )
+    assert said == [
+        "Phase 1: selecting matchups",
+        "Phase 2: placing games into weeks. This usually takes several minutes "
+        "and can take 30 minutes or more.",
+    ]

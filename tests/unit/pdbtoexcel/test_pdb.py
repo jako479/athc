@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import ctypes
 import json
+import logging
 from pathlib import Path
 
 import pytest
 
-from athc.pdbtoexcel.pdb import PDB, PLAY_DATA, InvalidPDBError
+from athc.pdbtoexcel.pdb import PDB, PLAY_DATA, TENDENCY_DATA, InvalidPDBError
 from tests.unit.pdbtoexcel.conftest import (
     PLAYS_SNAPSHOT,
     REAL_PDB,
@@ -53,8 +54,10 @@ def test_real_pdb_tendencies_and_samples() -> None:
 def test_invalid_data_type_raises(tmp_path: Path) -> None:
     path = tmp_path / "bad.pdb"
     path.write_bytes(bytes([9]) + b"\x00" * ctypes.sizeof(PLAY_DATA))
-    with pytest.raises(InvalidPDBError):
+    with pytest.raises(InvalidPDBError) as exc:
         PDB(str(path))
+    assert str(exc.value) == f"{path}: invalid data type {bytes([9])!r} at 0x0"
+    assert exc.value.path == path
 
 
 def test_duplicate_play_merges(tmp_path: Path) -> None:
@@ -115,3 +118,20 @@ def test_convert_invalid_moves_misclassified_run_to_pass(tmp_path: Path) -> None
     assert (
         int(moved.sacks) == 5
     )  # all-negative yards on a misclassified run become sacks
+
+
+def test_invalid_records_are_warnings_not_logs(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    bad_play = make_play_data(PLAY_DATA.PLAY_TYPE.RUN, "Bears", "")  # no name
+    bad_tendency = TENDENCY_DATA()  # no team
+    path = write_pdb(tmp_path / "bad.pdb", plays=[bad_play], tendencies=[bad_tendency])
+    with caplog.at_level(logging.DEBUG):
+        pdb = PDB(str(path))
+    assert caplog.records == []
+    tendency_at = 1 + ctypes.sizeof(PLAY_DATA) + 1
+    assert pdb.warnings == [
+        "Skipping invalid play data at 0x1",
+        f"Skipping invalid tendency data at {tendency_at:#x}",
+    ]
+    assert pdb.tendencies == [] and not any(pdb.plays.values())

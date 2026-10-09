@@ -15,15 +15,12 @@ from pathlib import Path
 
 from athc.config import CONFIG_FILE, config_dir
 from athc.config import load_config as load_athc_config
+from athc.errors import ConfigFileError
 
 SECTION = "autocontinue"
 
 # Accept the usual INI truthy/falsy spellings (true/false, yes/no, on/off, 1/0).
 _BOOLEAN_STATES = configparser.RawConfigParser.BOOLEAN_STATES
-
-
-class ConfigError(Exception):
-    """The `[autocontinue]` settings are missing or invalid."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,12 +34,12 @@ def load_config() -> Config:
     """Read and validate `[autocontinue]` from `config_dir()/athc.ini`.
 
     The two timing settings are required; a missing section/key or a non-numeric
-    value raises ConfigError. `hot_corner` is optional and defaults to enabled.
+    value raises ConfigFileError. `hot_corner` is optional and defaults to enabled.
     Isolate the lookup in tests by setting `ATHC_CONFIG_DIR`.
     """
     section = load_athc_config().get(SECTION)
     if section is None:
-        raise ConfigError(
+        raise ConfigFileError(
             f"No [{SECTION}] config found. Set ATHC_CONFIG_DIR or edit:\n"
             f"  {config_dir() / CONFIG_FILE}"
         )
@@ -77,7 +74,7 @@ def _optional_bool(section: Mapping[str, str], key: str, *, default: bool) -> bo
         return default
     value = section[key].strip().lower()
     if value not in _BOOLEAN_STATES:
-        raise ConfigError(
+        raise ConfigFileError(
             f"Invalid '{key}' in [{SECTION}]: {section[key]!r} (expected true/false)."
         )
     return _BOOLEAN_STATES[value]
@@ -85,10 +82,10 @@ def _optional_bool(section: Mapping[str, str], key: str, *, default: bool) -> bo
 
 def _required_float(section: Mapping[str, str], key: str) -> float:
     if key not in section:
-        raise ConfigError(f"Missing required setting '{key}' in [{SECTION}].")
+        raise ConfigFileError(f"Missing required setting '{key}' in [{SECTION}].")
     try:
         return float(section[key])
     except ValueError:
-        raise ConfigError(
+        raise ConfigFileError(
             f"Invalid '{key}' in [{SECTION}]: {section[key]!r} (expected a number)."
         ) from None

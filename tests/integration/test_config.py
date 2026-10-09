@@ -12,6 +12,7 @@ editor and Explorer launches mocked.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -26,6 +27,7 @@ from athc.config import (
     LeagueError,
     available_leagues,
     league_dir,
+    load_config,
     load_league,
     load_league_config,
     resolve_league,
@@ -215,6 +217,14 @@ def test_malformed_athc_ini_errors(
     assert str(ini) in str(exc.value)
 
 
+def test_load_config_wraps_configparser_errors(write_config: WriteConfig) -> None:
+    # The raw reader names the file itself, so no caller has to know configparser.
+    ini = write_config("[athc\nleague = x\n")
+    with pytest.raises(ConfigFileError, match=re.escape(str(ini))) as exc:
+        load_config()
+    assert exc.value.path == ini
+
+
 def test_percent_in_league_toml_is_literal(make_league: MakeLeague) -> None:
     # TOML has no %-interpolation, so a native Windows `%LOCALAPPDATA%` path
     # loads as written.
@@ -300,6 +310,7 @@ def test_path_rejects_an_array_value(make_league: MakeLeague) -> None:
     with pytest.raises(ConfigFileError, match="play_path: expected a string") as exc:
         cfg.path("play_path")
     assert str(folder / "league.toml") in str(exc.value)
+    assert exc.value.path == folder / "league.toml"
 
 
 def test_rule_files_rejects_a_string_value(make_league: MakeLeague) -> None:
@@ -360,6 +371,7 @@ def test_categories_errors_name_the_file(
     with pytest.raises(ConfigFileError, match=message) as exc:
         load_league_config(LEAGUE)
     assert str(folder / "league.toml") in str(exc.value)
+    assert exc.value.path == folder / "league.toml"
 
 
 # ── athc config command group: path / edit / reveal ──
@@ -368,15 +380,15 @@ def test_categories_errors_name_the_file(
 def test_group_lists_subcommands(runner) -> None:
     result = runner.invoke(config_group, ["--help"])
     assert result.exit_code == 0
-    assert "path" in result.output
-    assert "edit" in result.output
-    assert "reveal" in result.output
+    assert "path" in result.stdout
+    assert "edit" in result.stdout
+    assert "reveal" in result.stdout
 
 
 def test_path_prints_config_file(runner, config_dir: Path) -> None:
     result = runner.invoke(path, [])
     assert result.exit_code == 0
-    assert result.output.strip() == str(config_dir / "athc.ini")
+    assert result.stdout == f"{config_dir / 'athc.ini'}\n"
 
 
 def test_reveal_selects_existing_file(

@@ -44,7 +44,7 @@ def _config(**over: object) -> Config:
     return Config(**base)  # type: ignore[arg-type]
 
 
-def _build(
+def _convert(
     tmp_path: Path,
     plays,
     records,
@@ -53,12 +53,17 @@ def _build(
     calculate_totals=False,
     tendencies=(),
     perform_calcs=True,
-):
+) -> tuple[openpyxl.Workbook, PdbWorkbookCreator]:
+    """Convert and read the workbook back, with the creator for its warnings."""
     pdb = PDB(str(write_pdb(tmp_path / "in.pdb", plays=plays, tendencies=tendencies)))
     out = tmp_path / "out.xlsx"
     creator = PdbWorkbookCreator(config or _config(), make_pool(records), pdb)
     creator.create_workbook(str(out), perform_calcs, calculate_totals)
-    return openpyxl.load_workbook(out)
+    return openpyxl.load_workbook(out), creator
+
+
+def _build(tmp_path: Path, plays, records, **options) -> openpyxl.Workbook:
+    return _convert(tmp_path, plays, records, **options)[0]
 
 
 def _rows(ws):
@@ -177,9 +182,7 @@ def test_category_worksheets_when_enabled(tmp_path: Path) -> None:
     assert _rows(wb["Run Categories"])[1][1] == "RM"
 
 
-def test_special_teams_and_unknown_plays_skipped(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_special_teams_and_unknown_plays_skipped(tmp_path: Path) -> None:
     plays = [
         _run_play("STPLAY", play_count=1),  # in pool but special teams
         _run_play("GHOST", play_count=1),  # not in pool
@@ -187,10 +190,9 @@ def test_special_teams_and_unknown_plays_skipped(
     record = make_record(
         "STPLAY", play_category=0x01, user_category=0x09, special_category=0x02
     )
-    with caplog.at_level(logging.WARNING):
-        rows = _rows(_build(tmp_path, plays, [record])["Run Plays"])
-    assert rows == [_rows(_build(tmp_path, [], [])["Run Plays"])[0]]
-    assert "Play file not found for play 'GHOST'" in caplog.text
+    wb, creator = _convert(tmp_path, plays, [record])
+    assert _rows(wb["Run Plays"]) == [_rows(_build(tmp_path, [], [])["Run Plays"])[0]]
+    assert creator.warnings == ["Play file not found for play 'GHOST'"]
 
 
 def test_tendencies_written(tmp_path: Path) -> None:
@@ -266,33 +268,46 @@ def test_unlisted_category_is_left_out(tmp_path: Path) -> None:
 # ── deleted plays ─────────────────────────────────────────────────────────────
 
 
-def test_deleted_play_is_skipped_quietly(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_deleted_play_is_skipped_quietly(tmp_path: Path) -> None:
     config = _config(deleted_plays=frozenset({"GHOST"}))
     plays = [_run_play("ghost", play_count=1), _run_play("ghost", team="Jets")]
-    with caplog.at_level(logging.INFO):
-        rows = _rows(_build(tmp_path, plays, [], config=config)["Run Plays"])
-    assert len(rows) == 1  # header only
-    assert "Play file not found" not in caplog.text
-    assert caplog.text.count("Skipping deleted play 'ghost'") == 1
+    wb, creator = _convert(tmp_path, plays, [], config=config)
+    assert len(_rows(wb["Run Plays"])) == 1  # header only
+    assert creator.warnings == []
 
 
 def test_deleted_play_still_in_the_pool_is_skipped_with_a_warning(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
+    tmp_path: Path,
 ) -> None:
     # Matched case-insensitively; the warning keeps the spelling from the file.
     config = _config(deleted_plays=frozenset({"run1"}))
     record = make_record("RUN1", play_category=0x01, user_category=RUN_MIDDLE)
     plays = [_run_play("RUN1", play_count=1), _run_play("RUN1", team="Jets")]
-    with caplog.at_level(logging.WARNING):
-        rows = _rows(
-            _build(tmp_path, plays, [record], config=config, calculate_totals=True)[
-                "Run Plays"
-            ]
-        )
-    assert len(rows) == 1
-    assert (
-        caplog.text.count("'run1' is listed in [deleted_plays] but is in the play pool")
-        == 1
+    wb, creator = _convert(
+        tmp_path, plays, [record], config=config, calculate_totals=True
     )
+    assert len(_rows(wb["Run Plays"])) == 1
+    assert creator.warnings == [
+        "'run1' is listed in [deleted_plays] but is in the play pool; its stats "
+        "are skipped"
+    ]
+
+
+# ── warnings and progress come back as values; nothing is logged ──────────────
+
+
+def test_warnings_are_returned_not_logged(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    plays = [_run_play("RUN1", play_count=1), _run_play("GHOST", play_count=1)]
+    record = make_record("RUN1", play_category=0x01, user_category=RUN_MIDDLE)
+    pdb = PDB(str(write_pdb(tmp_path / "in.pdb", plays=plays)))
+    creator = PdbWorkbookCreator(_config(), make_pool([record]), pdb)
+    out = tmp_path / "w.xlsx"
+    said: list[str] = []
+    with caplog.at_level(logging.DEBUG):
+        rows = creator.create_workbook(str(out), True, True, progress=said.append)
+    assert caplog.records == []
+    assert said == [f"Creating '{out}'"]
+    assert creator.warnings == ["Play file not found for play 'GHOST'"]
+    assert rows == 1

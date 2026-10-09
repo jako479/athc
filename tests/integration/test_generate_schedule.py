@@ -114,7 +114,7 @@ def _generate(directory: Path, case: GoldenCase) -> tuple[str, str, str]:
             str(case.seed),
         ],
     )
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 0, result.stderr
 
     report_path = _single(directory, f"schedule_{case.season}_*_report.html")
     html_path = _single(

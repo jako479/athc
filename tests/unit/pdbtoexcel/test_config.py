@@ -39,9 +39,9 @@ ORDER_ONLY = '[category_order]\nrun = ["RL"]\npass = ["PSL"]\ndefense = ["RunLef
 
 
 @pytest.fixture
-def league(make_league: MakeLeague) -> Path:
-    """The test league with the PNFL labels and the PNFL order."""
-    folder = make_league(LEAGUE, league_toml())
+def league(make_league: MakeLeague, tmp_path: Path) -> Path:
+    """The test league with the PNFL labels, the PNFL order and a play path."""
+    folder = make_league(LEAGUE, league_toml(tmp_path))
     write_pdbtoexcel_toml(folder)
     return folder
 
@@ -58,9 +58,9 @@ def _raises(message: str):
 
 
 @pytest.mark.usefixtures("league")
-def test_load_config_defaults() -> None:
+def test_load_config_defaults(tmp_path: Path) -> None:
     cfg = load_config(LEAGUE)
-    assert cfg.play_path == ""
+    assert cfg.play_path == str(tmp_path)
     assert cfg.playpool_rules is None
     assert cfg.calculate_percentages is True
     assert cfg.deleted_plays == frozenset()
@@ -211,10 +211,20 @@ def test_unknown_table_is_an_error(league: Path) -> None:
         load_config(LEAGUE)
 
 
-def test_missing_file_is_an_error(make_league: MakeLeague) -> None:
+def test_missing_play_path_is_an_error(make_league: MakeLeague) -> None:
     folder = make_league(LEAGUE, league_toml())
-    with _raises(f"{folder / 'pdbtoexcel.toml'}: not found"):
+    write_pdbtoexcel_toml(folder)
+    message = f"no play_path for the league; set play_path in {folder / 'league.toml'}"
+    with _raises(message) as exc:
         load_config(LEAGUE)
+    assert str(exc.value) == message
+
+
+def test_missing_file_is_an_error(make_league: MakeLeague, tmp_path: Path) -> None:
+    folder = make_league(LEAGUE, league_toml(tmp_path))
+    with _raises(f"{folder / 'pdbtoexcel.toml'}: not found") as exc:
+        load_config(LEAGUE)
+    assert exc.value.path == folder / "pdbtoexcel.toml"
 
 
 def test_bad_toml_is_an_error(league: Path) -> None:

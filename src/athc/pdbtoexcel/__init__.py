@@ -6,7 +6,7 @@ from athc.pdbtoexcel.config import (
     load_config,
     read_pdbtoexcel_toml,
 )
-from athc.pdbtoexcel.main import convert_pdb
+from athc.pdbtoexcel.main import ConversionResult, convert_pdb
 from athc.pdbtoexcel.pdb import PDB, PLAY_DATA, TENDENCY_DATA, InvalidPDBError
 from athc.pdbtoexcel.workbook_creator import PdbWorkbookCreator
 
@@ -16,6 +16,7 @@ __all__ = [
     "TENDENCY_DATA",
     "CategoryOrder",
     "Config",
+    "ConversionResult",
     "InvalidPDBError",
     "PdbWorkbookCreator",
     "convert_pdb",

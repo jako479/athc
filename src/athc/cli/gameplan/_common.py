@@ -3,13 +3,12 @@ listing."""
 
 from __future__ import annotations
 
-import glob
-import logging
 from collections.abc import Iterable
 from pathlib import Path
 
-import click
-
+from athc.cli._files import Collected, collect_files, is_glob, named_file
+from athc.console import console
+from athc.errors import ConfigFileError
 from athc.fbpro98_gameplan import GamePlan, PlayRef
 from athc.fbpro98_play import (
     CategoryLabels,
@@ -18,13 +17,27 @@ from athc.fbpro98_play import (
     PlayCategory,
     resolve_category,
 )
-from athc.gameplan import Rules, RulesFileError, load_rules
-from athc.playpool import PlayPool, read_play_pool
-from athc.playpool import RulesFileError as PoolRulesFileError
+from athc.gameplan import Rules, load_rules
+from athc.playpool import PlayPool, read_play_pool, rule_warnings
 from athc.playpool import load_rules as load_pool_rules
 
+__all__ = [
+    "COMMENT_TOKEN",
+    "Collected",
+    "build_pool",
+    "category_of",
+    "collect_files",
+    "emit_play_list",
+    "find_in_gameplan",
+    "is_glob",
+    "load_rules_or_raise",
+    "named_file",
+    "normal_play_lines",
+    "parse_play_list",
+    "special_play_lines",
+]
+
 COMMENT_TOKEN = "::"
-_GLOB_CHARS = frozenset("*?[")
 
 # Listing order for `list-normals --sort category`: the league's reading order,
 # with User Specific closing each side.
@@ -77,67 +90,6 @@ def parse_play_list(text: str) -> list[str]:
     return out
 
 
-def is_glob(s: str) -> bool:
-    return any(c in s for c in _GLOB_CHARS)
-
-
-def collect_files(
-    paths: Iterable[str], *, suffix: str, recursive: bool
-) -> tuple[list[Path], list[str]]:
-    """Resolve paths (file / directory / glob) to a deduped list of `suffix` files.
-
-    Returns `(files, errors)`.
-    """
-    suffix = suffix.lower()
-    files: list[Path] = []
-    seen: set[Path] = set()
-    errors: list[str] = []
-    for raw in paths:
-        if is_glob(raw):
-            matches = [
-                Path(m)
-                # glob.glob is the right tool here: raw is a complete pattern
-                # the user typed, like plays\**\*.ply. pathlib has no
-                # equivalent — Path.glob only matches within a folder you
-                # already have. PTH207 flags glob on sight; it is wrong here.
-                for m in sorted(glob.glob(raw, recursive=True))  # noqa: PTH207
-                if Path(m).is_file() and Path(m).suffix.lower() == suffix
-            ]
-            if not matches:
-                errors.append(f"{raw}: no {suffix} files match")
-                continue
-            for match in matches:
-                _add(match, files, seen)
-            continue
-        path = Path(raw)
-        if not path.exists():
-            errors.append(f"{raw}: path does not exist")
-            continue
-        if path.is_file():
-            if path.suffix.lower() != suffix:
-                errors.append(f"{raw}: not a {suffix} file")
-            else:
-                _add(path, files, seen)
-            continue
-        pattern = f"**/*{suffix}" if recursive else f"*{suffix}"
-        dir_matches = sorted(path.glob(pattern))
-        if not dir_matches:
-            scope = "tree" if recursive else "directory"
-            errors.append(f"{raw}: no {suffix} files in {scope}")
-            continue
-        for match in dir_matches:
-            _add(match, files, seen)
-    return files, errors
-
-
-def _add(path: Path, files: list[Path], seen: set[Path]) -> None:
-    resolved = path.resolve()
-    if resolved in seen:
-        return
-    seen.add(resolved)
-    files.append(path)
-
-
 def find_in_gameplan(
     gp: GamePlan, play_name: str
 ) -> tuple[list[tuple[int, PlayRef]], list[tuple[int, PlayRef]]]:
@@ -158,60 +110,38 @@ def find_in_gameplan(
     return normal_hits, special_hits
 
 
-def resolve_rules(
-    rule_files: Iterable[Path],
-    labels: CategoryLabels,
-    *,
-    prog: str,
-    logger: logging.Logger,
-) -> Rules | None:
-    """Load gameplan rules from `rule_files` with the league's category
-    `labels`; return None (a hard error for the caller) when none are configured
-    or loading fails."""
+def load_rules_or_raise(rule_files: Iterable[Path], labels: CategoryLabels) -> Rules:
+    """The league's gameplan rules, read with its category `labels`.
+    ConfigFileError when none are configured; a rules file that cannot be read
+    or parsed raises its own error."""
     files = list(rule_files)
     if not files:
-        logger.error(
-            "%s: no rules configured - nothing to check. "
-            "Add gameplan.toml to the league folder.",
-            prog,
+        raise ConfigFileError(
+            "no rules configured - nothing to check. "
+            "Add gameplan.toml to the league folder."
         )
-        return None
-    try:
-        return load_rules(files, labels=labels)
-    except RulesFileError as error:
-        for line in error.errors:
-            logger.error("%s: %s", prog, line)
-        return None
-    except OSError as error:
-        logger.error("%s: %s", prog, error)
-        return None
+    return load_rules(files, labels=labels)
 
 
 def build_pool(
-    play_path: Path,
-    playpool_rules: Path | None,
-    labels: CategoryLabels,
-    *,
-    prog: str,
-    logger: logging.Logger,
-) -> PlayPool | None:
+    play_path: Path, playpool_rules: Path | None, labels: CategoryLabels
+) -> PlayPool:
     """Build a PlayPool from `play_path` (each play classified from its file) with
     the league's category `labels` naming its folders. Optional `playpool_rules`
-    is the playpool filename-filter TOML; returns None on a missing directory or
-    unreadable rules file."""
+    is the playpool filename-filter TOML. Every pool issue and every notice
+    about the names the rules file lists is a `WARN` line. ConfigFileError when
+    `play_path` is not a directory; an unreadable rules file raises its own
+    error."""
     if not play_path.is_dir():
-        logger.error("%s: play path '%s' is not a directory", prog, play_path)
-        return None
-    try:
-        rules = load_pool_rules(playpool_rules) if playpool_rules else None
-        return read_play_pool(play_path, rules=rules, labels=labels)
-    except PoolRulesFileError as error:
-        for line in error.errors:
-            logger.error("%s: %s", prog, line)
-        return None
-    except OSError as error:
-        logger.error("%s: %s", prog, error)
-        return None
+        raise ConfigFileError("play path is not a directory", play_path)
+    rules = load_pool_rules(playpool_rules) if playpool_rules else None
+    pool = read_play_pool(play_path, rules=rules, labels=labels)
+    for issue in pool.issues:
+        console.warn(issue)
+    if rules is not None and playpool_rules is not None:
+        for notice in rule_warnings(pool, rules):
+            console.warn(f"{playpool_rules.name}: {notice}")
+    return pool
 
 
 def category_of(play: PlayRef) -> PlayCategory:
@@ -256,28 +186,17 @@ def special_play_lines(gp: GamePlan) -> list[str]:
 
 
 def emit_play_list(
-    lines: list[str],
-    out_path: Path | None,
-    source: Path,
-    *,
-    prog: str,
-    logger: logging.Logger,
-    noun: str,
-) -> int:
-    """Print `lines` to stdout, or write them to `out_path` (replacing it, its
-    missing folders created) with a `:: <source>` header. Returns the exit code
-    (0 ok, 1 write error). The count reported leaves out blanks and `::` header
-    lines."""
+    lines: list[str], out_path: Path | None, source: Path, *, noun: str
+) -> None:
+    """Print `lines` (the result, stdout), or write them to `out_path` (replacing
+    it, its missing folders created) with a `:: <source>` header and say so with
+    an `OK` line. A write that fails raises its OSError. The count reported
+    leaves out blanks and `::` header lines."""
     if out_path is None:
-        click.echo("\n".join(lines))
-        return 0
+        console.print("\n".join(lines))
+        return
     text = f":: {source.resolve()}\n" + "\n".join(lines) + "\n"
-    try:
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(text, encoding="utf-8")
-    except OSError as error:
-        logger.error("%s: %s", prog, error)
-        return 1
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(text, encoding="utf-8")
     count = sum(1 for n in lines if n and not n.startswith(COMMENT_TOKEN))
-    click.echo(f"Wrote {count} {noun} play(s) to {out_path}")
-    return 0
+    console.ok(f"{out_path}: {count} {noun} play(s)")

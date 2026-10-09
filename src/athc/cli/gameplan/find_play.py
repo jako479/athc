@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -16,10 +15,9 @@ from athc.cli.gameplan._common import (
     find_in_gameplan,
     is_glob,
 )
-from athc.fbpro98_gameplan import InvalidGamePlanError, PlayRef, read_gameplan
-
-PROG = "athc gameplan find-play"
-logger = logging.getLogger(__name__)
+from athc.console import console
+from athc.errors import AthcError
+from athc.fbpro98_gameplan import PlayRef, read_gameplan
 
 
 def _normal_slot_label(index: int) -> str:
@@ -68,7 +66,6 @@ def find_play(ctx: click.Context, args: tuple[str, ...], recursive: bool) -> Non
     Each file missing a play prints 'not found'. Directory/tree: a per-play summary
     is appended.
     """
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     if len(args) == 1:
         play_names, path = list(args), "."
     else:
@@ -78,23 +75,27 @@ def find_play(ctx: click.Context, args: tuple[str, ...], recursive: bool) -> Non
             "path must be a .pln file or a directory; wildcards are not supported"
         )
 
-    files, path_errors = collect_files([path], suffix=".pln", recursive=recursive)
-    for error in path_errors:
-        logger.error("%s: %s", PROG, error)
-    if not files:
-        ctx.exit(2)
+    collected = collect_files([path], suffix=".pln", recursive=recursive)
+    for line in collected.errors:
+        console.fail(line)
+    for line in collected.warnings:
+        console.warn(line)
 
-    single_file = Path(path).is_file()
+    single_path = not Path(path).is_dir()  # one file, found or not: no tally
     instances_per_play: dict[str, int] = dict.fromkeys(play_names, 0)
     files_hit_per_play: dict[str, int] = dict.fromkeys(play_names, 0)
-    io_errors = 0
+    failed = len(collected.errors)
 
-    for file in files:
+    for file in collected.files:
         try:
             gp = read_gameplan(str(file))
-        except (OSError, InvalidGamePlanError, ValueError) as error:
-            click.echo(f"{file}: ERROR: {error}")
-            io_errors += 1
+        except (AthcError, OSError) as error:
+            console.fail(str(error))
+            failed += 1
+            continue
+        except Exception:
+            console.unexpected(str(file))
+            failed += 1
             continue
         for play_name in play_names:
             normal_hits, special_hits = find_in_gameplan(gp, play_name)
@@ -102,19 +103,21 @@ def find_play(ctx: click.Context, args: tuple[str, ...], recursive: bool) -> Non
             if hit_count > 0:
                 instances_per_play[play_name] += hit_count
                 files_hit_per_play[play_name] += 1
-                click.echo(format_hit_line(file, play_name, normal_hits, special_hits))
+                console.result(
+                    format_hit_line(file, play_name, normal_hits, special_hits)
+                )
             else:
-                click.echo(f"{file}: '{play_name}' not found")
+                console.result(f"{file}: '{play_name}' not found")
 
-    if not single_file:
-        click.echo()
+    if not single_path:
+        console.print()
         for play_name in play_names:
-            click.echo(
-                f"'{play_name}': Found {instances_per_play[play_name]} instance(s) "
-                f"in {files_hit_per_play[play_name]} gameplan(s)."
+            console.result(
+                f"'{play_name}': found {instances_per_play[play_name]} instance(s) "
+                f"in {files_hit_per_play[play_name]} gameplan(s)"
             )
 
-    if io_errors or path_errors:
+    if failed:
         ctx.exit(2)
     # Like grep: success when any play was found anywhere.
     ctx.exit(0 if any(c > 0 for c in files_hit_per_play.values()) else 1)

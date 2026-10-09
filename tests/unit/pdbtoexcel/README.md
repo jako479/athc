@@ -34,6 +34,7 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 | Table written as a value | `category_order = 1` / `deleted_plays = 1` | "must be a table" | `test_table_written_as_a_value_is_an_error` `[P]` | ☑ |
 | Not an array of strings | string, `[1]`, mixed | "expected an array of strings" | `test_list_must_be_an_array_of_strings` `[P]` | ☑ |
 | Unknown key / table | `special`, `[filters]` | "unknown key" | `test_unknown_key_is_an_error` / `test_unknown_table_is_an_error` | ☑ |
+| Missing `play_path` | league without it | "no play_path for the league" naming `league.toml` | `test_missing_play_path_is_an_error` | ☑ |
 | Missing file | no `pdbtoexcel.toml` | "not found" | `test_missing_file_is_an_error` | ☑ |
 | Bad TOML / BOM | malformed; `utf-8-sig` | error names the file; BOM loads | `test_bad_toml_is_an_error` / `test_bom_is_skipped` | ☑ |
 | Deleted plays | `[deleted_plays] names` | names as written; absent → empty | `test_deleted_plays_read_as_written` / `test_deleted_plays_table_without_names_is_empty` | ☑ |

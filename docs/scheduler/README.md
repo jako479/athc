@@ -22,7 +22,7 @@ athc generate-schedule --league PCFL --season 2029 --seed 7
 - `standings\<season>.league.ini` — the standings: `[OverallStandings]` plus `[DivisionStandings]` (a league with divisions) or `[ConferenceStandings]` (two conferences, no divisions). Required.
 - `scheduler.toml` — rule amounts and solver settings. Optional; every key defaults.
 
-It writes a `.txt` and `.html` schedule plus a sortable HTML report to the **current directory**, named `schedule_<season>_<timestamp>` (the report adds `_report.html`). Exit `0` = written, `1` = error (config, no feasible schedule, I/O), `2` = bad arguments.
+It writes a `.txt` and `.html` schedule plus a sortable HTML report to the **current directory**, named `schedule_<season>_<timestamp>` (the report adds `_report.html`). Progress (`Generating the <season> schedule`, `Phase 1: ...`, `Phase 2: ...`) prints on stderr as it runs; then `OK   <file>` per file written and `Generated <n> games (seed <s>)`. Exit `0` = written, `2` = an error (`FAIL <why>`: config, no feasible schedule, I/O, `missing ortools -- reinstall athc`) or bad arguments. Shared console and codes: [architecture](../design/architecture.md#console-run-log-and-errors).
 
 ## How it works
 

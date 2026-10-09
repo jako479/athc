@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import functools
 import textwrap
+import tomllib
 from collections.abc import Callable
 from pathlib import Path
 
@@ -85,6 +86,52 @@ PDBTOEXCEL_TOML = (
 )
 
 
+def _available(config_dir: Path, leagues: tuple[str, ...]) -> str:
+    """The tail of a league error: the folders under `leagues`, else where
+    they would be."""
+    if leagues:
+        return f"Available: {', '.join(leagues)}."
+    return f"No league folders under {config_dir / 'leagues'}."
+
+
+def no_league_selected(config_dir: Path, *leagues: str) -> str:
+    """The whole `FAIL` line of a run with no league selected."""
+    return (
+        "FAIL no league selected; run 'athc config set league NAME' or pass "
+        f"--league. {_available(config_dir, leagues)}\n"
+    )
+
+
+def league_not_found(config_dir: Path, name: str, *leagues: str) -> str:
+    """The whole `FAIL` line of a run naming a league with no folder."""
+    return (
+        f"FAIL league '{name}' not found: no folder {config_dir / 'leagues' / name}. "
+        f"{_available(config_dir, leagues)}\n"
+    )
+
+
+def no_rules_configured(filename: str) -> str:
+    """The whole `FAIL` line of a check whose league folder has no rules file."""
+    return (
+        "FAIL no rules configured - nothing to check. "
+        f"Add {filename} to the league folder.\n"
+    )
+
+
+def toml_error(text: str) -> str:
+    """tomllib's own wording for the broken `text`, as an athc line quotes it."""
+    with pytest.raises(tomllib.TOMLDecodeError) as exc:
+        tomllib.loads(text)
+    return str(exc.value)
+
+
+def os_error(action: Callable[[], object]) -> OSError:
+    """The OSError `action` raises: the system's own wording for a line."""
+    with pytest.raises(OSError) as exc:
+        action()
+    return exc.value
+
+
 def write_pdbtoexcel_toml(folder: Path, body: str = PDBTOEXCEL_TOML) -> Path:
     """Write a league folder's `pdbtoexcel.toml` (the PNFL order by default)."""
     return write_config_file(folder, body, "pdbtoexcel.toml")
@@ -113,6 +160,14 @@ def config_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     d = tmp_path / "athc-config"
     d.mkdir()
     monkeypatch.setenv("ATHC_CONFIG_DIR", str(d))
+    return d
+
+
+@pytest.fixture(autouse=True)
+def log_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Keep every run log in the test's temp dir, never the machine's."""
+    d = tmp_path / "athc-logs"
+    monkeypatch.setenv("ATHC_LOG_DIR", str(d))
     return d
 
 

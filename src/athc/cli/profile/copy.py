@@ -2,24 +2,17 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 import click
 
 from athc.cli import CONTEXT_SETTINGS
 from athc.cli.profile import profile
-from athc.cli.profile._common import collect_files
-from athc.fbpro98_profile import (
-    InvalidProfileError,
-    UnsupportedProfileError,
-    read_profile,
-    write_profile,
-)
-from athc.profile.writer import ProfileTypeMismatchError, ProfileWriter
-
-PROG = "athc profile copy"
-logger = logging.getLogger(__name__)
+from athc.cli.profile._common import collect_files, named_file
+from athc.console import console
+from athc.errors import AthcError
+from athc.fbpro98_profile import read_profile, write_profile
+from athc.profile.writer import ProfileWriter
 
 # CLI flag dest -> summary label, in display order.
 _FLAG_LABELS = {
@@ -91,63 +84,59 @@ def copy(
     Files of the wrong side (offense vs defense) are skipped. At least one copy
     flag is required.
     """
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     if not any(flags.values()):
         raise click.UsageError(
             "at least one copy option is required "
             "(--stop-clock, --sub-percent, --field-goal-range, "
             "--fourth-down, --goal-line, --pat-logic)"
         )
+    side = "offense" if read_profile(named_file(source)).is_offense else "defense"
 
-    try:
-        side = "offense" if read_profile(str(source)).is_offense else "defense"
-    except (OSError, InvalidProfileError, UnsupportedProfileError) as error:
-        logger.error("%s: %s", PROG, error)
-        ctx.exit(2)
+    collected = collect_files([str(target)], suffix=".prf", recursive=recursive)
+    for line in collected.errors:
+        console.fail(line)
+    for line in collected.warnings:
+        console.warn(line)
 
-    files, path_errors = collect_files(
-        [str(target)], suffix=".prf", recursive=recursive
-    )
-    for error in path_errors:
-        logger.error("%s: %s", PROG, error)
-    if not files:
-        ctx.exit(2)
-
+    other_side = "defense" if side == "offense" else "offense"
     source_resolved = source.resolve()
-    updated = failed = 0
-    for path in files:
-        if not _matches_side(path, side) or path.resolve() == source_resolved:
+    updated = skipped = 0
+    failed = len(collected.errors)
+    for path in collected.files:
+        if path.resolve() == source_resolved:
+            skipped += 1
+            console.skip(f"{path}: the source profile")
             continue
-        status, message = _copy_one(source, path, flags)
-        click.echo(f"{path}: {status} ({message})")
-        if status == "updated":
-            updated += 1
-        else:
+        if not _matches_side(path, side):
+            skipped += 1
+            console.skip(f"{path}: {other_side} profile")
+            continue
+        try:
+            result = ProfileWriter(source, path).apply(**flags)
+            write_profile(result, str(path))
+        except (AthcError, OSError) as error:
+            console.fail(str(error))
             failed += 1
+            continue
+        except Exception:
+            console.unexpected(str(path))
+            failed += 1
+            continue
+        updated += 1
+        console.ok(f"{path}: updated ({_flag_summary(flags)})")
 
-    click.echo()
-    click.echo(
-        f"{updated + failed} file(s) processed; {updated} updated, {failed} failed."
+    console.print()
+    console.result(
+        f"{len(collected.files)} file(s) processed, {updated} updated, "
+        f"{skipped} skipped, {failed} failed"
     )
-    ctx.exit(0 if failed == 0 else 1)
+    ctx.exit(2 if failed else 0)
 
 
 def _matches_side(path: Path, side: str) -> bool:
     """A `.prf`'s file-size parity marks its side: offense even, defense odd."""
     even = path.stat().st_size % 2 == 0
     return even if side == "offense" else not even
-
-
-def _copy_one(source: Path, target: Path, flags: dict[str, bool]) -> tuple[str, str]:
-    """Return `(status, message)` where status is `updated` or `failed`."""
-    try:
-        result = ProfileWriter(source, target).apply(**flags)
-        write_profile(result, str(target))
-    except ProfileTypeMismatchError as error:
-        return "failed", str(error)
-    except (InvalidProfileError, UnsupportedProfileError, OSError) as error:
-        return "failed", str(error)
-    return "updated", _flag_summary(flags)
 
 
 def _flag_summary(flags: dict[str, bool]) -> str:

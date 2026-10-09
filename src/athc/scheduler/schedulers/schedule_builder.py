@@ -11,11 +11,11 @@ from collections.abc import Sequence
 
 from ortools.sat.python import cp_model
 
+from athc.errors import ConfigFileError
 from athc.scheduler.config import (
     DEFAULT_SOLVER_WORKERS,
     DEFAULT_TIME_LIMIT,
     DEFAULT_WEEKS,
-    ConfigError,
     Phase2Config,
     SolverWorkers,
 )
@@ -31,7 +31,7 @@ class ScheduleBuilder:
     def __init__(
         self,
         league: League,
-        error_cls: type[RuntimeError],
+        error_cls: type[Exception],
         amounts: Phase2Config | None = None,
         *,
         weeks: int = DEFAULT_WEEKS,
@@ -52,7 +52,7 @@ class ScheduleBuilder:
         self.season = season
 
         if league.has_divisions and not self.amounts.require_home_away_streak_caps:
-            raise ConfigError(
+            raise ConfigFileError(
                 "require_home_away_streak_caps must be true for a league with "
                 "divisions: the soft objective needs the streak flags."
             )

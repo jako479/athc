@@ -8,20 +8,20 @@ DelayBeforeContinue can be tuned while the watcher is running.
 from __future__ import annotations
 
 import ctypes
-import logging
 import time
+from collections.abc import Callable
 
 import pyautogui
 
 from athc.autocontinue.config import (
     Config,
-    ConfigError,
     config_signature,
     get_runtime_path,
     load_config,
 )
+from athc.errors import ConfigFileError
 
-logger = logging.getLogger(__name__)
+Say = Callable[[str], None]
 
 CONTINUE_BUTTON_IMAGE = get_runtime_path("continue_button.png")
 
@@ -41,24 +41,32 @@ _GAME_WINDOW_TITLE = "Front Page Sports Football Pro '98"
 pyautogui.FAILSAFE_POINTS = [(0, 0)]
 
 
-def auto_continue(hot_corner: bool | None = None) -> None:
+def auto_continue(
+    hot_corner: bool | None = None,
+    *,
+    progress: Say | None = None,
+    warn: Say | None = None,
+) -> None:
     """Run the watch-and-click loop until interrupted (Ctrl-C).
 
     Reads `[autocontinue]` from `config_dir()/athc.ini`. The INI is re-read only when
     the file changes on disk, so edits apply while the watcher runs; a reload that
-    fails validation is logged and the previous settings kept. The initial load is
-    required; a ConfigError there propagates to the caller.
+    fails validation goes to `warn` and the previous settings are kept. The initial
+    load is required; a ConfigFileError there propagates to the caller.
 
     `hot_corner` is the CLI override: None uses the config value, True/False forces it
-    and ignores config changes to the setting.
+    and ignores config changes to the setting. `progress` hears the loop's status
+    lines and `warn` its retries; nothing is printed or logged here.
     """
+    say = progress or (lambda _: None)
+    complain = warn or (lambda _: None)
     last_signature = config_signature()
     config = load_config()
 
-    logger.info("AutoContinue is RUNNING. Press CTRL-C to exit.")
-    _log_config_changes(None, config)
+    say("AutoContinue is RUNNING. Press CTRL-C to exit.")
+    _say_config_changes(None, config, say)
     corner = _resolve_hot_corner(config, hot_corner)
-    _apply_hot_corner(None, corner)
+    _apply_hot_corner(None, corner, say)
     width, height = _get_screen_size()
 
     while True:
@@ -67,14 +75,12 @@ def auto_continue(hot_corner: bool | None = None) -> None:
             last_signature = signature
             try:
                 new_config = load_config()
-            except ConfigError as error:
-                logger.warning(
-                    "Config reload failed; keeping previous settings. %s", error
-                )
+            except ConfigFileError as error:
+                complain(f"Config reload failed; keeping previous settings. {error}")
             else:
-                _log_config_changes(config, new_config)
+                _say_config_changes(config, new_config, say)
                 new_corner = _resolve_hot_corner(new_config, hot_corner)
-                _apply_hot_corner(corner, new_corner)
+                _apply_hot_corner(corner, new_corner, say)
                 corner = new_corner
                 config = new_config
 
@@ -82,7 +88,7 @@ def auto_continue(hot_corner: bool | None = None) -> None:
             time.sleep(_UNFOCUSED_POLL)
             continue
 
-        location = _find_continue_button(0, 0, width, height)
+        location = _find_continue_button(0, 0, width, height, complain)
         # Re-check focus: the commish may have switched away (pausing the game)
         # since the top of the loop.
         if location is None or not _game_has_focus():
@@ -127,7 +133,7 @@ def _foreground_window_title() -> str:
     return buffer.value
 
 
-def _find_continue_button(top: int, left: int, width: int, height: int):
+def _find_continue_button(top: int, left: int, width: int, height: int, warn: Say):
     try:
         # Single screenshot+match per call; the loop paces scans with _SCAN_INTERVAL.
         # (pyscreeze's minSearchTime busy-loops with no sleep, so we don't use it.)
@@ -141,10 +147,10 @@ def _find_continue_button(top: int, left: int, width: int, height: int):
         return None
     except OSError as error:
         # ImageGrab raises OSError on a locked screen / screensaver / disconnected
-        # RDP. Log it (so it isn't silent) and back off so we don't flood; any
+        # RDP. Say so (so it isn't silent) and back off so we don't flood; any
         # other error propagates so real bugs surface instead of being swallowed.
-        logger.warning(
-            "Screen grab failed (%s); retrying in %.0fs.", error, _LOCKED_SCREEN_BACKOFF
+        warn(
+            f"Screen grab failed ({error}); retrying in {_LOCKED_SCREEN_BACKOFF:.0f}s."
         )
         time.sleep(_LOCKED_SCREEN_BACKOFF)
         return None
@@ -155,20 +161,20 @@ def _resolve_hot_corner(config: Config, override: bool | None) -> bool:
     return config.hot_corner if override is None else override
 
 
-def _apply_hot_corner(prev: bool | None, enabled: bool) -> None:
-    """Toggle the PyAutoGUI fail-safe and log the state on change. Enabled: the
+def _apply_hot_corner(prev: bool | None, enabled: bool, say: Say) -> None:
+    """Toggle the PyAutoGUI fail-safe and say the state on change. Enabled: the
     top-left corner stops the watcher. Disabled: Ctrl-C only."""
     pyautogui.FAILSAFE = enabled
     if prev == enabled:
         return
     if enabled:
-        logger.info("(Move the mouse to the top-left corner to stop.)")
+        say("(Move the mouse to the top-left corner to stop.)")
     else:
-        logger.info("Hot corner disabled; press CTRL-C to stop.")
+        say("Hot corner disabled; press CTRL-C to stop.")
 
 
-def _log_config_changes(prev: Config | None, current: Config) -> None:
+def _say_config_changes(prev: Config | None, current: Config, say: Say) -> None:
     if prev is None or prev.mouse_move_duration != current.mouse_move_duration:
-        logger.info("MouseMoveDuration set to %s", current.mouse_move_duration)
+        say(f"MouseMoveDuration set to {current.mouse_move_duration}")
     if prev is None or prev.delay_before_continue != current.delay_before_continue:
-        logger.info("DelayBeforeContinue set to %s", current.delay_before_continue)
+        say(f"DelayBeforeContinue set to {current.delay_before_continue}")

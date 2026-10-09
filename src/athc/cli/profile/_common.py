@@ -2,96 +2,23 @@
 
 from __future__ import annotations
 
-import glob
-import logging
 from collections.abc import Iterable
 from pathlib import Path
 
-from athc.profile import ProfileRules, RulesFileError, load_rules
+from athc.cli._files import Collected, collect_files, is_glob, named_file
+from athc.errors import ConfigFileError
+from athc.profile import ProfileRules, load_rules
 
-_GLOB_CHARS = frozenset("*?[")
-
-
-def is_glob(s: str) -> bool:
-    return any(c in s for c in _GLOB_CHARS)
+__all__ = ["Collected", "collect_files", "is_glob", "load_rules_or_raise", "named_file"]
 
 
-def collect_files(
-    paths: Iterable[str], *, suffix: str, recursive: bool
-) -> tuple[list[Path], list[str]]:
-    """Resolve paths (file / directory / glob) to a deduped list of `suffix` files.
-
-    Returns `(files, errors)`.
-    """
-    suffix = suffix.lower()
-    files: list[Path] = []
-    seen: set[Path] = set()
-    errors: list[str] = []
-    for raw in paths:
-        if is_glob(raw):
-            matches = [
-                Path(m)
-                # glob.glob is the right tool here: raw is a complete pattern
-                # the user typed, like plays\**\*.ply. pathlib has no
-                # equivalent — Path.glob only matches within a folder you
-                # already have. PTH207 flags glob on sight; it is wrong here.
-                for m in sorted(glob.glob(raw, recursive=True))  # noqa: PTH207
-                if Path(m).is_file() and Path(m).suffix.lower() == suffix
-            ]
-            if not matches:
-                errors.append(f"{raw}: no {suffix} files match")
-                continue
-            for match in matches:
-                _add(match, files, seen)
-            continue
-        path = Path(raw)
-        if not path.exists():
-            errors.append(f"{raw}: path does not exist")
-            continue
-        if path.is_file():
-            if path.suffix.lower() != suffix:
-                errors.append(f"{raw}: not a {suffix} file")
-            else:
-                _add(path, files, seen)
-            continue
-        pattern = f"**/*{suffix}" if recursive else f"*{suffix}"
-        dir_matches = sorted(path.glob(pattern))
-        if not dir_matches:
-            scope = "tree" if recursive else "directory"
-            errors.append(f"{raw}: no {suffix} files in {scope}")
-            continue
-        for match in dir_matches:
-            _add(match, files, seen)
-    return files, errors
-
-
-def _add(path: Path, files: list[Path], seen: set[Path]) -> None:
-    resolved = path.resolve()
-    if resolved in seen:
-        return
-    seen.add(resolved)
-    files.append(path)
-
-
-def resolve_rules(
-    rule_files: Iterable[Path], *, prog: str, logger: logging.Logger
-) -> ProfileRules | None:
-    """Load rules from `rule_files`; return None (caller treats as a hard error)
-    when none are configured or loading fails."""
+def load_rules_or_raise(rule_files: Iterable[Path]) -> ProfileRules:
+    """The league's profile rules. ConfigFileError when none are configured; a
+    rules file that cannot be read or parsed raises its own error."""
     files = list(rule_files)
     if not files:
-        logger.error(
-            "%s: no rules configured - nothing to check. "
-            "Add profile.toml to the league folder.",
-            prog,
+        raise ConfigFileError(
+            "no rules configured - nothing to check. "
+            "Add profile.toml to the league folder."
         )
-        return None
-    try:
-        return load_rules(files)
-    except RulesFileError as error:
-        for line in error.errors:
-            logger.error("%s: %s", prog, line)
-        return None
-    except OSError as error:
-        logger.error("%s: %s", prog, error)
-        return None
+    return load_rules(files)

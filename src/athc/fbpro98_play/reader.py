@@ -9,6 +9,7 @@ from __future__ import annotations
 from os import PathLike
 from pathlib import Path
 
+from athc.errors import AthcError
 from athc.fbpro98_play.model import UNKNOWN_CATEGORY, PlayerHeader, PlayFile
 from athc.fbpro98_play.schema import (
     ID_P95,
@@ -24,7 +25,7 @@ from athc.fbpro98_play.schema import (
 StrPath = str | PathLike[str]
 
 
-class InvalidPlayFileError(ValueError):
+class InvalidPlayFileError(AthcError):
     """Raised when a `.ply` file is structurally invalid or has an unrecognized
     play category."""
 
@@ -49,10 +50,11 @@ def read_play(path: StrPath) -> PlayFile:
     play = parse_play(file_path.read_bytes(), file_path)
     if play.category is UNKNOWN_CATEGORY:
         raise InvalidPlayFileError(
-            f"Unrecognized play category in {file_path} "
+            "Unrecognized play category "
             f"(play_category=0x{play.play_category:02X}, "
             f"special_category=0x{play.special_category:02X}, "
-            f"user_category=0x{play.user_category:02X})"
+            f"user_category=0x{play.user_category:02X})",
+            file_path,
         )
     return play
 
@@ -77,28 +79,22 @@ def parse_play(buffer: bytes, path: StrPath = "<buffer>") -> PlayFile:
     file_path = Path(path)
 
     if len(buffer) < PLY_HEADER.size:
-        raise InvalidPlayFileError(
-            f"File too small to contain P95 header in {file_path}"
-        )
+        raise InvalidPlayFileError("File too small to contain P95 header", file_path)
 
     block_id, stream_length = PLY_HEADER.unpack_from(buffer, 0)
     if block_id != ID_P95:
         block_id_str = block_id.decode("ASCII", errors="replace")
-        raise InvalidPlayFileError(
-            f"Invalid header '{block_id_str}' at 0x0 in {file_path}"
-        )
+        raise InvalidPlayFileError(f"Invalid header '{block_id_str}' at 0x0", file_path)
 
     if len(buffer) != PLY_HEADER.size + stream_length:
         expected = PLY_HEADER.size + stream_length
         raise InvalidPlayFileError(
-            f"File size {len(buffer)} does not match P95 block size "
-            f"{expected} in {file_path}"
+            f"File size {len(buffer)} does not match P95 block size {expected}",
+            file_path,
         )
 
     if len(buffer) < PLY_METADATA_OFFSET + PLY_METADATA.size:
-        raise InvalidPlayFileError(
-            f"File too small to contain play metadata in {file_path}"
-        )
+        raise InvalidPlayFileError("File too small to contain play metadata", file_path)
 
     player_offsets = PLY_PLAYER_OFFSETS.unpack_from(buffer, PLY_PLAYER_OFFSETS_OFFSET)
 
@@ -126,8 +122,7 @@ def _parse_player_header(buffer: bytes, offset: int, path: Path) -> PlayerHeader
     absolute_offset = PLY_PLAYER_DATA_BASE + offset
     if len(buffer) < absolute_offset + PLY_PLAYER_HEADER.size:
         raise InvalidPlayFileError(
-            f"File too small to contain player header at "
-            f"0x{absolute_offset:02X} in {path}"
+            f"File too small to contain player header at 0x{absolute_offset:02X}", path
         )
 
     rank, player_type, position = PLY_PLAYER_HEADER.unpack_from(buffer, absolute_offset)

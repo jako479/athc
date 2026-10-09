@@ -13,7 +13,13 @@ from athc.fbpro98_profile import (
     SubstitutionPair,
     YardsToGo,
 )
-from athc.profile import ScalarChange, SlotChange, diff_profiles, situation_label
+from athc.profile import (
+    ProfileTypeMismatchError,
+    ScalarChange,
+    SlotChange,
+    diff_profiles,
+    situation_label,
+)
 from athc.profile.rules import (
     FIELD_GOAL_PAT,
     PASS_MEDIUM_LEFT,
@@ -154,7 +160,9 @@ def test_combined_changes_counts() -> None:
 
 
 def test_type_mismatch_raises() -> None:
-    with pytest.raises(ValueError, match="cannot diff"):
+    with pytest.raises(
+        ProfileTypeMismatchError, match="cannot diff OFFENSE against DEFENSE"
+    ):
         diff_profiles(
             make_profile(ProfileType.OFFENSE), make_profile(ProfileType.DEFENSE)
         )

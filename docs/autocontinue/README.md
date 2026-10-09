@@ -16,7 +16,7 @@ uv sync
 athc autocontinue   # settings from athc.ini [autocontinue]
 ```
 
-`CTRL-C` stops it, or move the mouse to the top-left screen corner (the "hot corner", on by default; disable with `--no-hot-corner` or `hot_corner = false`). It only clicks while the game is the active window, so switching to another app (which pauses the game) is safe. The INI is re-read whenever the file changes, so edits apply while it runs. Exit `0` (clean stop), `1` (config error or pyautogui not installed).
+`CTRL-C` stops it, or move the mouse to the top-left screen corner (the "hot corner", on by default; disable with `--no-hot-corner` or `hot_corner = false`). It only clicks while the game is the active window, so switching to another app (which pauses the game) is safe. The INI is re-read whenever the file changes, so edits apply while it runs. Its status (`AutoContinue is RUNNING...`, the settings in use) prints on stderr and in the run log; a failed config reload or screen grab is a `WARN` line and it keeps going. Stopping prints `Shutting down AutoContinue`, exit `0`. A config error or a missing pyautogui is `FAIL <why>`, exit `2`. Shared console and codes: [architecture](../design/architecture.md#console-run-log-and-errors).
 
 Run the game on your **primary monitor** — autocontinue only watches that display. (A single-display VM also works, and keeps your other monitors free.)
 

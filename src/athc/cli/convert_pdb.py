@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 import click
-from xlsxwriter.exceptions import XlsxWriterException
 
 from athc.cli import CONTEXT_SETTINGS, AthcCommand, league_option
+from athc.cli._files import named_file
+from athc.console import console
 from athc.pdbtoexcel.main import convert_pdb as run_conversion
-
-PROG = "athc convert-pdb"
-logger = logging.getLogger(__name__)
 
 
 def _ext(*extensions: str):
@@ -83,9 +80,7 @@ def _ext(*extensions: str):
     help="Omit the extra calculation (percentage) columns.",
 )
 @league_option
-@click.pass_context
 def convert_pdb(
-    ctx: click.Context,
     pdbfile: Path,
     outputfile: Path,
     pln_off: Path | None,
@@ -101,26 +96,20 @@ def convert_pdb(
     macros). Cross-reference up to two offensive (`-o`/`-o2`) and two defensive
     (`-d`/`-d2`) Front Page Sports Football Pro '98 game plans.
     """
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-
     for path in (pdbfile, pln_off, pln_off_2, pln_def, pln_def_2):
-        if path is not None and not path.is_file():
-            logger.error("%s: %s: file not found", PROG, path)
-            ctx.exit(1)
-
-    try:
-        run_conversion(
-            pdb_path=str(pdbfile),
-            output_path=str(outputfile),
-            league=league,
-            pln_offense=str(pln_off) if pln_off else None,
-            pln_offense_2=str(pln_off_2) if pln_off_2 else None,
-            pln_defense=str(pln_def) if pln_def else None,
-            pln_defense_2=str(pln_def_2) if pln_def_2 else None,
-            skip_calcs=skip_calcs,
-        )
-    except (OSError, ValueError, XlsxWriterException) as error:
-        # ValueError covers InvalidPDBError / LeagueError / ConfigFileError /
-        # RulesFileError / InvalidGamePlanError; report as one line, no traceback.
-        logger.error("%s: %s", PROG, error)
-        ctx.exit(1)
+        if path is not None:
+            named_file(path)
+    result = run_conversion(
+        pdb_path=str(pdbfile),
+        output_path=str(outputfile),
+        league=league,
+        pln_offense=str(pln_off) if pln_off else None,
+        pln_offense_2=str(pln_off_2) if pln_off_2 else None,
+        pln_defense=str(pln_def) if pln_def else None,
+        pln_defense_2=str(pln_def_2) if pln_def_2 else None,
+        skip_calcs=skip_calcs,
+        progress=console.progress,
+    )
+    for warning in result.warnings:
+        console.warn(warning)
+    console.ok(f"{outputfile}: {result.plays} play(s)")

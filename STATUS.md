@@ -41,9 +41,29 @@ athc profile diff               DONE
 
 Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
+### Console, run log and errors
+
+- Done the pdf-converter way (2026-10-08): `athc/console.py` (Rich, one
+  instance) prints every line; `athc/log.py` writes the rotating run log under
+  `%LOCALAPPDATA%\athc\Logs` (`ATHC_LOG_DIR` overrides it); `athc/errors.py`
+  holds `AthcError` and the shared config, league and rules errors; `main` on
+  the Click command classes is the one place that turns errors into a line, a
+  log entry and an exit code, under `CliRunner` too.
+- Results and `OK` / `SKIP` lines on stdout; progress, `WARN` and `FAIL` on
+  stderr; 0 / 1 findings / 2 error / 130 Ctrl-C in every command; a batch
+  catches per item and the worst outcome wins.
+- Libraries raise `AthcError` subclasses, return warnings as values and take a
+  `progress` callback; nothing in a library prints or logs.
+- CLI tests assert stdout and stderr apart; console, `NO_COLOR` and run-log
+  tests cover the pieces. Rules:
+  [docs/design/architecture.md](docs/design/architecture.md#console-run-log-and-errors).
+- Errors carry the path as data: `AthcError(reason, path)` composes
+  `<path>: <reason>` itself, the readers and loaders pass the path instead of
+  writing it into the message, and a batch `FAIL` line names the file once.
+
 - The design docs are one `docs/design/architecture.md`: the architecture plus a
-  Cross-cutting conventions section (CLI, exit codes, output streams, output
-  files, config); `cli.md`, `config.md` and `logging.md` are gone, their rules
+  Cross-cutting conventions section (CLI; console, run log and errors; output
+  files; config); `cli.md`, `config.md` and `logging.md` are gone, their rules
   folded in. New rule: a produced file's missing folders are created in full
   (pandoc, 7-Zip, yt-dlp do the same); `convert-pdb`, `list-normals`,
   `list-specials` and `profile diff -o` follow it.
@@ -99,8 +119,9 @@ leagues\
 
 - League keys in `athc.ini` are lowercase (`play_path`, `playpool_rules`) like
   every other key, so the parser no longer needs a subclass to keep key case.
-- Exit codes and the error-vs-finding distinction live in each tool's README,
-  where a coach will look, not in ARCHITECTURE.
+- The shared exit scheme and message kinds are in architecture.md; each tool's
+  README carries its own lines and what counts as a finding, where a coach
+  will look.
 - The `RULES_PNFL.md` docs are gone. Each tool's rules TOML is the league
   reference; a prose copy of every value went stale the moment one changed.
 - The shipped `config/release/athc.ini` is loaded through every section loader in
@@ -119,10 +140,7 @@ leagues\
   warnings into errors.
 - `.vscode/` is untracked; game data files are marked binary in
   `.gitattributes`.
-- Config stays INI. Logging is designed but not wired: the design is
-  [docs/design/TODO/logging.md](docs/design/TODO/logging.md) (Rich console,
-  file-only run log, one error base, 0 / 1 / 2 in every command); the code
-  still has 15 `basicConfig` calls and two exit-code schemes.
+- Config stays INI.
 - Install is a per-user `athc-<ver>-setup.exe`: a PyInstaller bundle with its
   own Python, wrapped by Inno Setup; no Python, uv or internet needed. Built
   from the exact versions in `uv.lock`. Scripts in `packaging/`; a Windows
@@ -130,8 +148,8 @@ leagues\
   and uninstalls. athc-admin builds its own setup.exe from the same scripts;
   the public setup.exe refuses to install over it. Design: [docs/design/installer.md](docs/design/installer.md).
 
-Open: implement the logging design (the TODO task) · athc-admin's tests still
-write the old `[league.PNFL]` layout and need updating when it picks up this
+Open: athc-admin's three commands still call `basicConfig` and its tests still
+write the old `[league.PNFL]` layout; both need updating when it picks up this
 athc.
 
 ## autocontinue

@@ -4,6 +4,26 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-08 — **athc**: the eight console follow-ups decided after the
+  review landed, in order: an error carries its file's path as data and
+  composes `<path>: <reason>` itself, the way `OSError` does, so the readers
+  and loaders pass the path and no line names a file twice; a missing named
+  file is `FAIL <path>: not found` through one shared helper, never
+  Python's errno text; an unwritable log folder is one `FAIL` line, not a
+  traceback; bare `athc` logs one line instead of its help; `playpool
+  check` says `not found` for a missing folder; a play list from the
+  console carries no `- ` prefix and `find-play` prints no tally for a
+  failed single path; the check commands catch per item in the loop; and
+  every single-line CLI stream is pinned whole, the shared lines coming from
+  conftest helpers.
+- 2026-10-08 — **athc**: the console, run log, errors and exit codes landed
+  the pdf-converter way. One Rich console prints every line and writes the
+  matching log line, one rotating run log holds every run, one error family
+  replaces the per-tool copies, and `main` on the Click command classes is the
+  one place errors become a line and a code, so `CliRunner` tests see exactly
+  what the process does. Libraries stopped logging: warnings come back as
+  values and progress through a callback. The two TODO designs retired into
+  architecture.md and the per-tool READMEs.
 - 2026-10-08 — **athc**: the logging rework got a design in place of a
   decision table. Research into what mainstream tools do (git, ruff, grep,
   pip, Black, clig.dev, Rich) confirmed pdf-converter's console, run log and

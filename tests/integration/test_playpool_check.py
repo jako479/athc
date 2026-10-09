@@ -6,7 +6,6 @@ own warnings, word for word, as its findings.
 
 from __future__ import annotations
 
-import logging
 import shutil
 from collections.abc import Callable
 from pathlib import Path
@@ -15,7 +14,14 @@ import pytest
 from click.testing import Result
 
 from athc.cli.playpool.check import check
-from tests.conftest import LEAGUE, OTHER_LEAGUE, league_toml
+from tests.conftest import (
+    LEAGUE,
+    OTHER_LEAGUE,
+    league_not_found,
+    league_toml,
+    no_league_selected,
+    toml_error,
+)
 from tests.integration.conftest import PLAYS
 
 WriteConfig = Callable[..., Path]
@@ -57,7 +63,7 @@ def test_clean_exit_0(runner, tmp_path: Path) -> None:
     root = clean_tree(tmp_path / "plays")
     result = run(runner, root)
     assert result.exit_code == 0
-    assert result.stdout == f"1 play(s) checked in '{root}', 0 issue(s).\n"
+    assert result.stdout == f"1 play(s) checked in '{root}', 0 issue(s)\n"
 
 
 @pytest.mark.usefixtures("labeled_league")
@@ -72,35 +78,31 @@ def test_issues_print_word_for_word_exit_1(runner, tmp_path: Path) -> None:
         f"Duplicate play name '{PLAY}'; last loaded wins",
         f"Run Left play in a Run Middle folder: Defense/34RunMiddle/{PLAY}.ply",
     ]
-    assert lines[2:] == ["", f"2 play(s) checked in '{root}', 2 issue(s)."]
+    assert lines[2:] == ["", f"2 play(s) checked in '{root}', 2 issue(s)"]
 
 
 def test_dir_with_unknown_league_option_exit_2(
-    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    runner, config_dir: Path, tmp_path: Path
 ) -> None:
     """A league the user names must exist, folder or not."""
     root = clean_tree(tmp_path / "plays")
-    with caplog.at_level(logging.ERROR):
-        result = run(runner, root, "--league", "NOPE")
+    result = run(runner, root, "--league", "NOPE")
     assert result.exit_code == 2
-    assert "league 'NOPE' not found" in caplog.text
+    assert result.stderr == league_not_found(config_dir, "NOPE")
 
 
 def test_dir_with_malformed_league_toml_exit_2(
-    runner,
-    tmp_path: Path,
-    make_league: MakeLeague,
-    write_config: WriteConfig,
-    caplog: pytest.LogCaptureFixture,
+    runner, tmp_path: Path, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
     """A broken league file is reported even when a folder is given."""
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     folder = make_league(LEAGUE, "[league\nbroken")
     root = clean_tree(tmp_path / "plays")
-    with caplog.at_level(logging.ERROR):
-        result = run(runner, root)
+    result = run(runner, root)
     assert result.exit_code == 2
-    assert str(folder / "league.toml") in caplog.text
+    assert result.stderr == (
+        f"FAIL {folder / 'league.toml'}: {toml_error('[league' + chr(10) + 'broken')}\n"
+    )
 
 
 def test_dir_without_league_knows_no_category_folders(runner, tmp_path: Path) -> None:
@@ -110,7 +112,7 @@ def test_dir_without_league_knows_no_category_folders(runner, tmp_path: Path) ->
     copy_play(root / "Defense" / "34RunMiddle")
     result = run(runner, root)
     assert result.exit_code == 0
-    assert result.stdout == f"1 play(s) checked in '{root}', 0 issue(s).\n"
+    assert result.stdout == f"1 play(s) checked in '{root}', 0 issue(s)\n"
 
 
 def test_invalid_file_is_an_issue(runner, tmp_path: Path) -> None:
@@ -121,22 +123,17 @@ def test_invalid_file_is_an_issue(runner, tmp_path: Path) -> None:
     assert result.exit_code == 1
     lines = result.stdout.splitlines()
     assert lines[0].startswith("Skipping invalid play file: ")
-    assert lines[1:] == ["", f"0 play(s) checked in '{root}', 1 issue(s)."]
+    assert lines[1:] == ["", f"0 play(s) checked in '{root}', 1 issue(s)"]
 
 
 @pytest.mark.usefixtures("labeled_league")
-def test_issues_not_logged_twice(
-    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_issues_are_results_not_warnings(runner, tmp_path: Path) -> None:
+    """The issues are the findings: stdout only, never a WARN line too."""
     root = tmp_path / "plays"
     copy_play(root / "Defense" / "34RunMiddle")
-    pool_logger = logging.getLogger("athc.playpool")
-    level = pool_logger.level
-    with caplog.at_level(logging.INFO):
-        result = run(runner, root)
+    result = run(runner, root)
     assert result.exit_code == 1
-    assert caplog.records == []
-    assert pool_logger.level == level  # restored for whatever runs next
+    assert result.stderr == ""
 
 
 # ── where the folder comes from ───────────────────────────────────────────────
@@ -155,7 +152,7 @@ def test_default_is_current_league_play_path(
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner)
     assert result.exit_code == 0
-    assert f"in '{root}'" in result.stdout
+    assert result.stdout == f"1 play(s) checked in '{root}', 0 issue(s)\n"
 
 
 def test_league_option_picks_another_league(
@@ -168,61 +165,55 @@ def test_league_option_picks_another_league(
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, "--league", OTHER_LEAGUE)
     assert result.exit_code == 0
-    assert f"in '{other_plays}'" in result.stdout
+    assert result.stdout == f"1 play(s) checked in '{other_plays}', 0 issue(s)\n"
 
 
 # ── errors: exit 2, on stderr ─────────────────────────────────────────────────
 
 
-def test_no_league_exit_2(runner, caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.ERROR):
-        result = run(runner)
+def test_no_league_exit_2(runner, config_dir: Path) -> None:
+    result = run(runner)
     assert result.exit_code == 2
     assert result.stdout == ""
-    assert "athc playpool check: no league selected" in caplog.text
+    assert result.stderr == no_league_selected(config_dir)
 
 
 def test_league_without_play_path_exit_2(
-    runner,
-    make_league: MakeLeague,
-    write_config: WriteConfig,
-    caplog: pytest.LogCaptureFixture,
+    runner, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
     folder = make_league()
     write_config(f"[athc]\nleague = {LEAGUE}\n")
-    with caplog.at_level(logging.ERROR):
-        result = run(runner)
+    result = run(runner)
     assert result.exit_code == 2
-    assert (
-        "athc playpool check: no play_path for the league; "
-        f"set play_path in {folder / 'league.toml'}"
-    ) in caplog.text
-
-
-def test_play_dir_not_a_directory_exit_2(
-    runner, tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    missing = tmp_path / "nowhere"
-    with caplog.at_level(logging.ERROR):
-        result = run(runner, missing)
-    assert result.exit_code == 2
-    assert result.stdout == ""
-    assert (
-        f"athc playpool check: play path '{missing}' is not a directory" in caplog.text
+    assert result.stderr == (
+        f"FAIL no play_path for the league; set play_path in {folder / 'league.toml'}\n"
     )
 
 
+def test_missing_play_dir_is_not_found_exit_2(runner, tmp_path: Path) -> None:
+    missing = tmp_path / "nowhere"
+    result = run(runner, missing)
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert result.stderr == f"FAIL {missing}: not found\n"
+
+
+def test_play_dir_not_a_directory_exit_2(runner, tmp_path: Path) -> None:
+    a_file = tmp_path / "plays.txt"
+    a_file.write_text("x", encoding="utf-8")
+    result = run(runner, a_file)
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert result.stderr == f"FAIL {a_file}: not a directory\n"
+
+
 def test_read_error_exit_2(
-    runner,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def fail(root: Path, *, rules: object, labels: object) -> None:
+    def fail(root: Path, *, labels: object) -> None:
         raise PermissionError("access denied")
 
-    monkeypatch.setattr("athc.cli.gameplan._common.read_play_pool", fail)
-    with caplog.at_level(logging.ERROR):
-        result = run(runner, clean_tree(tmp_path / "plays"))
+    monkeypatch.setattr("athc.cli.playpool.check.read_play_pool", fail)
+    result = run(runner, clean_tree(tmp_path / "plays"))
     assert result.exit_code == 2
-    assert "athc playpool check: access denied" in caplog.text
+    assert result.stderr == "FAIL access denied\n"

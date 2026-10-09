@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import shutil
 from collections.abc import Callable
 from pathlib import Path
@@ -71,7 +70,7 @@ def test_removed_options_rejected(runner, tmp_path: Path, extra: list[str]) -> N
     inp = _input(tmp_path, NORMAL + "\n")
     result = runner.invoke(set_normals, [str(p), str(inp), *extra])
     assert result.exit_code == 2
-    assert "No such option" in result.output
+    assert "No such option" in result.stderr
 
 
 # ── file input ────────────────────────────────────────────────────────────────
@@ -100,7 +99,7 @@ def test_writes_no_backup(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
     result = runner.invoke(set_normals, [str(p), str(_input(tmp_path, NORMAL + "\n"))])
     assert result.exit_code == 0
-    assert "Updated" in result.output and "Backup" not in result.output
+    assert result.stdout == f"OK   {p}: 1 normal play(s)\n"
     assert list(tmp_path.glob("*.bak")) == []
 
 
@@ -125,7 +124,7 @@ def test_inline_comment_requires_space(runner, tmp_path: Path) -> None:
     """`name::comment` (no space) is not split, so the whole token fails to resolve."""
     p = _copy(tmp_path)
     inp = _input(tmp_path, f"{NORMAL}::comment\n")
-    assert runner.invoke(set_normals, [str(p), str(inp)]).exit_code == 1
+    assert runner.invoke(set_normals, [str(p), str(inp)]).exit_code == 2
 
 
 # ── quiet / console input ─────────────────────────────────────────────────────
@@ -137,7 +136,7 @@ def test_quiet_still_updates(runner, tmp_path: Path) -> None:
         set_normals, [str(p), str(_input(tmp_path, NORMAL + "\n")), "-q"]
     )
     assert result.exit_code == 0
-    assert result.output == ""  # -q suppresses the success line
+    assert result.stdout == ""  # -q suppresses the success line
     assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
 
 
@@ -148,55 +147,77 @@ def test_dash_reads_from_console(runner, tmp_path: Path) -> None:
     assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
 
 
+def test_dash_input_errors_name_no_file(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    result = runner.invoke(set_normals, [str(p), "-"], input="NOTAREALPLAY\n")
+    assert result.exit_code == 2
+    assert (
+        "FAIL line 1: 'NOTAREALPLAY' not found in the play pool (slot 1-1)\n"
+        in result.stderr
+    )
+    assert "FAIL - " not in result.stderr
+
+
 # ── validation / errors (target left untouched) ───────────────────────────────
 
 
-def test_rejects_special_teams_play(runner, tmp_path: Path, caplog) -> None:
+def test_rejects_special_teams_play(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
     original = p.read_bytes()
-    with caplog.at_level(logging.ERROR, logger="athc.cli.gameplan.set_normals"):
-        result = runner.invoke(
-            set_normals, [str(p), str(_input(tmp_path, SPECIAL + "\n"))]
-        )
-    assert result.exit_code == 1
-    assert "special teams play" in caplog.text and "set-specials" in caplog.text
+    inp = _input(tmp_path, SPECIAL + "\n")
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 2
+    assert (
+        f"FAIL {inp} line 1: '{SPECIAL}' is a special teams play; use set-specials"
+        in result.stderr
+    )
     assert p.read_bytes() == original
 
 
-def test_missing_play_aborts(runner, tmp_path: Path, caplog) -> None:
+def test_missing_play_aborts(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
     original = p.read_bytes()
-    with caplog.at_level(logging.ERROR, logger="athc.gameplan.writer"):
-        result = runner.invoke(
-            set_normals, [str(p), str(_input(tmp_path, "NOTAREALPLAY\n"))]
-        )
-    assert result.exit_code == 1
+    inp = _input(tmp_path, "NOTAREALPLAY\n")
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 2
+    assert (
+        f"FAIL {inp} line 1: 'NOTAREALPLAY' not found in the play pool (slot 1-1)"
+        in result.stderr
+    )
     assert p.read_bytes() == original
 
 
-def test_too_many_plays_rejected(runner, tmp_path: Path, caplog) -> None:
+def test_too_many_plays_rejected(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
-    with caplog.at_level(logging.ERROR, logger="athc.cli.gameplan.set_normals"):
-        result = runner.invoke(
-            set_normals, [str(p), str(_input(tmp_path, (NORMAL + "\n") * 65))]
-        )
-    assert result.exit_code == 1
-    assert "max is 64" in caplog.text
+    result = runner.invoke(
+        set_normals, [str(p), str(_input(tmp_path, (NORMAL + "\n") * 65))]
+    )
+    assert result.exit_code == 2
+    assert result.stderr == "FAIL input has 65 play(s), max is 64\n"
 
 
 def test_missing_pln(runner, tmp_path: Path) -> None:
     inp = _input(tmp_path, NORMAL + "\n")
     result = runner.invoke(set_normals, [str(tmp_path / "nope.pln"), str(inp)])
-    assert result.exit_code == 1
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {tmp_path / 'nope.pln'}: not found\n"
 
 
-def test_invalid_play_path(runner, league: Path, tmp_path: Path, caplog) -> None:
+def test_missing_input_file(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    result = runner.invoke(set_normals, [str(p), str(tmp_path / "nope.txt")])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {tmp_path / 'nope.txt'}: not found\n"
+
+
+def test_invalid_play_path(runner, league: Path, tmp_path: Path) -> None:
     (league / "league.toml").write_text(
         league_toml(tmp_path / "missing"), encoding="utf-8"
     )
     p = _copy(tmp_path)
     inp = _input(tmp_path, NORMAL + "\n")
-    with caplog.at_level(logging.ERROR, logger="athc.cli.gameplan.set_normals"):
-        result = runner.invoke(set_normals, [str(p), str(inp)])
-    assert result.exit_code == 1
-    assert "not a directory" in caplog.text
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {tmp_path / 'missing'}: play path is not a directory\n"
+    )

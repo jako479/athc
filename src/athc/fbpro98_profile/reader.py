@@ -5,6 +5,7 @@ from __future__ import annotations
 from os import PathLike
 from pathlib import Path
 
+from athc.errors import AthcError
 from athc.fbpro98_profile.model import (
     CategoryWeights,
     PatSituation,
@@ -38,11 +39,11 @@ from athc.fbpro98_profile.schema import (
 StrPath = str | PathLike[str]
 
 
-class InvalidProfileError(ValueError):
+class InvalidProfileError(AthcError):
     """Raised when a `.prf` file is structurally invalid."""
 
 
-class UnsupportedProfileError(ValueError):
+class UnsupportedProfileError(AthcError):
     """Raised on a structurally valid `.prf` in an unsupported variant.
 
     Unsupported variants are the stock layout and profiles with embedded game
@@ -113,12 +114,14 @@ def parse_profile(buffer: bytes, path: StrPath = "<buffer>") -> Profile:
     if f95_fg_range != i95_fg_range:
         raise InvalidProfileError(
             f"F95 field_goal_range ({f95_fg_range}) != I95 field_goal_range "
-            f"({i95_fg_range}) in {file_path}"
+            f"({i95_fg_range})",
+            file_path,
         )
     if f95_use_audibles != i95_use_audibles:
         raise InvalidProfileError(
             f"F95 use_audibles ({f95_use_audibles}) != I95 use_audibles "
-            f"({i95_use_audibles}) in {file_path}"
+            f"({i95_use_audibles})",
+            file_path,
         )
 
     body_end = i95_start + I95_HEADER.size + I95_DATA_SIZE
@@ -155,19 +158,19 @@ def _parse_f95(
     int,
 ]:
     if len(buffer) < F95_HEADER.size + F95_DATA_SIZE:
-        raise InvalidProfileError(f"File too small to contain F95 block in {path}")
+        raise InvalidProfileError("File too small to contain F95 block", path)
 
     block_id, data_size = F95_HEADER.unpack_from(buffer, 0)
     if block_id != ID_F95:
         block_id_str = block_id.decode("ASCII", errors="replace")
-        raise InvalidProfileError(f"Invalid header '{block_id_str}' at 0x0 in {path}")
+        raise InvalidProfileError(f"Invalid header '{block_id_str}' at 0x0", path)
     if data_size in F95_STOCK_DATA_SIZES:
         raise UnsupportedProfileError(
-            f"Stock layout (F95 size {data_size:#x}) not supported in {path}"
+            f"Stock layout (F95 size {data_size:#x}) not supported", path
         )
     if data_size != F95_DATA_SIZE:
         raise InvalidProfileError(
-            f"F95 data size {data_size:#x} != expected {F95_DATA_SIZE:#x} in {path}"
+            f"F95 data size {data_size:#x} != expected {F95_DATA_SIZE:#x}", path
         )
 
     offset = F95_HEADER.size
@@ -183,8 +186,8 @@ def _parse_f95(
     if not Profile.FIELD_GOAL_RANGE_MIN <= fg_range <= Profile.FIELD_GOAL_RANGE_MAX:
         raise InvalidProfileError(
             f"F95 field_goal_range {fg_range} outside "
-            f"[{Profile.FIELD_GOAL_RANGE_MIN}, {Profile.FIELD_GOAL_RANGE_MAX}] in "
-            f"{path}"
+            f"[{Profile.FIELD_GOAL_RANGE_MIN}, {Profile.FIELD_GOAL_RANGE_MAX}]",
+            path,
         )
 
     offset += F95_FIELD_GOAL_RANGE.size
@@ -196,7 +199,7 @@ def _parse_f95(
     (use_audibles,) = F95_USE_AUDIBLES.unpack_from(buffer, offset)
     if use_audibles not in (0, 1):
         raise InvalidProfileError(
-            f"F95 use_audibles {use_audibles} not in {{0, 1}} in {path}"
+            f"F95 use_audibles {use_audibles} not in {{0, 1}}", path
         )
 
     return substitutions, paired_records, pat_records, fg_range, use_audibles
@@ -226,7 +229,7 @@ def _parse_substitutions(
             )
         except ValueError as exc:
             raise InvalidProfileError(
-                f"Invalid substitution pair for {group}: {exc} in {path}"
+                f"Invalid substitution pair for {group}: {exc}", path
             ) from exc
     return SubstitutionSettings(
         offensive_linemen=pairs[0],
@@ -262,7 +265,7 @@ def _parse_category_weights_and_stop_clock(
             )
         except ValueError as exc:
             raise InvalidProfileError(
-                f"Invalid {label} record at index {index}: {exc} in {path}"
+                f"Invalid {label} record at index {index}: {exc}", path
             ) from exc
         records.append((weights, stop_clock))
     return tuple(records)
@@ -288,7 +291,7 @@ def _parse_pat_category_weights(
             )
         except ValueError as exc:
             raise InvalidProfileError(
-                f"Invalid PAT situation record at index {index}: {exc} in {path}"
+                f"Invalid PAT situation record at index {index}: {exc}", path
             ) from exc
         records.append(weights)
     return tuple(records)
@@ -299,44 +302,45 @@ def _parse_i95(
 ) -> tuple[ProfileType, int, int, int]:
     needed = i95_start + I95_HEADER.size + I95_DATA_SIZE
     if len(buffer) < needed:
-        raise InvalidProfileError(f"File too small to contain I95 block in {path}")
+        raise InvalidProfileError("File too small to contain I95 block", path)
 
     block_id, data_size = I95_HEADER.unpack_from(buffer, i95_start)
     if block_id in (ID_G95, ID_J95, ID_S98):
         raise UnsupportedProfileError(
             f"Embedded game plan block '{block_id.decode('ASCII')}' before I95 not "
-            f"supported in {path}"
+            f"supported",
+            path,
         )
     if block_id != ID_I95:
         block_id_str = block_id.decode("ASCII", errors="replace")
         raise InvalidProfileError(
-            f"Invalid header '{block_id_str}' at {i95_start:#x} in {path}"
+            f"Invalid header '{block_id_str}' at {i95_start:#x}", path
         )
     if data_size != I95_DATA_SIZE:
         raise InvalidProfileError(
-            f"I95 data size {data_size:#x} != expected {I95_DATA_SIZE:#x} in {path}"
+            f"I95 data size {data_size:#x} != expected {I95_DATA_SIZE:#x}", path
         )
 
     profile_type_raw, reserved, fg_range, num_game_plan_blocks, use_audibles = (
         I95_DATA.unpack_from(buffer, i95_start + I95_HEADER.size)
     )
     if reserved != 0:
-        raise InvalidProfileError(f"I95 reserved field {reserved:#x} != 0 in {path}")
+        raise InvalidProfileError(f"I95 reserved field {reserved:#x} != 0", path)
     try:
         profile_type = ProfileType(profile_type_raw)
     except ValueError:
         raise InvalidProfileError(
-            f"Invalid I95 profile_type {profile_type_raw} in {path}"
+            f"Invalid I95 profile_type {profile_type_raw}", path
         ) from None
     if not Profile.FIELD_GOAL_RANGE_MIN <= fg_range <= Profile.FIELD_GOAL_RANGE_MAX:
         raise InvalidProfileError(
             f"I95 field_goal_range {fg_range} outside "
-            f"[{Profile.FIELD_GOAL_RANGE_MIN}, {Profile.FIELD_GOAL_RANGE_MAX}] in "
-            f"{path}"
+            f"[{Profile.FIELD_GOAL_RANGE_MIN}, {Profile.FIELD_GOAL_RANGE_MAX}]",
+            path,
         )
     if use_audibles not in (0, 1):
         raise InvalidProfileError(
-            f"I95 use_audibles {use_audibles} not in {{0, 1}} in {path}"
+            f"I95 use_audibles {use_audibles} not in {{0, 1}}", path
         )
 
     return profile_type, fg_range, use_audibles, num_game_plan_blocks
@@ -347,15 +351,15 @@ def _check_unsupported_variants(
 ) -> None:
     if num_game_plan_blocks != 0:
         raise UnsupportedProfileError(
-            f"Embedded game plan blocks ({num_game_plan_blocks}) not supported in "
-            f"{path}"
+            f"Embedded game plan blocks ({num_game_plan_blocks}) not supported", path
         )
     if len(buffer) >= body_end + 4:
         block_peek = bytes(buffer[body_end : body_end + 4])
         if block_peek in (ID_G95, ID_J95, ID_S98):
             raise UnsupportedProfileError(
                 f"Embedded game plan block '{block_peek.decode('ASCII')}' after I95 "
-                f"not supported in {path}"
+                f"not supported",
+                path,
             )
 
 
@@ -367,14 +371,14 @@ def _validate_trailer(
     if actual_length != expected_length:
         raise InvalidProfileError(
             f"Trailer length {actual_length} != expected {expected_length} for "
-            f"{profile_type.name} profile in {path}"
+            f"{profile_type.name} profile",
+            path,
         )
     for offset in range(body_end, len(buffer)):
         byte = buffer[offset]
         if byte not in VALID_TRAILER_BYTES:
             raise InvalidProfileError(
-                f"Trailer byte at {offset:#x} is {byte:#04x}; only 0x00 accepted in "
-                f"{path}"
+                f"Trailer byte at {offset:#x} is {byte:#04x}; only 0x00 accepted", path
             )
 
     expected_parity = 0 if profile_type == ProfileType.OFFENSE else 1
@@ -382,5 +386,6 @@ def _validate_trailer(
         expected_word = "even" if expected_parity == 0 else "odd"
         raise InvalidProfileError(
             f"File size {len(buffer)} has wrong parity for {profile_type.name.lower()} "
-            f"profile (expected {expected_word}) in {path}"
+            f"profile (expected {expected_word})",
+            path,
         )
