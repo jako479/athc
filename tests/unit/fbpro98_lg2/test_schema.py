@@ -8,7 +8,7 @@ def test_field_and_record_sizes():
     assert schema.FILENAME_SIZE == 0x106
     assert schema.FILE_ENTRY_SIZE == 0x20B
     assert schema.FILES_PER_TEAM == 8
-    assert schema.TEAM_TRAILER_SIZE == 9
+    assert schema.TEAM_TRAILER_SIZE == 0x9
     assert schema.TEAM_RECORD_SIZE == 0x1061
 
 

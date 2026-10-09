@@ -7,7 +7,7 @@ FOLDER_SIZE = 0x105
 FILENAME_SIZE = 0x106
 FILE_ENTRY_SIZE = FOLDER_SIZE + FILENAME_SIZE  # 0x20B
 FILES_PER_TEAM = 8
-TEAM_TRAILER_SIZE = 9  # not reverse engineered; ignored
+TEAM_TRAILER_SIZE = 0x9  # not reverse engineered; ignored
 TEAM_RECORD_SIZE = FILE_ENTRY_SIZE * FILES_PER_TEAM + TEAM_TRAILER_SIZE  # 0x1061
 
 # How a stock league's first folder field starts; see specs/lg2.md 3.3 and 4.3.

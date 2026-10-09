@@ -57,5 +57,5 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` =
 
 | Case | Expected | Test | Status |
 |---|---|---|---|
-| Field and record sizes | folder `0x105`, filename `0x106`, entry `0x20B`, 8 per team, trailer 9, team `0x1061` | `test_field_and_record_sizes` | ☑ |
+| Field and record sizes | folder `0x105`, filename `0x106`, entry `0x20B`, 8 per team, trailer `0x9`, team `0x1061` | `test_field_and_record_sizes` | ☑ |
 | Stock signatures | modern `STOCK\0A\FBPRO97\STOCK\0`, old `\0` | `test_stock_signatures` | ☑ |
