@@ -31,7 +31,7 @@ season 2049) and the stock leagues shipped with the game (1992-1997).
 
 - `.lge` league: name, base year, next player id, conferences, divisions,
   teams (team name, nickname, abbreviation, stadium, head coach, uniform
-  colors, uniform set), rosters (player ids and jersey numbers per slot) and the schedule with
+  colors, draft profile name), rosters (player ids and jersey numbers per slot) and the schedule with
   scores. Chunk tree, depth-first; team numbers 1..N follow it and key every
   other file. Team and roster chunks masked (below). Spec:
   [lge.md](../fbpro98_lge/specs/lge.md). No library. One layout in every

@@ -51,7 +51,7 @@ Starts at 0x0000; the data below begins 8 bytes in, after the tag and size.
 |   0x02 |    6 | u8[6]    | Unknown        | `00 0A 00 01 00 00` in `PNFL.lge`<br>`00 09 00 00 00 00` or `00 09 00 01 00 00` in stock leagues                               |
 |   0x08 |    2 | u16      | Next player id | `9292` in `PNFL.lge`<br>`507` in `08_TEAMS`, whose `.pyr` holds ids 100-506                                                    |
 |   0x0A |    2 | u16      | Base year      | Year of the first season<br>`1998` PNFL, `1966` NFLPI97R, `1994` small stock leagues<br>Season = base year + completed seasons |
-|   0x0C |    3 | u8[3]    | Unknown        | `33 02 BF` in `PNFL.lge`<br>`00 02 3F` or `1F 02 3F` in stock leagues                                                          |
+|   0x0C |    3 | u8[3]    | Unknown        | `33 02 BF` in `PNFL.lge`<br>`00 02 3F` or `1F 02 3F` in stock leagues<br>flips between `BF` and `3F` on some game saves                                                        |
 |   0x0F |   25 | char[25] | Name           | `"PNFL"`                                                                                                                       |
 |   0x28 |   25 | char[25] | Championship   | `"Super Bowl"`                                                                                                                 |
 |   0x41 |   17 | u8[17]   | Zero           |                                                                                                                                |
@@ -104,10 +104,14 @@ Byte 0 is the team number, in clear. Bytes 1-170 are masked (section 8); offsets
 |   0x01 |    1 | u8        | Division     | Division index within conference                                |
 |   0x02 |    1 | u8        | Slot         | Position in the division's team list                            |
 |   0x03 |    1 | u8        | City id      | City id in `CITIES.DAT` ([cities.md](../../fbpro98_cities/specs/cities.md)); the "City" choice on the Team Settings screen |
-|   0x04 |    1 | u8        | Stadium type | Same code as the stadium type in the `CITIES.DAT` city record: `0` Outdoor/Grass (the game's weather screen shows it for Denver), `2` dome (Atlanta, Washington, Detroit and Minnesota in `PNFL.lge`), `1` the other outdoor value |
-|   0x05 |    4 | u8[4]     | Unknown      | `01 01 01 01`                                                   |
-|   0x09 |   33 | u8[11][3] | Colors       | 11 RGB triplets, each component 0-63; slot meaning not mapped   |
-|   0x2A |   12 | u8[12]    | Zero         |                                                                 |
+|   0x04 |    1 | u8        | Stadium type | `0` outdoor/grass, `1` other outdoor, `2` dome. Appears to come from the city's stadium type in `CITIES.DAT` ([cities.md](../../fbpro98_cities/specs/cities.md)), set when the game saves the team; third-party tools may set other values |
+|   0x05 |    1 | u8        | Ownership    | `0` Computer, `1` Human                                         |
+|   0x06 |    1 | u8        | Playcall mode | `0` Basic, `1` Standard, `2` Advanced                          |
+|   0x07 |    1 | u8        | Action mode  | `0` Basic, `1` Standard, `2` Advanced                           |
+|   0x08 |    1 | u8        | Management   | `0` Computer, `1` Human                                         |
+|   0x09 |   33 | u8[11][3] | Colors       | 11 RGB triplets, each component 0-63; slots below               |
+|   0x2A |    6 | u8[6]     | Offense profile | Team Profile weights: pass aggressive, balanced, conservative, then rush aggressive, balanced, conservative |
+|   0x30 |    6 | u8[6]     | Defense profile | Team Profile weights, same order                             |
 |   0x36 |   17 | char[17]  | Team name    | `"Denver"`; "Team Name" on the game's Team Settings screen      |
 |   0x47 |   17 | char[17]  | Nickname     | `"Broncos"`                                                     |
 |   0x58 |    5 | char[5]   | Abbreviation | `"DEN"`                                                         |
@@ -115,7 +119,25 @@ Byte 0 is the team number, in clear. Bytes 1-170 are masked (section 8); offsets
 |   0x6E |   17 | char[17]  | Head coach   | `"Brian Jacobs"`; "Head Coach" on the Team Settings screen      |
 |   0x7F |   19 | u8[19]    | Unknown      | Leftover text at 0x88-0x8E; u16 at 0x8F; `0xFF` at 0x91         |
 |   0x92 |   15 | u8[15]    | Zero         |                                                                 |
-|   0xA1 |    9 | char[9]   | Uniform      | `"DEFAULT0"` .. `"DEFAULT9"`                                    |
+|   0xA1 |    9 | char[9]   | Draft profile | Draft Profile Name, e.g. `"DEFAULT4"`: the game folder's `DEFAULT4.DP` |
+
+Color slots:
+
+| Slot | Color               | Note                                |
+| ---: | :------------------ | :---------------------------------- |
+|    0 | Helmet              |                                     |
+|    1 | Light jersey        | Also the shoes                      |
+|    2 | Dark jersey         |                                     |
+|    3 | Light pants         | Also the helmet trim                |
+|    4 | Dark pants          |                                     |
+|    5 | Light jersey stripe |                                     |
+|    6 | Dark jersey stripe  |                                     |
+|    7 | Light pants stripe  | Also the helmet stripe and facemask |
+|    8 | Dark pants stripe   |                                     |
+|    9 | Light sock stripe   |                                     |
+|   10 | Dark sock stripe    |                                     |
+
+Number colors are in the `.lg2` ([lg2.md](../../fbpro98_lg2/specs/lg2.md)).
 
 ---
 
@@ -150,16 +172,16 @@ Starts right after the last R03 (0x2557 in `PNFL.lge`); the data below begins 8 
 
 Week: a u8 game count, then that many games of 6 bytes:
 
-| Offset | Size | Type | Name     | Description                            |
-| -----: | ---: | :--- | :------- | :------------------------------------- |
-|   0x00 |    1 | u8   | Team A   | Team number; `0xFF` when not yet known |
-|   0x01 |    1 | u8   | Score A  | `0xFF` when not played                 |
-|   0x02 |    1 | u8   | Team B   |                                        |
-|   0x03 |    1 | u8   | Score B  |                                        |
-|   0x04 |    1 | u8   | Overtime | `1` on 3 of 54 played games            |
-|   0x05 |    1 | u8   | Status   | `0` played, `2` not played             |
+| Offset | Size | Type | Name     | Description                                 |
+| -----: | ---: | :--- | :------- | :------------------------------------------ |
+|   0x00 |    1 | u8   | Team A   | Home team number; `0xFF` when not yet known |
+|   0x01 |    1 | u8   | Score A  | `0xFF` when not played                      |
+|   0x02 |    1 | u8   | Team B   | Away team number                            |
+|   0x03 |    1 | u8   | Score B  |                                             |
+|   0x04 |    1 | u8   | Overtime | `1` on 3 of 54 played games                 |
+|   0x05 |    1 | u8   | Status   | `0` played, `2` not played                  |
 
-Each team is team A 8 times and team B 8 times in `PNFL.lge`, so A/B is home/away; which side is home is not verified. Playoff weeks in `PNFL.lge` hold 4, 2 and 1 games.
+Team A is home, team B away. Each team is home 8 times and away 8 times in `PNFL.lge`. Playoff weeks in `PNFL.lge` hold 4, 2 and 1 games.
 
 ---
 
@@ -172,7 +194,6 @@ T03 and R03 data is XORed byte by byte with (0x69 × team + i) mod 256, team the
 ## 9. Open Questions
 
 - L03 bytes 0x00, 0x02-0x07, 0x0C-0x0E and the 7-byte tail
-- T03 stadium type `1`, the color slot order and bytes 0x7F-0x91
+- T03 bytes 0x7F-0x91
 - Whether the game shows the T03 stadium name: Denver's weather screen says `Mile High Stadium`, the chunk `Empire Field`
 - R03 slots 60-62, the 1-9 permutation and the 60-byte table
-- Which schedule side is home

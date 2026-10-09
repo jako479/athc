@@ -54,23 +54,27 @@ Starts at team index × 0x1061.
 | 0x0A37 |  0x20B | File entry 6 | 2nd half offensive game plan  | 2.3     |
 | 0x0C42 |  0x20B | File entry 7 | 2nd half defensive profile    | 2.3     |
 | 0x0E4D |  0x20B | File entry 8 | 2nd half defensive game plan  | 2.3     |
-| 0x1058 |      9 | Trailer      | Unknown 9-byte entry          | 2.2.1   |
+| 0x1058 |      9 | Trailer      | Home jersey and number colors | 2.2.1   |
 
 #### 2.2.1 Trailer (9 bytes)
 
 Starts at 0x1058 of the team record.
 
-| Offset | Size | Type | Name    | Description                |
-| -----: | ---: | :--- | :------ | :------------------------- |
-|   0x00 |    1 | u8   | Unknown | `0` or `1`                 |
-|   0x01 |    4 | u32  | Unknown | `0`-`5`, mostly `2` or `3` |
-|   0x05 |    4 | u32  | Unknown | `0`-`5`, mostly `2` or `3` |
+| Offset | Size | Type | Name               | Description           |
+| -----: | ---: | :--- | :----------------- | :-------------------- |
+|   0x00 |    1 | u8   | Home jersey        | `0` light, `1` dark   |
+|   0x01 |    4 | u32  | Dark number color  | Color code, see below |
+|   0x05 |    4 | u32  | Light number color | Color code, see below |
 
-Meaning unknown; nothing in the league's other files matches. Teams in `PNFL.lg2` outside the common values:
+A number color is the uniform color the jersey numbers use, one of the team's `.lge` colors ([lge.md](../../fbpro98_lge/specs/lge.md)). The game's Number Color picker shows five swatches, numbered 1-5 here; the file stores the helmet as `0`, and `1` is never used:
 
-- Byte: none, all `1`.
-- First u32: Las Vegas `0`; Pittsburgh, Atlanta, Green Bay `4`; the rest `2` or `3`.
-- Second u32: Pittsburgh `0`; Green Bay `5`; Jacksonville, Las Vegas, Chicago `4`; the rest `2` or `3`.
+| Code | Swatch | Color         |
+| ---: | -----: | :------------ |
+|    0 |      1 | Helmet        |
+|    2 |      2 | Jersey stripe |
+|    3 |      3 | Pants         |
+|    4 |      4 | Pants stripe  |
+|    5 |      5 | Sock stripe   |
 
 ### 2.3 File Entry (0x20B bytes)
 
@@ -128,23 +132,17 @@ Starts at team index × 0x1061.
 | 0x0A37 |  0x20B | File entry 6 | 2nd half offensive game plan  | 3.3     |
 | 0x0C42 |  0x20B | File entry 7 | 2nd half defensive profile    | 3.3     |
 | 0x0E4D |  0x20B | File entry 8 | 2nd half defensive game plan  | 3.3     |
-| 0x1058 |      9 | Trailer      | Unknown 9-byte entry          | 3.2.1   |
+| 0x1058 |      9 | Trailer      | Home jersey and number colors | 3.2.1   |
 
 #### 3.2.1 Trailer (9 bytes)
 
 Starts at 0x1058 of the team record.
 
-| Offset | Size | Type | Name    | Description                |
-| -----: | ---: | :--- | :------ | :------------------------- |
-|   0x00 |    1 | u8   | Unknown | `0` or `1`                 |
-|   0x01 |    4 | u32  | Unknown | `0`-`5`, mostly `2` or `3` |
-|   0x05 |    4 | u32  | Unknown | `0`-`5`, mostly `2` or `3` |
-
-Meaning unknown; nothing in the league's other files matches. Teams in `NFLPI97R.LG2` outside the common values:
-
-- Byte: Dolphins, Cowboys `0`; the rest `1`.
-- First u32: Buccaneers `5`; Ravens, Packers `4`; the rest `2` or `3`.
-- Second u32: Bears, Falcons `0`; Ravens, Oilers, Giants, Packers, Buccaneers `5`; Jaguars, Steelers, Raiders, Lions `4`; the rest `2` or `3`.
+| Offset | Size | Type | Name               | Description                        |
+| -----: | ---: | :--- | :----------------- | :--------------------------------- |
+|   0x00 |    1 | u8   | Home jersey        | `0` light, `1` dark                |
+|   0x01 |    4 | u32  | Dark number color  | Color code, as in section 2.2.1    |
+|   0x05 |    4 | u32  | Light number color | Color code, as in section 2.2.1    |
 
 ### 3.3 File Entry (0x20B bytes)
 
@@ -202,23 +200,17 @@ Starts at team index × 0x1061.
 | 0x0A37 |  0x20B | File entry 6 | 2nd half offensive game plan  | 4.3     |
 | 0x0C42 |  0x20B | File entry 7 | 2nd half defensive profile    | 4.3     |
 | 0x0E4D |  0x20B | File entry 8 | 2nd half defensive game plan  | 4.3     |
-| 0x1058 |      9 | Trailer      | Unknown 9-byte entry          | 4.2.1   |
+| 0x1058 |      9 | Trailer      | Home jersey and number colors | 4.2.1   |
 
 #### 4.2.1 Trailer (9 bytes)
 
 Starts at 0x1058 of the team record.
 
-| Offset | Size | Type | Name    | Description                |
-| -----: | ---: | :--- | :------ | :------------------------- |
-|   0x00 |    1 | u8   | Unknown | `0` or `1`                 |
-|   0x01 |    4 | u32  | Unknown | `0`-`5`, mostly `2` or `3` |
-|   0x05 |    4 | u32  | Unknown | `0`-`5`, mostly `2` or `3` |
-
-Meaning unknown; nothing in the league's other files matches. Teams in `08_TEAMS.LG2` outside the common values:
-
-- Byte: none, all `1`.
-- First u32: Calgary `4`; the rest `2` or `3`.
-- Second u32: none, all `2` or `3`.
+| Offset | Size | Type | Name               | Description                        |
+| -----: | ---: | :--- | :----------------- | :--------------------------------- |
+|   0x00 |    1 | u8   | Home jersey        | `0` light, `1` dark                |
+|   0x01 |    4 | u32  | Dark number color  | Color code, as in section 2.2.1    |
+|   0x05 |    4 | u32  | Light number color | Color code, as in section 2.2.1    |
 
 ### 4.3 File Entry (0x20B bytes)
 
@@ -240,6 +232,5 @@ The folder is empty: byte 0x000 is NUL. `SIERRA\FBPRO97` after it is leftover te
 
 ## 5. Open Questions
 
-- The 9-byte trailer of each team record (sections 2.2.1, 3.2.1, 4.2.1)
 - Whether a custom league can mix in stock entries
 - Where the game looks for an old stock league's files

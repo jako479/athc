@@ -63,9 +63,9 @@ Two files are scrambled. Everything else is plain; leftover text after a NUL and
 - L03 (91 B): next player id 9292 at byte 8, base year 1998 at byte 10 (1998 + 51 completed seasons = 2049), league name "PNFL" at 15, championship name "Super Bowl" at 40. Rest unknown.
 - C03 (31 B): id, index, division count, unknown, 25-byte name (empty), division ids.
 - D03 (33/34 B): id, conference index, division index, team count, 25-byte name ("East"/"West"), team numbers.
-- T03 (171 B), masked after the team byte: conference, division, slot, city index (looks alphabetical), stadium type (0/1/2), `01 01 01 01`, 11 RGB triplets (0-63), 12 zeros, team name[17] @54, nickname[17] @71, abbreviation[5] @88, stadium[17] @93, head coach[17] @110, 19 unknown bytes (leftover text in the middle), 15 zeros, uniform set "DEFAULTn" @161.
+- T03 (171 B), masked after the team byte: conference, division, slot, city index (looks alphabetical), stadium type copied from the city's CITIES.DAT record (0/1/2), ownership (0 Computer, 1 Human), playcall mode and action mode (0 Basic, 1 Standard, 2 Advanced), management (0 Computer, 1 Human), 11 RGB triplets (0-63: helmet, then light/dark jersey, pants, jersey stripe, pants stripe, sock stripe), 12 Team Profile weights (offense then defense; pass aggressive/balanced/conservative, then rush; all 0 = Computer Profile), team name[17] @54, nickname[17] @71, abbreviation[5] @88, stadium[17] @93, head coach[17] @110, 19 unknown bytes (leftover text in the middle), 15 zeros, draft profile name "DEFAULTn" @161.
 - R03 (325 B), masked after the u16 team number: 63 u16 player ids (slots 60-62 held Denver's three inactive players), 63 jersey numbers in slot order, a permutation of 1-9, 65 zeros, a 60-byte table identical in all teams.
-- S03 (928 B): 16 regular weeks, 3 playoff rounds, 6 weeks played; per week a count then 6-byte games: team A, score A, team B, score B, overtime, status (0 played, 2 not). Unplayed scores `0xFF`; playoff teams `0xFF`. Each team is A 8 times and B 8 times; which side is home is unverified.
+- S03 (928 B): 16 regular weeks, 3 playoff rounds, 6 weeks played; per week a count then 6-byte games: team A, score A, team B, score B, overtime, status (0 played, 2 not). Unplayed scores `0xFF`; playoff teams `0xFF`. Team A is home, team B away (checked against a played game); each team is home 8 times and away 8 times.
 - Every sampled `.lge` (1992 stock to PNFL) has the same chunk set and sizes; the 8-12 team stock leagues have a 90-byte L03.
 - Check: team 5 unmasks to `Denver` / `Broncos` / `DEN` / `Empire Field` / `Brian Jacobs` / `DEFAULT8`; its roster starts `6283 6, 8428 2, 4552 31` (C. J. Stroud #6, Cam Ward #2, Isaiah Spiller #31) and matches the league's roster sheet slot for slot. Week 1 game 3 is `10 24 5 23 0 0`: Atlanta 24, Denver 23.
 
@@ -120,7 +120,7 @@ Two files are scrambled. Everything else is plain; leftover text after a NUL and
 ## 5. Still open
 
 - Not in these files: draft year/team/pick, age, depth (depth is in the `.prf`).
-- Unknown: roster 1-9 permutation and 60-byte table; T03 bytes 3, 4, 127-145 and the color slot order; stat categories 1, 12, 14-17; L03 bytes 0-7, 12-14, 65-90; schedule home/away side; `.tmn` purpose; `.pyr` injury sub-fields and header key.
+- Unknown: roster 1-9 permutation and 60-byte table; T03 bytes 3, 127-145; stat categories 1, 12, 14-17; L03 bytes 0-7, 12-14, 65-90; `.tmn` purpose; `.pyr` injury sub-fields and header key.
 
 ## Appendix: PNFL.pyr substitution table (plain -> coded)
 
