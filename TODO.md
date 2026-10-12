@@ -14,7 +14,7 @@
 - [x] playpool: convert from `check-playpool` to `playpool check`
 - [x] athc: fix toml reading so handles UTF-8 BOM in file properly
 - [ ] athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
-- [ ] athc: clear usage and help text for all commands
+- [ ] athc: clear usage and help text for all commands; see [docs/design/TODO/cli-help.md](docs/design/TODO/cli-help.md)
 - [ ] athc: STATUS.md, WORKLOG.md, CHANGELOG.md: clean and clear
 - [x] athc: console, run log, errors and exit codes the pdf-converter way; rules in [architecture](docs/design/architecture.md#console-run-log-and-errors), each command's lines in its tool README; one session per subtask, in this order:
   - [x] Python 3.13: raise the floor (pyproject, ruff, pyright, AGENTS.md, architecture.md)
@@ -48,15 +48,15 @@
 - athc: tests: add ruff's `PT` rule group (pytest style); 117 findings today, 111 auto-fixable under `--unsafe-fixes`
 - autocontinue: work with Dean to determine usability requirements
 - autocontinue: add halftime
-- gameplan: evaluate whether wildcard paths through `collect_files` were added on purpose, per command
-  - check
-  - set-specials
-  - replace-play
-- gameplan: drop wildcard paths — they are expanded before the command sees them, which breaks `find-play`
+- [x] gameplan: evaluate whether wildcard paths through `collect_files` were added on purpose, per command — kept; see [cli-help](docs/design/TODO/cli-help.md) rule 15
+  - [x] check
+  - [x] set-specials
+  - [x] replace-play
+- [x] gameplan: drop wildcard paths — they are expanded before the command sees them, which breaks `find-play` — replaced by turning off Click's wildcard expansion; see [cli-help](docs/design/TODO/cli-help.md)
 - gameplan: replace play (single and bulk) - list of plays as input??
-- profile: check for wildcard path support
-  - check
-  - copy
+- [x] profile: check for wildcard path support — kept; see [cli-help](docs/design/TODO/cli-help.md) rule 15
+  - [x] check
+  - [x] copy
 - profile: revisit edit\copy options
 - generate-schedule: generate schedules for PCFL
 - generate-schedule: review and simplify the ruleset — 50 `[phase2]` keys, some redundant; consider simple vs. full ruleset switch. Reasoning and plan in [STATUS.md](STATUS.md)

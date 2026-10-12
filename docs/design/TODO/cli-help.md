@@ -22,6 +22,7 @@ Stay on Click, and upgrade from 8.4.1 to 8.5 or later.
 - It has over three times Typer's downloads, is stable at 8.x, and athc's plug-in command groups are plain Click.
 - 8.5 adds the one thing athc's help lacks (argument help) with no custom code.
 - Typer would mean rewriting every command in a different declaration style, while its help engine is still Click's.
+- Turn off Click's Windows wildcard expansion; athc expands wildcards itself (rule 15). Click's expands every word before the command sees it, can't be limited to one argument and can't be escaped with quotes. Windows programs expand their own wildcards, per argument (`ren *.txt *.doc`; PowerShell's `-Path` vs `-LiteralPath`).
 
 ## 3. Mainstream help styles
 
@@ -56,7 +57,7 @@ Usage: athc gameplan replace-play [OPTIONS] PLAY REPLACEMENT PATH
 Positional arguments:
   PLAY         Play to replace (any case).
   REPLACEMENT  Play to put in its place; must be in the play pool.
-  PATH         A .pln file or a folder.
+  PATH         A .pln file, a folder or a wildcard.
 
 Options:
   -r, --recursive  Include subfolders.
@@ -74,7 +75,7 @@ Rules for every command and group:
 1. **Usage line:** Click's own, `[OPTIONS]` then the arguments; groups end in `COMMAND [ARGS]...`.
 2. **Placeholders:** UPPERCASE with underscores, for arguments and option values (`GAME_PLAN`, `--league NAME`).
 3. **One name per kind of value:**
-   - `PATH`: a file or a folder
+   - `PATH`: a file or a folder (or a wildcard, where rule 15 allows one)
    - `GAME_PLAN`: one .pln file
    - `PROFILE`: one .prf file
    - `FOLDER`: a folder only
@@ -92,6 +93,7 @@ Rules for every command and group:
 12. **Long options:** spelled out (`--skip-calculations`, not `--skip-calcs`).
 13. **Description:** two to four lines; rule details belong in the tool's docs.
 14. **Examples:** one or two real examples per command, in an "Examples" epilog.
+15. **Wildcards:** athc expands them itself, only in these arguments, and their help says so: PATH in `gameplan check`, `profile check`, `gameplan set-specials` and `gameplan replace-play`; TARGET in `profile copy`. `find-play --path` refuses them. A name that exists is a name, never a wildcard, so a folder like `Season [2029]` works. Each of the five gets one CLI test with a wildcard.
 
 ## 5. Issues and fixes
 
@@ -110,10 +112,16 @@ Rules for every command and group:
 | G9 | `check` commands say "Validate" | Rule 7 |
 | G10 | No examples anywhere | Rule 14 |
 | G11 | `--sort` shows `slot\|name\|category` in usage but `[slot\|name\|category]` under Options | Gone with G2 (choices show only under Options) |
+| G12 | On Windows, Click expands wildcards in every word before athc sees it: `find-play`'s refusal never fires when files match, and `list-normals GP*.pln` with two matches writes the play list over the second game plan | Turn Click's expansion off; rule 15 |
+| G13 | `set-specials` PATH, `replace-play` PATH and `profile copy` TARGET take wildcards, but their help never says so | Rule 15 |
+| G14 | A real name containing `[` is taken as a wildcard: `find-play` refuses it, the others report no match | Rule 15 |
+| G15 | No CLI test runs a wildcard through a command; the wildcard tests call the file helper directly | Rule 15 |
 
 Project changes that come with the general fixes:
 
 - `pyproject.toml` / `uv.lock`: Click 8.5 or later.
+- `src/athc/cli/__init__.py`: Click's wildcard expansion off.
+- `src/athc/cli/_files.py`: a path that exists is used as is, before any wildcard check.
 - `docs/design/architecture.md`, CLI section: the usage-line and lowercase-placeholder rules are replaced by this style.
 - `tests/integration/test_cli_root.py` (`test_usage_lists_each_option`) and its row in `tests/integration/README.md` pin the old usage line; they change with the approved style.
 
@@ -164,6 +172,7 @@ Project changes that come with the general fixes:
 ### gameplan find-play
 
 - What the last argument means depends on how many arguments there are (one is a play, two or more makes the last a path). Fix: make the location an option, `--path PATH` (default: current folder), so every argument is a play.
+- `--path` refuses wildcards, as PATH does today; with Click's expansion off (G12), the refusal works.
 - Summary becomes "Find plays by name in game plans."
 - "(normal + custom-special slots)" becomes "Searches normal and special-teams slots."
 
@@ -193,7 +202,7 @@ Project changes that come with the general fixes:
 
 ### gameplan set-specials
 
-- Usage becomes `[OPTIONS] PATH INPUT_FILE`; both get help lines.
+- Usage becomes `[OPTIONS] PATH INPUT_FILE`; both get help lines; PATH help: "A .pln file, a folder or a wildcard."
 - Summary becomes "Set the special-teams plays from a play list."
 - "Merge semantics: unlisted special categories are preserved." becomes "Categories not in the list keep their plays."
 - "(offense .pln are even-sized, defense odd)" is dropped.
@@ -215,7 +224,7 @@ Project changes that come with the general fixes:
 
 - Group summary becomes "Check and edit coaching profiles (.prf)."
 - `profile check`: same fixes as `gameplan check`; summary becomes "Check profiles against the league's rules."
-- `profile copy`: usage becomes `[OPTIONS] SOURCE TARGET`; SOURCE help: "Profile to copy from."; TARGET help: "Profile or folder to copy into."
+- `profile copy`: usage becomes `[OPTIONS] SOURCE TARGET`; SOURCE help: "Profile to copy from."; TARGET help: "Profile, folder or wildcard to copy into."
 - `profile copy`: summary becomes "Copy settings from one profile to others."
 - `profile copy`: `--sub-percent` becomes `--substitutions`.
 - `profile diff`: usage becomes `[OPTIONS] PROFILE1 PROFILE2`; both get help lines.
@@ -230,3 +239,6 @@ Project changes that come with the general fixes:
 - Command-line guidelines (help content, standard flags, noun-verb commands): <https://clig.dev/>
 - POSIX utility syntax (single-letter options, synopsis notation): <https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap12.html>
 - Local help output: `cp --help` (GNU), `git mv -h`, `git help -a`, `uv add --help`, stock argparse and Click
+- Click's Windows wildcard expansion: <https://click.palletsprojects.com/en/stable/faqs/>
+- Windows programs expand their own wildcards: <https://learn.microsoft.com/en-us/cpp/c-language/expanding-wildcard-arguments>, <https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ren>, <https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_wildcards>
+- Windows removes quotes before a program sees its arguments: <https://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments>
