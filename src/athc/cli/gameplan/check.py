@@ -8,11 +8,16 @@ import click
 
 from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.gameplan import gameplan
-from athc.cli.gameplan._common import build_pool, collect_files, load_rules_or_raise
+from athc.cli.gameplan._common import (
+    build_pool,
+    collect_files,
+    format_violation,
+    load_rules_or_raise,
+)
 from athc.console import console
 from athc.errors import AthcError
 from athc.fbpro98_gameplan import read_gameplan
-from athc.gameplan import Rules, Violation, validate_gameplan
+from athc.gameplan import Rules, validate_gameplan
 from athc.gameplan.config import load_config
 from athc.playpool import PlayPool
 
@@ -92,10 +97,5 @@ def check_file(path: Path, rules: Rules, pool: PlayPool) -> tuple[int, str]:
     if not violations:
         return 0, f"{path}: {summary}"
     lines = [f"{path}: {len(violations)} violation(s) ({summary})"]
-    lines.extend(f"  {_format_violation(v)}" for v in violations)
+    lines.extend(f"  {format_violation(v)}" for v in violations)
     return len(violations), "\n".join(lines)
-
-
-def _format_violation(v: Violation) -> str:
-    prefix = f"[{v.category}] " if v.category else ""
-    return f"{prefix}{v.message}"

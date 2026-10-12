@@ -142,7 +142,7 @@ def test_short_help_option_on_every_command(runner, path: tuple[str, ...]) -> No
         (("gameplan", "find-play"), ["play... [path]"], ["PLAY", "PATH"]),
         (
             ("gameplan", "replace-play"),
-            ["play replacement path"],
+            ["play replacement... [path]"],
             ["PLAY", "REPLACEMENT", "PATH"],
         ),
         (

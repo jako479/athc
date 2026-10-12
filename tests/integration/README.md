@@ -242,7 +242,33 @@ In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of
 
 # `athc gameplan replace-play`
 
-In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `replace_in_gameplan` / `format_replacement_lines` helpers on constructed offense/defense gameplans; CLI tier on tmp copies of `offense.pln` (`OR45RL01` @ 1-1) and constructed gameplans written to tmp, against the curated pool (a selected league whose `play_path` is `data/plays`). Finds the target like `find-play` (normal + custom-special, case-insensitive), swaps each hit for `replacement` (must be in the pool), backs up like `set-normals`. A play's normal hits collapse to one line, slots bracketed in order at the end — `'OLD' (cat) replaced with 'NEW' (cat) [1-3][4-2]`; specials print one line each — `Replaced 'OLD' (cat) in special slot N with 'NEW' (cat)`; short category. The GamePlan model validates each swap (side; special category). No rules. Exit 0 = clean, 1 = nothing replaced, 2 = usage, setup error or a failed file.
+In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `split_args`, `pick_replacement`, `replace_in_gameplan` / `format_replacement_lines` helpers on constructed offense/defense gameplans; CLI tier on constructed gameplans written to tmp (one holding `OR45RL01` @ 1-1 for the plain swaps) and tmp copies of `offense.pln` where nothing is swapped, against the curated pool (a selected league whose `play_path` is `data/plays`). Finds the target like `find-play` (normal + custom-special, case-insensitive), swaps each hit for the first replacement (each must be in the pool) not already in the gameplan and with which it passes `check`. A play's normal hits collapse to one line, slots bracketed in order at the end — `'OLD' (cat) replaced with 'NEW' (cat) [1-3][4-2]`; specials print one line each — `Replaced 'OLD' (cat) in special slot N with 'NEW' (cat)`; short category; a skipped replacement is a `SKIP` line. The GamePlan model validates each swap (side; special category). Rules from the league's `gameplan.toml` when present. Exit 0 = clean, 1 = nothing replaced or no valid replacement, 2 = usage, setup error or a failed file.
+
+## `split_args` (play, replacements, optional path)
+| Case | Expected | Test | Status |
+|---|---|---|---|
+| One name | `UsageError` | `test_split_one_name_is_usage_error` | ☑ |
+| Play and one replacement | path None | `test_split_play_and_replacement` | ☑ |
+| Play and a folder only | `UsageError` (no replacement left) | `test_split_play_and_folder_only_is_usage_error` | ☑ |
+| Last is an existing folder / file | path | `test_split_last_existing_folder_is_path` / `test_split_last_existing_file_is_path` | ☑ |
+| Last has `\` or `/`, a `.pln` ending, a wildcard | path | `test_split_path_looking_name_is_path` | ☑ |
+| Plain names | all replacements, path None | `test_split_plain_names_are_replacements` | ☑ |
+| A replacement listed twice, any case | tried once | `test_split_drops_repeated_replacements` | ☑ |
+| Folder named like a play | the folder | `test_split_folder_named_like_play_is_the_folder` | ☑ |
+
+## `pick_replacement` (constructed gameplans, curated pool)
+| Case | Expected | Test | Status |
+|---|---|---|---|
+| First replacement already in the gameplan | skipped; second used | `test_pick_skips_play_already_in_gameplan` | ☑ |
+| First replacement breaks a rule | skipped with the `check` text; second used | `test_pick_skips_play_breaking_a_rule` | ☑ |
+| None fits | no update; both skipped | `test_pick_none_fits` | ☑ |
+| Play not in the gameplan | nothing | `test_pick_no_hits` | ☑ |
+| Plan still fails `check` after the swap | skipped with the `check` text; none fits | `test_pick_plan_still_failing_check_is_not_replaced` | ☑ |
+| Swap fixes what made the plan fail | used | `test_pick_swap_that_fixes_the_plan_is_used` | ☑ |
+| Play replaced by itself | not "already in the gameplan" | `test_pick_play_replaced_by_itself` | ☑ |
+| Model refuses the only replacement | `refused`, the model's text | `test_pick_model_refusal_keeps_the_text_for_one_replacement` | ☑ |
+| Model refuses a later one of several | `refused` names it; earlier skips kept | `test_pick_refused_later_replacement_named_and_skips_kept` | ☑ |
+| Defense: first already in the gameplan | skipped; second used | `test_pick_defense_skips_play_already_in_gameplan` | ☑ |
 
 ## `replace_in_gameplan` (constructed gameplans)
 | Case | Expected | Test | Status |
@@ -267,8 +293,9 @@ In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `replace_in_g
 ## command — usage / replacement resolution (CliRunner)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| No args / no PATH | — | usage error on stderr, exit 2 | `test_cli_requires_args` / `test_cli_requires_path` | ☑ |
-| One PLAY only (4th positional rejected) | data + flags | usage error on stderr, exit 2 | `test_cli_rejects_multiple_plays` | ☑ |
+| No args / one name | — | usage error on stderr, exit 2 | `test_cli_requires_args` / `test_cli_one_name_is_usage_error` | ☑ |
+| No path: the current directory | constructed, cwd | exit 0; tally | `test_cli_path_left_out_uses_current_folder` | ☑ |
+| Every replacement must be in the pool | data + flags | exit 2; stderr: `FAIL` "not found in the play pool"; unchanged | `test_cli_every_replacement_must_be_in_pool` | ☑ |
 | `-q` not offered | tmp + flags | usage error on stderr, exit 2 | `test_cli_no_quiet_option` | ☑ |
 | Replacement not in pool | tmp + flags | exit 2; stderr: `FAIL` "not found in the play pool" | `test_cli_replacement_not_in_pool_exit_2` | ☑ |
 | Replacement case-insensitive | data + flags | exit 0; resolves | `test_cli_replacement_case_insensitive` | ☑ |
@@ -276,11 +303,24 @@ In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `replace_in_g
 ## command — single file
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Replaces a normal play in multiple slots; bystander kept | tmp + flags | all set; one line `'OLDRUN' (RL) replaced with … [1-1][2-2][16-4]` | `test_cli_single_file_replaces_normal` | ☑ |
+| Replaces a normal play; bystander kept | tmp + flags | `'OLDRUN' (RL) replaced with … [1-1]` | `test_cli_single_file_replaces_normal` | ☑ |
+| Play in several slots | tmp + flags | the duplicates fail `check`: `SKIP` lines, not replaced; exit 1; unchanged | `test_cli_play_in_several_slots_not_replaced` | ☑ |
 | Output without league labels | league.toml with no `[categories]` | `(Run Left)` / `(Run Middle)` | `test_cli_output_uses_game_names_without_league_labels` | ☑ |
 | Replaces a custom-special play; others kept | tmp + flags | other special intact; `… in special slot 1 with …` | `test_cli_single_file_replaces_special` | ☑ |
 | Case-insensitive target | data + flags | replaced | `test_cli_single_file_target_case_insensitive` | ☑ |
 | Miss (untouched) | data + flags | exit 1; stdout: "not found"; unchanged | `test_cli_single_file_miss_exit_1` | ☑ |
+
+## command — backup replacements and league rules
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| First already in the gameplan | constructed | `SKIP … already in the gameplan`, then `OK` with the second; exit 0 | `test_cli_backup_used_when_first_already_in_plan` | ☑ |
+| First breaks a `gameplan.toml` rule | constructed; `[offense.RM] max_count = 0` | `SKIP … fails check: [Run Middle] …`, then `OK`; exit 0 | `test_cli_backup_used_when_first_breaks_rule` | ☑ |
+| Rollout cap needs `playpool.toml` | constructed; test playpool rules; `[offense.PSL] max_rollouts_count = 0` | the rollout skipped, the other used | `test_cli_rollout_cap_uses_playpool_rules` | ☑ |
+| None fits, single file | constructed | `SKIP` lines, `<file>: 'OLDRUN' not replaced, no valid replacement`; exit 1; unchanged | `test_cli_no_valid_replacement_single_file` | ☑ |
+| None fits in one of two | tmp dir | tally `… 0 failed, 1 not replaced`; exit 1 | `test_cli_directory_counts_not_replaced` | ☑ |
+| Later replacement refused by the model | constructed | `SKIP` line, then `FAIL <file>: 'NEW' does not fit: …`; exit 2; unchanged | `test_cli_refused_later_replacement_names_it` | ☑ |
+| Wildcard path | tmp `*.pln` | works like a folder: tally, miss silent | `test_cli_wildcard_path_works_like_a_folder` | ☑ |
+| Malformed `gameplan.toml` | league | exit 2; `FAIL <gameplan.toml>: TOML parse error …`; unchanged | `test_cli_bad_rules_file_exit_2` | ☑ |
 
 ## command — no backups
 | Case | Input | Expected | Test | Status |

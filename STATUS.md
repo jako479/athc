@@ -268,7 +268,8 @@ Working. Validates and edits `.pln` game plans. Docs:
   is covered.
 - `find-play` searches by play name across files and trees, reading the
   category straight from the `.pln`. `replace-play` swaps one play across
-  files.
+  files for the first of its replacements that is not already in the
+  gameplan and leaves it passing `check`.
 - `set-normals`, `set-specials` and `replace-play` write in place with no backup.
 
 Open: `replace-play` should take a list of plays for bulk swaps.

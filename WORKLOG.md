@@ -4,6 +4,13 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-09 — **gameplan**: `replace-play` takes a list of replacements and
+  uses, per gameplan, the first one not already in it with which the
+  gameplan passes `check`, so a swap never leaves a gameplan failing, say
+  with a duplicate or one rollout too many. It loads the rules and the full
+  play pool the way `check` does, since the attribute caps need the
+  playpool rules. The path became optional, the last name counting as the
+  path when it looks like one.
 - 2026-10-09 — **fbpro98_lg2**: stock leagues are read, not rejected. All
   three layouts are fully specified and differ only in the folder field, so
   one parser serves them; the old stock check became `league_type`, so a

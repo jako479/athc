@@ -196,7 +196,7 @@ The pattern is pdf-converter's, which the research of 2026-10-08 (git, ruff, gre
 | Code | Meaning |
 |---|---|
 | `0` | Done. Clean, or warnings only. |
-| `1` | Findings: ran fine and reported problems in valid input (violations, play-pool issues, differences, a play found nowhere, nothing replaced). Only the checker and finder commands ever use it: `gameplan check`, `find-play`, `replace-play`, `profile check`, `profile diff`, `check-ppp`, `playpool check`. |
+| `1` | Findings: ran fine and reported problems in valid input (violations, play-pool issues, differences, a play found nowhere, nothing replaced, no valid replacement). Only the checker and finder commands ever use it: `gameplan check`, `find-play`, `replace-play`, `profile check`, `profile diff`, `check-ppp`, `playpool check`. |
 | `2` | Error: could not do the job. Usage, config, league, a missing or bad input, a file that failed inside a batch, a missing dependency, a bug. |
 | `130` | Ctrl-C. `autocontinue` stops on Ctrl-C by design, so there it is 0. |
 

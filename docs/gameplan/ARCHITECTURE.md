@@ -25,7 +25,7 @@ src/athc/cli/gameplan/    # CLI group
 └── set_specials.py       # `athc gameplan set-specials`
 ```
 
-`list-specials` and `find-play` read a `.pln` and report names/slots — no pool, rules, or config; `list-normals` reads the league too, for the category labels its `--sort category` headers use. `set-*` and `replace-play` need the pool (to resolve names) but not the rules — they edit; `check` validates. `find_in_gameplan` (the case-insensitive normal + custom-special slot search) and `category_of` (a gameplan play's category from its `.pln` bytes) live in `_common.py`; `find-play`, `replace-play` and `list-normals` share them.
+`list-specials` and `find-play` read a `.pln` and report names/slots — no pool, rules, or config; `list-normals` reads the league too, for the category labels its `--sort category` headers use. `set-*` need the pool (to resolve names) but not the rules — they edit; `check` validates; `replace-play` edits with both, picking a replacement that keeps the rules. `find_in_gameplan` (the case-insensitive normal + custom-special slot search) and `category_of` (a gameplan play's category from its `.pln` bytes) live in `_common.py`; `find-play`, `replace-play` and `list-normals` share them.
 
 ## Three layers
 
@@ -57,7 +57,7 @@ The league folder `leagues\<NAME>\` (see [../design/architecture.md](../design/a
 - `gameplan.toml` — the rules (or a `gameplan_rules` array in `league.toml`, later files layering over earlier).
 - `league.toml` `play_path` (play pool dir), its `[categories.*]` labels, and `playpool.toml` (optional filename-filter TOML).
 
-`check` reads all of these from the league folder only. With no rules resolvable there's nothing to validate → log an error, exit 2.
+`check` and `replace-play` read all of these from the league folder only. With no rules resolvable `check` has nothing to validate → log an error, exit 2; `replace-play` checks no league rule.
 
 ## check
 
@@ -80,26 +80,45 @@ The league folder `leagues\<NAME>\` (see [../design/architecture.md](../design/a
 
 ## replace-play
 
-`gameplan replace-play play replacement path` swaps every instance of `play` for
-`replacement` across one `.pln`, a directory, or a tree (`-r`) — `find-play`'s
-case-insensitive search (normal + custom-special slots) plus `set-normals`'
-pool-resolution. `play` is a single play (unlike `find-play`, which takes
-several); both `play` and `replacement` are fixed positionals. `replacement` must resolve in the pool (checked once,
-up front; a miss logs an error and exits 2); `play` need not (it may already be
-gone — the rename case). Only matched slots are swapped (surgical, unlike
-`set-normals`); the rest are preserved. The pool is the league's `play_path`,
-built **without** playpool rules — the swap uses each play's category bytes, not
-the filename-derived attributes those rules add. The
-`GamePlan` model validates each swap (side parity; a special play's category
-must match its slot); an invalid
-swap fails that file (reported, not written). No backup is made. Run `check`
-afterward to validate against league rules.
+`gameplan replace-play play replacement... [path]` swaps every instance of `play`
+across one `.pln`, a directory, or a tree (`-r`) — `find-play`'s case-insensitive
+search (normal + custom-special slots) plus `set-normals`' pool-resolution.
+`play` is a single play (unlike `find-play`, which takes several); the
+replacements are tried in order, each a backup for the one before it.
+`split_args` takes the last name as the path when it is an existing file or
+folder (first, so a folder named like a play is the folder), or has a `\` or
+`/`, a `.pln` ending or a wildcard; otherwise the path is the current
+directory. A wildcard counts as a folder (a tally, misses silent). A
+replacement listed twice is tried once. Every replacement must resolve in the
+pool (checked once, up front;
+a miss is an error, exit 2); `play` need not (it may already be gone — the
+rename case). Only matched slots are swapped (surgical, unlike `set-normals`);
+the rest are preserved.
+
+`pick_replacement` chooses per gameplan: a replacement already in it (other
+than as `play` itself) is skipped; otherwise it is swapped in memory and the
+result validated (`validate_gameplan`). A replacement with which the gameplan
+would fail `check` is skipped — so a play in several slots, which becomes a
+duplicate, never fits — and the first one with which it passes is written.
+None fitting leaves the file untouched (a finding).
+The rules are the league's, as `check` reads them (none configured: no league
+rule is checked); the pool is built with the league's playpool rules, as
+`check` builds it, so the attribute caps (rollouts, QB draws, timed, 2-DL)
+apply. The `GamePlan` model still validates each swap (side parity; a special
+play's category must match its slot); a refused swap fails that file
+(reported, not written), after the `SKIP` lines before it, and names the
+replacement when several are listed (`FAIL <file>: 'NEW' does not fit:
+<why>`). No backup is made.
 
 Output uses the short game-category label. A play's normal-slot hits collapse to
 one line, slots bracketed in order at the end: `<file>: 'OLD' (cat) replaced with
 'NEW' (cat) [1-3][4-2]` (a play can fill many normal slots). Special hits print one
 line each: `<file>: Replaced 'OLD' (cat) in special slot N with 'NEW' (cat)`
-(`special slot N` like `find-play`; a play fills only one special slot).
+(`special slot N` like `find-play`; a play fills only one special slot). A
+skipped replacement prints `SKIP <file>: 'NEW' already in the gameplan`, or
+`SKIP <file>: 'NEW' fails check: [cat] message` once per violation (the
+`check` text, from the shared `format_violation`); a gameplan none fits prints
+`<file>: 'OLD' not replaced, no valid replacement`.
 
 ## Exit codes
 

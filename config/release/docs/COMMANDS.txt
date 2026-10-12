@@ -136,17 +136,23 @@ unless the command is given --league NAME.
 7) gameplan replace-play  --  swap one play for another across .pln files
    ----------------------------------------------------------------------
 
-   Replaces every instance of one play with another in a single .pln, every
-   .pln in a directory, or a tree (-r). Searches the normal and custom-special
-   slots, case-insensitive (same as find-play); only matching slots change, the
-   rest are left alone. The replacement play must exist in the league's play
-   pool (its play_path); the play being replaced need not (it may already be
-   gone). No backup is made. Rules are not checked -- run `gameplan check`
-   afterward to validate.
+   Replaces every instance of one play in a single .pln, every .pln in a
+   directory, or a tree (-r); with no path, every .pln in the current folder.
+   Searches the normal and custom-special slots, case-insensitive (same as
+   find-play); only matching slots change, the rest are left alone.
+
+   List one or more replacement plays: each gameplan gets the first one that
+   is not already in it and with which it passes `gameplan check`; the
+   others are backups, tried in order. Every replacement
+   must exist in the league's play pool (its play_path); the play being
+   replaced need not (it may already be gone). No backup file is made.
 
    Each replaced play prints a line; a play in several slots lists them all
    in brackets at the end, e.g.:
       offense.pln: 'OR45RL01' (RL) replaced with 'OR43RM02' (RM) [1-3][4-2]
+   A replacement passed over prints a SKIP line saying why; a gameplan no
+   replacement fits prints "not replaced, no valid replacement" and is left
+   unchanged.
 
    Show help:
       athc gameplan replace-play -h
@@ -154,6 +160,7 @@ unless the command is given --league NAME.
    Example terminal calls:
       athc gameplan replace-play OLDRUN NEWRUN offense.pln
       athc gameplan replace-play OLDRUN NEWRUN plans\ -r
+      athc gameplan replace-play OLDRUN NEWRUN BACKUP1 BACKUP2
 
 
 8) profile check  --  validate a .prf coaching profile against league rules
@@ -335,9 +342,9 @@ EXIT CODES
       0    done -- clean, or with warnings only
       1    findings -- ran fine and reported problems in valid input
            (violations, play pool issues, differences, a play found
-           nowhere, nothing replaced); only gameplan check, find-play,
-           replace-play, profile check, profile diff, check-ppp and
-           playpool check use it
+           nowhere, nothing replaced, no valid replacement); only gameplan
+           check, find-play, replace-play, profile check, profile diff,
+           check-ppp and playpool check use it
       2    error -- could not do the job: bad arguments, a config, league
            or rules problem, a missing or bad file, a file that failed
            inside a batch, a missing dependency, or a bug

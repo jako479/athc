@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- gameplan: `replace-play` takes backup replacements, tried in order: one already in the gameplan or that would make it fail `check` is skipped; the path is optional (the current folder)
 - check-ppp: every kind of stock league gets the same `stock league not supported` line
 - fbpro98_lg2: reads stock leagues, modern and old, and says which kind of league it read
 - fbpro98_play: the `.ply` spec decodes each player's position and logic boxes, enough to tell a timed pass, QB run or rollout, and a 2-DL, 4-3 or 3-4 defense

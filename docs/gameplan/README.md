@@ -13,7 +13,7 @@ Every command prints through the shared console ([architecture](../design/archit
 | `check` | `WARN` per play-pool issue and rules notice, then per file `OK   <file>: <side>, <n> normal` or the headline `<file>: <n> violation(s) (<side>, <n> normal)` with its indented detail lines; a blank line; `<n> file(s) checked, <n> with violations, <n> failed` | violations |
 | `find-play` | per file and play `<file>: 'play' found in slot(s) ...` or `<file>: 'play' not found`; in directory mode a tally per play, `'play': found <n> instance(s) in <m> gameplan(s)`; a single path, found or not, gets no tally | a play found nowhere (2 if any file failed) |
 | `list-normals` / `list-specials` | the play names (with `-`), else `OK   <file>: <n> normal play(s)` / `... special play(s)` | never |
-| `replace-play` | `OK   <file>: 'old' (cat) replaced with 'new' (cat) [1-1][2-2]` per updated file; a single file without the play prints `<file>: 'play' not found`; in directory mode `'old' -> 'new': replaced <n> instance(s) in <m> gameplan(s), <f> failed` | nothing replaced anywhere; a replacement not in the pool is an error |
+| `replace-play` | per skipped replacement `SKIP <file>: 'new' already in the gameplan` or `SKIP <file>: 'new' fails check: [cat] message`; `OK   <file>: 'old' (cat) replaced with 'new' (cat) [1-1][2-2]` per updated file; `<file>: 'old' not replaced, no valid replacement` when none fits; a single file without the play prints `<file>: 'play' not found`; in directory mode `'old' -> 'new1', 'new2': replaced <n> instance(s) in <m> gameplan(s), <f> failed, <k> not replaced` | nothing replaced anywhere, or a gameplan with no valid replacement; a replacement not in the pool is an error |
 | `set-normals` | `OK   <gameplan>: <n> normal play(s)` (`-q` skips it); a bad play list is one `FAIL <input_file> <what is wrong>` per bad line (`FAIL <what is wrong>` when the list came from the console), the game plan untouched, exit 2 | never |
 | `set-specials` | `OK   <file>: updated (<n> special play(s))`, `SKIP <file>: <other side> gameplan`, `FAIL <file>: <why>` for a file the list does not fit; a tally `<n> file(s) processed, <n> updated, <n> skipped, <n> failed` | never (a failed file is exit 2) |
 
@@ -57,9 +57,10 @@ athc gameplan set-normals OFF.pln plays.txt        # replace 64 normal slots
 athc gameplan set-normals OFF.pln -                # play list from stdin
 athc gameplan set-specials plans/ spec.txt -r      # merge specials across a tree
 athc gameplan replace-play OLDRUN NEWRUN plans/ -r # swap one play for another
+athc gameplan replace-play OLDRUN NEW1 NEW2        # NEW2 as a backup, current directory
 ```
 
-`list-specials` and `find-play` just read a `.pln` — no pool, rules or config; `list-normals` also reads the league's category names (`--league`). `list-*` create the output file's missing folders. `set-*` need the pool (like `check`, minus the gameplan rules) and edit in place with no backup. `replace-play play replacement path` swaps one play for another wherever `find-play` would find it, using the league's play pool; `replacement` must be in the pool. `athc gameplan <command> --help` for flags.
+`list-specials` and `find-play` just read a `.pln` — no pool, rules or config; `list-normals` also reads the league's category names (`--league`). `list-*` create the output file's missing folders. `set-*` need the pool (like `check`, minus the gameplan rules) and edit in place with no backup. `replace-play play replacement... [path]` swaps one play wherever `find-play` would find it for the first replacement that is not already in the gameplan and with which the gameplan passes `check`; every replacement must be in the pool. The path is the current directory when left out; the last name counts as the path when it is an existing file or folder, or has a `\` or `/`, a `.pln` ending or a wildcard (which works like a folder). `athc gameplan <command> --help` for flags.
 
 ## Config
 
@@ -68,7 +69,7 @@ The league folder `leagues\<NAME>\` (see [../design/architecture.md](../design/a
 - `gameplan.toml` — the rules (or a `gameplan_rules` array in `league.toml`, later files layering over earlier).
 - `league.toml` `play_path` (pool dir), its `[categories.*]` labels, and `playpool.toml` (optional filename-filter TOML).
 
-`check` reads all of these from the league folder only. No rules resolvable ⇒ exit 2 (nothing to validate).
+`check` and `replace-play` read all of these from the league folder only. No rules resolvable ⇒ `check` exits 2 (nothing to validate); `replace-play` checks no league rule.
 
 ## See also
 

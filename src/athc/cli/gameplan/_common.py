@@ -17,7 +17,7 @@ from athc.fbpro98_play import (
     PlayCategory,
     resolve_category,
 )
-from athc.gameplan import Rules, load_rules
+from athc.gameplan import Rules, Violation, load_rules
 from athc.playpool import PlayPool, read_play_pool, rule_warnings
 from athc.playpool import load_rules as load_pool_rules
 
@@ -29,6 +29,7 @@ __all__ = [
     "collect_files",
     "emit_play_list",
     "find_in_gameplan",
+    "format_violation",
     "is_glob",
     "load_rules_or_raise",
     "named_file",
@@ -108,6 +109,13 @@ def find_in_gameplan(
         if p is not None and p.name.casefold() == target
     ]
     return normal_hits, special_hits
+
+
+def format_violation(v: Violation) -> str:
+    """One violation as `check` prints it: `[category] message`, or just the
+    message when it has no category."""
+    prefix = f"[{v.category}] " if v.category else ""
+    return f"{prefix}{v.message}"
 
 
 def load_rules_or_raise(rule_files: Iterable[Path], labels: CategoryLabels) -> Rules:
