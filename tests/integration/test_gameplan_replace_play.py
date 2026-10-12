@@ -18,7 +18,7 @@ from athc.cli.gameplan.replace_play import (
     replace_play,
     split_args,
 )
-from athc.errors import AthcError
+from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND, AthcError
 from athc.fbpro98_gameplan import (
     CustomPlayRef,
     GamePlan,
@@ -291,7 +291,7 @@ def test_pick_refused_later_replacement_named_and_skips_kept(
     assert picked.skipped == (Skipped(NORMAL_REPL, ("already in the gameplan",)),)
     assert str(picked.refused) == (
         f"x.pln: '{DEFENSE_REPL}' does not fit: Normal slot 0: play has "
-        "defensive play_category=0x92, but profile_type is OFFENSE"
+        "defensive play_category=0x92, but profile_type is OFFENSE."
     )
 
 
@@ -473,7 +473,7 @@ def test_cli_every_replacement_must_be_in_pool(runner, tmp_path: Path) -> None:
     result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, MISSING, str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL replacement play '{MISSING}' not found in the play pool\n"
+        f"FAIL Replacement play '{MISSING}' not found in the play pool.\n"
     )
     assert p.read_bytes() == original
 
@@ -489,7 +489,7 @@ def test_cli_replacement_not_in_pool_exit_2(runner, tmp_path: Path) -> None:
     result = runner.invoke(replace_play, ["OLDRUN", MISSING, str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL replacement play '{MISSING}' not found in the play pool\n"
+        f"FAIL Replacement play '{MISSING}' not found in the play pool.\n"
     )
 
 
@@ -702,7 +702,7 @@ def test_cli_refused_later_replacement_names_it(runner, tmp_path: Path) -> None:
     assert result.stdout == f"SKIP {p}: '{NORMAL_REPL}' already in the gameplan\n"
     assert result.stderr == (
         f"FAIL {p}: '{DEFENSE_REPL}' does not fit: Normal slot 0: play has "
-        "defensive play_category=0x92, but profile_type is OFFENSE\n"
+        "defensive play_category=0x92, but profile_type is OFFENSE.\n"
     )
     assert p.read_bytes() == original
 
@@ -730,8 +730,7 @@ def test_cli_bad_rules_file_exit_2(runner, league: Path, tmp_path: Path) -> None
     result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {league / 'gameplan.toml'}: TOML parse error: "
-        f"{toml_error('not = valid = toml')}\n"
+        f"FAIL {league / 'gameplan.toml'}: {toml_error('not = valid = toml')}\n"
     )
     assert p.read_bytes() == original
 
@@ -811,7 +810,7 @@ def test_cli_replacement_special_for_normal_fails(runner, tmp_path: Path) -> Non
     assert result.stderr == (
         f"FAIL {p}: Normal slot 0 contains a special-teams play "
         "(special_category=1); only non-special-teams plays allowed in normal "
-        "slots\n"
+        "slots.\n"
     )
     assert list(tmp_path.glob("*.bak")) == [] and p.read_bytes() == original
 
@@ -823,7 +822,7 @@ def test_cli_replacement_wrong_side_fails(runner, tmp_path: Path) -> None:
     assert result.exit_code == 2
     assert result.stderr == (
         f"FAIL {p}: Normal slot 0: play has defensive play_category=0x92, "
-        "but profile_type is OFFENSE\n"
+        "but profile_type is OFFENSE.\n"
     )
     assert list(tmp_path.glob("*.bak")) == [] and p.read_bytes() == original
 
@@ -834,7 +833,7 @@ def test_cli_replacement_wrong_special_category_fails(runner, tmp_path: Path) ->
     result = runner.invoke(replace_play, ["OLDFG", KICKOFF_REPL, str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {p}: Special category 1: custom play has special_category=2\n"
+        f"FAIL {p}: Special category 1: custom play has special_category=2.\n"
     )
     assert list(tmp_path.glob("*.bak")) == [] and p.read_bytes() == original
 
@@ -843,7 +842,7 @@ def test_cli_missing_path_exit_2(runner, tmp_path: Path) -> None:
     missing = tmp_path / "nope.pln"
     result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, str(missing)])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {missing}: not found\n"
+    assert result.stderr == f"FAIL {missing}: {FILE_NOT_FOUND}\n"
     assert result.stdout == ""  # a single path that failed: no tally
 
 
@@ -853,7 +852,7 @@ def test_cli_malformed_pln_exit_2(runner, tmp_path: Path) -> None:
     result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, str(bad)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {bad}: File too small to contain PLN header and offsets table\n"
+        f"FAIL {bad}: File too small to contain PLN header and offsets table.\n"
     )
 
 
@@ -865,7 +864,8 @@ def test_cli_invalid_play_path_exit_2(runner, league: Path, tmp_path: Path) -> N
     result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {tmp_path / 'missing'}: play path is not a directory\n"
+        f"FAIL {tmp_path / 'missing'}: {PATH_NOT_FOUND} "
+        f"Set play_path in {league / 'league.toml'}.\n"
     )
 
 

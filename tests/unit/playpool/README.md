@@ -11,15 +11,16 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 | Test rules load | tree | filters populated; regex compiled | `test_load_test_rules` | ☑ |
 | Build from dict; absent section empty | dict | `FilenameFilter()` | `test_build_from_dict` | ☑ |
 | Empty file → all empty | tmp | `PlaypoolRules()` | `test_missing_section_is_empty` | ☑ |
-| Unknown section | tmp | "unknown section" | `test_unknown_section` | ☑ |
-| `schema_version` is an unknown section | tmp | "unknown section" | `test_schema_version_is_an_unknown_section` | ☑ |
-| Unknown key in section | tmp | "unknown key" | `test_unknown_key` | ☑ |
+| Unknown sections | tmp, two | one line: `(top): Unknown key(s): Bogus, Zap. Valid: …` | `test_unknown_section` | ☑ |
+| `schema_version` is an unknown section | tmp | `(top): Unknown key(s): schema_version.` | `test_schema_version_is_an_unknown_section` | ☑ |
+| Unknown keys in section | tmp, two | one line: `[TimedPass]: Unknown key(s): bogus, zap. Valid: …` | `test_unknown_key` | ☑ |
 | Wrong value type | tmp | "must be a list of strings" | `test_bad_value_type` | ☑ |
-| Section not a table | tmp | "must be a table" | `test_section_not_a_table` | ☑ |
+| Section not a table | tmp | "Must be a table." | `test_section_not_a_table` | ☑ |
 | Bad regex | tmp | "invalid regex" | `test_bad_regex` | ☑ |
+| Bad regex shows as written | `\d(` | `Invalid regex '\d(': …` (one backslash) | `test_a_bad_regex_shows_as_written` | ☑ |
 | Two bad regexes both reported | tmp | both in `.errors` | `test_two_bad_regexes_both_reported` | ☑ |
 | All problems collected at once | tmp | 5 errors, each kind present | `test_collects_multiple_errors` | ☑ |
-| TOML parse error | tmp | "TOML parse error" | `test_toml_parse_error` | ☑ |
+| TOML parse error | tmp | "Not valid TOML" | `test_toml_parse_error` | ☑ |
 | UTF-8 BOM skipped | tmp | loads | `test_bom_is_skipped` | ☑ |
 | Missing file | path | `RulesFileError` | `test_missing_file` | ☑ |
 | Every shipped league's rules load | shipped | loads | `test_shipped_rules_load` `[P]` | ☑ |
@@ -43,9 +44,9 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 |---|---|---|---|---|
 | Clean rules | make; names in the pool, right side | `[]` | `test_clean_rules_give_no_warnings` | ☑ |
 | Name not in the pool | include / exclude | "is not in the play pool" | `test_name_not_in_the_pool` `[P]` | ☑ |
-| Wrong side | run play under TimedPass / RolloutPass; pass play under QBRun; defensive; special-teams | "is a … play; it has no effect" | `test_wrong_side_is_reported` `[P]` | ☑ |
+| Wrong side | run play under TimedPass / RolloutPass; pass play under QBRun; defensive; special-teams | "is a … play. It has no effect." | `test_wrong_side_is_reported` `[P]` | ☑ |
 | Wrong side under exclude | pass play under QBRun exclude | same message | `test_exclude_on_the_wrong_side_is_reported` | ☑ |
-| In both include and exclude | one section; in the pool or not | one "exclude wins" line, nothing else | `test_name_in_both_include_and_exclude_reported_once` `[P]` | ☑ |
+| In both include and exclude | one section; in the pool or not | one "Exclude wins." line, nothing else | `test_name_in_both_include_and_exclude_reported_once` `[P]` | ☑ |
 | Sorted by section, then name | two sections | TimedPass first; names sorted | `test_warnings_are_sorted_by_section_then_name` | ☑ |
 
 ## model.py — record classes and `PlayPool`
@@ -83,8 +84,8 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 | Category mismatch | tmp | the warning text | `test_category_mismatch_is_an_issue` | ☑ |
 | Wrong side | tmp | the warning text | `test_wrong_side_is_an_issue` | ☑ |
 | Duplicate name | tmp | the warning text | `test_duplicate_name_is_an_issue` | ☑ |
-| Invalid file | tmp | "Skipping invalid play file" | `test_invalid_file_is_an_issue` | ☑ |
-| Unreadable file (a folder named `.ply`) | tmp | "Skipping unreadable play file"; rest loads | `test_unreadable_file_is_an_issue` | ☑ |
+| Invalid file | tmp | "<path>: <reason> Skipped." | `test_invalid_file_is_an_issue` | ☑ |
+| Unreadable file (a folder named `.ply`) | tmp | "<path>: Access is denied. Skipped."; rest loads | `test_unreadable_file_is_an_issue` | ☑ |
 
 ## reader.py — `folder_warnings` (recognized league folder vs the play file)
 

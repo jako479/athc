@@ -118,7 +118,7 @@ def build_teams(
     if len(conferences) != CONFERENCES_PER_LEAGUE:
         raise ValueError(
             f"Expected exactly {CONFERENCES_PER_LEAGUE} conferences, got "
-            f"{len(conferences)}: {sorted(conferences)}"
+            f"{len(conferences)}: {', '.join(sorted(conferences))}"
         )
     for conference in conferences.values():
         size = sum(1 for team in teams if team.conference == conference)
@@ -137,7 +137,8 @@ def team_by_metro(teams: Sequence[Team]) -> dict[str, Team]:
 def lookup_team(teams: Sequence[Team], metro: str) -> Team:
     by_metro = team_by_metro(teams)
     if metro not in by_metro:
-        raise ValueError(f"Unknown team: {metro!r}. Valid: {sorted(by_metro)}")
+        valid = ", ".join(sorted(by_metro))
+        raise ValueError(f"Unknown team: {metro!r}. Valid: {valid}")
     return by_metro[metro]
 
 
@@ -234,4 +235,6 @@ def _validate_overall(ranking: tuple[Team, ...], teams: tuple[Team, ...]) -> Non
         )
     if len(set(ranking)) != len(ranking):
         duplicates = sorted({t.metro for t in ranking if ranking.count(t) > 1})
-        raise ValueError(f"Overall standings have duplicate teams: {duplicates}")
+        raise ValueError(
+            f"Overall standings have duplicate teams: {', '.join(duplicates)}"
+        )

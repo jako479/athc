@@ -13,13 +13,16 @@ from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
+import numpy
 import pytest
 
 from athc.autocontinue import config
 from athc.cli.autocontinue import autocontinue
-from athc.errors import ConfigFileError
+from athc.errors import FILE_NOT_FOUND, AthcError, ConfigFileError
 
 WriteConfig = Callable[..., Path]
+
+_BUTTON = numpy.zeros((2, 2), dtype=numpy.uint8)  # stands in for the loaded image
 
 
 @pytest.fixture
@@ -55,15 +58,21 @@ def test_load_config_errors_when_section_missing(write_config: WriteConfig) -> N
 
 
 def test_load_config_errors_on_missing_setting(write_config: WriteConfig) -> None:
-    write_config("[autocontinue]\nmouse_move_duration = 0.5\n")
-    with pytest.raises(ConfigFileError):
+    ini = write_config("[autocontinue]\nmouse_move_duration = 0.5\n")
+    with pytest.raises(ConfigFileError) as exc:
         config.load_config()
+    assert str(exc.value) == (
+        f"{ini}: Missing required setting 'delay_before_continue' in [autocontinue]."
+    )
 
 
 def test_load_config_errors_on_invalid_value(valid: Callable[..., Path]) -> None:
-    valid(mouse="fast")
-    with pytest.raises(ConfigFileError):
+    ini = valid(mouse="fast")
+    with pytest.raises(ConfigFileError) as exc:
         config.load_config()
+    assert str(exc.value) == (
+        f"{ini}: [autocontinue] mouse_move_duration: Must be a number, got 'fast'."
+    )
 
 
 # ── hot_corner: optional, defaults to enabled ─────────────────────────────────
@@ -89,12 +98,15 @@ def test_hot_corner_parses_boolean(
 
 
 def test_hot_corner_invalid_value_errors(write_config: WriteConfig) -> None:
-    write_config(
+    ini = write_config(
         "[autocontinue]\nmouse_move_duration = 0.0\ndelay_before_continue = 1.0\n"
         "hot_corner = maybe\n"
     )
-    with pytest.raises(ConfigFileError):
+    with pytest.raises(ConfigFileError) as exc:
         config.load_config()
+    assert str(exc.value) == (
+        f"{ini}: [autocontinue] hot_corner: Must be true or false, got 'maybe'."
+    )
 
 
 # ── config_signature: change detection ────────────────────────────────────────
@@ -130,10 +142,13 @@ def test_cli_help_describes_continue(runner) -> None:
     assert result.exit_code == 0 and "Continue" in result.stdout
 
 
-def test_cli_no_config_exits_2(runner) -> None:
+def test_cli_no_config_exits_2(runner, config_dir: Path) -> None:
     result = runner.invoke(autocontinue, [])
     assert result.exit_code == 2
-    assert result.stderr.startswith("FAIL No [autocontinue] config found")
+    assert result.stderr == (
+        f"FAIL {config_dir / 'athc.ini'}: No [autocontinue] section. "
+        "Add one, or set ATHC_CONFIG_DIR.\n"
+    )
 
 
 def test_cli_missing_dependency_exits_2(
@@ -144,7 +159,7 @@ def test_cli_missing_dependency_exits_2(
     monkeypatch.setitem(sys.modules, "pyautogui", None)
     result = runner.invoke(autocontinue, [])
     assert result.exit_code == 2
-    assert result.stderr == "FAIL missing pyautogui -- reinstall athc\n"
+    assert result.stderr == "FAIL Missing pyautogui. Reinstall athc.\n"
 
 
 def test_cli_runs_with_config(
@@ -238,6 +253,98 @@ def test_loop_status_goes_to_stderr_through_the_callbacks(
         "WARN Config reload failed; keeping previous settings. x\n"
     )
     assert result.stdout == "Shutting down AutoContinue\n"
+
+
+def test_reload_failure_names_the_file_and_keeps_the_settings() -> None:
+    from athc.autocontinue import main
+
+    error = ConfigFileError("Bad value.", Path("athc.ini"))
+    assert main._reload_failed(error) == (
+        "athc.ini: Bad value. Keeping the previous settings."
+    )
+
+
+def test_screen_grab_failure_warns_and_backs_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from athc.autocontinue import main
+
+    def grab(*args: object, **kwargs: object) -> None:
+        raise OSError("screen grab failed")  # PIL's own text, on a locked screen
+
+    slept: list[float] = []
+    monkeypatch.setattr(main.pyautogui, "locateCenterOnScreen", grab)
+    monkeypatch.setattr(main.time, "sleep", slept.append)
+    said: list[str] = []
+    assert main._find_continue_button(_BUTTON, 0, 0, 1, 1, said.append) is None
+    assert said == [
+        "The screen is locked, a screensaver is on, or Remote Desktop is "
+        "disconnected. Retrying in 60 seconds."
+    ]
+    assert slept == [60.0]
+
+
+def test_the_loaded_button_image_is_what_the_screen_is_searched_for(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from athc.autocontinue import main
+
+    seen: list[object] = []
+    monkeypatch.setattr(
+        main.pyautogui,
+        "locateCenterOnScreen",
+        lambda image, **kwargs: seen.append(image),
+    )
+    main._find_continue_button(_BUTTON, 0, 0, 1, 1, lambda _: None)
+    assert len(seen) == 1 and seen[0] is _BUTTON
+
+
+def test_the_shipped_button_image_loads_in_grayscale() -> None:
+    from athc.autocontinue import main
+
+    image = main._load_button_image(main.CONTINUE_BUTTON_IMAGE)
+    assert image.ndim == 2  # one channel: the matcher compares grayscale
+
+
+def test_a_missing_button_image_fails_and_says_to_reinstall(tmp_path: Path) -> None:
+    from athc.autocontinue import main
+
+    image = tmp_path / "continue_button.png"
+    with pytest.raises(AthcError) as exc:
+        main._load_button_image(image)
+    assert str(exc.value) == f"{image}: {FILE_NOT_FOUND} Reinstall athc."
+
+
+def test_an_unreadable_button_image_fails_and_says_to_reinstall(
+    tmp_path: Path,
+) -> None:
+    from athc.autocontinue import main
+
+    image = tmp_path / "continue_button.png"
+    image.write_bytes(b"not an image")
+    with pytest.raises(AthcError) as exc:
+        main._load_button_image(image)
+    assert str(exc.value) == f"{image}: Cannot read the image. Reinstall athc."
+
+
+def test_cli_missing_button_image_exits_2_before_watching(
+    runner,
+    valid: Callable[..., Path],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from athc.autocontinue import main
+
+    def watching() -> None:  # the loop would never end, so fail instead
+        raise AssertionError("started watching the screen")
+
+    valid()
+    image = tmp_path / "continue_button.png"
+    monkeypatch.setattr(main, "CONTINUE_BUTTON_IMAGE", image)
+    monkeypatch.setattr(main, "_get_screen_size", watching)
+    result = runner.invoke(autocontinue, [])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {image}: {FILE_NOT_FOUND} Reinstall athc.\n"
 
 
 def test_config_changes_are_said_through_the_callback() -> None:

@@ -16,7 +16,7 @@ from os import PathLike
 from pathlib import Path
 from typing import Any, Final
 
-from athc.errors import RulesFileError, reason_of
+from athc.errors import RulesFileError, reason_of, toml_reason
 
 StrPath = str | PathLike[str]
 
@@ -84,7 +84,7 @@ def load_rules(path: StrPath) -> PlaypoolRules:
     try:
         data = tomllib.loads(text)
     except tomllib.TOMLDecodeError as e:
-        raise RulesFileError(f"TOML parse error: {e}", p) from e
+        raise RulesFileError(toml_reason(e), p) from e
     return build_rules(data, source=p)
 
 
@@ -94,13 +94,7 @@ def build_rules(
     """Build a PlaypoolRules from already-parsed TOML data. Collects every
     format/data problem in one pass and raises them all together."""
     errors: list[str] = []
-    for key in data:
-        if key not in _SECTIONS:
-            errors.extend(
-                RulesFileError(
-                    f"unknown section [{key}] (expected {sorted(_SECTIONS)})", source
-                ).errors
-            )
+    errors.extend(_unknown_keys(data, _SECTIONS, "(top)", source))
     rules = PlaypoolRules(
         timed=_build_filter(data.get(SECTION_TIMED), source, SECTION_TIMED, errors),
         rollout=_build_filter(
@@ -111,6 +105,18 @@ def build_rules(
     if errors:
         raise RulesFileError(errors)
     return rules
+
+
+def _unknown_keys(
+    table: Mapping[str, Any], allowed: frozenset[str], where: str, source: StrPath
+) -> list[str]:
+    """The one line naming every key of `table` outside `allowed`, if any."""
+    unknown = sorted(set(table) - allowed)
+    if not unknown:
+        return []
+    names, valid = ", ".join(unknown), ", ".join(sorted(allowed))
+    message = f"{where}: Unknown key(s): {names}. Valid: {valid}."
+    return RulesFileError(message, source).errors
 
 
 def _attempt(errors: list[str], fn: Callable[[], Any]) -> Any:
@@ -129,12 +135,10 @@ def _build_filter(
     if section is None:
         return FilenameFilter()
     if not isinstance(section, dict):
-        errors.extend(RulesFileError(f"[{name}] must be a table", source).errors)
+        errors.extend(RulesFileError(f"[{name}]: Must be a table.", source).errors)
         return FilenameFilter()
-    unknown = sorted(set(section) - _FILTER_KEYS)
-    for key in unknown:
-        errors.extend(RulesFileError(f"[{name}]: unknown key(s): {key}", source).errors)
     where = f"[{name}]"
+    errors.extend(_unknown_keys(section, _FILTER_KEYS, where, source))
     return FilenameFilter(
         suffix_any=_attempt(
             errors,
@@ -175,7 +179,7 @@ def _str_list(value: object, where: str, source: StrPath) -> tuple[str, ...]:
     if value is None:
         return ()
     if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
-        raise RulesFileError(f"{where}: must be a list of strings", source)
+        raise RulesFileError(f"{where}: Must be a list of strings.", source)
     return tuple(value)
 
 
@@ -191,7 +195,7 @@ def _regex_list(
             compiled.append(re.compile(pat))
         except re.error as e:
             errors.extend(
-                RulesFileError(f"{where}: invalid regex {pat!r}: {e}", source).errors
+                RulesFileError(f"{where}: Invalid regex '{pat}': {e}.", source).errors
             )
     return tuple(compiled)
 

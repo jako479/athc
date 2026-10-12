@@ -10,13 +10,13 @@ import pytest
 
 from athc.cli.gameplan.list_normals import list_normals
 from athc.cli.gameplan.list_specials import list_specials
+from athc.errors import ALREADY_EXISTS, FILE_NOT_FOUND
 from athc.fbpro98_gameplan import ProfileType, write_gameplan
 from tests.conftest import (
     LEAGUE,
     OTHER_LEAGUE,
     league_toml,
     no_league_selected,
-    os_error,
     toml_error,
 )
 from tests.integration.conftest import (
@@ -103,8 +103,7 @@ def test_normals_output_folder_is_a_file_exit_2(runner, tmp_path: Path) -> None:
     out = tmp_path / "lists" / "plays.txt"
     result = runner.invoke(list_normals, [str(GP_OFFENSE), str(out)])
     assert result.exit_code == 2
-    blocked = os_error(lambda: out.parent.mkdir(parents=True, exist_ok=True))
-    assert result.stderr == f"FAIL {blocked}\n"
+    assert result.stderr == f"FAIL {out.parent}: {ALREADY_EXISTS}\n"
 
 
 def test_normals_overwrites_existing_file(runner, tmp_path: Path) -> None:
@@ -264,14 +263,14 @@ def test_normals_file_logs_count(runner, tmp_path: Path) -> None:
 def test_normals_missing_gameplan(runner, tmp_path: Path) -> None:
     result = runner.invoke(list_normals, [str(tmp_path / "nope.pln")])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {tmp_path / 'nope.pln'}: not found\n"
+    assert result.stderr == f"FAIL {tmp_path / 'nope.pln'}: {FILE_NOT_FOUND}\n"
     assert result.stdout == ""
 
 
 def test_specials_missing_gameplan(runner, tmp_path: Path) -> None:
     result = runner.invoke(list_specials, [str(tmp_path / "nope.pln")])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {tmp_path / 'nope.pln'}: not found\n"
+    assert result.stderr == f"FAIL {tmp_path / 'nope.pln'}: {FILE_NOT_FOUND}\n"
     assert result.stdout == ""
 
 
@@ -282,7 +281,7 @@ def test_normals_malformed_file_mode_no_output(runner, tmp_path: Path) -> None:
     result = runner.invoke(list_normals, [str(bad), str(out)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {bad}: File too small to contain PLN header and offsets table\n"
+        f"FAIL {bad}: File too small to contain PLN header and offsets table.\n"
     )
     assert not out.exists()
 
@@ -379,6 +378,6 @@ def test_specials_malformed_file_mode_no_output(runner, tmp_path: Path) -> None:
     result = runner.invoke(list_specials, [str(bad), str(out)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {bad}: File too small to contain PLN header and offsets table\n"
+        f"FAIL {bad}: File too small to contain PLN header and offsets table.\n"
     )
     assert not out.exists()

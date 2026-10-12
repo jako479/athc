@@ -50,7 +50,7 @@ In `test_config.py` and `test_cli.py`. The test league is named `divisions`. Sta
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | No `--season` / non-integer `--time-limit` / `--workers` | exit 2 | `test_requires_season`, `test_rejects_non_integer_time_limit`, `test_no_worker_count_override` | ☑ |
-| No league resolvable | exit 1 + "no league selected" | `test_errors_when_no_league_is_configured` | ☑ |
+| No league resolvable | exit 1 + "No league selected" | `test_errors_when_no_league_is_configured` | ☑ |
 | `--league` without a league folder | exit 1 + "not found" | `test_errors_when_league_has_no_folder` | ☑ |
 | Standings file missing | exit 1 naming the file | `test_errors_when_league_file_missing` | ☑ |
 | No feasible schedule (`SchedulerError`) | exit 1 + message | `test_errors_when_no_feasible_schedule` | ☑ |

@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
 
-from athc.errors import AthcError
+from athc.errors import ACCESS_DENIED, AthcError, missing_reason
 
 _GLOB_CHARS = frozenset("*?[")
 
@@ -20,8 +20,9 @@ def is_glob(s: str) -> bool:
 @dataclass(frozen=True, slots=True)
 class Collected:
     """The files a command works on, plus what was wrong with the paths it was
-    given. `errors` are failed items (`<path>: not found`, `<path>: not a .pln
-    file`); `warnings` are paths with nothing to do (`<dir>: no .pln files`)."""
+    given. `errors` are failed items (`<path>: The system cannot find the file
+    specified.`, `<path>: Not a .pln file.`); `warnings` are paths with nothing
+    to do (`<dir>: No .pln files.`)."""
 
     files: list[Path] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -46,25 +47,25 @@ def collect_files(paths: Iterable[str], *, suffix: str, recursive: bool) -> Coll
                 if Path(m).is_file() and Path(m).suffix.lower() == suffix
             ]
             if not matches:
-                collected.warnings.append(f"{raw}: no {suffix} files match")
+                collected.warnings.append(f"{raw}: No {suffix} files match.")
                 continue
             for match in matches:
                 _add(match, collected.files, seen)
             continue
         path = Path(raw)
         if not path.exists():
-            collected.errors.append(f"{raw}: not found")
+            collected.errors.append(f"{raw}: {missing_reason(raw)}")
             continue
         if path.is_file():
             if path.suffix.lower() != suffix:
-                collected.errors.append(f"{raw}: not a {suffix} file")
+                collected.errors.append(f"{raw}: Not a {suffix} file.")
             else:
                 _add(path, collected.files, seen)
             continue
         pattern = f"**/*{suffix}" if recursive else f"*{suffix}"
         dir_matches = sorted(path.glob(pattern))
         if not dir_matches:
-            collected.warnings.append(f"{raw}: no {suffix} files")
+            collected.warnings.append(f"{raw}: No {suffix} files.")
             continue
         for match in dir_matches:
             _add(match, collected.files, seen)
@@ -72,15 +73,15 @@ def collect_files(paths: Iterable[str], *, suffix: str, recursive: bool) -> Coll
 
 
 def named_file(raw: str | PathLike[str]) -> Path:
-    """The one file a command was given, as a Path. AthcError `<path>: not
-    found` when it does not exist and `<path>: not a file` when it is a
-    folder, checked before anything reads it, so Python's `[Errno 2]` text
-    never shows for a mistyped name."""
+    """The one file a command was given, as a Path. AthcError in Windows'
+    words when it does not exist (the file or the path phrase) and
+    `Access is denied.` when it is a folder, as `type` says, checked before
+    anything reads it."""
     path = Path(raw)
     if not path.exists():
-        raise AthcError("not found", path)
+        raise AthcError(missing_reason(path), path)
     if not path.is_file():
-        raise AthcError("not a file", path)
+        raise AthcError(ACCESS_DENIED, path)
     return path
 
 

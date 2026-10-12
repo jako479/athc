@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from athc.cli.gameplan.set_specials import set_specials
+from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_gameplan import PlayRef, read_gameplan
 from tests.conftest import LEAGUE, league_toml
 from tests.integration.conftest import GP_DEFENSE, GP_OFFENSE, PLAYS, POOL_RULES
@@ -59,7 +60,7 @@ def test_requires_path(runner) -> None:
     assert runner.invoke(set_specials, []).exit_code == 2
 
 
-def test_requires_input_file(runner, tmp_path: Path) -> None:
+def test_requires_play_list(runner, tmp_path: Path) -> None:
     assert runner.invoke(set_specials, [str(_copy(tmp_path))]).exit_code == 2
 
 
@@ -96,6 +97,17 @@ def test_writes_special_from_file(runner, tmp_path: Path) -> None:
     result = runner.invoke(
         set_specials, [str(p), str(_input(tmp_path, SPECIAL + "\n"))]
     )
+    assert result.exit_code == 0
+    placed = read_gameplan(str(p)).custom_special_plays[1]
+    assert placed is not None and placed.name == SPECIAL
+
+
+def test_a_list_saved_with_a_bom_reads_its_first_play(runner, tmp_path: Path) -> None:
+    """Notepad's "UTF-8 with BOM" puts a mark before the first play name."""
+    p = _copy(tmp_path)
+    inp = tmp_path / "spec.txt"
+    inp.write_text(SPECIAL + "\n", encoding="utf-8-sig")
+    result = runner.invoke(set_specials, [str(p), str(inp)])
     assert result.exit_code == 0
     placed = read_gameplan(str(p)).custom_special_plays[1]
     assert placed is not None and placed.name == SPECIAL
@@ -148,10 +160,35 @@ def test_dash_input_errors_name_no_file(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_specials, [str(p), "-"], input=NORMAL + "\n")
     assert result.exit_code == 2
     assert (
-        f"FAIL line 1: '{NORMAL}' is not a special teams play; use set-normals\n"
+        f"FAIL line 1: '{NORMAL}' is not a special teams play. Use set-normals.\n"
         in result.stderr
     )
     assert "FAIL - " not in result.stderr
+
+
+def test_gameplan_problem_names_the_gameplan_and_the_list_line(
+    runner, tmp_path: Path
+) -> None:
+    """A play the pool lacks fails per gameplan; the list line comes last, so
+    it never reads as a line of the .pln."""
+    p = _copy(tmp_path)
+    inp = _input(tmp_path, ":: header\n\nNOPEPLAY\n")
+    result = runner.invoke(set_specials, [str(p), str(inp)])
+    assert result.exit_code == 2
+    assert (
+        f"FAIL {p}: 'NOPEPLAY' not found in the play pool ({inp} line 3).\n"
+        in result.stderr
+    )
+
+
+def test_gameplan_problem_from_the_console(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    result = runner.invoke(set_specials, [str(p), "-"], input="NOPEPLAY\n")
+    assert result.exit_code == 2
+    assert (
+        f"FAIL {p}: 'NOPEPLAY' not found in the play pool (play list line 1).\n"
+        in result.stderr
+    )
 
 
 # ── validation (no file written) ──────────────────────────────────────────────
@@ -171,21 +208,30 @@ def test_rejects_normal_play(runner, tmp_path: Path) -> None:
 
 def test_rejects_duplicate_play(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
-    result = runner.invoke(
-        set_specials, [str(p), str(_input(tmp_path, f"{SPECIAL}\n{SPECIAL}\n"))]
-    )
+    inp = _input(tmp_path, f"{SPECIAL}\n\n{SPECIAL}\n")
+    result = runner.invoke(set_specials, [str(p), str(inp)])
     assert result.exit_code == 2
-    assert result.stderr.splitlines()[-1].startswith("FAIL ")  # after the WARN lines
-    assert "duplicate" in result.stderr.lower()
+    assert result.stderr.splitlines()[-1] == (
+        f"FAIL {inp}: line 3: Duplicate play '{SPECIAL}' (already on line 1)."
+    )
+
+
+def test_as_many_plays_as_slots_pass_the_count(runner, tmp_path: Path) -> None:
+    """Ten plays are within the limit: the run gets past the count check (here
+    to the duplicate check, since the pool has one play to repeat)."""
+    p = _copy(tmp_path)
+    inp = _input(tmp_path, (SPECIAL + "\n") * 10)
+    result = runner.invoke(set_specials, [str(p), str(inp)])
+    assert "Too many plays" not in result.stderr
+    assert result.stderr.splitlines()[-1].startswith(f"FAIL {inp}: line 10: Duplicate")
 
 
 def test_too_many_plays_rejected(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
-    result = runner.invoke(
-        set_specials, [str(p), str(_input(tmp_path, (SPECIAL + "\n") * 11))]
-    )
+    inp = _input(tmp_path, (SPECIAL + "\n") * 11)
+    result = runner.invoke(set_specials, [str(p), str(inp)])
     assert result.exit_code == 2
-    assert result.stderr == "FAIL input has 11 play(s), max is 10\n"
+    assert result.stderr == f"FAIL {inp}: Too many plays (11). The most is 10.\n"
 
 
 def test_missing_target(runner, tmp_path: Path) -> None:
@@ -194,11 +240,11 @@ def test_missing_target(runner, tmp_path: Path) -> None:
     assert result.exit_code == 2
 
 
-def test_missing_input_file(runner, tmp_path: Path) -> None:
+def test_missing_play_list(runner, tmp_path: Path) -> None:
     plans = _plans(tmp_path)
     result = runner.invoke(set_specials, [str(plans), str(tmp_path / "nope.txt")])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {tmp_path / 'nope.txt'}: not found\n"
+    assert result.stderr == f"FAIL {tmp_path / 'nope.txt'}: {FILE_NOT_FOUND}\n"
 
 
 def test_invalid_play_path(runner, league: Path, tmp_path: Path) -> None:
@@ -211,7 +257,8 @@ def test_invalid_play_path(runner, league: Path, tmp_path: Path) -> None:
     )
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {tmp_path / 'missing'}: play path is not a directory\n"
+        f"FAIL {tmp_path / 'missing'}: {PATH_NOT_FOUND} "
+        f"Set play_path in {league / 'league.toml'}.\n"
     )
 
 

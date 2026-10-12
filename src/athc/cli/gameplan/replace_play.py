@@ -19,7 +19,7 @@ from athc.cli.gameplan._common import (
     is_glob,
 )
 from athc.console import console
-from athc.errors import AthcError
+from athc.errors import AthcError, error_line, sentence
 from athc.fbpro98_gameplan import (
     CustomPlayRef,
     GamePlan,
@@ -128,7 +128,7 @@ def replace_in_gameplan(
             gp, normal_plays=tuple(normals), special_plays=tuple(specials)
         )
     except ValueError as error:  # the model refused the entry for a slot
-        raise AthcError(str(error), path) from error
+        raise AthcError(sentence(str(error)), path) from error
     return updated, normal_hits, special_hits
 
 
@@ -206,7 +206,7 @@ def _pool_entry(pool: PlayPool, name: str) -> CustomPlayRef:
     """The `.pln` entry for a replacement; AthcError when it is not in the pool."""
     record = pool.find_by_name(name)
     if record is None:
-        raise AthcError(f"replacement play '{name}' not found in the play pool")
+        raise AthcError(f"Replacement play '{name}' not found in the play pool.")
     return build_custom_play(record, pool.root_dir)
 
 
@@ -248,7 +248,9 @@ def replace_play(
     )
     # The playpool rules add the attributes (rollout, QB draw, timed, 2-DL)
     # the league rules cap, so the pool is built as `check` builds it.
-    pool = build_pool(config.play_path, config.playpool_rules, config.categories)
+    pool = build_pool(
+        config.play_path, config.playpool_rules, config.categories, config.league_file
+    )
     entries = [_pool_entry(pool, name) for name in replacements]
 
     collected = collect_files([target], suffix=".pln", recursive=recursive)
@@ -269,7 +271,7 @@ def replace_play(
             if picked.updated is not None:
                 write_gameplan(picked.updated, file)
         except (AthcError, OSError) as error:
-            console.fail(str(error))
+            console.fail(error_line(error))
             failed += 1
             continue
         except Exception:

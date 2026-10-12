@@ -18,10 +18,11 @@ src/athc/cli/autocontinue.py  # Click command; lazy-imports main so pyautogui lo
 ## How it works
 
 - Only scans while the game is the foreground window (`GetForegroundWindow` title match) — the game auto-pauses on focus loss, so this keeps it from clicking while the commish is in another app. Works windowed or fullscreen (the window keeps its title either way).
-- Polls the primary display for `continue_button.png` (PyAutoGUI grayscale match, confidence 0.8): one search per loop, paced by `_SCAN_INTERVAL`. We don't use pyscreeze's `minSearchTime` — its retry loop has no sleep (busy-loops a core), so we pace it ourselves.
+- Loads `continue_button.png` once at start (grayscale, as the matcher reads it); a missing or unreadable image is a broken install: `FAIL <image>: <why> Reinstall athc.`, exit 2.
+- Polls the primary display for that image (PyAutoGUI grayscale match, confidence 0.8): one search per loop, paced by `_SCAN_INTERVAL`. We don't use pyscreeze's `minSearchTime` — its retry loop has no sleep (busy-loops a core), so we pace it ourselves.
 - On a hit, moves the mouse there over `mouse_move_duration` seconds and clicks after `delay_before_continue`.
 - Re-reads the INI only when the file changes on disk (`config_signature` fingerprints path/mtime/size), so settings tune live; a reload that fails validation is logged and the old settings kept.
-- Backs off `_LOCKED_SCREEN_BACKOFF` seconds when a screen grab fails (e.g. locked workstation) so the log doesn't flood.
+- When Windows hides the screen (locked, screensaver, disconnected Remote Desktop) the grab fails: `WARN The screen is locked, a screensaver is on, or Remote Desktop is disconnected. Retrying in 60 seconds.`, then it backs off `_LOCKED_SCREEN_BACKOFF` seconds so the log doesn't flood.
 - Stops on Ctrl-C, or — when the **hot corner** is enabled (default) — when the cursor reaches the top-left corner. The fail-safe is pinned to that one corner (`FAILSAFE_POINTS`), so the other three stay free, and is funneled through the Ctrl-C path so both exit cleanly. `hot_corner = false` (or `--no-hot-corner`) disables it, leaving Ctrl-C only; on launch the watcher logs which mode is active (info).
 
 ## Boundaries
@@ -30,7 +31,7 @@ src/athc/cli/autocontinue.py  # Click command; lazy-imports main so pyautogui lo
 - **Primary monitor only** — pyautogui/`ImageGrab` captures the primary display, so the game must run there. A single-display VM sidesteps this (the guest has one monitor, freeing the host's other monitors). Full multi-monitor support is out of scope (PIL has known multi-monitor/negative-coordinate bugs).
 - No `--config` flag — config is `config_dir()/athc.ini` (`ATHC_CONFIG_DIR`), per [architecture.md](../design/architecture.md#config); tests isolate by setting that env var.
 - `--hot-corner/--no-hot-corner` (default unset) overrides the `hot_corner` config value; unset, the config wins. The override holds across live reloads.
-- pyautogui (+ opencv-python, which backs the confidence-based image match) is a **required dependency**, but the CLI still lazy-imports `main` so discovery and `--help` work even on a broken install; running without it then prints `FAIL missing pyautogui -- reinstall athc` and exits 2.
+- pyautogui (+ opencv-python, which backs the confidence-based image match) is a **required dependency**, but the CLI still lazy-imports `main` so discovery and `--help` work even on a broken install; running without it then prints `FAIL Missing pyautogui. Reinstall athc.` and exits 2.
 - Sees pixels only — never inspects or edits game files.
 - The watch loop is **manual-tested only** (depends on the live display). `config.py` + the CLI are covered by `pytest`.
 
@@ -51,6 +52,6 @@ src/athc/cli/autocontinue.py  # Click command; lazy-imports main so pyautogui lo
 | Exit | Meaning |
 |---|---|
 | `0` | **Done** — ran, including a clean Ctrl-C stop. |
-| `2` | **Error** — a `FAIL` line: config missing/invalid, or pyautogui not installed (reinstall hint); or usage, bad arguments (Click). |
+| `2` | **Error** — a `FAIL` line: config missing/invalid, pyautogui not installed or the button image missing/unreadable (reinstall hint); or usage, bad arguments (Click). |
 
 The shared scheme: [architecture.md](../design/architecture.md#console-run-log-and-errors).

@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from athc.errors import toml_reason
 from athc.fbpro98_play import CategoryLabels
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -97,7 +98,7 @@ def _available(config_dir: Path, leagues: tuple[str, ...]) -> str:
 def no_league_selected(config_dir: Path, *leagues: str) -> str:
     """The whole `FAIL` line of a run with no league selected."""
     return (
-        "FAIL no league selected; run 'athc config set league NAME' or pass "
+        "FAIL No league selected. Run 'athc config set league NAME' or pass "
         f"--league. {_available(config_dir, leagues)}\n"
     )
 
@@ -105,31 +106,22 @@ def no_league_selected(config_dir: Path, *leagues: str) -> str:
 def league_not_found(config_dir: Path, name: str, *leagues: str) -> str:
     """The whole `FAIL` line of a run naming a league with no folder."""
     return (
-        f"FAIL league '{name}' not found: no folder {config_dir / 'leagues' / name}. "
+        f"FAIL League '{name}' not found. No folder {config_dir / 'leagues' / name}. "
         f"{_available(config_dir, leagues)}\n"
     )
 
 
 def no_rules_configured(filename: str) -> str:
     """The whole `FAIL` line of a check whose league folder has no rules file."""
-    return (
-        "FAIL no rules configured - nothing to check. "
-        f"Add {filename} to the league folder.\n"
-    )
+    return f"FAIL No rules configured. Add {filename} to the league folder.\n"
 
 
 def toml_error(text: str) -> str:
-    """tomllib's own wording for the broken `text`, as an athc line quotes it."""
+    """The reason an athc line gives for the broken TOML `text`:
+    `Not valid TOML: <tomllib's own wording>.`"""
     with pytest.raises(tomllib.TOMLDecodeError) as exc:
         tomllib.loads(text)
-    return str(exc.value)
-
-
-def os_error(action: Callable[[], object]) -> OSError:
-    """The OSError `action` raises: the system's own wording for a line."""
-    with pytest.raises(OSError) as exc:
-        action()
-    return exc.value
+    return toml_reason(exc.value)
 
 
 def write_pdbtoexcel_toml(folder: Path, body: str = PDBTOEXCEL_TOML) -> Path:

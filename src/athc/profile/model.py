@@ -1,9 +1,9 @@
-"""Violation types reported by `validate_profile`."""
+"""Rule violations reported by `validate_profile`."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from enum import StrEnum
+from typing import NamedTuple
 
 
 class RuleName(StrEnum):
@@ -21,8 +21,7 @@ class RuleName(StrEnum):
     DEFENSE_MIN_CATEGORIES = "defense_min_categories"
 
 
-@dataclass(frozen=True, slots=True)
-class Violation:
+class RuleViolation(NamedTuple):
     """One rule violation. `situation_number` (1..2520) is set for per-situation
     violations; profile-wide ones (audibles, substitution) leave it None."""
 

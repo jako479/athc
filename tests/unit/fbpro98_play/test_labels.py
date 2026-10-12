@@ -74,31 +74,31 @@ def test_label_may_equal_the_other_sides_game_name() -> None:
         (
             {"Run Rite": "RR"},
             {},
-            "[categories.offense] 'Run Rite': not a game category name for offense",
+            "[categories.offense] 'Run Rite': Not a game category name for offense.",
         ),
         (
             {},
             {"Pass Short Right": "PSR"},
-            "[categories.defense] 'Pass Short Right': not a game category name "
-            "for defense",
+            "[categories.defense] 'Pass Short Right': Not a game category name "
+            "for defense.",
         ),
-        ({"Run Right": 1}, {}, "'Run Right': label must be a non-empty string"),
-        ({"Run Right": ""}, {}, "'Run Right': label must be a non-empty string"),
-        ({"Run Right": " "}, {}, "'Run Right': label must be a non-empty string"),
+        ({"Run Right": 1}, {}, "'Run Right': Label must be a non-empty string."),
+        ({"Run Right": ""}, {}, "'Run Right': Label must be a non-empty string."),
+        ({"Run Right": " "}, {}, "'Run Right': Label must be a non-empty string."),
         (
             {"Run Right": "Run Left"},
             {},
-            "'Run Right': label 'Run Left' is a game category name for offense",
+            "'Run Right': Label 'Run Left' is a game category name for offense.",
         ),
         (
             {},
             {"Run Right": "Pass Long"},
-            "'Run Right': label 'Pass Long' is a game category name for defense",
+            "'Run Right': Label 'Pass Long' is a game category name for defense.",
         ),
         (
             {"Run Right": "X", "Run Left": "X"},
             {},
-            "'Run Left': label 'X' already used by 'Run Right'",
+            "'Run Left': Label 'X' already used by 'Run Right'.",
         ),
     ],
 )
@@ -113,6 +113,6 @@ def test_from_tables_names_the_file() -> None:
     with pytest.raises(ConfigFileError) as exc:
         CategoryLabels.from_tables({"Nope": "x"}, {}, Path("league.toml"))
     assert str(exc.value) == (
-        "league.toml: [categories.offense] 'Nope': not a game category name for offense"
+        "league.toml: [categories.offense] 'Nope': Not a game category name for offense."
     )
     assert exc.value.path == Path("league.toml")

@@ -347,7 +347,9 @@ def test_chunk_one_byte_off_its_size_rejected(
     tag, _ = CHUNK_HEADER.unpack_from(chunks[index])
     data = chunks[index][CHUNK_HEADER.size :]
     chunks[index] = make_chunk(tag, data.ljust(size, b"\x00")[:size])
-    with pytest.raises(InvalidLgeError, match=f"is {size} bytes, expected {expected}$"):
+    with pytest.raises(
+        InvalidLgeError, match=rf"is {size} bytes, expected {expected}\.$"
+    ):
         parse_lge(make_lge(chunks))
 
 
@@ -356,7 +358,7 @@ def test_counted_chunk_shorter_than_its_fixed_part_rejected(
 ):
     chunks = make_chunks()
     chunks[D03] = make_chunk(ID_D03, bytes(DIVISION_BASE_SIZE - 1))
-    with pytest.raises(InvalidLgeError, match=r"is 28 bytes, expected at least 29$"):
+    with pytest.raises(InvalidLgeError, match=r"is 28 bytes, expected at least 29\.$"):
         parse_lge(make_lge(chunks))
 
 
@@ -374,7 +376,7 @@ def test_chunk_header_cut_short_rejected(make_chunks, make_lge, length: int):
     chunks = make_chunks()
     chunks[S03] = chunks[S03][:length]
     with pytest.raises(
-        InvalidLgeError, match=r"Chunk header at 0x[0-9a-f]+ is cut short"
+        InvalidLgeError, match=r"Chunk header at 0x[0-9a-f]+ is cut short\.$"
     ):
         parse_lge(make_lge(chunks))
 
@@ -383,7 +385,7 @@ def test_bare_chunk_header_passes_framing(make_chunks, make_chunk, make_lge):
     # Eight bytes are a whole header: what fails is the S03 data size.
     chunks = make_chunks()
     chunks[S03] = make_chunk(ID_S03, b"")
-    with pytest.raises(InvalidLgeError, match=r"is 0 bytes, expected at least 3$"):
+    with pytest.raises(InvalidLgeError, match=r"is 0 bytes, expected at least 3\.$"):
         parse_lge(make_lge(chunks))
 
 
@@ -391,21 +393,22 @@ def test_chunk_running_past_end_rejected(make_chunks, make_lge):
     chunks = make_chunks()
     chunks[S03] = chunks[S03][:-1]
     with pytest.raises(
-        InvalidLgeError, match=r"S03 chunk at 0x[0-9a-f]+ runs past the end of the file"
+        InvalidLgeError,
+        match=r"S03 chunk at 0x[0-9a-f]+ runs past the end of the file\.$",
     ):
         parse_lge(make_lge(chunks))
 
 
 def test_huge_chunk_size_rejected():
     with pytest.raises(
-        InvalidLgeError, match="L03 chunk at 0x0 runs past the end of the file"
+        InvalidLgeError, match=r"L03 chunk at 0x0 runs past the end of the file\.$"
     ):
         parse_lge(CHUNK_HEADER.pack(ID_L03, 0xFFFF_FFFF))
 
 
 def test_data_after_schedule_rejected(make_lge):
     with pytest.raises(
-        InvalidLgeError, match=r"Unexpected data at 0x[0-9a-f]+ after the S03 chunk"
+        InvalidLgeError, match=r"Unexpected data at 0x[0-9a-f]+ after the S03 chunk\.$"
     ):
         parse_lge(make_lge() + b"\x00")
 
@@ -416,12 +419,12 @@ def test_data_after_schedule_rejected(make_lge):
 @pytest.mark.parametrize(
     ("drop", "message"),
     [
-        (L03, "Expected L03 chunk at 0x0, found C03"),
-        (C03, r"Expected C03 chunk at 0x[0-9a-f]+, found D03"),
-        (D03, r"Expected D03 chunk at 0x[0-9a-f]+, found T03"),
-        (T03, r"Expected T03 chunk at 0x[0-9a-f]+, found R03"),
-        (R03, r"Expected R03 chunk at 0x[0-9a-f]+, found S03"),
-        (S03, r"Expected S03 chunk at 0x[0-9a-f]+, found the end of the file"),
+        (L03, r"Expected L03 chunk at 0x0, found C03\.$"),
+        (C03, r"Expected C03 chunk at 0x[0-9a-f]+, found D03\.$"),
+        (D03, r"Expected D03 chunk at 0x[0-9a-f]+, found T03\.$"),
+        (T03, r"Expected T03 chunk at 0x[0-9a-f]+, found R03\.$"),
+        (R03, r"Expected R03 chunk at 0x[0-9a-f]+, found S03\.$"),
+        (S03, r"Expected S03 chunk at 0x[0-9a-f]+, found the end of the file\.$"),
     ],
 )
 def test_missing_chunk_rejected(make_chunks, make_lge, drop: int, message: str):
@@ -436,7 +439,9 @@ def test_fewer_conferences_than_counted_rejected(
 ):
     chunks = make_chunks()
     chunks[L03] = make_chunk(ID_L03, make_league_data(2))
-    with pytest.raises(InvalidLgeError, match=r"Expected C03 chunk at .*, found S03"):
+    with pytest.raises(
+        InvalidLgeError, match=r"Expected C03 chunk at .*, found S03\.$"
+    ):
         parse_lge(make_lge(chunks))
 
 
@@ -445,7 +450,9 @@ def test_more_conferences_than_counted_rejected(
 ):
     chunks = make_chunks(((1,), (1,)))
     chunks[L03] = make_chunk(ID_L03, make_league_data(1))
-    with pytest.raises(InvalidLgeError, match=r"Expected S03 chunk at .*, found C03"):
+    with pytest.raises(
+        InvalidLgeError, match=r"Expected S03 chunk at .*, found C03\.$"
+    ):
         parse_lge(make_lge(chunks))
 
 
@@ -454,13 +461,15 @@ def test_fewer_teams_than_counted_rejected(
 ):
     chunks = make_chunks()
     chunks[D03] = make_chunk(ID_D03, make_division_data(2))
-    with pytest.raises(InvalidLgeError, match=r"Expected T03 chunk at .*, found S03"):
+    with pytest.raises(
+        InvalidLgeError, match=r"Expected T03 chunk at .*, found S03\.$"
+    ):
         parse_lge(make_lge(chunks))
 
 
 def test_unprintable_tag_shown_as_hex():
     with pytest.raises(
-        InvalidLgeError, match="Expected L03 chunk at 0x0, found 00 01 02 03"
+        InvalidLgeError, match=r"Expected L03 chunk at 0x0, found 00 01 02 03\.$"
     ):
         parse_lge(b"\x00\x01\x02\x03" + bytes(4))
 
@@ -468,6 +477,7 @@ def test_unprintable_tag_shown_as_hex():
 def test_error_names_the_path_first():
     with pytest.raises(InvalidLgeError, match=r"^league\.lge: ") as exc:
         parse_lge(b"", "league.lge")
+    assert str(exc.value) == "league.lge: Empty file."
     assert exc.value.path == Path("league.lge")
 
 
@@ -610,7 +620,7 @@ def test_played_game_with_unknown_team_rejected(
     data = make_schedule_data([[make_game(home, 7, away, 3)]])
     chunks = _with_schedule(make_chunks, make_chunk, data)
     with pytest.raises(
-        InvalidLgeError, match=rf"week 1: no team {bad} \(teams are 1-2\)$"
+        InvalidLgeError, match=rf"week 1: No team {bad} \(teams are 1-2\)\.$"
     ):
         parse_lge(make_lge(chunks))
 
@@ -619,7 +629,7 @@ def test_schedule_shorter_than_its_header_rejected(make_chunks, make_chunk, make
     # The 3-byte header alone, the default built schedule, is accepted.
     chunks = make_chunks()
     chunks[S03] = make_chunk(ID_S03, bytes(2))
-    with pytest.raises(InvalidLgeError, match=r"is 2 bytes, expected at least 3$"):
+    with pytest.raises(InvalidLgeError, match=r"is 2 bytes, expected at least 3\.$"):
         parse_lge(make_lge(chunks))
 
 
@@ -631,7 +641,7 @@ def test_schedule_cut_short_in_a_week_rejected(
     # cut, the same schedule is accepted (test_played_game_with_first_...).
     data = make_schedule_data([[make_game(1, 7, 2, 3)]])[:-cut]
     chunks = _with_schedule(make_chunks, make_chunk, data)
-    with pytest.raises(InvalidLgeError, match=r"is cut short in week 1$"):
+    with pytest.raises(InvalidLgeError, match=r"is cut short in week 1\.$"):
         parse_lge(make_lge(chunks))
 
 
@@ -640,5 +650,5 @@ def test_schedule_with_data_after_the_last_week_rejected(
 ):
     data = make_schedule_data([[make_game(1, 7, 2, 3)]]) + b"\x00"
     chunks = _with_schedule(make_chunks, make_chunk, data)
-    with pytest.raises(InvalidLgeError, match=r"has data after the last week$"):
+    with pytest.raises(InvalidLgeError, match=r"has data after the last week\.$"):
         parse_lge(make_lge(chunks))

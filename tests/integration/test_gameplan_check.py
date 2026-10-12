@@ -13,6 +13,7 @@ import pytest
 
 from athc.cli.gameplan._common import collect_files
 from athc.cli.gameplan.check import check, check_file
+from athc.errors import ACCESS_DENIED, FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_gameplan import InvalidGamePlanError
 from athc.gameplan import load_rules
 from athc.playpool import load_rules as load_pool_rules
@@ -24,7 +25,6 @@ from tests.conftest import (
     league_toml,
     no_league_selected,
     no_rules_configured,
-    os_error,
     toml_error,
 )
 from tests.integration.conftest import (
@@ -86,7 +86,7 @@ def test_collect_missing_path(tmp_path: Path) -> None:
     missing = tmp_path / "nope"
     collected = collect_files([str(missing)], suffix=".pln", recursive=False)
     assert collected.files == []
-    assert collected.errors == [f"{missing}: not found"]
+    assert collected.errors == [f"{missing}: {FILE_NOT_FOUND}"]
 
 
 def test_collect_non_pln(tmp_path: Path) -> None:
@@ -94,13 +94,13 @@ def test_collect_non_pln(tmp_path: Path) -> None:
     bad.touch()
     collected = collect_files([str(bad)], suffix=".pln", recursive=False)
     assert collected.files == []
-    assert collected.errors == [f"{bad}: not a .pln file"]
+    assert collected.errors == [f"{bad}: Not a .pln file."]
 
 
 def test_collect_empty_dir_is_a_warning(tmp_path: Path) -> None:
     collected = collect_files([str(tmp_path)], suffix=".pln", recursive=False)
     assert collected.files == [] and collected.errors == []
-    assert collected.warnings == [f"{tmp_path}: no .pln files"]
+    assert collected.warnings == [f"{tmp_path}: No .pln files."]
 
 
 def test_collect_dedupes(tmp_path: Path) -> None:
@@ -126,7 +126,7 @@ def test_collect_glob_without_a_match_is_a_warning(
     monkeypatch.chdir(tmp_path)
     collected = collect_files(["Off*.pln"], suffix=".pln", recursive=False)
     assert collected.files == [] and collected.errors == []
-    assert collected.warnings == ["Off*.pln: no .pln files match"]
+    assert collected.warnings == ["Off*.pln: No .pln files match."]
 
 
 # ── check_file ────────────────────────────────────────────────────────────────
@@ -219,7 +219,7 @@ def test_cli_no_path_empty_directory(
     monkeypatch.chdir(plans)
     result = runner.invoke(check, [])
     assert result.exit_code == 0
-    assert result.stderr.endswith("WARN .: no .pln files\n")
+    assert result.stderr.endswith("WARN .: No .pln files.\n")
     assert result.stdout == "\n0 file(s) checked, 0 with violations, 0 failed\n"
 
 
@@ -281,8 +281,34 @@ def test_cli_missing_path(runner) -> None:
     missing = PLAYS / "nope.pln"
     result = runner.invoke(check, [str(missing)])
     assert result.exit_code == 2
-    assert f"FAIL {missing}: not found\n" in result.stderr
+    assert f"FAIL {missing}: {FILE_NOT_FOUND}\n" in result.stderr
     assert result.stdout == "\n0 file(s) checked, 0 with violations, 1 failed\n"
+
+
+@pytest.mark.usefixtures("league")
+def test_cli_locked_file_is_access_denied_and_the_batch_goes_on(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file Windows will not open (locked by the game, say) fails in
+    Windows' words; the other file is still checked."""
+    locked = tmp_path / "locked.pln"
+    good = tmp_path / "good.pln"
+    shutil.copy2(GP_OFFENSE, locked)
+    shutil.copy2(GP_OFFENSE, good)
+    from athc.cli.gameplan import check as check_module
+
+    real_read = check_module.read_gameplan
+
+    def read(path: str):
+        if Path(path) == locked:
+            raise PermissionError(13, "Permission denied", path)
+        return real_read(path)
+
+    monkeypatch.setattr(check_module, "read_gameplan", read)
+    result = runner.invoke(check, [str(locked), str(good)])
+    assert result.exit_code == 2
+    assert f"FAIL {locked}: {ACCESS_DENIED}\n" in result.stderr
+    assert "2 file(s) checked, 1 with violations, 1 failed" in result.stdout
 
 
 @pytest.mark.usefixtures("league")
@@ -308,7 +334,7 @@ def test_cli_bug_in_one_file_keeps_the_batch_going(
     result = runner.invoke(check, [str(doomed), str(good)])
     assert result.exit_code == 2
     assert (
-        f"FAIL {doomed}: unexpected error (see log: {log_dir / 'athc.log'})"
+        f"FAIL {doomed}: Unexpected error. See {log_dir / 'athc.log'} for details."
         in result.stderr
     )
     assert f"{good}: " in result.stdout
@@ -323,7 +349,7 @@ def test_cli_malformed_pln(runner, tmp_path: Path) -> None:
     result = runner.invoke(check, [str(bad)])
     assert result.exit_code == 2
     assert (
-        f"FAIL {bad}: File too small to contain PLN header and offsets table\n"
+        f"FAIL {bad}: File too small to contain PLN header and offsets table.\n"
         in result.stderr
     )
     assert result.stderr.count(str(bad)) == 1
@@ -350,7 +376,10 @@ def test_cli_missing_play_path(runner, league: Path, tmp_path: Path) -> None:
     )
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {tmp_path / 'nope'}: play path is not a directory\n"
+    assert result.stderr == (
+        f"FAIL {tmp_path / 'nope'}: {PATH_NOT_FOUND} "
+        f"Set play_path in {league / 'league.toml'}.\n"
+    )
 
 
 def test_cli_bad_playpool_rules(runner, league: Path) -> None:
@@ -358,8 +387,7 @@ def test_cli_bad_playpool_rules(runner, league: Path) -> None:
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {league / 'playpool.toml'}: TOML parse error: "
-        f"{toml_error('not = valid = toml')}\n"
+        f"FAIL {league / 'playpool.toml'}: {toml_error('not = valid = toml')}\n"
     )
     assert result.stdout == ""
 
@@ -371,13 +399,29 @@ def test_cli_no_rules_in_league_folder(runner, make_league: MakeLeague) -> None:
     assert result.stderr == no_rules_configured("gameplan.toml")
 
 
+def test_cli_rules_file_with_two_problems_is_two_fail_lines(
+    runner, league: Path, log_dir: Path
+) -> None:
+    rules = league / "gameplan.toml"
+    rules.write_text(
+        "bogus = 1\n[profile_compatibility]\nrequire_all = 3\n", encoding="utf-8"
+    )
+    result = runner.invoke(check, [str(GP_OFFENSE)])
+    assert result.exit_code == 2
+    lines = result.stderr.splitlines()
+    assert len(lines) == 2
+    assert all(line.startswith(f"FAIL {rules}: ") for line in lines)
+    assert all(line.endswith(".") for line in lines)
+    log = (log_dir / "athc.log").read_text(encoding="utf-8")
+    assert log.count(f"ERROR FAIL {rules}: ") == 2
+
+
 def test_cli_bad_rules_toml(runner, league: Path) -> None:
     (league / "gameplan.toml").write_text("not = valid = toml", encoding="utf-8")
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {league / 'gameplan.toml'}: TOML parse error: "
-        f"{toml_error('not = valid = toml')}\n"
+        f"FAIL {league / 'gameplan.toml'}: {toml_error('not = valid = toml')}\n"
     )
 
 
@@ -428,7 +472,7 @@ def test_cli_missing_listed_rules_file_is_reported(
     result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])
     assert result.exit_code == 2
     gone = folder / "gone.toml"
-    assert result.stderr == f"FAIL {gone}: {os_error(gone.read_bytes).strerror}\n"
+    assert result.stderr == f"FAIL {gone}: {FILE_NOT_FOUND}\n"
 
 
 @pytest.mark.usefixtures("league")

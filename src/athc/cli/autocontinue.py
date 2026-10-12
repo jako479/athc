@@ -30,7 +30,7 @@ def autocontinue(hot_corner: bool | None) -> None:
         from athc.autocontinue.main import auto_continue
     except ImportError as error:
         raise AthcError(
-            f"missing {error.name or 'pyautogui'} -- reinstall athc"
+            f"Missing {error.name or 'pyautogui'}. Reinstall athc."
         ) from error
 
     try:

@@ -538,7 +538,7 @@ def test_error_names_the_path_first(tmp_path):
     profile_path.write_bytes(b"")
     with pytest.raises(InvalidProfileError) as exc:
         read_profile(profile_path)
-    assert str(exc.value) == f"{profile_path}: File too small to contain F95 block"
+    assert str(exc.value) == f"{profile_path}: File too small to contain F95 block."
     assert exc.value.path == profile_path
 
 

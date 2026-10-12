@@ -8,7 +8,7 @@ from typing import Any, NoReturn
 import click
 
 from athc.console import console
-from athc.errors import AthcError, reason_of
+from athc.errors import AthcError, error_line
 from athc.log import logger, setup_logging
 
 ENTRY_POINT_GROUP = "athc.commands"
@@ -90,7 +90,7 @@ class _OnePlace(click.Command):
         try:
             setup_logging()
         except OSError as error:  # the log folder cannot be written: no run
-            console.fail(str(AthcError(reason_of(error), error.filename)))
+            console.fail(error_line(error))
             sys.exit(2)
         argv = list(args) if args is not None else sys.argv[1:]
         logger.info("%s", " ".join(["athc", version("athc"), *argv]))
@@ -113,10 +113,10 @@ class _OnePlace(click.Command):
             logger.error("%s", error.format_message())
             code = error.exit_code
         except click.Abort:  # Ctrl-C (Click turns KeyboardInterrupt into it)
-            console.fail("interrupted")
+            console.fail("Interrupted.")
             code = 130
         except (AthcError, OSError) as error:  # an expected failure
-            console.fail(str(error))
+            console.fail(error_line(error))
             code = 2
         except Exception:  # a bug
             console.unexpected()

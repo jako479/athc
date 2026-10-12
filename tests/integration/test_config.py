@@ -30,9 +30,11 @@ from athc.config import (
     load_config,
     load_league,
     load_league_config,
+    play_dir,
     resolve_league,
     resolve_path,
 )
+from athc.errors import ACCESS_DENIED, DIRECTORY_INVALID, PATH_NOT_FOUND
 from athc.fbpro98_play import CategoryLabels
 from tests.conftest import CATEGORIES_TOML, LEAGUE, OTHER_LEAGUE, PNFL_LABELS
 
@@ -74,7 +76,7 @@ def test_resolve_league_falls_back_to_configured(
 
 def test_resolve_league_errors_when_none_resolvable(make_league: MakeLeague) -> None:
     make_league()
-    with pytest.raises(LeagueError, match="no league selected"):
+    with pytest.raises(LeagueError, match="No league selected"):
         resolve_league()
 
 
@@ -156,7 +158,7 @@ def test_no_league_resolvable_lists_available(make_league: MakeLeague) -> None:
     with pytest.raises(LeagueError) as exc:
         load_league()
     msg = str(exc.value)
-    assert "no league selected" in msg
+    assert "No league selected" in msg
     assert "athc config set league" in msg
     assert f"Available: {OTHER_LEAGUE}, {LEAGUE}" in msg
 
@@ -178,7 +180,7 @@ def test_unknown_league_errors(make_league: MakeLeague) -> None:
 
 def test_empty_league_key_is_no_league(write_config: WriteConfig) -> None:
     write_config("[athc]\nleague =\n")
-    with pytest.raises(LeagueError, match="no league selected"):
+    with pytest.raises(LeagueError, match="No league selected"):
         load_league()
 
 
@@ -223,6 +225,18 @@ def test_load_config_wraps_configparser_errors(write_config: WriteConfig) -> Non
     with pytest.raises(ConfigFileError, match=re.escape(str(ini))) as exc:
         load_config()
     assert exc.value.path == ini
+
+
+def test_an_athc_ini_that_cannot_be_opened_fails_in_windows_words(
+    config_dir: Path,
+) -> None:
+    """Never read as an empty file: a folder in its place reads as `type`
+    says of one."""
+    ini = config_dir / "athc.ini"
+    ini.mkdir(parents=True)
+    with pytest.raises(ConfigFileError) as exc:
+        load_config()
+    assert str(exc.value) == f"{ini}: {ACCESS_DENIED}"
 
 
 def test_percent_in_league_toml_is_literal(make_league: MakeLeague) -> None:
@@ -300,14 +314,14 @@ def test_league_value_wrong_type_errors(make_league: MakeLeague, body: str) -> N
     folder = make_league(LEAGUE, body)
     with pytest.raises(ConfigFileError) as exc:
         load_league_config(LEAGUE)
-    assert "expected a string or an array of strings" in str(exc.value)
+    assert "Expected a string or an array of strings." in str(exc.value)
     assert str(folder / "league.toml") in str(exc.value)
 
 
 def test_path_rejects_an_array_value(make_league: MakeLeague) -> None:
     folder = make_league(LEAGUE, "[league]\nplay_path = ['D:/p']\n")
     cfg = load_league_config(LEAGUE)
-    with pytest.raises(ConfigFileError, match="play_path: expected a string") as exc:
+    with pytest.raises(ConfigFileError, match="play_path: Expected a string") as exc:
         cfg.path("play_path")
     assert str(folder / "league.toml") in str(exc.value)
     assert exc.value.path == folder / "league.toml"
@@ -317,7 +331,7 @@ def test_rule_files_rejects_a_string_value(make_league: MakeLeague) -> None:
     folder = make_league(LEAGUE, "[league]\ngameplan_rules = 'house.toml'\n")
     cfg = load_league_config(LEAGUE)
     with pytest.raises(
-        ConfigFileError, match="gameplan_rules: expected an array of strings"
+        ConfigFileError, match="gameplan_rules: Expected an array of strings"
     ) as exc:
         cfg.rule_files("gameplan_rules", "gameplan.toml")
     assert str(folder / "league.toml") in str(exc.value)
@@ -325,7 +339,7 @@ def test_rule_files_rejects_a_string_value(make_league: MakeLeague) -> None:
 
 def test_league_section_not_a_table_errors(make_league: MakeLeague) -> None:
     make_league(LEAGUE, "league = 1\n")
-    with pytest.raises(ConfigFileError, match=r"\[league\] must be a table"):
+    with pytest.raises(ConfigFileError, match=r"\[league\]: Must be a table\."):
         load_league_config(LEAGUE)
 
 
@@ -352,7 +366,7 @@ def test_one_side_only_loads(make_league: MakeLeague) -> None:
 @pytest.mark.parametrize(
     ("body", "message"),
     [
-        ('[categories.offense]\n"Run Rite" = "RR"\n', "not a game category name"),
+        ('[categories.offense]\n"Run Rite" = "RR"\n', "Not a game category name"),
         ('[categories.offense]\n"Run Right" = ""\n', "non-empty string"),
         ('[categories.offense]\n"Run Right" = 1\n', "non-empty string"),
         (
@@ -360,8 +374,8 @@ def test_one_side_only_loads(make_league: MakeLeague) -> None:
             "already used",
         ),
         ('[categories.defense]\n"Run Right" = "Run Left"\n', "is a game category name"),
-        ("[categories]\noffense = 1\n", r"\[categories.offense\] must be a table"),
-        ("categories = 1\n", r"\[categories\] must be a table"),
+        ("[categories]\noffense = 1\n", r"\[categories.offense\]: Must be a table\."),
+        ("categories = 1\n", r"\[categories\]: Must be a table\."),
     ],
 )
 def test_categories_errors_name_the_file(
@@ -571,3 +585,30 @@ def test_dev_mirrors_release_layout() -> None:
     dev = RELEASE.parent / "dev"
     assert shipped(RELEASE)
     assert shipped(dev) == shipped(RELEASE)
+
+
+# ── play_dir ──────────────────────────────────────────────────────────────────
+
+
+def test_play_dir_is_the_folder(tmp_path: Path) -> None:
+    assert play_dir(tmp_path, tmp_path / "league.toml") == tmp_path
+
+
+def test_play_dir_missing(tmp_path: Path) -> None:
+    league_file = tmp_path / "league.toml"
+    with pytest.raises(ConfigFileError) as exc:
+        play_dir(tmp_path / "gone", league_file)
+    assert str(exc.value) == (
+        f"{tmp_path / 'gone'}: {PATH_NOT_FOUND} Set play_path in {league_file}."
+    )
+
+
+def test_play_dir_is_a_file(tmp_path: Path) -> None:
+    a_file = tmp_path / "plays.txt"
+    a_file.write_text("x", encoding="utf-8")
+    league_file = tmp_path / "league.toml"
+    with pytest.raises(ConfigFileError) as exc:
+        play_dir(a_file, league_file)
+    assert str(exc.value) == (
+        f"{a_file}: {DIRECTORY_INVALID} Set play_path in {league_file}."
+    )

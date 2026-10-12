@@ -56,7 +56,7 @@ def test_invalid_data_type_raises(tmp_path: Path) -> None:
     path.write_bytes(bytes([9]) + b"\x00" * ctypes.sizeof(PLAY_DATA))
     with pytest.raises(InvalidPDBError) as exc:
         PDB(str(path))
-    assert str(exc.value) == f"{path}: invalid data type {bytes([9])!r} at 0x0"
+    assert str(exc.value) == f"{path}: Invalid data type 0x09 at 0x0."
     assert exc.value.path == path
 
 
@@ -131,7 +131,7 @@ def test_invalid_records_are_warnings_not_logs(
     assert caplog.records == []
     tendency_at = 1 + ctypes.sizeof(PLAY_DATA) + 1
     assert pdb.warnings == [
-        "Skipping invalid play data at 0x1",
-        f"Skipping invalid tendency data at {tendency_at:#x}",
+        f"{path}: Invalid play data at 0x1. Skipped.",
+        f"{path}: Invalid tendency data at {tendency_at:#x}. Skipped.",
     ]
     assert pdb.tendencies == [] and not any(pdb.plays.values())

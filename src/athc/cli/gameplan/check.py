@@ -15,7 +15,7 @@ from athc.cli.gameplan._common import (
     load_rules_or_raise,
 )
 from athc.console import console
-from athc.errors import AthcError
+from athc.errors import AthcError, error_line
 from athc.fbpro98_gameplan import read_gameplan
 from athc.gameplan import Rules, validate_gameplan
 from athc.gameplan.config import load_config
@@ -47,7 +47,9 @@ def check(
         paths = (".",)
     config = load_config(league)
     rules = load_rules_or_raise(config.rule_files, config.categories)
-    pool = build_pool(config.play_path, config.playpool_rules, config.categories)
+    pool = build_pool(
+        config.play_path, config.playpool_rules, config.categories, config.league_file
+    )
 
     collected = collect_files(paths, suffix=".pln", recursive=recursive)
     for line in collected.errors:
@@ -61,7 +63,7 @@ def check(
         try:
             count, line = check_file(path, rules, pool)
         except (AthcError, OSError) as error:
-            console.fail(str(error))
+            console.fail(error_line(error))
             failed += 1
             continue
         except Exception:

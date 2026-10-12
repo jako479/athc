@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from athc.config import LeagueError
-from athc.errors import ConfigFileError
+from athc.errors import ACCESS_DENIED, FILE_NOT_FOUND, ConfigFileError
 from athc.scheduler import config
 from athc.scheduler.config import (
     Phase2Config,
@@ -20,7 +20,7 @@ from athc.scheduler.config import (
     resolve_rivalries,
     scheduler_rules_path,
 )
-from athc.scheduler.domain.league import TOTAL_TEAMS, League
+from athc.scheduler.domain.league import TOTAL_TEAMS, League, lookup_team
 from tests.conftest import ROOT, shipped_files, shipped_id
 
 from .conftest import (
@@ -309,7 +309,7 @@ def test_scheduler_rules_path_is_named_by_league(config_dir: Path) -> None:
 
 
 def test_scheduler_rules_path_needs_the_league_folder() -> None:
-    with pytest.raises(LeagueError, match=f"league '{LEAGUE}' not found"):
+    with pytest.raises(LeagueError, match=f"League '{LEAGUE}' not found"):
         scheduler_rules_path(LEAGUE)
 
 
@@ -567,7 +567,7 @@ def test_load_scheduler_config_rejects_bad_weeks(config_dir: Path, weeks: str) -
 
 def test_load_scheduler_config_rejects_unknown_league_key(config_dir: Path) -> None:
     _write_scheduler_toml(config_dir, "[league]\nteams = 18\n")
-    with pytest.raises(ConfigFileError, match="unknown \\[league\\] key"):
+    with pytest.raises(ConfigFileError, match="\\[league\\]: Unknown key"):
         _load()
 
 
@@ -580,22 +580,124 @@ def test_load_scheduler_config_explicit_path_must_exist(tmp_path: Path) -> None:
     missing = tmp_path / "missing.toml"
     with pytest.raises(ConfigFileError) as exc:
         load_scheduler_config(missing)
-    assert str(exc.value) == f"{missing}: not found"
+    assert str(exc.value) == f"{missing}: {FILE_NOT_FOUND}"
     assert exc.value.path == missing
+
+
+def test_unknown_key_names_the_table_and_the_keys(tmp_path: Path) -> None:
+    path = _write(tmp_path / "s.toml", "[league]\nweeks = 12\nbogus = 1\nzap = 2\n")
+    with pytest.raises(ConfigFileError) as exc:
+        load_scheduler_config(path)
+    assert str(exc.value) == (
+        f"{path}: [league]: Unknown key(s): bogus, zap. Valid: weeks."
+    )
+
+
+def test_a_bad_rivalry_pair_shows_plain_names(tmp_path: Path) -> None:
+    path = _write(tmp_path / "s.toml", '[rivalries]\npairs = [["A", "B", "C"]]\n')
+    with pytest.raises(ConfigFileError) as exc:
+        load_scheduler_config(path)
+    assert str(exc.value) == (
+        f"{path}: [rivalries] pairs: Each pair must be two team names, got A, B, C."
+    )
+
+
+def test_missing_standings_file_is_one_line(config_dir: Path) -> None:
+    folder = config_dir / "leagues" / LEAGUE
+    (folder / "standings").mkdir(parents=True)
+    path = folder / "standings" / "2049.league.ini"
+    with pytest.raises(ConfigFileError) as exc:
+        find_league_path(LEAGUE, 2049)
+    assert str(exc.value) == (
+        f"{path}: {FILE_NOT_FOUND} Add the {LEAGUE} season 2049 standings file."
+    )
+
+
+def test_cross_checks_name_the_rules_file() -> None:
+    rules = Path("scheduler.toml")
+    with pytest.raises(ConfigFileError) as exc:
+        check_weeks(CONFERENCES_LEAGUE, 8, path=rules)
+    team = CONFERENCES_LEAGUE.teams[0]
+    assert str(exc.value) == (
+        "scheduler.toml: [league] weeks: Must be 9..17, got 8. "
+        f"{team.metro} plays 8 structural games."
+    )
+    with pytest.raises(ConfigFileError) as exc:
+        check_weeks(CONFERENCES_LEAGUE, 11, path=rules)
+    assert str(exc.value) == (
+        "scheduler.toml: [league] weeks: Must be a positive even integer, got 11."
+    )
+    with pytest.raises(ConfigFileError) as exc:
+        check_opening_weeks(CONFERENCES_LEAGUE, 12, 4, path=rules)
+    assert str(exc.value) == (
+        "scheduler.toml: [phase2] opening_nonconference_weeks: Too many, got 4. "
+        "The other 8 weeks hold at most 8 same-conference games each, and the "
+        "league plays 72."
+    )
+    with pytest.raises(ConfigFileError) as exc:
+        resolve_rivalries(
+            CONFERENCES_LEAGUE,
+            RivalriesConfig(pairs=CONFERENCES_RIVALRIES[:8]),
+            path=rules,
+        )
+    assert (
+        str(exc.value) == "scheduler.toml: [rivalries] pairs: Must list 9 pairs, got 8."
+    )
+
+
+def test_unknown_team_lists_plain_names() -> None:
+    with pytest.raises(ValueError) as exc:
+        lookup_team(CONFERENCES_LEAGUE.teams, "Nowhere")
+    message = str(exc.value)
+    assert message.startswith("Unknown team: 'Nowhere'. Valid: ")
+    assert "[" not in message and "'Michigan'" not in message
 
 
 def test_load_scheduler_config_bad_toml_names_the_file(tmp_path: Path) -> None:
     path = _write(tmp_path / "bad.toml", "[league\n")
     with pytest.raises(ConfigFileError) as exc:
         load_scheduler_config(path)
-    assert str(exc.value).startswith(f"{path}: not valid TOML: ")
+    assert str(exc.value).startswith(f"{path}: Not valid TOML: ")
 
 
 def test_load_scheduler_config_bad_value_names_the_file(tmp_path: Path) -> None:
     path = _write(tmp_path / "bad.toml", "[difficulty]\nspread = 'x'\n")
     with pytest.raises(ConfigFileError) as exc:
         load_scheduler_config(path)
-    assert str(exc.value) == f"{path}: 'spread' must be a number."
+    assert str(exc.value) == f"{path}: [difficulty] spread: Must be a number."
+
+
+@pytest.mark.parametrize(
+    ("body", "reason"),
+    [
+        ("[league]\nweeks = '12'\n", "[league] weeks: Must be an integer."),
+        ("[league]\nweeks = 11\n", "[league] weeks: Must be a positive even integer."),
+        (
+            "[solver]\nsolver_workers = 0\n",
+            '[solver] solver_workers: Must be a positive integer or "auto".',
+        ),
+        (
+            "[phase2]\nrequire_home_away_streak_caps = 1\n",
+            "[phase2] require_home_away_streak_caps: Must be true or false.",
+        ),
+        (
+            "[phase2]\nopening_nonconference_weeks = -1\n",
+            "[phase2] opening_nonconference_weeks: Must be 0 (off) or positive.",
+        ),
+        ("[rivalries]\npairs = []\n", "[rivalries] pairs: Must be a non-empty list."),
+        (
+            '[rivalries]\npairs = [["A", "A"]]\n',
+            "[rivalries] pairs: A pair names the same team twice: 'A'.",
+        ),
+    ],
+)
+def test_a_bad_value_names_its_table_and_key_first(
+    tmp_path: Path, body: str, reason: str
+) -> None:
+    path = _write(tmp_path / "s.toml", body)
+    with pytest.raises(ConfigFileError) as exc:
+        load_scheduler_config(path)
+    assert str(exc.value) == f"{path}: {reason}"
 
 
 def test_load_league_malformed_ini_names_the_file_once(tmp_path: Path) -> None:
@@ -603,15 +705,30 @@ def test_load_league_malformed_ini_names_the_file_once(tmp_path: Path) -> None:
     with pytest.raises(ConfigFileError) as exc:
         load_league(path)
     assert str(exc.value) == (
-        f"{path}: not valid INI: line 1: no [section] header above it"
+        f"{path}: Not valid INI: No [section] header above it (at line 1)."
     )
+
+
+def test_load_league_that_cannot_be_opened_fails_in_windows_words(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Never read as an empty file: a standings file Windows will not open."""
+    path = _valid_league(tmp_path)
+
+    def denied(self: Path, *args: object, **kwargs: object) -> None:
+        raise PermissionError(13, "Permission denied", str(self))
+
+    monkeypatch.setattr(Path, "open", denied)
+    with pytest.raises(ConfigFileError) as exc:
+        load_league(path)
+    assert str(exc.value) == f"{path}: {ACCESS_DENIED}"
 
 
 def test_load_league_missing_file_names_it(tmp_path: Path) -> None:
     missing = tmp_path / "2049.league.ini"
     with pytest.raises(ConfigFileError) as exc:
         load_league(missing)
-    assert str(exc.value) == f"{missing}: not found"
+    assert str(exc.value) == f"{missing}: {FILE_NOT_FOUND}"
 
 
 def test_load_scheduler_config_optional_path_defaults_when_missing(
@@ -775,18 +892,24 @@ def test_resolve_rivalries_with_no_pairs_is_empty() -> None:
 @pytest.mark.parametrize(
     ("pairs", "message"),
     [
-        pytest.param(CONFERENCES_RIVALRIES[:8], "9 pairs", id="eight-pairs"),
         pytest.param(
-            (*CONFERENCES_RIVALRIES, ("Michigan", "USC")), "9 pairs", id="ten-pairs"
+            CONFERENCES_RIVALRIES[:8],
+            r"^\[rivalries\] pairs: Must list 9 pairs, got 8\.$",
+            id="eight-pairs",
+        ),
+        pytest.param(
+            (*CONFERENCES_RIVALRIES, ("Michigan", "USC")),
+            r"^\[rivalries\] pairs: Must list 9 pairs, got 10\.$",
+            id="ten-pairs",
         ),
         pytest.param(
             (*CONFERENCES_RIVALRIES[:8], ("Penn State", "Michigan")),
-            "once",
+            r"^\[rivalries\] pairs: Must name every team once; \w[\w ]* repeats\.$",
             id="team-twice",
         ),
         pytest.param(
             (*CONFERENCES_RIVALRIES[:8], ("Penn State", "Nowhere")),
-            "Unknown team",
+            r"^\[rivalries\] pairs: Unknown team: 'Nowhere'\. Valid: .+\.$",
             id="unknown",
         ),
         pytest.param(
@@ -801,7 +924,8 @@ def test_resolve_rivalries_with_no_pairs_is_empty() -> None:
                 ("Georgia", "Clemson"),
                 ("Miami", "Penn State"),
             ),
-            "cross-conference",
+            r"^\[rivalries\] pairs: Must have exactly one cross-conference pair, "
+            r"got 3\.$",
             id="three-cross",
         ),
     ],

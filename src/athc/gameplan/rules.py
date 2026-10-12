@@ -18,7 +18,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any, Final
 
-from athc.errors import RulesFileError, reason_of
+from athc.errors import RulesFileError, reason_of, toml_reason
 from athc.fbpro98_play import (
     CategoryLabels,
     DefensiveCategory,
@@ -168,7 +168,7 @@ def load_rules(paths: Iterable[Path | str], *, labels: CategoryLabels) -> Rules:
     """
     path_list = [Path(p) for p in paths]
     if not path_list:
-        raise RulesFileError("at least one rules file is required")
+        raise RulesFileError("At least one rules file is required.")
 
     merged = _MergedData()
     errors: list[str] = []
@@ -193,7 +193,7 @@ def _read_toml(path: Path) -> Mapping[str, Any]:
     try:
         return tomllib.loads(text)
     except tomllib.TOMLDecodeError as e:
-        raise RulesFileError(f"TOML parse error: {e}", path) from e
+        raise RulesFileError(toml_reason(e), path) from e
 
 
 def _attempt(errors: list[str], fn: Callable[[], Any]) -> tuple[Any, bool]:
@@ -325,7 +325,7 @@ def _side_sections(
 
 def _require_table(value: object, source: Path, where: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
-        raise RulesFileError(f"{where} must be a table", source)
+        raise RulesFileError(f"{where}: Must be a table.", source)
     return value
 
 
@@ -335,7 +335,7 @@ def _merge_profile_compatibility(
     """Parse `[profile_compatibility]`: one boolean per compatibility check."""
     where = "[profile_compatibility]"
     if not isinstance(value, Mapping):
-        errors.extend(RulesFileError(f"{where}: must be a table", source).errors)
+        errors.extend(RulesFileError(f"{where}: Must be a table.", source).errors)
         return
     _attempt(
         errors, lambda: _reject_unknown_keys(value, _ALLOWED_COMPAT_KEYS, source, where)
@@ -359,8 +359,8 @@ def _build_offense_section(
     member = by_label.get(label)
     if member is None:
         raise RulesFileError(
-            f"[offense.{label}]: not an offense category label. "
-            f"Valid: {sorted(by_label)}",
+            f"[offense.{label}]: Not an offense category label. "
+            f"Valid: {', '.join(sorted(by_label))}.",
             source,
         )
     return member.long, _build_offense_rule(label, member, section, source)
@@ -375,8 +375,8 @@ def _build_defense_section(
     member = by_label.get(label)
     if member is None:
         raise RulesFileError(
-            f"[defense.{label}]: not a defense category label. "
-            f"Valid: {sorted(by_label)}",
+            f"[defense.{label}]: Not a defense category label. "
+            f"Valid: {', '.join(sorted(by_label))}.",
             source,
         )
     return member.long, _build_defense_rule(label, section, source)
@@ -423,8 +423,8 @@ def _reject_multiple_forms(
     for attr in attrs:
         given = [f"max_{attr}_{f}" for f in _CAP_FORMS if f"max_{attr}_{f}" in section]
         if len(given) > 1:
-            names = ", ".join(repr(k) for k in given)
-            raise RulesFileError(f"{where}: at most one of {names}", source)
+            names = ", ".join(given)
+            raise RulesFileError(f"{where}: Set at most one of {names}.", source)
 
 
 def _cap_fields(
@@ -463,24 +463,26 @@ def _reject_unknown_keys(
 ) -> None:
     unknown = sorted(set(section) - allowed)
     if unknown:
-        names = ", ".join(repr(k) for k in unknown)
-        raise RulesFileError(f"{where}: unknown key(s): {names}", source)
+        names, valid = ", ".join(unknown), ", ".join(sorted(allowed))
+        raise RulesFileError(
+            f"{where}: Unknown key(s): {names}. Valid: {valid}.", source
+        )
 
 
 def _require_nonempty(section: Mapping[str, Any], source: Path, where: str) -> None:
     if not section:
-        raise RulesFileError(f"{where}: empty rule; set at least one key", source)
+        raise RulesFileError(f"{where}: Empty rule. Set at least one key.", source)
 
 
 def _require_bool(value: object, source: Path, where: str) -> bool:
     if not isinstance(value, bool):
-        raise RulesFileError(f"{where}: must be a boolean", source)
+        raise RulesFileError(f"{where}: Must be a boolean.", source)
     return value
 
 
 def _require_int(value: object, source: Path, where: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
-        raise RulesFileError(f"{where}: must be an integer", source)
+        raise RulesFileError(f"{where}: Must be an integer.", source)
     return value
 
 
@@ -493,7 +495,7 @@ def _int_or_zero(value: object | None, source: Path, where: str) -> int:
         return 0
     n = _require_int(value, source, where)
     if n < 0:
-        raise RulesFileError(f"{where}: must be >= 0", source)
+        raise RulesFileError(f"{where}: Must be >= 0.", source)
     return n
 
 
@@ -503,7 +505,7 @@ def _optional_int(value: object | None, source: Path, where: str) -> int | None:
         return None
     n = _require_int(value, source, where)
     if n < 0:
-        raise RulesFileError(f"{where}: must be >= 0", source)
+        raise RulesFileError(f"{where}: Must be >= 0.", source)
     return n
 
 
@@ -513,7 +515,7 @@ def _optional_percent(value: object | None, source: Path, where: str) -> int | N
         return None
     n = _require_int(value, source, where)
     if not 0 <= n <= 100:
-        raise RulesFileError(f"{where}: must be in [0, 100]", source)
+        raise RulesFileError(f"{where}: Must be in [0, 100].", source)
     return n
 
 
@@ -524,13 +526,15 @@ def _optional_fraction(
     if value is None:
         return None
     if not isinstance(value, str):
-        raise RulesFileError(f'{where}: must be a string like "1/2"', source)
+        raise RulesFileError(f'{where}: Must be a string like "1/2".', source)
     try:
         fraction = Fraction(value)
     except (ValueError, ZeroDivisionError) as e:
-        raise RulesFileError(f"{where}: invalid fraction {value!r}: {e}", source) from e
+        raise RulesFileError(
+            f"{where}: Invalid fraction {value!r}: {e}.", source
+        ) from e
     if not 0 <= fraction <= 1:
-        raise RulesFileError(f"{where}: must be in [0, 1]", source)
+        raise RulesFileError(f"{where}: Must be in [0, 1].", source)
     return fraction
 
 
@@ -545,17 +549,17 @@ def _category_label_set(
     Only league labels count — the list never needs a category the league has
     no label for."""
     if not isinstance(value, list):
-        raise RulesFileError(f"{where}: must be a list", source)
+        raise RulesFileError(f"{where}: Must be a list.", source)
     by_label = {label: category.long for category, label in table.items()}
     out: set[str] = set()
     for label in value:
         if not isinstance(label, str):
-            raise RulesFileError(f"{where}: entries must be strings", source)
+            raise RulesFileError(f"{where}: Entries must be strings.", source)
         if label not in by_label:
             article = "an" if side == "offense" else "a"
             raise RulesFileError(
                 f"{where}: {label!r} is not {article} {side} category "
-                f"label. Valid: {sorted(by_label)}",
+                f"label. Valid: {', '.join(sorted(by_label))}.",
                 source,
             )
         out.add(by_label[label])
@@ -566,13 +570,13 @@ def _map_each(
     names: object, name_map: Mapping[str, Any], source: Path, where: str
 ) -> list[Any]:
     if not isinstance(names, list):
-        raise RulesFileError(f"{where}: must be a list", source)
+        raise RulesFileError(f"{where}: Must be a list.", source)
     out: list[Any] = []
     for name in names:
         if not isinstance(name, str):
-            raise RulesFileError(f"{where}: entries must be strings", source)
+            raise RulesFileError(f"{where}: Entries must be strings.", source)
         if name not in name_map:
-            raise RulesFileError(f"{where}: unknown name {name!r}", source)
+            raise RulesFileError(f"{where}: Unknown name {name!r}.", source)
         out.append(name_map[name])
     return out
 

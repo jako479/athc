@@ -13,8 +13,8 @@ One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `league
 | Defense label → full name | tmp | `[defense.RunDazzle]` → "Run Dazzle" | `test_defense_short_label_maps_to_full_name` | ☑ |
 | Unknown offense label | tmp | "not an offense category label" | `test_unknown_offense_label` | ☑ |
 | Unknown defense label | tmp | "not a defense category label" | `test_unknown_defense_label` | ☑ |
-| `offense` not a table | tmp | "[offense] must be a table" | `test_side_not_a_table_rejected` | ☑ |
-| Section not a table | tmp | "[offense.RM] must be a table" | `test_section_not_a_table_rejected` | ☑ |
+| `offense` not a table | tmp | "[offense]: Must be a table." | `test_side_not_a_table_rejected` | ☑ |
+| Section not a table | tmp | "[offense.RM]: Must be a table." | `test_section_not_a_table_rejected` | ☑ |
 | League label without league labels | `CategoryLabels()` + `[offense.RM]` | "not an offense category label" | `test_league_label_section_needs_the_league_labels` | ☑ |
 | Game name without league labels | `CategoryLabels()` + `[offense."Run Middle"]` | loads | `test_game_name_section_loads_without_league_labels` | ☑ |
 | Game name of a labeled category | PNFL + `[offense."Run Middle"]` | "not an offense category label" | `test_game_name_section_rejected_when_league_labels_it` | ☑ |
@@ -86,7 +86,7 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 | Parses | tmp | flag as written | `test_profile_compatibility_parses` | ☑ |
 | Unknown key | tmp | "unknown key" | `test_profile_compatibility_unknown_key` | ☑ |
 | Non-bool | tmp | "must be a boolean" | `test_profile_compatibility_must_be_bool` | ☑ |
-| Not a table | tmp | "must be a table" | `test_profile_compatibility_must_be_table` | ☑ |
+| Not a table | tmp | "Must be a table." | `test_profile_compatibility_must_be_table` | ☑ |
 | Layering overrides the flag | tmp ×2 | later value wins | `test_layering_overrides_profile_compatibility` | ☑ |
 
 ### top-level keys
@@ -111,7 +111,7 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Special category 11 play (no custom slot) | make | `InvalidPlayInputError` "which has no custom slot" | `test_special_play_without_custom_slot_is_rejected` | ☑ |
+| Special category 11 play (no custom slot) | make | `InvalidPlayListError` "which has no custom slot" | `test_special_play_without_custom_slot_is_rejected` | ☑ |
 | Special category 10 play (last custom slot) | make | placed in slot 10 | `test_special_play_in_last_custom_category_is_accepted` | ☑ |
 
 ## validators.py — `validate_gameplan`

@@ -1,6 +1,6 @@
 """Validators that surface rule violations in a `Profile`.
 
-Each validator returns a list of `Violation`; `validate_profile` is the public
+Each validator returns a list of `RuleViolation`; `validate_profile` is the public
 entry point. Thresholds come from the supplied `ProfileRules`; the only built-in
 policy is the min-categories exemption (below). A situation is checked against
 every rule it matches: `allowed` sets intersect, `mandatory` requirements
@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from athc.fbpro98_profile import CategoryWeights, Profile, Situation
-from athc.profile.model import RuleName, Violation
+from athc.profile.model import RuleName, RuleViolation
 from athc.profile.rules import (
     FIELD_GOAL_PAT,
     PUNT,
@@ -32,9 +32,11 @@ OFFENSE_EXEMPT_CATEGORIES: Final = frozenset({FIELD_GOAL_PAT, PUNT, RUN_CLOCK})
 DEFENSE_EXEMPT_CATEGORIES: Final = frozenset({FIELD_GOAL_PAT, PUNT})
 
 
-def validate_profile(profile: Profile, rules: ProfileRules) -> tuple[Violation, ...]:
+def validate_profile(
+    profile: Profile, rules: ProfileRules
+) -> tuple[RuleViolation, ...]:
     """Run every validator against `profile` and return the combined report."""
-    violations: list[Violation] = []
+    violations: list[RuleViolation] = []
     violations.extend(_validate_audibles(profile, rules))
     violations.extend(_validate_substitutions(profile, rules))
     violations.extend(_validate_situations(profile, rules))
@@ -46,10 +48,10 @@ def validate_profile(profile: Profile, rules: ProfileRules) -> tuple[Violation, 
 # ---------------------------------------------------------------------------
 
 
-def _validate_audibles(profile: Profile, rules: ProfileRules) -> list[Violation]:
+def _validate_audibles(profile: Profile, rules: ProfileRules) -> list[RuleViolation]:
     if rules.audibles_allowed or not profile.use_audibles:
         return []
-    return [Violation(RuleName.AUDIBLES_UNCHECKED, "Audibles must be unchecked.")]
+    return [RuleViolation(RuleName.AUDIBLES_UNCHECKED, "Audibles must be unchecked.")]
 
 
 # Substitution position label -> the SubstitutionSettings attribute it checks.
@@ -65,12 +67,14 @@ _SUBSTITUTION_ATTR = {
 }
 
 
-def _validate_substitutions(profile: Profile, rules: ProfileRules) -> list[Violation]:
+def _validate_substitutions(
+    profile: Profile, rules: ProfileRules
+) -> list[RuleViolation]:
     """Check each configured position group against the profile, for the profile's
     side only (the other side's groups aren't user-editable). Each side (out/in)
     that breaks its bound is its own violation."""
     side = "offense" if profile.is_offense else "defense"
-    violations: list[Violation] = []
+    violations: list[RuleViolation] = []
     for position, required in rules.substitutions.items():
         display, pos_side = SUBSTITUTION_POSITIONS[position]
         if pos_side != side:
@@ -83,7 +87,7 @@ def _validate_substitutions(profile: Profile, rules: ProfileRules) -> list[Viola
             unmet = _unmet_bound(bound, value)
             if unmet is not None:
                 violations.append(
-                    Violation(
+                    RuleViolation(
                         RuleName.SUBSTITUTION,
                         f"{display} {key} must be {unmet}, got {value}.",
                     )
@@ -129,7 +133,7 @@ _DEFENSE_NAMES = _SideRuleNames(
 )
 
 
-def _validate_situations(profile: Profile, rules: ProfileRules) -> list[Violation]:
+def _validate_situations(profile: Profile, rules: ProfileRules) -> list[RuleViolation]:
     if profile.is_offense:
         side_rules = rules.offense_situations
         exempt = OFFENSE_EXEMPT_CATEGORIES
@@ -141,7 +145,7 @@ def _validate_situations(profile: Profile, rules: ProfileRules) -> list[Violatio
         disallowed = rules.defense_disallowed_categories
         names = _DEFENSE_NAMES
 
-    violations: list[Violation] = []
+    violations: list[RuleViolation] = []
     for situation in profile.situations:
         cats = _categories_with_weight(situation.category_weights)
         matching = [
@@ -170,15 +174,15 @@ def _check_situation(
     exempt: frozenset[int],
     names: _SideRuleNames,
     rules: ProfileRules,
-) -> list[Violation]:
-    violations: list[Violation] = []
+) -> list[RuleViolation]:
+    violations: list[RuleViolation] = []
     n = situation.situation_number
 
     used_disallowed = sorted(cats & disallowed)
     if used_disallowed:
         codes = ", ".join(f"0x{c:02X}" for c in used_disallowed)
         violations.append(
-            Violation(
+            RuleViolation(
                 names.disallowed,
                 f"Situation {n} uses banned categories: {codes}",
                 situation_number=n,
@@ -196,7 +200,7 @@ def _check_situation(
         if bad:
             codes = ", ".join(f"0x{c:02X}" for c in bad)
             violations.append(
-                Violation(
+                RuleViolation(
                     names.allowed,
                     f"Situation {n} uses disallowed categories: {codes}",
                     situation_number=n,
@@ -212,7 +216,7 @@ def _check_situation(
             if not (cats & alternative):
                 choices = ", ".join(f"0x{c:02X}" for c in sorted(alternative))
                 violations.append(
-                    Violation(
+                    RuleViolation(
                         names.mandatory,
                         f"Situation {n} is missing a mandatory category "
                         f"(one of: {choices})",
@@ -227,7 +231,7 @@ def _check_situation(
     waive = bool(cats) and cats.issubset(exempt)
     if not waive and len(cats) < side_min:
         violations.append(
-            Violation(
+            RuleViolation(
                 names.min_categories,
                 f"Situation {n} has {len(cats)} category(ies) with non-zero "
                 f"weight; requires {side_min}.",

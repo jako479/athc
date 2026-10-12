@@ -18,7 +18,6 @@ def load_rules_or_raise(rule_files: Iterable[Path]) -> ProfileRules:
     files = list(rule_files)
     if not files:
         raise ConfigFileError(
-            "no rules configured - nothing to check. "
-            "Add profile.toml to the league folder."
+            "No rules configured. Add profile.toml to the league folder."
         )
     return load_rules(files)

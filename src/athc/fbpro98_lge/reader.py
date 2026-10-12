@@ -6,7 +6,7 @@ from itertools import islice
 from os import PathLike
 from pathlib import Path
 
-from athc.errors import AthcError
+from athc.errors import FileFormatError
 from athc.fbpro98_lge.model import Conference, Division, LgeFile, Record, Team
 from athc.fbpro98_lge.schema import (
     CHUNK_HEADER,
@@ -44,7 +44,7 @@ StrPath = str | PathLike[str]
 _Heads = list[tuple[str, list[tuple[str, int]]]]
 
 
-class InvalidLgeError(AthcError):
+class InvalidLgeError(FileFormatError):
     """Raised when a `.lge` file is structurally invalid."""
 
 
@@ -86,7 +86,7 @@ def parse_lge(buffer: bytes, path: StrPath = "<buffer>") -> LgeFile:
     """
     file_path = Path(path)
     if not buffer:
-        raise InvalidLgeError("Empty file", file_path)
+        raise InvalidLgeError("Empty file.", file_path)
     chunks = _Chunks(buffer, file_path)
     _, conference_count = chunks.take_counted(
         ID_L03, LEAGUE_BASE_SIZE, LEAGUE_CONFERENCES_OFFSET
@@ -142,7 +142,7 @@ def _read_schedule(chunks: _Chunks, team_count: int) -> list[Record]:
     label = f"S03 chunk at {offset:#x}"
     if len(data) < SCHEDULE_HEADER_SIZE:
         raise chunks.error(
-            f"{label} is {len(data)} bytes, expected at least {SCHEDULE_HEADER_SIZE}"
+            f"{label} is {len(data)} bytes, expected at least {SCHEDULE_HEADER_SIZE}."
         )
     regular_weeks = data[SCHEDULE_REGULAR_WEEKS_OFFSET]
     weeks = regular_weeks + data[SCHEDULE_PLAYOFF_ROUNDS_OFFSET]
@@ -151,10 +151,10 @@ def _read_schedule(chunks: _Chunks, team_count: int) -> list[Record]:
     position = SCHEDULE_HEADER_SIZE
     for week in range(1, weeks + 1):
         if position == len(data):
-            raise chunks.error(f"{label} is cut short in week {week}")
+            raise chunks.error(f"{label} is cut short in week {week}.")
         end = position + 1 + data[position] * GAME.size
         if end > len(data):
-            raise chunks.error(f"{label} is cut short in week {week}")
+            raise chunks.error(f"{label} is cut short in week {week}.")
         # Playoff games never count; unplayed ones may not name their teams yet.
         if week <= regular_weeks:
             games = GAME.iter_unpack(data[position + 1 : end])
@@ -164,14 +164,14 @@ def _read_schedule(chunks: _Chunks, team_count: int) -> list[Record]:
                 for number in (home, away):
                     if not 1 <= number <= team_count:
                         raise chunks.error(
-                            f"{label}, week {week}: no team {number} "
-                            f"(teams are 1-{team_count})"
+                            f"{label}, week {week}: No team {number} "
+                            f"(teams are 1-{team_count})."
                         )
                 scores[home - 1].append((home_score, away_score))
                 scores[away - 1].append((away_score, home_score))
         position = end
     if position != len(data):
-        raise chunks.error(f"{label} has data after the last week")
+        raise chunks.error(f"{label} has data after the last week.")
     return [_record(team_scores) for team_scores in scores]
 
 
@@ -291,7 +291,7 @@ class _Chunks:
         if len(data) < base_size:
             raise self.error(
                 f"{_tag_name(tag)} chunk at {offset:#x} is {len(data)} bytes, "
-                f"expected at least {base_size}"
+                f"expected at least {base_size}."
             )
         count = data[count_offset]
         self._check_size(tag, offset, data, base_size + count)
@@ -316,7 +316,7 @@ class _Chunks:
         """Fail if anything follows the last chunk taken."""
         if self._offset != len(self._buffer):
             raise self.error(
-                f"Unexpected data at {self._offset:#x} after the S03 chunk"
+                f"Unexpected data at {self._offset:#x} after the S03 chunk."
             )
 
     def _next(self, tag: bytes) -> bytes:
@@ -325,21 +325,21 @@ class _Chunks:
         if offset == len(buffer):
             raise self.error(
                 f"Expected {_tag_name(tag)} chunk at {offset:#x}, "
-                "found the end of the file"
+                "found the end of the file."
             )
         if offset + CHUNK_HEADER.size > len(buffer):
-            raise self.error(f"Chunk header at {offset:#x} is cut short")
+            raise self.error(f"Chunk header at {offset:#x} is cut short.")
         found, size = CHUNK_HEADER.unpack_from(buffer, offset)
         if found != tag:
             raise self.error(
                 f"Expected {_tag_name(tag)} chunk at {offset:#x}, "
-                f"found {_tag_name(found)}"
+                f"found {_tag_name(found)}."
             )
         start = offset + CHUNK_HEADER.size
         end = start + size
         if end > len(buffer):
             raise self.error(
-                f"{_tag_name(tag)} chunk at {offset:#x} runs past the end of the file"
+                f"{_tag_name(tag)} chunk at {offset:#x} runs past the end of the file."
             )
         self._offset = end
         return buffer[start:end]
@@ -348,7 +348,7 @@ class _Chunks:
         if len(data) != size:
             raise self.error(
                 f"{_tag_name(tag)} chunk at {offset:#x} is {len(data)} bytes, "
-                f"expected {size}"
+                f"expected {size}."
             )
 
     def error(self, reason: str) -> InvalidLgeError:

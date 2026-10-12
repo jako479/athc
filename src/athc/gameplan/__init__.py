@@ -1,7 +1,7 @@
 """Library for validating Front Page Sports Football Pro '98 gameplans (.pln)
 against league rules."""
 
-from athc.gameplan.model import RuleName, Violation
+from athc.gameplan.model import RuleName, RuleViolation
 from athc.gameplan.rules import (
     DefenseCategoryRule,
     OffenseCategoryRule,
@@ -15,9 +15,9 @@ __all__ = [
     "DefenseCategoryRule",
     "OffenseCategoryRule",
     "RuleName",
+    "RuleViolation",
     "Rules",
     "RulesFileError",
-    "Violation",
     "load_rules",
     "validate_gameplan",
 ]

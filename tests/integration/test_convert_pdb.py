@@ -20,7 +20,14 @@ import pytest
 from click.testing import CliRunner
 
 from athc.cli.convert_pdb import convert_pdb
-from athc.errors import ConfigFileError
+from athc.errors import (
+    ACCESS_DENIED,
+    ALREADY_EXISTS,
+    DIRECTORY_INVALID,
+    FILE_NOT_FOUND,
+    PATH_NOT_FOUND,
+    ConfigFileError,
+)
 from athc.pdbtoexcel import config as pdbtoexcel_config
 from athc.pdbtoexcel.main import convert_pdb as run_conversion
 from athc.pdbtoexcel.pdb import PLAY_DATA
@@ -29,7 +36,6 @@ from tests.conftest import (
     league_toml,
     make_league_dir,
     no_league_selected,
-    os_error,
     write_config_file,
     write_pdbtoexcel_toml,
 )
@@ -80,6 +86,13 @@ def test_bad_extension_exit_2(runner, args: list[str]) -> None:
     assert result.exit_code == 2
 
 
+def test_bad_extension_is_a_sentence(runner) -> None:
+    result = runner.invoke(convert_pdb, ["in.txt", "out.xlsx"])
+    assert result.stderr.endswith(
+        "Error: Invalid value for 'pdb_file': must have a .pdb extension.\n"
+    )
+
+
 def test_bad_pln_extension_exit_2(runner, tmp_path: Path) -> None:
     result = runner.invoke(
         convert_pdb, [str(PDB), str(tmp_path / "o.xlsx"), "-o", "plan.txt"]
@@ -107,7 +120,7 @@ def test_missing_pdb_exit_2(runner, tmp_path: Path) -> None:
         convert_pdb, [str(tmp_path / "nope.pdb"), str(tmp_path / "o.xlsx")]
     )
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {tmp_path / 'nope.pdb'}: not found\n"
+    assert result.stderr == f"FAIL {tmp_path / 'nope.pdb'}: {FILE_NOT_FOUND}\n"
 
 
 def test_play_path_not_a_directory_exit_2(
@@ -119,13 +132,39 @@ def test_play_path_not_a_directory_exit_2(
     not_a_dir = tmp_path / "notdir.txt"
     not_a_dir.write_text("x", encoding="utf-8")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
-    write_pdbtoexcel_toml(make_league(LEAGUE, league_toml(not_a_dir)))
+    folder = make_league(LEAGUE, league_toml(not_a_dir))
+    write_pdbtoexcel_toml(folder)
     result = runner.invoke(convert_pdb, [str(PDB), str(tmp_path / "o.xlsx")])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {not_a_dir}: play path is not a directory "
-        "(set play_path in the league's league.toml)\n"
+        f"FAIL {not_a_dir}: {DIRECTORY_INVALID} "
+        f"Set play_path in {folder / 'league.toml'}.\n"
     )
+
+
+def test_play_path_missing_exit_2(
+    runner,
+    make_league: MakeLeague,
+    write_config: Callable[..., Path],
+    tmp_path: Path,
+) -> None:
+    missing = tmp_path / "gone"
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    folder = make_league(LEAGUE, league_toml(missing))
+    write_pdbtoexcel_toml(folder)
+    result = runner.invoke(convert_pdb, [str(PDB), str(tmp_path / "o.xlsx")])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {missing}: {PATH_NOT_FOUND} Set play_path in {folder / 'league.toml'}.\n"
+    )
+
+
+def test_folder_given_for_the_pdb_exit_2(runner, tmp_path: Path) -> None:
+    folder = tmp_path / "x.pdb"
+    folder.mkdir()
+    result = runner.invoke(convert_pdb, [str(folder), str(tmp_path / "o.xlsx")])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {folder}: {ACCESS_DENIED}\n"
 
 
 @pytest.mark.usefixtures("league")
@@ -150,8 +189,7 @@ def test_output_folder_is_a_file_exit_2(runner, tmp_path: Path) -> None:
     out = tmp_path / "reports" / "w1.xlsx"
     result = runner.invoke(convert_pdb, [str(PDB), str(out)])
     assert result.exit_code == 2
-    blocked = os_error(lambda: out.parent.mkdir(parents=True, exist_ok=True))
-    assert result.stderr == f"FAIL {blocked}\n"
+    assert result.stderr == f"FAIL {out.parent}: {ALREADY_EXISTS}\n"
     assert not out.exists()
 
 
@@ -166,8 +204,8 @@ def test_missing_pdbtoexcel_toml_exit_2(
     result = runner.invoke(convert_pdb, [str(PDB), str(tmp_path / "o.xlsx")])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {folder / 'pdbtoexcel.toml'}: not found "
-        "(convert-pdb needs the league's pdbtoexcel.toml)\n"
+        f"FAIL {folder / 'pdbtoexcel.toml'}: {FILE_NOT_FOUND} "
+        "convert-pdb needs this file in the league folder.\n"
     )
 
 
@@ -178,7 +216,7 @@ def test_invalid_pdb_content_exit_2(runner, tmp_path: Path) -> None:
     result = runner.invoke(convert_pdb, [str(bad), str(tmp_path / "o.xlsx")])
     assert result.exit_code == 2
     assert result.stderr.splitlines()[-1] == (
-        f"FAIL {bad}: invalid data type {bytes([9])!r} at 0x0"
+        f"FAIL {bad}: Invalid data type 0x09 at 0x0."
     )
 
 
@@ -266,7 +304,8 @@ def test_config_missing_play_path_is_an_error(make_league: MakeLeague) -> None:
     with pytest.raises(ConfigFileError) as exc:
         pdbtoexcel_config.load_config(LEAGUE)
     assert str(exc.value) == (
-        f"no play_path for the league; set play_path in {folder / 'league.toml'}"
+        f"{folder / 'league.toml'}: No play_path for the league. "
+        "Set play_path in this file."
     )
 
 
@@ -294,7 +333,8 @@ def test_no_play_path_exit_2(
     result = runner.invoke(convert_pdb, [str(PDB), str(tmp_path / "o.xlsx")])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL no play_path for the league; set play_path in {folder / 'league.toml'}\n"
+        f"FAIL {folder / 'league.toml'}: No play_path for the league. "
+        "Set play_path in this file.\n"
     )
     assert result.stdout == "" and not (tmp_path / "o.xlsx").exists()
 
@@ -415,7 +455,9 @@ def test_empty_pool_warns_per_play_and_writes_no_play_rows(
     assert result.exit_code == 0
     warnings = result.stderr.splitlines()[1:]
     assert warnings and all(
-        line.startswith("WARN Play file not found for play '") for line in warnings
+        line.startswith("WARN Play '")
+        and line.endswith(" has no play file in the play pool.")
+        for line in warnings
     )
     assert result.stdout == f"OK   {out}: 0 play(s)\n"
 
@@ -429,7 +471,7 @@ def test_play_path_not_a_directory_is_a_config_error(
     write_pdbtoexcel_toml(make_league(LEAGUE, league_toml(not_a_dir)))
     with pytest.raises(ConfigFileError) as exc:
         run_conversion(pdb_path=str(PDB), output_path=str(tmp_path / "o.xlsx"))
-    assert str(exc.value).startswith(f"{not_a_dir}: play path is not a directory")
+    assert str(exc.value).startswith(f"{not_a_dir}: {DIRECTORY_INVALID} ")
 
 
 @pytest.mark.usefixtures("league")

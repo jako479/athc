@@ -5,7 +5,7 @@ from __future__ import annotations
 from os import PathLike
 from pathlib import Path
 
-from athc.errors import AthcError
+from athc.errors import FileFormatError
 from athc.fbpro98_lg2.model import (
     FilePair,
     HalfFiles,
@@ -26,7 +26,7 @@ from athc.fbpro98_lg2.schema import (
 StrPath = str | PathLike[str]
 
 
-class InvalidLg2Error(AthcError):
+class InvalidLg2Error(FileFormatError):
     """Raised when a `.lg2` file is structurally invalid."""
 
 
@@ -68,12 +68,12 @@ def parse_lg2(buffer: bytes, path: StrPath = "<buffer>") -> Lg2File:
     """
     file_path = Path(path)
     if not buffer:
-        raise InvalidLg2Error("Empty file", file_path)
+        raise InvalidLg2Error("Empty file.", file_path)
     team_count, remainder = divmod(len(buffer), TEAM_RECORD_SIZE)
     if remainder != 0:
         raise InvalidLg2Error(
             f"File size {len(buffer)} is not a whole number of "
-            f"{TEAM_RECORD_SIZE}-byte team records",
+            f"{TEAM_RECORD_SIZE}-byte team records.",
             file_path,
         )
     return Lg2File(
@@ -118,7 +118,7 @@ def _parse_entry(buffer: bytes, offset: int, path: Path) -> str:
     filename_offset = offset + FOLDER_SIZE
     filename = _read_string(buffer, filename_offset, FILENAME_SIZE, "filename", path)
     if not filename:
-        raise InvalidLg2Error(f"Empty filename at {filename_offset:#x}", path)
+        raise InvalidLg2Error(f"Empty filename at {filename_offset:#x}.", path)
     return f"{folder}\\{filename}" if folder else filename
 
 
@@ -127,5 +127,5 @@ def _read_string(buffer: bytes, offset: int, size: int, label: str, path: Path) 
     field = buffer[offset : offset + size]
     end = field.find(b"\x00")
     if end == -1:
-        raise InvalidLg2Error(f"No NUL in {label} field at {offset:#x}", path)
+        raise InvalidLg2Error(f"No NUL in {label} field at {offset:#x}.", path)
     return field[:end].decode("ASCII", errors="replace")

@@ -7,6 +7,8 @@ models are pinned by test_model_checksum.py.
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from athc.errors import ConfigFileError
@@ -108,7 +110,11 @@ def test_home_away_toggles_add_constraints_only_when_on(toggle: str) -> None:
 
 
 def test_streak_caps_off_with_divisions_is_a_config_error() -> None:
-    with pytest.raises(ConfigFileError, match="require_home_away_streak_caps"):
+    message = (
+        "[phase2] require_home_away_streak_caps: Must be true for a league with "
+        "divisions. The soft objective needs the streak flags."
+    )
+    with pytest.raises(ConfigFileError, match=re.escape(message)):
         ScheduleBuilder(
             ONE_PLAYOFF_TEAM_FROM_4_TEAM_DIVISION,
             SchedulerError,

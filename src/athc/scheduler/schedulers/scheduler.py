@@ -41,9 +41,11 @@ def generate_schedule(
     say = progress or (lambda _: None)
     config = scheduler_config or SchedulerConfig()
     weeks = config.league.weeks
-    check_weeks(league, weeks)
-    check_opening_weeks(league, weeks, config.phase2.opening_nonconference_weeks)
-    rivalries = resolve_rivalries(league, config.rivalries)
+    check_weeks(league, weeks, path=config.source)
+    check_opening_weeks(
+        league, weeks, config.phase2.opening_nonconference_weeks, path=config.source
+    )
+    rivalries = resolve_rivalries(league, config.rivalries, path=config.source)
     # "auto" becomes one count up front, so both phases run the same width and
     # the report can show it.
     workers = resolve_workers(config.solver.solver_workers)
@@ -71,6 +73,7 @@ def generate_schedule(
         rivalries=rivalries,
         rotate_rivalry_home_by_season=config.rivalries.rotate_home_by_season,
         season=season,
+        config_path=config.source,
     )
     schedule = schedule_builder.build_schedule(
         matchups=matchup_plan.matchups,

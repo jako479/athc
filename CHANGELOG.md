@@ -7,9 +7,15 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- gameplan: `set-normals` / `set-specials` call their list argument `play_list`, and a console list's errors say `(play list line N)`
+- autocontinue: a missing or unreadable Continue button image stops the run with a reinstall hint; a locked screen warns with its likely causes
+- athc: an `athc.ini` or standings file that cannot be opened fails instead of reading as empty
+- gameplan: play lists saved with a BOM (Notepad's "UTF-8 with BOM") read their first play
+- athc: every `FAIL` and `WARN` line is a sentence in Windows' words, names its file once and fits on one line
+- gameplan: play-list errors name the list file and the real line
 - athc: the `.dat` / `.idx` spec decodes a league's player and team statistics (last game, season and career) and their index
 - gameplan: `replace-play` takes backup replacements, tried in order: one already in the gameplan or that would make it fail `check` is skipped; the path is optional (the current folder)
-- check-ppp: every kind of stock league gets the same `stock league not supported` line
+- check-ppp: every kind of stock league gets the same `Stock league not supported.` line
 - fbpro98_lg2: reads stock leagues, modern and old, and says which kind of league it read
 - fbpro98_play: the `.ply` spec decodes each player's position and logic boxes, enough to tell a timed pass, QB run or rollout, and a 2-DL, 4-3 or 3-4 defense
 - athc: the `.lge` spec shows how a roster slot sets a player's status (Assigned, Open Active, Open Inactive) and depth

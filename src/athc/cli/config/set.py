@@ -23,13 +23,17 @@ def set_(key: str, value: str) -> None:
     """
     if key not in KNOWN_KEYS:
         raise click.BadParameter(
-            f"unknown key '{key}'; known keys: {', '.join(KNOWN_KEYS)}",
+            f"unknown key '{key}'. Known keys: {', '.join(KNOWN_KEYS)}.",
             param_hint="key",
         )
     if key == "league":
         try:
             league_dir(value)
         except LeagueError as error:
-            raise click.BadParameter(str(error), param_hint="value") from error
+            # Click's "Invalid value for value: " starts the sentence.
+            text = str(error)
+            raise click.BadParameter(
+                text[:1].lower() + text[1:], param_hint="value"
+            ) from error
     set_config_value(key, value)  # an unreadable athc.ini is a FAIL, not a usage error
     console.result(f"Set {key} = {value}")

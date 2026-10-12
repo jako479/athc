@@ -40,8 +40,8 @@ def load_config() -> Config:
     section = load_athc_config().get(SECTION)
     if section is None:
         raise ConfigFileError(
-            f"No [{SECTION}] config found. Set ATHC_CONFIG_DIR or edit:\n"
-            f"  {config_dir() / CONFIG_FILE}"
+            f"No [{SECTION}] section. Add one, or set ATHC_CONFIG_DIR.",
+            config_dir() / CONFIG_FILE,
         )
     return Config(
         mouse_move_duration=_required_float(section, "mouse_move_duration"),
@@ -75,17 +75,22 @@ def _optional_bool(section: Mapping[str, str], key: str, *, default: bool) -> bo
     value = section[key].strip().lower()
     if value not in _BOOLEAN_STATES:
         raise ConfigFileError(
-            f"Invalid '{key}' in [{SECTION}]: {section[key]!r} (expected true/false)."
+            f"[{SECTION}] {key}: Must be true or false, got {section[key]!r}.",
+            config_dir() / CONFIG_FILE,
         )
     return _BOOLEAN_STATES[value]
 
 
 def _required_float(section: Mapping[str, str], key: str) -> float:
     if key not in section:
-        raise ConfigFileError(f"Missing required setting '{key}' in [{SECTION}].")
+        raise ConfigFileError(
+            f"Missing required setting '{key}' in [{SECTION}].",
+            config_dir() / CONFIG_FILE,
+        )
     try:
         return float(section[key])
     except ValueError:
         raise ConfigFileError(
-            f"Invalid '{key}' in [{SECTION}]: {section[key]!r} (expected a number)."
+            f"[{SECTION}] {key}: Must be a number, got {section[key]!r}.",
+            config_dir() / CONFIG_FILE,
         ) from None

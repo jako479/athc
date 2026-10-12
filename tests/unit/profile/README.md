@@ -36,7 +36,7 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | `[gameplan_compatibility]` unknown key | tmp | "unknown key" | `test_gameplan_compatibility_unknown_key` | ☑ |
 | `[gameplan_compatibility]` rejects the gameplan rules' flag | tmp | "unknown key" | `test_gameplan_compatibility_rejects_the_gameplan_rules_flag` | ☑ |
 | `[gameplan_compatibility]` non-bool | tmp | "must be a boolean" | `test_gameplan_compatibility_must_be_bool` | ☑ |
-| `gameplan_compatibility` not a table | tmp | "must be a table" | `test_gameplan_compatibility_must_be_table` | ☑ |
+| `gameplan_compatibility` not a table | tmp | "Must be a table." | `test_gameplan_compatibility_must_be_table` | ☑ |
 | Layering overrides a compat flag | tmp ×2 | later value wins | `test_layering_overrides_gameplan_compatibility` | ☑ |
 | Five time buckets → distinct rules | tmp | one rule per `MinutesRemaining` | `test_all_time_buckets_match_distinctly` | ☑ |
 | Every shipped league's rules load | `config/dev/` + `config/release/` `leagues/<league>/profile.toml` | loads | `test_shipped_rules_load` `[P]` | ☑ |
@@ -46,7 +46,7 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Empty path list | — | "at least one" | `test_empty_paths` | ☑ |
-| TOML parse error | tmp | "TOML parse error" | `test_toml_parse_error` | ☑ |
+| TOML parse error | tmp | "Not valid TOML" | `test_toml_parse_error` | ☑ |
 | Negative `min_categories` | tmp | ">= 0" | `test_negative_min_categories_rejected` | ☑ |
 | Negative rule `min_categories` | tmp | ">= 0" | `test_negative_rule_min_categories_rejected` | ☑ |
 | Multiple problems collected (one file) | tmp | all 3 in `.errors` | `test_collects_multiple_errors` | ☑ |
@@ -56,21 +56,22 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | Unknown situation key | tmp | "unknown key" | `test_unknown_situation_key` | ☑ |
 | Situation has no constraint | tmp | "needs one of" | `test_situation_needs_constraint` | ☑ |
 | Bad `time` value | tmp | "unknown value" | `test_bad_time` | ☑ |
-| `allowed` + `disallowed` | tmp | "mutually exclusive" | `test_allowed_and_disallowed_exclusive` | ☑ |
+| `allowed` + `disallowed` | tmp | "Set at most one of allowed, disallowed." | `test_allowed_and_disallowed_exclusive` | ☑ |
 | Unknown category | tmp | "unknown category" | `test_unknown_category` | ☑ |
-| `mandatory` not a list | tmp | "must be a list" | `test_mandatory_must_be_list` | ☑ |
+| `mandatory` not a list | tmp | "[offense.x].mandatory: Must be a list." | `test_mandatory_must_be_list` | ☑ |
+| `fields` empty | tmp | "[offense.x].fields: Must be a non-empty list." | `test_fields_must_be_a_non_empty_list` | ☑ |
 | `mandatory` unknown category | tmp | "unknown category" | `test_mandatory_unknown_category` | ☑ |
 | Disallowed unknown name | tmp | "unknown name" | `test_disallowed_categories_unknown_name` | ☑ |
 | Unknown field name | tmp | "unknown value" | `test_unknown_field_name` | ☑ |
 | Sub percent below 0 / above 100, every key | tmp | "<key>: must be in [0, 100]" | `test_substitutions_percent_out_of_range` `[P]` | ☑ |
-| Sub exact + min/max on one side | tmp | "mutually exclusive" | `test_substitutions_exact_with_bound_same_side_rejected` `[P]` | ☑ |
-| Sub min > max, either side | tmp | "`min_…` must be <= `max_…`" | `test_substitutions_min_above_max_rejected` `[P]` | ☑ |
-| Sub exact out one above in, every group | tmp | "out_percent (81) must be <= in_percent (80)" | `test_substitutions_out_above_in_rejected` `[P]` | ☑ |
+| Sub exact + min/max on one side | tmp | "Set at most one of …" | `test_substitutions_exact_with_bound_same_side_rejected` `[P]` | ☑ |
+| Sub min > max, either side | tmp | "`.min_…: Must be <= max_…`" | `test_substitutions_min_above_max_rejected` `[P]` | ☑ |
+| Sub exact out one above in, every group | tmp | ".out_percent: Must be <= in_percent (80), got 81." | `test_substitutions_out_above_in_rejected` `[P]` | ☑ |
 | Sub group with no key | tmp | "needs one of" | `test_substitutions_empty_group_rejected` | ☑ |
 | Sub unknown position | tmp | "unknown key" | `test_substitutions_unknown_position` | ☑ |
 | Sub unknown group key | tmp | "unknown key" | `test_substitutions_unknown_group_key` | ☑ |
-| `[substitutions]` not a table | tmp | "must be a table" | `test_substitutions_not_a_table` | ☑ |
-| Sub position not a table | tmp | "must be a table" | `test_substitutions_position_not_a_table` | ☑ |
+| `[substitutions]` not a table | tmp | "Must be a table." | `test_substitutions_not_a_table` | ☑ |
+| Sub position not a table | tmp | "Must be a table." | `test_substitutions_position_not_a_table` | ☑ |
 | Sub non-integer, every key | tmp | "<key>: must be an integer" | `test_substitutions_non_integer` `[P]` | ☑ |
 | Sub float / bool | tmp | "must be an integer" | `test_substitutions_float_or_bool_rejected` `[P]` | ☑ |
 
@@ -152,7 +153,7 @@ One row per behavior. Input: `built` = `Profile`/`GamePlan` constructed in-test.
 | Unchanged excluded | built | only changed kept | `test_unchanged_situations_excluded` | ☑ |
 | PAT change | built | `pat` populated, no `stop` | `test_pat_change` | ☑ |
 | Combined counts | built | profile + situation | `test_combined_changes_counts` | ☑ |
-| Cross-side raises | built | `ValueError "cannot diff"` | `test_type_mismatch_raises` | ☑ |
+| Cross-side raises | built | `ProfileTypeMismatchError "Cannot compare"` | `test_type_mismatch_raises` | ☑ |
 | N-constant guard | built | sit 8 game state + baseline | `test_situation_n_game_state_and_baseline` | ☑ |
 
 ## display.py — labels

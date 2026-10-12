@@ -6,7 +6,7 @@ Library + CLI for FbPro98 gameplans (`.pln`). Validates a gameplan against leagu
 
 ## Results and exit codes
 
-Every command prints through the shared console ([architecture](../design/architecture.md#console-run-log-and-errors)): results, `OK` and `SKIP` lines on stdout; `WARN` and `FAIL` lines, progress and usage errors on stderr; every status line also in the run log. The same codes everywhere: `0` done (warnings included), `1` findings, `2` error (usage, config, a bad or missing file, a file that failed inside a batch, a bug). A batch processes every file and exits with the worst outcome. A named file that does not exist is `FAIL <file>: not found`.
+Every command prints through the shared console ([architecture](../design/architecture.md#console-run-log-and-errors)): results, `OK` and `SKIP` lines on stdout; `WARN` and `FAIL` lines, progress and usage errors on stderr; every status line also in the run log. The same codes everywhere: `0` done (warnings included), `1` findings, `2` error (usage, config, a bad or missing file, a file that failed inside a batch, a bug). A batch processes every file and exits with the worst outcome. A named file that does not exist is `FAIL <file>: The system cannot find the file specified.`; an error in a play list names the list and its line, `FAIL <list>: line <n>: <reason>.`
 
 | Command | Lines | Exit 1 (findings) |
 |---|---|---|
@@ -14,7 +14,7 @@ Every command prints through the shared console ([architecture](../design/archit
 | `find-play` | per file and play `<file>: 'play' found in slot(s) ...` or `<file>: 'play' not found`; in directory mode a tally per play, `'play': found <n> instance(s) in <m> gameplan(s)`; a single path, found or not, gets no tally | a play found nowhere (2 if any file failed) |
 | `list-normals` / `list-specials` | the play names (with `-`), else `OK   <file>: <n> normal play(s)` / `... special play(s)` | never |
 | `replace-play` | per skipped replacement `SKIP <file>: 'new' already in the gameplan` or `SKIP <file>: 'new' fails check: [cat] message`; `OK   <file>: 'old' (cat) replaced with 'new' (cat) [1-1][2-2]` per updated file; `<file>: 'old' not replaced, no valid replacement` when none fits; a single file without the play prints `<file>: 'play' not found`; in directory mode `'old' -> 'new1', 'new2': replaced <n> instance(s) in <m> gameplan(s), <f> failed, <k> not replaced` | nothing replaced anywhere, or a gameplan with no valid replacement; a replacement not in the pool is an error |
-| `set-normals` | `OK   <gameplan>: <n> normal play(s)` (`-q` skips it); a bad play list is one `FAIL <input_file> <what is wrong>` per bad line (`FAIL <what is wrong>` when the list came from the console), the game plan untouched, exit 2 | never |
+| `set-normals` | `OK   <gameplan>: <n> normal play(s)` (`-q` skips it); a bad play list is one `FAIL <play_list> <what is wrong>` per bad line (`FAIL <what is wrong>` when the list came from the console), the game plan untouched, exit 2 | never |
 | `set-specials` | `OK   <file>: updated (<n> special play(s))`, `SKIP <file>: <other side> gameplan`, `FAIL <file>: <why>` for a file the list does not fit; a tally `<n> file(s) processed, <n> updated, <n> skipped, <n> failed` | never (a failed file is exit 2) |
 
 ## Setup
@@ -34,7 +34,7 @@ from athc.playpool import read_play_pool
 pool = read_play_pool("C:/PNFL/plays", rules=load_pool_rules("playpool.toml"))
 rules = load_rules(["gameplan.toml"])           # validation-only; pass more to layer
 gp = read_gameplan("OFF.pln")
-violations = validate_gameplan(gp, rules, pool)  # tuple[Violation, ...]
+violations = validate_gameplan(gp, rules, pool)  # tuple[RuleViolation, ...]
 ```
 
 ## CLI

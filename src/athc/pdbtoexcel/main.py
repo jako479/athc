@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from athc.errors import ConfigFileError
+from athc.config import play_dir
 from athc.pdbtoexcel.config import load_config
 from athc.pdbtoexcel.workbook_creator import PdbWorkbookCreator
 
@@ -38,11 +38,7 @@ def convert_pdb(
     `progress` hears each progress line; nothing is printed or logged here.
     """
     config = load_config(league)
-    if not Path(config.play_path).is_dir():
-        raise ConfigFileError(
-            "play path is not a directory (set play_path in the league's league.toml)",
-            config.play_path,
-        )
+    play_dir(config.play_path, config.league_file)
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     creator = PdbWorkbookCreator.from_config(

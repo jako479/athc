@@ -10,9 +10,9 @@ from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.profile import profile
 from athc.cli.profile._common import collect_files, load_rules_or_raise
 from athc.console import console
-from athc.errors import AthcError
+from athc.errors import AthcError, error_line
 from athc.fbpro98_profile import read_profile
-from athc.profile import ProfileRules, Violation, validate_profile
+from athc.profile import ProfileRules, RuleViolation, validate_profile
 from athc.profile.config import load_config
 
 
@@ -54,7 +54,7 @@ def check(
         try:
             count, line = check_file(path, rules)
         except (AthcError, OSError) as error:
-            console.fail(str(error))
+            console.fail(error_line(error))
             failed += 1
             continue
         except Exception:
@@ -93,7 +93,7 @@ def check_file(path: Path, rules: ProfileRules) -> tuple[int, str]:
     return len(violations), "\n".join(lines)
 
 
-def _format_violation(v: Violation) -> str:
+def _format_violation(v: RuleViolation) -> str:
     prefix = (
         f"[situation {v.situation_number}] " if v.situation_number is not None else ""
     )

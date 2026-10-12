@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from athc.config import ConfigFileError, LeagueError
+from athc.errors import FILE_NOT_FOUND
 from athc.fbpro98_play import DefensiveCategory as D
 from athc.fbpro98_play import OffensiveCategory as O
 from athc.pdbtoexcel import load_config
@@ -75,7 +76,7 @@ def test_load_config_from_league_folder(league: Path) -> None:
 
 
 def test_load_config_needs_a_league() -> None:
-    with pytest.raises(LeagueError, match="no league selected"):
+    with pytest.raises(LeagueError, match="No league selected"):
         load_config()
 
 
@@ -137,7 +138,7 @@ def test_labeled_category_by_game_name_is_unknown(league: Path) -> None:
 def test_unknown_name_lists_the_valid_ones(league: Path) -> None:
     _order(league, ORDER_ONLY.replace('"RunLeft"', '"Nope"'))
     with _raises(
-        "[category_order] defense: 'Nope' is not a defense category of this league. Valid: ['GLpass', 'GLrun', 'PassDazzle', 'PassLong', 'PassMedium', 'PassShort', 'RunDazzle', 'RunLeft', 'RunMiddle', 'RunRight', 'User Specific']"
+        "[category_order] defense: 'Nope' is not a defense category of this league. Valid: GLpass, GLrun, PassDazzle, PassLong, PassMedium, PassShort, RunDazzle, RunLeft, RunMiddle, RunRight, User Specific."
     ):
         load_config(LEAGUE)
 
@@ -169,52 +170,59 @@ def test_wrong_side_is_an_error(
 
 def test_repeated_name_is_an_error(league: Path) -> None:
     _order(league, ORDER_ONLY.replace('run = ["RL"]', 'run = ["RL", "RM", "RL"]'))
-    with _raises("[category_order] run: 'RL' is listed twice"):
+    with _raises("[category_order] run: 'RL' is listed twice."):
         load_config(LEAGUE)
 
 
 def test_missing_key_is_an_error(league: Path) -> None:
     _order(league, ORDER_ONLY.replace('defense = ["RunLeft"]\n', ""))
-    with _raises("[category_order] defense: missing"):
+    with _raises("[category_order] defense: Missing."):
         load_config(LEAGUE)
 
 
 def test_missing_table_is_an_error(league: Path) -> None:
     _order(league, "[deleted_plays]\nnames = []\n")
-    with _raises("[category_order] is missing"):
+    with _raises("Missing the [category_order] table."):
         load_config(LEAGUE)
 
 
 @pytest.mark.parametrize("table", ["category_order", "deleted_plays"])
 def test_table_written_as_a_value_is_an_error(league: Path, table: str) -> None:
     _order(league, f"{table} = 1\n" + (ORDER_ONLY if table != "category_order" else ""))
-    with _raises(f"[{table}] must be a table"):
+    with _raises(f"[{table}]: Must be a table."):
         load_config(LEAGUE)
 
 
 @pytest.mark.parametrize("value", ['"RL"', "[1]", '["RL", 2]'])
 def test_list_must_be_an_array_of_strings(league: Path, value: str) -> None:
     _order(league, ORDER_ONLY.replace('run = ["RL"]', f"run = {value}"))
-    with _raises("[category_order] run: expected an array of strings"):
+    with _raises("[category_order] run: Expected an array of strings."):
         load_config(LEAGUE)
 
 
 def test_unknown_key_is_an_error(league: Path) -> None:
-    _order(league, ORDER_ONLY + "special = []\n")
-    with _raises("[category_order] special: unknown key (expected defense, pass, run)"):
+    _order(league, ORDER_ONLY + "special = []\nzap = []\n")
+    with _raises(
+        "[category_order]: Unknown key(s): special, zap. Valid: defense, pass, run."
+    ):
         load_config(LEAGUE)
 
 
 def test_unknown_table_is_an_error(league: Path) -> None:
-    _order(league, ORDER_ONLY + "[filters]\nx = 1\n")
-    with _raises("unknown key 'filters' (expected category_order, deleted_plays)"):
+    _order(league, ORDER_ONLY + "[filters]\nx = 1\n[zap]\n")
+    with _raises(
+        "(top): Unknown key(s): filters, zap. Valid: category_order, deleted_plays."
+    ):
         load_config(LEAGUE)
 
 
 def test_missing_play_path_is_an_error(make_league: MakeLeague) -> None:
     folder = make_league(LEAGUE, league_toml())
     write_pdbtoexcel_toml(folder)
-    message = f"no play_path for the league; set play_path in {folder / 'league.toml'}"
+    message = (
+        f"{folder / 'league.toml'}: No play_path for the league. "
+        "Set play_path in this file."
+    )
     with _raises(message) as exc:
         load_config(LEAGUE)
     assert str(exc.value) == message
@@ -222,7 +230,9 @@ def test_missing_play_path_is_an_error(make_league: MakeLeague) -> None:
 
 def test_missing_file_is_an_error(make_league: MakeLeague, tmp_path: Path) -> None:
     folder = make_league(LEAGUE, league_toml(tmp_path))
-    with _raises(f"{folder / 'pdbtoexcel.toml'}: not found") as exc:
+    with _raises(
+        f"{folder / 'pdbtoexcel.toml'}: {FILE_NOT_FOUND} convert-pdb needs this file in the league folder."
+    ) as exc:
         load_config(LEAGUE)
     assert exc.value.path == folder / "pdbtoexcel.toml"
 
@@ -254,13 +264,13 @@ def test_deleted_plays_table_without_names_is_empty(league: Path) -> None:
 @pytest.mark.parametrize("value", ['"ATF0ELOB"', "[1]"])
 def test_deleted_plays_must_be_an_array_of_strings(league: Path, value: str) -> None:
     _order(league, ORDER_ONLY + f"[deleted_plays]\nnames = {value}\n")
-    with _raises("[deleted_plays] names: expected an array of strings"):
+    with _raises("[deleted_plays] names: Expected an array of strings."):
         load_config(LEAGUE)
 
 
 def test_deleted_plays_unknown_key_is_an_error(league: Path) -> None:
     _order(league, ORDER_ONLY + "[deleted_plays]\nplays = []\n")
-    with _raises("[deleted_plays] plays: unknown key (expected names)"):
+    with _raises("[deleted_plays]: Unknown key(s): plays. Valid: names."):
         load_config(LEAGUE)
 
 
@@ -307,9 +317,13 @@ def test_workbook_option_accepts_configparser_booleans(
 
 @pytest.mark.usefixtures("league")
 def test_workbook_option_rejects_other_values(write_config: WriteConfig) -> None:
-    write_config("[convert-pdb]\ncalculate_percentages = maybe\n")
-    with pytest.raises(ConfigFileError, match="calculate_percentages"):
+    ini = write_config("[convert-pdb]\ncalculate_percentages = maybe\n")
+    with pytest.raises(ConfigFileError) as exc:
         load_config(LEAGUE)
+    assert str(exc.value) == (
+        f"{ini}: [convert-pdb] calculate_percentages: Must be true or false "
+        "(yes/no, on/off and 1/0 also work), got 'maybe'."
+    )
 
 
 @pytest.mark.usefixtures("league")

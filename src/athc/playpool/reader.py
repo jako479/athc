@@ -15,6 +15,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePath
 
+from athc.errors import error_line
 from athc.fbpro98_play import (
     CategoryLabels,
     InvalidPlayFileError,
@@ -125,19 +126,18 @@ def _folder_info(
 
 
 def _warnings(info: _FolderInfo, play: PlayFile, path: str) -> list[str]:
-    """Warning (ending in the play's path) when a recognized league folder
+    """Warning (starting with the play's path) when a recognized league folder
     contradicts the play file: a wrong side, or — when the side matches — a
     category that differs from the folder's. Unrecognized folders never warn.
     A wrong side is reported alone (a cross-side category comparison would be
     noise)."""
     file_side = _file_side(play)
     if info.side and info.side != file_side:
-        return [
-            f"{_SIDE_ADJECTIVE[file_side]} play in the {info.side.lower()} tree: {path}"
-        ]
+        side = _SIDE_ADJECTIVE[file_side]
+        return [f"{path}: {side} play in the {info.side.lower()} tree."]
     file_category = play.category
     if info.category is not None and file_category != info.category:
-        return [f"{file_category.long} play in a {info.category.long} folder: {path}"]
+        return [f"{path}: {file_category.long} play in a {info.category.long} folder."]
     return []
 
 
@@ -160,7 +160,7 @@ def _add(
     pool: PlayPool, play: OffensivePlay | DefensivePlay | SpecialTeamsPlay
 ) -> None:
     if pool.find_by_name(play.name) is not None:
-        _warn(pool, f"Duplicate play name '{play.name}'; last loaded wins")
+        _warn(pool, f"Duplicate play name '{play.name}'. The last one loaded wins.")
     pool.add(play)
 
 
@@ -195,10 +195,10 @@ def _read_play_file(
     try:
         play_file = read_play(file_path)
     except InvalidPlayFileError as exc:
-        _warn(pool, f"Skipping invalid play file: {exc}")
+        _warn(pool, f"{exc} Skipped.")
         return
     except OSError as exc:
-        _warn(pool, f"Skipping unreadable play file: {exc}")
+        _warn(pool, f"{error_line(exc)} Skipped.")
         return
 
     name = file_path.stem
@@ -258,20 +258,21 @@ def rule_warnings(pool: PlayPool, rules: PlaypoolRules) -> list[str]:
         both = filter_.include & filter_.exclude
         for name in sorted(both):
             messages.append(
-                f"[{section}] '{name}' is in both include and exclude; exclude wins"
+                f"[{section}] '{name}' is in both include and exclude. Exclude wins."
             )
         for key, names in (("include", filter_.include), ("exclude", filter_.exclude)):
             for name in sorted(names - both):
                 play = pool.find_by_name(name)
                 if play is None:
                     messages.append(
-                        f"[{section}] {key} '{name}' is not in the play pool"
+                        f"[{section}] {key} '{name}' is not in the play pool."
                     )
                     continue
                 kind = _wrong_kind(play, needs_run)
                 if kind is not None:
                     messages.append(
-                        f"[{section}] {key} '{name}' is a {kind} play; it has no effect"
+                        f"[{section}] {key} '{name}' is a {kind} play. "
+                        "It has no effect."
                     )
     return messages
 

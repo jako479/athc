@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from athc.errors import StrPath
 from athc.fbpro98_profile import (
     CategoryWeights,
     PatSituation,
@@ -62,15 +63,23 @@ class ProfileDiff:
         return not (self.profile or self.situations or self.pat)
 
 
-def diff_profiles(a: Profile, b: Profile) -> ProfileDiff:
+def diff_profiles(
+    a: Profile,
+    b: Profile,
+    *,
+    a_path: StrPath | None = None,
+    b_path: StrPath | None = None,
+) -> ProfileDiff:
     """Return the differences from `a` to `b`. ProfileTypeMismatchError when the
-    sides differ."""
+    sides differ, naming both files when their paths are given."""
     if a.profile_type != b.profile_type:
-        raise ProfileTypeMismatchError(
-            a.profile_type,
-            b.profile_type,
-            f"cannot diff {a.profile_type.name} against {b.profile_type.name}",
-        )
+        a_side = a.profile_type.name.lower()
+        b_side = b.profile_type.name.lower()
+        if a_path is not None and b_path is not None:
+            message = f"Cannot compare {a_path} ({a_side}) with {b_path} ({b_side})."
+        else:
+            message = f"Cannot compare {a_side} with {b_side}."
+        raise ProfileTypeMismatchError(a.profile_type, b.profile_type, message)
     return ProfileDiff(
         profile_type=a.profile_type,
         profile=_scalar_changes(a, b),

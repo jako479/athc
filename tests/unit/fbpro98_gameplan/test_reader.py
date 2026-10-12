@@ -267,9 +267,21 @@ def test_error_names_the_path_first(tmp_path):
     with pytest.raises(InvalidGamePlanError) as exc:
         read_gameplan(gameplan_path)
     assert str(exc.value) == (
-        f"{gameplan_path}: File too small to contain PLN header and offsets table"
+        f"{gameplan_path}: File too small to contain PLN header and offsets table."
     )
     assert exc.value.path == gameplan_path
+
+
+def test_bad_audible_bytes_print_as_hex(tmp_path):
+    data = _load_fixture_bytes(OFFENSE_PATH)
+    data[G95_HEADER.size : G95_HEADER.size + 4] = b"\x09\x08\x07\x06"
+    gameplan_path = tmp_path / "bad_audible.pln"
+    gameplan_path.write_bytes(data)
+    with pytest.raises(InvalidGamePlanError) as exc:
+        read_gameplan(gameplan_path)
+    assert str(exc.value) == (
+        f"{gameplan_path}: Audible bytes 09 08 07 06 != expected 00 01 02 03."
+    )
 
 
 def test_invalid_g95_header_raises(tmp_path):

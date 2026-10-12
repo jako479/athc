@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
 
-from athc.errors import RulesFileError, reason_of
+from athc.errors import RulesFileError, reason_of, toml_reason
 from athc.fbpro98_profile import Down, FieldPosition, MinutesRemaining, YardsToGo
 
 # ---------------------------------------------------------------------------
@@ -321,7 +321,7 @@ def load_rules(paths: Iterable[Path | str]) -> ProfileRules:
     """
     path_list = [Path(p) for p in paths]
     if not path_list:
-        raise RulesFileError("at least one rules file is required")
+        raise RulesFileError("At least one rules file is required.")
 
     merged = _MergedData()
     errors: list[str] = []
@@ -346,7 +346,7 @@ def _read_toml(path: Path) -> Mapping[str, Any]:
     try:
         return tomllib.loads(text)
     except tomllib.TOMLDecodeError as e:
-        raise RulesFileError(f"TOML parse error: {e}", path) from e
+        raise RulesFileError(toml_reason(e), path) from e
 
 
 def _attempt(errors: list[str], fn: Callable[[], Any]) -> tuple[Any, bool]:
@@ -450,8 +450,7 @@ def _build_situation_rule(
     _reject_unknown_keys(section, _ALLOWED_SITUATION_KEYS, source, where)
     if not (set(section) & _CONSTRAINT_KEYS):
         raise RulesFileError(
-            f"{where}: needs one of "
-            f"`allowed`, `disallowed`, `mandatory`, `min_categories`",
+            f"{where}: Needs one of allowed, disallowed, mandatory, min_categories.",
             source,
         )
 
@@ -491,7 +490,7 @@ def _build_allowed(
     has_disallowed = "disallowed" in section
     if has_allowed and has_disallowed:
         raise RulesFileError(
-            f"{where}: `allowed` and `disallowed` are mutually exclusive", source
+            f"{where}: Set at most one of allowed, disallowed.", source
         )
     if has_allowed:
         return _expand_categories(
@@ -516,7 +515,7 @@ def _build_mandatory(
     # that covers several codes (e.g. defensive PassShort) is met by any.
     mandatory_raw = section.get("mandatory", [])
     if not isinstance(mandatory_raw, list):
-        raise RulesFileError(f"{where}: `mandatory` must be a list", source)
+        raise RulesFileError(f"{where}.mandatory: Must be a list.", source)
     return tuple(
         _expand_categories([name], category_map, source, f"{where}.mandatory")
         for name in mandatory_raw
@@ -530,15 +529,15 @@ def _expand_categories(
     where: str,
 ) -> frozenset[int]:
     if not isinstance(names, list):
-        raise RulesFileError(f"{where}: must be a list", source)
+        raise RulesFileError(f"{where}: Must be a list.", source)
     codes: set[int] = set()
     for name in names:
         if not isinstance(name, str):
             raise RulesFileError(
-                f"{where}: entries must be strings (got {type(name).__name__})", source
+                f"{where}: Entries must be strings (got {type(name).__name__}).", source
             )
         if name not in category_map:
-            raise RulesFileError(f"{where}: unknown category {name!r}", source)
+            raise RulesFileError(f"{where}: Unknown category {name!r}.", source)
         codes.update(category_map[name])
     return frozenset(codes)
 
@@ -547,13 +546,13 @@ def _map_each(
     names: object, name_map: Mapping[str, Any], source: Path, where: str
 ) -> list[Any]:
     if not isinstance(names, list):
-        raise RulesFileError(f"{where}: must be a list", source)
+        raise RulesFileError(f"{where}: Must be a list.", source)
     result: list[Any] = []
     for name in names:
         if not isinstance(name, str):
-            raise RulesFileError(f"{where}: entries must be strings", source)
+            raise RulesFileError(f"{where}: Entries must be strings.", source)
         if name not in name_map:
-            raise RulesFileError(f"{where}: unknown name {name!r}", source)
+            raise RulesFileError(f"{where}: Unknown name {name!r}.", source)
         result.append(name_map[name])
     return result
 
@@ -564,7 +563,7 @@ def _merge_gameplan_compatibility(
     """Parse `[gameplan_compatibility]`: one boolean per compatibility check."""
     where = "[gameplan_compatibility]"
     if not isinstance(value, Mapping):
-        errors.extend(RulesFileError(f"{where}: must be a table", source).errors)
+        errors.extend(RulesFileError(f"{where}: Must be a table.", source).errors)
         return
     _attempt(
         errors,
@@ -586,7 +585,9 @@ def _merge_substitutions(
     """Parse `[substitutions]`: one position label -> per-side bounds. Each invalid
     group is reported; a later file's same position replaces it."""
     if not isinstance(value, Mapping):
-        errors.extend(RulesFileError("[substitutions]: must be a table", source).errors)
+        errors.extend(
+            RulesFileError("[substitutions]: Must be a table.", source).errors
+        )
         return
     _attempt(
         errors,
@@ -612,17 +613,18 @@ def _parse_substitution_rule(
 ) -> SubstitutionRule:
     where = f"[substitutions].{position}"
     if not isinstance(value, Mapping):
-        raise RulesFileError(f"{where} must be a table", source)
+        raise RulesFileError(f"{where}: Must be a table.", source)
     _reject_unknown_keys(value, _ALLOWED_SUB_KEYS, source, where)
     if not value:
-        keys = ", ".join(f"`{k}`" for k in _SUB_KEYS)
-        raise RulesFileError(f"{where}: needs one of {keys}", source)
+        keys = ", ".join(_SUB_KEYS)
+        raise RulesFileError(f"{where}: Needs one of {keys}.", source)
     out = _parse_percent_bound(value, "out", source, where)
     in_ = _parse_percent_bound(value, "in", source, where)
     # The game requires out <= in; only the two exact values are compared.
     if out.exact is not None and in_.exact is not None and out.exact > in_.exact:
         raise RulesFileError(
-            f"{where}: out_percent ({out.exact}) must be <= in_percent ({in_.exact})",
+            f"{where}.out_percent: Must be <= in_percent ({in_.exact}), "
+            f"got {out.exact}.",
             source,
         )
     return SubstitutionRule(out_percent=out, in_percent=in_)
@@ -640,12 +642,11 @@ def _parse_percent_bound(
     maximum = _optional_percent(section, max_key, source, where)
     if exact is not None and (minimum is not None or maximum is not None):
         raise RulesFileError(
-            f"{where}: `{exact_key}` and `{min_key}`/`{max_key}` "
-            f"are mutually exclusive",
+            f"{where}: Set at most one of {exact_key}, {min_key}/{max_key}.",
             source,
         )
     if minimum is not None and maximum is not None and minimum > maximum:
-        raise RulesFileError(f"{where}: `{min_key}` must be <= `{max_key}`", source)
+        raise RulesFileError(f"{where}.{min_key}: Must be <= {max_key}.", source)
     return PercentBound(exact=exact, minimum=minimum, maximum=maximum)
 
 
@@ -657,7 +658,7 @@ def _optional_percent(
         return None
     n = _require_int(section[key], source, f"{where}.{key}")
     if not 0 <= n <= 100:
-        raise RulesFileError(f"{where}.{key}: must be in [0, 100]", source)
+        raise RulesFileError(f"{where}.{key}: Must be in [0, 100].", source)
     return n
 
 
@@ -667,13 +668,15 @@ def _reject_unknown_keys(
     """Raise if `section` has any key outside `allowed` — catches typos early."""
     unknown = sorted(set(section) - allowed)
     if unknown:
-        names = ", ".join(repr(k) for k in unknown)
-        raise RulesFileError(f"{where}: unknown key(s): {names}", source)
+        names, valid = ", ".join(unknown), ", ".join(sorted(allowed))
+        raise RulesFileError(
+            f"{where}: Unknown key(s): {names}. Valid: {valid}.", source
+        )
 
 
 def _lookup(name_map: Mapping[str, Any], key: str, source: Path, where: str) -> Any:
     if key not in name_map:
-        raise RulesFileError(f"{where}: unknown value {key!r}", source)
+        raise RulesFileError(f"{where}: Unknown value {key!r}.", source)
     return name_map[key]
 
 
@@ -689,7 +692,7 @@ def _optional_enum(
         return None
     value = section[key]
     if not isinstance(value, str):
-        raise RulesFileError(f"{where}.{key}: must be a string", source)
+        raise RulesFileError(f"{where}.{key}: Must be a string.", source)
     return _lookup(name_map, value, source, f"{where}.{key}")
 
 
@@ -701,7 +704,7 @@ def _optional_fields(
         return None
     fields = section["fields"]
     if not isinstance(fields, list) or not fields:
-        raise RulesFileError(f"{where}: `fields` must be a non-empty list", source)
+        raise RulesFileError(f"{where}.fields: Must be a non-empty list.", source)
     return frozenset(
         _lookup(_FIELD_BY_NAME, f, source, f"{where}.fields") for f in fields
     )
@@ -709,20 +712,20 @@ def _optional_fields(
 
 def _require_bool(value: object, source: Path, where: str) -> bool:
     if not isinstance(value, bool):
-        raise RulesFileError(f"{where}: must be a boolean", source)
+        raise RulesFileError(f"{where}: Must be a boolean.", source)
     return value
 
 
 def _require_int(value: object, source: Path, where: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
-        raise RulesFileError(f"{where}: must be an integer", source)
+        raise RulesFileError(f"{where}: Must be an integer.", source)
     return value
 
 
 def _require_nonneg_int(value: object, source: Path, where: str) -> int:
     n = _require_int(value, source, where)
     if n < 0:
-        raise RulesFileError(f"{where}: must be >= 0", source)
+        raise RulesFileError(f"{where}: Must be >= 0.", source)
     return n
 
 

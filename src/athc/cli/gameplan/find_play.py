@@ -16,7 +16,7 @@ from athc.cli.gameplan._common import (
     is_glob,
 )
 from athc.console import console
-from athc.errors import AthcError
+from athc.errors import AthcError, error_line
 from athc.fbpro98_gameplan import PlayRef, read_gameplan
 
 
@@ -72,7 +72,7 @@ def find_play(ctx: click.Context, args: tuple[str, ...], recursive: bool) -> Non
         *play_names, path = args
     if is_glob(path):
         raise click.UsageError(
-            "path must be a .pln file or a directory; wildcards are not supported"
+            "Path must be a .pln file or a directory; wildcards are not supported."
         )
 
     collected = collect_files([path], suffix=".pln", recursive=recursive)
@@ -90,7 +90,7 @@ def find_play(ctx: click.Context, args: tuple[str, ...], recursive: bool) -> Non
         try:
             gp = read_gameplan(str(file))
         except (AthcError, OSError) as error:
-            console.fail(str(error))
+            console.fail(error_line(error))
             failed += 1
             continue
         except Exception:

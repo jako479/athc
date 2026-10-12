@@ -77,7 +77,7 @@ and codes: [architecture](../design/architecture.md#console-run-log-and-errors).
 |---|---|
 | `0` | Done: no issues. |
 | `1` | Findings: one or more issues. |
-| `2` | Error: no league, no `play_path`, a missing folder (`FAIL <folder>: not found`), a file in its place (`FAIL <path>: not a directory`), or a file or folder the system can't read (`FAIL <why>`). |
+| `2` | Error: no league, no `play_path`, a missing folder (`FAIL <folder>: The system cannot find the path specified.`), a file in its place (`FAIL <path>: The directory name is invalid.`), or a file or folder the system can't read (`FAIL <why>`). |
 
 `src/athc/cli/playpool/check.py` is the leaf command of the
 `src/athc/cli/playpool/` group. It loads the pool with the gameplan group's

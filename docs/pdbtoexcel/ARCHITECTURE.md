@@ -38,9 +38,9 @@ src/athc/cli/convert_pdb.py   # Click leaf command
   none). The row order within each team and the Options sheet lists are the
   league's `[category_order]` from `pdbtoexcel.toml`; a category not listed for
   its PDB play type is left out of the workbook.
-- Skips a play named in `[deleted_plays]` with one info line instead of the
-  "Play file not found" warning; one still in the pool is also skipped, with a
-  warning that the entry is stale.
+- Skips a play named in `[deleted_plays]` quietly instead of the
+  "has no play file in the play pool" warning; one still in the pool is also
+  skipped, with a warning, naming `pdbtoexcel.toml`, that the entry is stale.
 - Optionally cross-references up to two offensive + two defensive `.pln` game plans
   for the Slot columns.
 - Always adds a Total Stats team summing every team.

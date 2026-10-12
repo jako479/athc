@@ -156,7 +156,9 @@ def test_unexpected_names_the_log_and_logs_the_traceback(
     except RuntimeError:
         plain.unexpected("x.pln")
     err = capsys.readouterr().err
-    assert err == f"FAIL x.pln: unexpected error (see log: {tmp_path / 'athc.log'})\n"
+    assert err == (
+        f"FAIL x.pln: Unexpected error. See {tmp_path / 'athc.log'} for details.\n"
+    )
     assert records[0].levelno == logging.ERROR and records[0].exc_info is not None
 
 
@@ -172,4 +174,31 @@ def test_unexpected_without_a_subject(
     except RuntimeError:
         plain.unexpected()
     err = capsys.readouterr().err
-    assert err == f"FAIL unexpected error (see log: {tmp_path / 'athc.log'})\n"
+    assert err == f"FAIL Unexpected error. See {tmp_path / 'athc.log'} for details.\n"
+
+
+@pytest.mark.parametrize(
+    ("call", "label", "level"),
+    [("fail", "FAIL", logging.ERROR), ("warn", "WARN", logging.WARNING)],
+)
+def test_every_line_of_a_message_is_labeled_and_logged(
+    plain: AthcConsole,
+    capsys: pytest.CaptureFixture[str],
+    records: list[logging.LogRecord],
+    call: str,
+    label: str,
+    level: int,
+) -> None:
+    getattr(plain, call)("a.toml: One.\na.toml: Two.")
+    assert capsys.readouterr().err == f"{label} a.toml: One.\n{label} a.toml: Two.\n"
+    assert [(r.levelno, r.getMessage()) for r in records] == [
+        (level, f"{label} a.toml: One."),
+        (level, f"{label} a.toml: Two."),
+    ]
+
+
+def test_blank_lines_print_no_empty_labels(
+    plain: AthcConsole, capsys: pytest.CaptureFixture[str]
+) -> None:
+    plain.fail("One.\n\n  \nTwo.\n")
+    assert capsys.readouterr().err == "FAIL One.\nFAIL Two.\n"

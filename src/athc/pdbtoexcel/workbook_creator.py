@@ -75,8 +75,8 @@ class PdbWorkbookCreator:
             play_pool = read_play_pool(
                 config.play_path, rules=rules, labels=config.categories
             )
-            name = config.playpool_rules.name
-            notices.extend(f"{name}: {m}" for m in rule_warnings(play_pool, rules))
+            path = config.playpool_rules
+            notices.extend(f"{path}: {m}" for m in rule_warnings(play_pool, rules))
         else:
             play_pool = read_play_pool(config.play_path, labels=config.categories)
         notices.extend(play_pool.issues)
@@ -164,8 +164,8 @@ class PdbWorkbookCreator:
         for name in sorted(self.config.deleted_plays):
             if self.play_pool.find_by_name(name) is not None:
                 self.warnings.append(
-                    f"'{name}' is listed in [deleted_plays] but is in the play "
-                    "pool; its stats are skipped"
+                    f"{self.config.pdbtoexcel_file}: '{name}' is listed in "
+                    "[deleted_plays] but is in the play pool. Its stats are skipped."
                 )
 
     def _category_rank(self, play_record: Play, play_type: PLAY_DATA.PLAY_TYPE) -> int:
@@ -194,7 +194,9 @@ class PdbWorkbookCreator:
             play_record = self.play_pool.find_by_name(play_name)
             if play_record is None:
                 if play_name not in missing:
-                    self.warnings.append(f"Play file not found for play '{play_name}'")
+                    self.warnings.append(
+                        f"Play '{play_name}' has no play file in the play pool."
+                    )
                     missing.add(play_name)
                 continue
             if self._should_export(play_in_pdb, play_record):

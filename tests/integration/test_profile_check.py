@@ -13,6 +13,7 @@ import pytest
 
 from athc.cli.profile._common import collect_files
 from athc.cli.profile.check import check, check_file
+from athc.errors import FILE_NOT_FOUND
 from athc.fbpro98_profile import InvalidProfileError
 from athc.profile import load_rules
 from tests.conftest import (
@@ -20,7 +21,6 @@ from tests.conftest import (
     OTHER_LEAGUE,
     no_league_selected,
     no_rules_configured,
-    os_error,
     toml_error,
 )
 from tests.integration.conftest import (
@@ -81,7 +81,7 @@ def test_collect_missing_path(tmp_path: Path) -> None:
     missing = tmp_path / "nope"
     collected = collect_files([str(missing)], suffix=".prf", recursive=False)
     assert collected.files == []
-    assert collected.errors == [f"{missing}: not found"]
+    assert collected.errors == [f"{missing}: {FILE_NOT_FOUND}"]
 
 
 def test_collect_non_prf(tmp_path: Path) -> None:
@@ -89,13 +89,13 @@ def test_collect_non_prf(tmp_path: Path) -> None:
     bad.touch()
     collected = collect_files([str(bad)], suffix=".prf", recursive=False)
     assert collected.files == []
-    assert collected.errors == [f"{bad}: not a .prf file"]
+    assert collected.errors == [f"{bad}: Not a .prf file."]
 
 
 def test_collect_empty_dir_is_a_warning(tmp_path: Path) -> None:
     collected = collect_files([str(tmp_path)], suffix=".prf", recursive=False)
     assert collected.files == [] and collected.errors == []
-    assert collected.warnings == [f"{tmp_path}: no .prf files"]
+    assert collected.warnings == [f"{tmp_path}: No .prf files."]
 
 
 def test_collect_dedupes(tmp_path: Path) -> None:
@@ -225,7 +225,7 @@ def test_cli_no_path_empty_directory(
     monkeypatch.chdir(profiles)
     result = runner.invoke(check, [])
     assert result.exit_code == 0
-    assert result.stderr == "WARN .: no .prf files\n"
+    assert result.stderr == "WARN .: No .prf files.\n"
     assert result.stdout == "\n0 file(s) checked, 0 with violations, 0 failed\n"
 
 
@@ -284,7 +284,7 @@ def test_cli_missing_path(runner) -> None:
     missing = DATA / "nope.prf"
     result = runner.invoke(check, [str(missing)])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {missing}: not found\n"
+    assert result.stderr == f"FAIL {missing}: {FILE_NOT_FOUND}\n"
     assert result.stdout == "\n0 file(s) checked, 0 with violations, 1 failed\n"
 
 
@@ -294,7 +294,7 @@ def test_cli_malformed_prf(runner, tmp_path: Path) -> None:
     bad.write_bytes(b"\x00\x01\x02")
     result = runner.invoke(check, [str(bad)])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {bad}: File too small to contain F95 block\n"
+    assert result.stderr == f"FAIL {bad}: File too small to contain F95 block.\n"
 
 
 @pytest.mark.usefixtures("league")
@@ -305,7 +305,7 @@ def test_cli_continues_past_bad(runner, tmp_path: Path) -> None:
     shutil.copy2(OFF1, good)
     result = runner.invoke(check, [str(bad), str(good)])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {bad}: File too small to contain F95 block\n"
+    assert result.stderr == f"FAIL {bad}: File too small to contain F95 block.\n"
     assert f"{good}:" in result.stdout
     assert "2 file(s) checked, 1 with violations, 1 failed" in result.stdout
 
@@ -366,8 +366,7 @@ def test_cli_bad_rules_toml(runner, league: Path) -> None:
     result = runner.invoke(check, [str(OFF1)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {league / 'profile.toml'}: TOML parse error: "
-        f"{toml_error('not = valid = toml')}\n"
+        f"FAIL {league / 'profile.toml'}: {toml_error('not = valid = toml')}\n"
     )
 
 
@@ -376,16 +375,16 @@ def test_cli_missing_rules(runner, make_league: MakeLeague, tmp_path: Path) -> N
     make_league(LEAGUE, f"[league]\nprofile_rules = ['{missing}']\n")
     result = runner.invoke(check, [str(OFF1), "--league", LEAGUE])
     assert result.exit_code == 2
-    assert result.stderr == (
-        f"FAIL {missing}: {os_error(missing.read_bytes).strerror}\n"
-    )
+    assert result.stderr == (f"FAIL {missing}: {FILE_NOT_FOUND}\n")
 
 
 def test_cli_malformed_ini(runner, write_config: WriteConfig) -> None:
     ini = write_config("[profile\nbroken\n")
     result = runner.invoke(check, [str(OFF1)])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {ini}: line 1: no [section] header above it\n"
+    assert result.stderr == (
+        f"FAIL {ini}: Not valid INI: No [section] header above it (at line 1).\n"
+    )
 
 
 # ── --gameplan is gone (check-ppp replaces it) ────────────────────────────────

@@ -15,7 +15,7 @@ from athc.profile.diff import (
 )
 from athc.profile.display import category_label, pat_label, situation_label
 from athc.profile.errors import ProfileTypeMismatchError
-from athc.profile.model import RuleName, Violation
+from athc.profile.model import RuleName, RuleViolation
 from athc.profile.rules import (
     DEFENSE_CATEGORIES,
     OFFENSE_CATEGORIES,
@@ -40,13 +40,13 @@ __all__ = [
     "ProfileTypeMismatchError",
     "ProfileWriter",
     "RuleName",
+    "RuleViolation",
     "RulesFileError",
     "ScalarChange",
     "SituationChange",
     "SituationRule",
     "SlotChange",
     "SubstitutionRule",
-    "Violation",
     "category_label",
     "check_gameplan_compatibility",
     "diff_profiles",

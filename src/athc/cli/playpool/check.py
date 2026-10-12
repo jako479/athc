@@ -11,7 +11,12 @@ from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.playpool import playpool
 from athc.config import LEAGUE_FILE, LeagueError, load_league_config
 from athc.console import console
-from athc.errors import AthcError, ConfigFileError
+from athc.errors import (
+    DIRECTORY_INVALID,
+    PATH_NOT_FOUND,
+    AthcError,
+    ConfigFileError,
+)
 from athc.fbpro98_play import CategoryLabels
 from athc.playpool import read_play_pool
 
@@ -44,14 +49,14 @@ def check(ctx: click.Context, play_dir: Path | None, league: str | None) -> None
             play_dir = cfg.path("play_path")
             if play_dir is None:
                 raise ConfigFileError(
-                    f"no play_path for the league; set play_path in "
-                    f"{cfg.dir / LEAGUE_FILE}"
+                    "No play_path for the league. Set play_path in this file.",
+                    cfg.dir / LEAGUE_FILE,
                 )
 
     if not play_dir.exists():
-        raise AthcError("not found", play_dir)
+        raise AthcError(PATH_NOT_FOUND, play_dir)
     if not play_dir.is_dir():
-        raise AthcError("not a directory", play_dir)
+        raise AthcError(DIRECTORY_INVALID, play_dir)
     pool = read_play_pool(play_dir, labels=labels)
 
     # The pool's issues are this command's findings: results, on stdout.

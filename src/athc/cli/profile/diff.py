@@ -49,10 +49,13 @@ def diff(ctx: click.Context, a: Path, b: Path, output: Path | None) -> None:
         fmt = _infer_format(output)
         if fmt is None:
             raise click.BadParameter(
-                "format from the extension: use .txt or .csv", param_hint="--output"
+                "the format comes from the extension: use .txt or .csv.",
+                param_hint="--output",
             )
 
-    result = diff_profiles(read_profile(named_file(a)), read_profile(named_file(b)))
+    result = diff_profiles(
+        read_profile(named_file(a)), read_profile(named_file(b)), a_path=a, b_path=b
+    )
     if output is None:
         console.print(render(result, str(a), str(b)))
     else:

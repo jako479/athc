@@ -10,8 +10,11 @@ from __future__ import annotations
 import ctypes
 import time
 from collections.abc import Callable
+from pathlib import Path
 
+import cv2
 import pyautogui
+from cv2.typing import MatLike
 
 from athc.autocontinue.config import (
     Config,
@@ -19,7 +22,7 @@ from athc.autocontinue.config import (
     get_runtime_path,
     load_config,
 )
-from athc.errors import ConfigFileError
+from athc.errors import AthcError, ConfigFileError, missing_reason
 
 Say = Callable[[str], None]
 
@@ -62,6 +65,7 @@ def auto_continue(
     complain = warn or (lambda _: None)
     last_signature = config_signature()
     config = load_config()
+    button = _load_button_image(CONTINUE_BUTTON_IMAGE)
 
     say("AutoContinue is RUNNING. Press CTRL-C to exit.")
     _say_config_changes(None, config, say)
@@ -76,7 +80,7 @@ def auto_continue(
             try:
                 new_config = load_config()
             except ConfigFileError as error:
-                complain(f"Config reload failed; keeping previous settings. {error}")
+                complain(_reload_failed(error))
             else:
                 _say_config_changes(config, new_config, say)
                 new_corner = _resolve_hot_corner(new_config, hot_corner)
@@ -88,7 +92,7 @@ def auto_continue(
             time.sleep(_UNFOCUSED_POLL)
             continue
 
-        location = _find_continue_button(0, 0, width, height, complain)
+        location = _find_continue_button(button, 0, 0, width, height, complain)
         # Re-check focus: the commish may have switched away (pausing the game)
         # since the top of the loop.
         if location is None or not _game_has_focus():
@@ -133,27 +137,48 @@ def _foreground_window_title() -> str:
     return buffer.value
 
 
-def _find_continue_button(top: int, left: int, width: int, height: int, warn: Say):
+def _load_button_image(path: Path) -> MatLike:
+    """The Continue button as the matcher compares it (grayscale, as pyscreeze
+    reads a file for `grayscale=True`), loaded once: a missing or unreadable
+    image is a broken install, so it fails the run instead of retrying."""
+    if not path.exists():
+        raise AthcError(f"{missing_reason(path)} Reinstall athc.", path)
+    image = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+    if image is None:  # OpenCV says only that it could not read it
+        raise AthcError("Cannot read the image. Reinstall athc.", path)
+    return image
+
+
+def _find_continue_button(
+    button: MatLike, top: int, left: int, width: int, height: int, warn: Say
+):
     try:
         # Single screenshot+match per call; the loop paces scans with _SCAN_INTERVAL.
         # (pyscreeze's minSearchTime busy-loops with no sleep, so we don't use it.)
         return pyautogui.locateCenterOnScreen(
-            str(CONTINUE_BUTTON_IMAGE),
+            button,
             region=(top, left, width, height),
             grayscale=True,
             confidence=_LOCATE_CONFIDENCE,
         )
     except pyautogui.ImageNotFoundException:
         return None
-    except OSError as error:
-        # ImageGrab raises OSError on a locked screen / screensaver / disconnected
-        # RDP. Say so (so it isn't silent) and back off so we don't flood; any
-        # other error propagates so real bugs surface instead of being swallowed.
+    except OSError:
+        # ImageGrab raises OSError when Windows hides the screen. The button is
+        # already loaded, so this is the screen: say why and back off so we
+        # don't flood; any other error propagates so real bugs surface.
         warn(
-            f"Screen grab failed ({error}); retrying in {_LOCKED_SCREEN_BACKOFF:.0f}s."
+            "The screen is locked, a screensaver is on, or Remote Desktop is "
+            f"disconnected. Retrying in {_LOCKED_SCREEN_BACKOFF:.0f} seconds."
         )
         time.sleep(_LOCKED_SCREEN_BACKOFF)
         return None
+
+
+def _reload_failed(error: ConfigFileError) -> str:
+    """The warning for a config file that no longer reads: the error, which
+    names the file, then what happens next."""
+    return f"{error} Keeping the previous settings."
 
 
 def _resolve_hot_corner(config: Config, override: bool | None) -> bool:

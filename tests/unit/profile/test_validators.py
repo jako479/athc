@@ -22,6 +22,7 @@ from athc.profile import (
     PercentBound,
     ProfileRules,
     RuleName,
+    RuleViolation,
     SubstitutionRule,
     load_rules,
     validate_profile,
@@ -550,3 +551,14 @@ def test_defense_full_rules() -> None:
     violations = validate_profile(DEF1, FULL)
     assert len(violations) == 7
     assert all(v.rule_name == RuleName.DEFENSE_MIN_CATEGORIES for v in violations)
+
+
+def test_a_rule_violation_is_a_named_tuple() -> None:
+    violation = RuleViolation(RuleName.SUBSTITUTION, "Too many.")
+    assert violation == (RuleName.SUBSTITUTION, "Too many.", None)
+    rule_name, message, situation_number = violation
+    assert (rule_name, message, situation_number) == (
+        RuleName.SUBSTITUTION,
+        "Too many.",
+        None,
+    )

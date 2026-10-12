@@ -15,7 +15,7 @@ import xlsxwriter
 from xlsxwriter.exceptions import XlsxWriterException
 from xlsxwriter.worksheet import Worksheet
 
-from athc.errors import AthcError
+from athc.errors import AthcError, reason_of, sentence
 from athc.pdbtoexcel.config import Config, get_runtime_path
 from athc.pdbtoexcel.pdb import PLAY_DATA
 from athc.playpool import DefensivePlay, OffensivePlay, Play
@@ -111,9 +111,9 @@ class ExcelPdbWorkbook:
                 # Excel, a folder in the way); that is a failed write, not a bug.
                 cause = error.args[0] if error.args else None
                 reason = (
-                    cause.strerror
-                    if isinstance(cause, OSError) and cause.strerror
-                    else str(error)
+                    reason_of(cause)
+                    if isinstance(cause, OSError)
+                    else sentence(str(error))
                 )
                 raise AthcError(reason, self.filename) from error
 

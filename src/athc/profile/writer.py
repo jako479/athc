@@ -52,9 +52,10 @@ class ProfileWriter:
             raise ProfileTypeMismatchError(
                 source.profile_type,
                 target.profile_type,
-                f"Profile type mismatch: source is {source.profile_type.name}, "
-                f"target is {target.profile_type.name}. "
-                "copy only copies offense -> offense or defense -> defense.",
+                f"Cannot copy from {self.source_path} "
+                f"({source.profile_type.name.lower()}) to a "
+                f"{target.profile_type.name.lower()} profile.",
+                self.target_path,
             )
         profile = target
         if copy_sub_percent:

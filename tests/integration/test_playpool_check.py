@@ -14,6 +14,7 @@ import pytest
 from click.testing import Result
 
 from athc.cli.playpool.check import check
+from athc.errors import DIRECTORY_INVALID, PATH_NOT_FOUND
 from tests.conftest import (
     LEAGUE,
     OTHER_LEAGUE,
@@ -75,8 +76,8 @@ def test_issues_print_word_for_word_exit_1(runner, tmp_path: Path) -> None:
     assert result.exit_code == 1
     lines = result.stdout.splitlines()
     assert sorted(lines[:2]) == [
-        f"Duplicate play name '{PLAY}'; last loaded wins",
-        f"Run Left play in a Run Middle folder: Defense/34RunMiddle/{PLAY}.ply",
+        f"Defense/34RunMiddle/{PLAY}.ply: Run Left play in a Run Middle folder.",
+        f"Duplicate play name '{PLAY}'. The last one loaded wins.",
     ]
     assert lines[2:] == ["", f"2 play(s) checked in '{root}', 2 issue(s)"]
 
@@ -122,7 +123,8 @@ def test_invalid_file_is_an_issue(runner, tmp_path: Path) -> None:
     result = run(runner, root)
     assert result.exit_code == 1
     lines = result.stdout.splitlines()
-    assert lines[0].startswith("Skipping invalid play file: ")
+    assert lines[0].startswith(f"{root / 'bad.ply'}: ")
+    assert lines[0].endswith(" Skipped.")
     assert lines[1:] == ["", f"0 play(s) checked in '{root}', 1 issue(s)"]
 
 
@@ -186,7 +188,8 @@ def test_league_without_play_path_exit_2(
     result = run(runner)
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL no play_path for the league; set play_path in {folder / 'league.toml'}\n"
+        f"FAIL {folder / 'league.toml'}: No play_path for the league. "
+        "Set play_path in this file.\n"
     )
 
 
@@ -195,7 +198,7 @@ def test_missing_play_dir_is_not_found_exit_2(runner, tmp_path: Path) -> None:
     result = run(runner, missing)
     assert result.exit_code == 2
     assert result.stdout == ""
-    assert result.stderr == f"FAIL {missing}: not found\n"
+    assert result.stderr == f"FAIL {missing}: {PATH_NOT_FOUND}\n"
 
 
 def test_play_dir_not_a_directory_exit_2(runner, tmp_path: Path) -> None:
@@ -204,7 +207,7 @@ def test_play_dir_not_a_directory_exit_2(runner, tmp_path: Path) -> None:
     result = run(runner, a_file)
     assert result.exit_code == 2
     assert result.stdout == ""
-    assert result.stderr == f"FAIL {a_file}: not a directory\n"
+    assert result.stderr == f"FAIL {a_file}: {DIRECTORY_INVALID}\n"
 
 
 def test_read_error_exit_2(
@@ -216,4 +219,4 @@ def test_read_error_exit_2(
     monkeypatch.setattr("athc.cli.playpool.check.read_play_pool", fail)
     result = run(runner, clean_tree(tmp_path / "plays"))
     assert result.exit_code == 2
-    assert result.stderr == "FAIL access denied\n"
+    assert result.stderr == "FAIL Access is denied.\n"

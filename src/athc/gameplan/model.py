@@ -1,9 +1,9 @@
-"""Violation types reported by the gameplan validators."""
+"""Rule violations reported by the gameplan validators."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from enum import StrEnum
+from typing import NamedTuple
 
 
 class RuleName(StrEnum):
@@ -23,8 +23,7 @@ class RuleName(StrEnum):
     CUSTOM_SPECIAL_PLAY_REQUIRED = "custom_special_play_required"
 
 
-@dataclass(frozen=True, slots=True)
-class Violation:
+class RuleViolation(NamedTuple):
     """One rule violation. `category` is the game category name when the
     violation is tied to one (e.g. "Run Middle"); else None."""
 

@@ -192,7 +192,7 @@ def test_special_teams_and_unknown_plays_skipped(tmp_path: Path) -> None:
     )
     wb, creator = _convert(tmp_path, plays, [record])
     assert _rows(wb["Run Plays"]) == [_rows(_build(tmp_path, [], [])["Run Plays"])[0]]
-    assert creator.warnings == ["Play file not found for play 'GHOST'"]
+    assert creator.warnings == ["Play 'GHOST' has no play file in the play pool."]
 
 
 def test_tendencies_written(tmp_path: Path) -> None:
@@ -288,8 +288,8 @@ def test_deleted_play_still_in_the_pool_is_skipped_with_a_warning(
     )
     assert len(_rows(wb["Run Plays"])) == 1
     assert creator.warnings == [
-        "'run1' is listed in [deleted_plays] but is in the play pool; its stats "
-        "are skipped"
+        "pdbtoexcel.toml: 'run1' is listed in [deleted_plays] but is in the play "
+        "pool. Its stats are skipped."
     ]
 
 
@@ -309,5 +309,5 @@ def test_warnings_are_returned_not_logged(
         rows = creator.create_workbook(str(out), True, True, progress=said.append)
     assert caplog.records == []
     assert said == [f"Creating '{out}'"]
-    assert creator.warnings == ["Play file not found for play 'GHOST'"]
+    assert creator.warnings == ["Play 'GHOST' has no play file in the play pool."]
     assert rows == 1

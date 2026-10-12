@@ -12,9 +12,9 @@ from pathlib import Path
 import pytest
 
 from athc.cli.profile.diff import _CSV_COLUMNS, _infer_format, diff, render, render_csv
+from athc.errors import ALREADY_EXISTS, FILE_NOT_FOUND
 from athc.fbpro98_profile import ProfileType
 from athc.profile import ProfileDiff, SituationChange, SlotChange
-from tests.conftest import os_error
 from tests.integration.conftest import DATA, DEF1, EXPECTED, OFF1
 
 OFF2 = DATA / "TST-OFF2.prf"
@@ -50,14 +50,16 @@ def test_cli_differs_exit_1(runner) -> None:
 def test_cli_cross_side_exit_2(runner) -> None:
     result = runner.invoke(diff, [str(OFF1), str(DEF1)])
     assert result.exit_code == 2
-    assert result.stderr == "FAIL cannot diff OFFENSE against DEFENSE\n"
+    assert result.stderr == (
+        f"FAIL Cannot compare {OFF1} (offense) with {DEF1} (defense).\n"
+    )
     assert result.stdout == ""
 
 
 def test_cli_missing_path_exit_2(runner) -> None:
     result = runner.invoke(diff, [str(DATA / "nope.prf"), str(OFF1)])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {DATA / 'nope.prf'}: not found\n"
+    assert result.stderr == f"FAIL {DATA / 'nope.prf'}: {FILE_NOT_FOUND}\n"
     assert result.stdout == ""
 
 
@@ -66,7 +68,7 @@ def test_cli_malformed_prf_exit_2(runner, tmp_path: Path) -> None:
     bad.write_bytes(b"\x00\x01\x02")
     result = runner.invoke(diff, [str(bad), str(OFF1)])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {bad}: File too small to contain F95 block\n"
+    assert result.stderr == f"FAIL {bad}: File too small to contain F95 block.\n"
 
 
 # ── --output ──────────────────────────────────────────────────────────────────
@@ -104,7 +106,11 @@ def test_output_unknown_extension_is_a_usage_error(runner, tmp_path: Path) -> No
     out = tmp_path / "report.json"
     result = runner.invoke(diff, [str(OFF1), str(OFF1), "-o", str(out)])
     assert result.exit_code == 2
-    assert "Usage:" in result.stderr and "use .txt or .csv" in result.stderr
+    assert "Usage:" in result.stderr
+    assert result.stderr.endswith(
+        "Error: Invalid value for --output: the format comes from the extension: "
+        "use .txt or .csv.\n"
+    )
     assert not out.exists()
 
 
@@ -125,8 +131,7 @@ def test_output_write_failure_exit_2(runner, tmp_path: Path) -> None:
     out = tmp_path / "reports" / "report.csv"
     result = runner.invoke(diff, [str(BASE), str(MOD), "-o", str(out)])
     assert result.exit_code == 2
-    blocked = os_error(lambda: out.parent.mkdir(parents=True, exist_ok=True))
-    assert result.stderr == f"FAIL {blocked}\n"
+    assert result.stderr == f"FAIL {out.parent}: {ALREADY_EXISTS}\n"
 
 
 # ── golden output (controlled synthetic pair touching every field) ────────────

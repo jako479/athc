@@ -403,3 +403,6 @@ def test_mismatch_error_carries_both_types(tmp_path: Path) -> None:
         ProfileWriter(source, target).apply(copy_stop_clock=True)
     assert exc_info.value.source_type.name == "OFFENSE"
     assert exc_info.value.target_type.name == "DEFENSE"
+    assert str(exc_info.value) == (
+        f"{target}: Cannot copy from {source} (offense) to a defense profile."
+    )

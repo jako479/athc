@@ -22,7 +22,7 @@ def _ext(*extensions: str):
         for path in paths:
             if Path(path).suffix.lower() not in extensions:
                 raise click.BadParameter(
-                    f"must have a {' or '.join(extensions)} extension", ctx, param
+                    f"must have a {' or '.join(extensions)} extension.", ctx, param
                 )
         return value
 

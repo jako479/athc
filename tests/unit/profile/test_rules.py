@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -147,7 +148,11 @@ def test_gameplan_compatibility_parses(tmp_path: Path) -> None:
 
 def test_gameplan_compatibility_unknown_key(tmp_path: Path) -> None:
     text = MINIMAL + "[gameplan_compatibility]\nbogus = true\n"
-    with pytest.raises(RulesFileError, match="unknown key"):
+    message = (
+        "[gameplan_compatibility]: Unknown key(s): bogus. "
+        "Valid: require_all_profile_categories_in_gameplan."
+    )
+    with pytest.raises(RulesFileError, match=re.escape(message)):
         load_rules([write(tmp_path, text)])
 
 
@@ -158,7 +163,7 @@ def test_gameplan_compatibility_rejects_the_gameplan_rules_flag(tmp_path: Path) 
         MINIMAL + "[gameplan_compatibility]\n"
         "require_all_gameplan_categories_in_profile = true\n"
     )
-    with pytest.raises(RulesFileError, match="unknown key"):
+    with pytest.raises(RulesFileError, match="Unknown key"):
         load_rules([write(tmp_path, text)])
 
 
@@ -167,13 +172,13 @@ def test_gameplan_compatibility_must_be_bool(tmp_path: Path) -> None:
         MINIMAL
         + '[gameplan_compatibility]\nrequire_all_profile_categories_in_gameplan = "x"\n'
     )
-    with pytest.raises(RulesFileError, match="must be a boolean"):
+    with pytest.raises(RulesFileError, match="Must be a boolean"):
         load_rules([write(tmp_path, text)])
 
 
 def test_gameplan_compatibility_must_be_table(tmp_path: Path) -> None:
     text = MINIMAL + "gameplan_compatibility = true\n"
-    with pytest.raises(RulesFileError, match="must be a table"):
+    with pytest.raises(RulesFileError, match="Must be a table"):
         load_rules([write(tmp_path, text)])
 
 
@@ -225,12 +230,12 @@ def test_all_time_buckets_match_distinctly(tmp_path: Path) -> None:
 
 
 def test_empty_paths() -> None:
-    with pytest.raises(RulesFileError, match="at least one"):
+    with pytest.raises(RulesFileError, match="At least one"):
         load_rules([])
 
 
 def test_toml_parse_error(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="TOML parse error"):
+    with pytest.raises(RulesFileError, match="Not valid TOML: "):
         load_rules([write(tmp_path, "not = valid = toml")])
 
 
@@ -258,7 +263,7 @@ def test_collects_multiple_errors(tmp_path: Path) -> None:
     assert len(exc.value.errors) == 3
     joined = "\n".join(exc.value.errors)
     assert (
-        ">= 0" in joined and "unknown category" in joined and "unknown value" in joined
+        ">= 0" in joined and "Unknown category" in joined and "Unknown value" in joined
     )
 
 
@@ -279,65 +284,78 @@ def test_negative_rule_min_categories_rejected(tmp_path: Path) -> None:
 
 
 def test_unknown_top_key(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="unknown key"):
+    with pytest.raises(RulesFileError, match="Unknown key"):
         load_rules([write(tmp_path, MINIMAL + "bogus = 1\n")])
 
 
 def test_schema_version_is_an_unknown_key(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="unknown key"):
+    with pytest.raises(RulesFileError, match="Unknown key"):
         load_rules([write(tmp_path, MINIMAL + "schema_version = 1\n")])
 
 
 def test_unknown_situation_key(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="unknown key"):
+    with pytest.raises(RulesFileError, match="Unknown key"):
         load_rules([write(tmp_path, MINIMAL + SECTION + "bogus = 1\n")])
 
 
 def test_situation_needs_constraint(tmp_path: Path) -> None:
     text = MINIMAL + '[offense.empty]\ntime = ">5:00"\ndown = "first"\n'
-    with pytest.raises(RulesFileError, match="needs one of"):
+    with pytest.raises(RulesFileError, match="Needs one of"):
         load_rules([write(tmp_path, text)])
 
 
 def test_bad_time(tmp_path: Path) -> None:
     text = MINIMAL + SECTION.replace('">5:00"', '"halftime"')
-    with pytest.raises(RulesFileError, match="unknown value"):
+    with pytest.raises(RulesFileError, match="Unknown value"):
         load_rules([write(tmp_path, text)])
 
 
 def test_allowed_and_disallowed_exclusive(tmp_path: Path) -> None:
     text = MINIMAL + SECTION + 'allowed = ["RL"]\ndisallowed = ["RM"]\n'
-    with pytest.raises(RulesFileError, match="mutually exclusive"):
+    with pytest.raises(
+        RulesFileError,
+        match=r"\[offense\.x\]: Set at most one of allowed, disallowed\.",
+    ):
         load_rules([write(tmp_path, text)])
 
 
 def test_unknown_category(tmp_path: Path) -> None:
     text = MINIMAL + SECTION + 'allowed = ["NOPE"]\n'
-    with pytest.raises(RulesFileError, match="unknown category"):
+    with pytest.raises(RulesFileError, match="Unknown category"):
         load_rules([write(tmp_path, text)])
 
 
 def test_mandatory_must_be_list(tmp_path: Path) -> None:
     text = MINIMAL + SECTION + 'mandatory = "RL"\n'
-    with pytest.raises(RulesFileError, match="must be a list"):
+    with pytest.raises(
+        RulesFileError, match=r"\[offense\.x\]\.mandatory: Must be a list\."
+    ):
+        load_rules([write(tmp_path, text)])
+
+
+def test_fields_must_be_a_non_empty_list(tmp_path: Path) -> None:
+    text = MINIMAL + SECTION.replace('["inside_def_5"]', "[]")
+    with pytest.raises(
+        RulesFileError, match=r"\[offense\.x\]\.fields: Must be a non-empty list\."
+    ):
         load_rules([write(tmp_path, text)])
 
 
 def test_mandatory_unknown_category(tmp_path: Path) -> None:
     text = MINIMAL + SECTION + 'mandatory = ["NOPE"]\n'
-    with pytest.raises(RulesFileError, match="unknown category"):
+    with pytest.raises(RulesFileError, match="Unknown category"):
         load_rules([write(tmp_path, text)])
 
 
 def test_disallowed_categories_unknown_name(tmp_path: Path) -> None:
     text = MINIMAL + 'disallowed_offensive_categories = ["bogus"]\n'
-    with pytest.raises(RulesFileError, match="unknown name"):
+    with pytest.raises(RulesFileError, match="Unknown name"):
         load_rules([write(tmp_path, text)])
 
 
 def test_unknown_field_name(tmp_path: Path) -> None:
     text = MINIMAL + SECTION.replace('"inside_def_5"', '"midfield"')
-    with pytest.raises(RulesFileError, match="unknown value"):
+    with pytest.raises(RulesFileError, match="Unknown value"):
         load_rules([write(tmp_path, text)])
 
 
@@ -459,7 +477,7 @@ def test_substitutions_percent_out_of_range(
     tmp_path: Path, key: str, value: int
 ) -> None:
     text = _subs(f"QB = {{ {key} = {value} }}\n")
-    with pytest.raises(RulesFileError, match=rf"{key}: must be in \[0, 100\]"):
+    with pytest.raises(RulesFileError, match=rf"{key}: Must be in \[0, 100\]"):
         load_rules([write(tmp_path, text)])
 
 
@@ -475,14 +493,19 @@ def test_substitutions_percent_out_of_range(
 def test_substitutions_exact_with_bound_same_side_rejected(
     tmp_path: Path, body: str
 ) -> None:
-    with pytest.raises(RulesFileError, match="mutually exclusive"):
+    side = body.split("_", 1)[0]
+    msg = (
+        rf"\[substitutions\]\.QB: Set at most one of {side}_percent, "
+        rf"min_{side}_percent/max_{side}_percent\."
+    )
+    with pytest.raises(RulesFileError, match=msg):
         load_rules([write(tmp_path, _subs(f"QB = {{ {body} }}\n"))])
 
 
 @pytest.mark.parametrize("side", ["out", "in"])
 def test_substitutions_min_above_max_rejected(tmp_path: Path, side: str) -> None:
     body = f"min_{side}_percent = 71, max_{side}_percent = 70"  # one past equal
-    msg = rf"min_{side}_percent` must be <= `max_{side}_percent"
+    msg = rf"\[substitutions\]\.QB\.min_{side}_percent: Must be <= max_{side}_percent\."
     with pytest.raises(RulesFileError, match=msg):
         load_rules([write(tmp_path, _subs(f"QB = {{ {body} }}\n"))])
 
@@ -492,9 +515,11 @@ def test_substitutions_min_above_max_rejected(tmp_path: Path, side: str) -> None
 @pytest.mark.parametrize("position", ALL_POSITIONS)
 def test_substitutions_out_above_in_rejected(tmp_path: Path, position: str) -> None:
     text = _subs(f"{position} = {{ out_percent = 81, in_percent = 80 }}\n")
-    with pytest.raises(
-        RulesFileError, match=r"out_percent \(81\) must be <= in_percent \(80\)"
-    ):
+    msg = (
+        rf"\[substitutions\]\.{re.escape(position)}\.out_percent: "
+        r"Must be <= in_percent \(80\), got 81\."
+    )
+    with pytest.raises(RulesFileError, match=msg):
         load_rules([write(tmp_path, text)])
 
 
@@ -508,36 +533,36 @@ def test_substitutions_out_vs_in_not_checked_for_ranges(tmp_path: Path) -> None:
 
 
 def test_substitutions_empty_group_rejected(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="needs one of"):
+    with pytest.raises(RulesFileError, match="Needs one of"):
         load_rules([write(tmp_path, _subs("QB = {}\n"))])
 
 
 def test_substitutions_unknown_position(tmp_path: Path) -> None:
     text = _subs("zz = { out_percent = 75, in_percent = 80 }\n")
-    with pytest.raises(RulesFileError, match="unknown key"):
+    with pytest.raises(RulesFileError, match="Unknown key"):
         load_rules([write(tmp_path, text)])
 
 
 def test_substitutions_unknown_group_key(tmp_path: Path) -> None:
     text = _subs("QB = { out_percent = 75, in_percent = 80, foo = 1 }\n")
-    with pytest.raises(RulesFileError, match="unknown key"):
+    with pytest.raises(RulesFileError, match="Unknown key"):
         load_rules([write(tmp_path, text)])
 
 
 def test_substitutions_not_a_table(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="must be a table"):
+    with pytest.raises(RulesFileError, match="Must be a table"):
         load_rules([write(tmp_path, MINIMAL + "substitutions = 5\n")])
 
 
 def test_substitutions_position_not_a_table(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="must be a table"):
+    with pytest.raises(RulesFileError, match="Must be a table"):
         load_rules([write(tmp_path, _subs("QB = 5\n"))])
 
 
 @pytest.mark.parametrize("key", SUB_KEYS)
 def test_substitutions_non_integer(tmp_path: Path, key: str) -> None:
     text = _subs(f'QB = {{ {key} = "x" }}\n')
-    with pytest.raises(RulesFileError, match=rf"{key}: must be an integer"):
+    with pytest.raises(RulesFileError, match=rf"{key}: Must be an integer"):
         load_rules([write(tmp_path, text)])
 
 
@@ -545,7 +570,7 @@ def test_substitutions_non_integer(tmp_path: Path, key: str) -> None:
 def test_substitutions_float_or_bool_rejected(tmp_path: Path, value: str) -> None:
     """Whole numbers only — a float or boolean is not an integer."""
     text = _subs(f"QB = {{ min_out_percent = {value} }}\n")
-    with pytest.raises(RulesFileError, match="must be an integer"):
+    with pytest.raises(RulesFileError, match="Must be an integer"):
         load_rules([write(tmp_path, text)])
 
 

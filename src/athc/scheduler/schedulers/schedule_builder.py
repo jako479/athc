@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Sequence
+from pathlib import Path
 
 from ortools.sat.python import cp_model
 
@@ -38,6 +39,7 @@ class ScheduleBuilder:
         rivalries: Sequence[RivalryPair] = (),
         rotate_rivalry_home_by_season: bool = True,
         season: int | None = None,
+        config_path: Path | None = None,
     ) -> None:
         self.model = cp_model.CpModel()
         self.league = league
@@ -53,8 +55,9 @@ class ScheduleBuilder:
 
         if league.has_divisions and not self.amounts.require_home_away_streak_caps:
             raise ConfigFileError(
-                "require_home_away_streak_caps must be true for a league with "
-                "divisions: the soft objective needs the streak flags."
+                "[phase2] require_home_away_streak_caps: Must be true for a league "
+                "with divisions. The soft objective needs the streak flags.",
+                config_path,
             )
         if self.rivalries and rotate_rivalry_home_by_season and season is None:
             raise error_cls("A season is required to rotate rivalry hosting.")
@@ -291,7 +294,9 @@ class ScheduleBuilder:
         if unknown_pairs:
             pretty = sorted((a.metro, b.metro) for a, b in unknown_pairs)
             raise self.error_cls(
-                f"Phase-1 inventory contains unknown team pairs: {pretty}"
+                "Phase-1 inventory contains unknown team pairs: "
+                + ", ".join(f"{a} vs {b}" for a, b in pretty)
+                + "."
             )
 
         for team_i, team_j in all_pairs:
@@ -815,7 +820,7 @@ class ScheduleBuilder:
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             raise self.error_cls(
                 f"CP-SAT returned status {solver.status_name(status)} - no feasible "
-                f"schedule"
+                f"schedule."
             )
 
         games: list[Game] = []

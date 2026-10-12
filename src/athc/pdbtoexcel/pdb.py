@@ -174,7 +174,8 @@ class PDB:
                     or data_type > self.DATA_TYPE.TENDENCY
                 ):
                     raise InvalidPDBError(
-                        f"invalid data type {data!r} at {pdb.tell() - 1:#x}", file_path
+                        f"Invalid data type 0x{data.hex()} at {pdb.tell() - 1:#x}.",
+                        file_path,
                     )
                 if data_type == self.DATA_TYPE.PLAY:
                     self._read_play(pdb)
@@ -185,7 +186,9 @@ class PDB:
         play_in_pdb = PLAY_DATA.from_buffer_copy(pdb.read(ctypes.sizeof(PLAY_DATA)))
         if not play_in_pdb.is_valid():
             offset = pdb.tell() - ctypes.sizeof(PLAY_DATA)
-            self.warnings.append(f"Skipping invalid play data at {offset:#x}")
+            self.warnings.append(
+                f"{self.filename}: Invalid play data at {offset:#x}. Skipped."
+            )
             return
         play_name = play_in_pdb.play_name.decode("ASCII")
         if play_name in ("RUNCLOCK", "STOPCLOK"):
@@ -208,7 +211,9 @@ class PDB:
             self.tendencies.append(tendency)
         else:
             offset = pdb.tell() - ctypes.sizeof(TENDENCY_DATA)
-            self.warnings.append(f"Skipping invalid tendency data at {offset:#x}")
+            self.warnings.append(
+                f"{self.filename}: Invalid tendency data at {offset:#x}. Skipped."
+            )
 
     def convert_invalid_play_data(self, play_pool) -> None:
         """Reclassify offensive plays the engine logged under the wrong play_type.

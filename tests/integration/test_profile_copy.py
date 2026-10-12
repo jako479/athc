@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from athc.cli.profile.copy import copy
+from athc.errors import FILE_NOT_FOUND
 from athc.fbpro98_profile import (
     FieldPosition,
     SubstitutionPair,
@@ -65,6 +66,14 @@ def _stop_clock(path: Path) -> tuple[bool, ...]:
 def test_cli_usage_errors_exit_2(runner, args: list[str]) -> None:
     # missing SRC / missing TARGET / no copy flag are all usage errors.
     assert runner.invoke(copy, args).exit_code == 2
+
+
+def test_cli_no_copy_flag_is_a_sentence(runner) -> None:
+    result = runner.invoke(copy, [str(OFF1), "t.prf"])
+    assert result.stderr.endswith(
+        "Error: At least one copy option is required (--stop-clock, --sub-percent, "
+        "--field-goal-range, --fourth-down, --goal-line, --pat-logic).\n"
+    )
 
 
 # ── single-file flows ─────────────────────────────────────────────────────────
@@ -286,7 +295,7 @@ def test_cli_continues_past_failed_file(runner, tmp_path: Path) -> None:
     result = runner.invoke(copy, [str(source), str(targets), "--stop-clock"])
     assert result.exit_code == 2
     assert f"OK   {good}: updated" in result.stdout
-    assert result.stderr == f"FAIL {bad}: Invalid header '\x00\x00\x00\x00' at 0x0\n"
+    assert result.stderr == f"FAIL {bad}: Invalid header '\x00\x00\x00\x00' at 0x0.\n"
     assert "2 file(s) processed, 1 updated, 0 skipped, 1 failed" in result.stdout
 
 
@@ -297,7 +306,7 @@ def test_cli_missing_source_exit_2(runner, tmp_path: Path) -> None:
         copy, [str(tmp_path / "nope.prf"), str(target), "--stop-clock"]
     )
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {tmp_path / 'nope.prf'}: not found\n"
+    assert result.stderr == f"FAIL {tmp_path / 'nope.prf'}: {FILE_NOT_FOUND}\n"
     assert target.read_bytes() == pre  # untouched when source can't be read
 
 

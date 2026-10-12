@@ -59,17 +59,19 @@ class AthcConsole:
         logger.info("%s", message)
 
     def warn(self, message: str) -> None:
-        """Noted, nothing failed."""
-        self._status(self.err, "WARN", "yellow", message, logging.WARNING)
+        """Noted, nothing failed. One labeled line per line of `message`."""
+        for line in _lines(message):
+            self._status(self.err, "WARN", "yellow", line, logging.WARNING)
 
     def fail(self, message: str) -> None:
-        """One item, or the run, failed."""
-        self._status(self.err, "FAIL", "red", message, logging.ERROR)
+        """One item, or the run, failed. One labeled line per line of `message`."""
+        for line in _lines(message):
+            self._status(self.err, "FAIL", "red", line, logging.ERROR)
 
     def unexpected(self, what: str | None = None) -> None:
         """A bug. Call it inside the `except`, so the traceback reaches the log."""
         subject = f"{what}: " if what else ""
-        message = f"{subject}unexpected error (see log: {log_path()})"
+        message = f"{subject}Unexpected error. See {log_path()} for details."
         self._status(self.err, "FAIL", "red", message, logging.ERROR, exc_info=True)
 
     def _status(
@@ -85,6 +87,12 @@ class AthcConsole:
         padded = label.ljust(_LABEL_WIDTH)
         target.print(Text.assemble((label, color), padded[len(label) :], message))
         logger.log(level, "%s%s", padded, message, exc_info=exc_info)
+
+
+def _lines(message: str) -> list[str]:
+    """A message's non-blank lines: a message with several problems (a rules
+    file) prints one labeled line each, never an unlabeled one."""
+    return [line for line in message.splitlines() if line.strip()] or [message]
 
 
 console = AthcConsole()

@@ -7,7 +7,7 @@ Library + CLI over `fbpro98_gameplan` + `playpool`. Validates `.pln` gameplans a
 ```
 src/athc/gameplan/        # tool logic (no Click)
 ├── __init__.py           # public API
-├── model.py              # Violation, RuleName
+├── model.py              # RuleViolation, RuleName
 ├── rules.py              # Rules, OffenseCategoryRule, DefenseCategoryRule, load_rules
 ├── validators.py         # validate_gameplan
 ├── writer.py             # apply_normal_plays / apply_special_plays (name -> slot)
@@ -73,10 +73,10 @@ The league folder `leagues\<NAME>\` (see [../design/architecture.md](../design/a
 
 ## set-normals / set-specials
 
-`gameplan.writer` resolves a play list against the pool into `.pln` slot entries (`apply_normal_plays` / `apply_special_plays`), aggregating every per-line problem into one `InvalidPlayInputError`. Side and special-teams classification come from each play's `.ply` header, not the rules. A play in a stock-only special category (11-12) is rejected per line. The list format is one name per line, `::` comment lines, ` ::` inline trailers (`parse_play_list`). Input or read failures abort before any write. Each slot's play path is the play pool's folder name, then the play's path inside the pool (`<pool folder>\Offense\RL\OR45RL01.ply`).
+`gameplan.writer` resolves a play list against the pool into `.pln` slot entries (`apply_normal_plays` / `apply_special_plays`), aggregating every per-line problem into one `InvalidPlayListError`. Side and special-teams classification come from each play's `.ply` header, not the rules. A play in a stock-only special category (11-12) is rejected per line. The list format is one name per line, `::` comment lines, ` ::` inline trailers (`parse_play_list`). Input or read failures abort before any write. Each slot's play path is the play pool's folder name, then the play's path inside the pool (`<pool folder>\Offense\RL\OR45RL01.ply`).
 
-- `set-normals gameplan input_file` replaces all 64 normal slots of one `.pln`; an `input_file` of `-` reads stdin. The pool and its playpool rules come from the league. No backup is made. Special-teams plays are rejected (use set-specials). Exit `0` = updated, `2` = usage or error.
-- `set-specials path input_file` merges the custom special slots (unlisted categories preserved) of one `.pln`, or every `.pln` in a directory/tree (`-r`); an `input_file` of `-` reads stdin. Each play self-slots by its special category; wrong-side files are skipped with a `SKIP` line (offense `.pln` are even-sized, defense odd). The pool and its playpool rules come from the league. No backup is made. Exit `0` = all updated, `2` = usage, setup error or a failed file.
+- `set-normals gameplan play_list` replaces all 64 normal slots of one `.pln`; an `play_list` of `-` reads stdin. The pool and its playpool rules come from the league. No backup is made. Special-teams plays are rejected (use set-specials). Exit `0` = updated, `2` = usage or error.
+- `set-specials path play_list` merges the custom special slots (unlisted categories preserved) of one `.pln`, or every `.pln` in a directory/tree (`-r`); an `play_list` of `-` reads stdin. Each play self-slots by its special category; wrong-side files are skipped with a `SKIP` line (offense `.pln` are even-sized, defense odd). The pool and its playpool rules come from the league. No backup is made. Exit `0` = all updated, `2` = usage, setup error or a failed file.
 
 ## replace-play
 

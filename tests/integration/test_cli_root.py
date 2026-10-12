@@ -147,13 +147,13 @@ def test_short_help_option_on_every_command(runner, path: tuple[str, ...]) -> No
         ),
         (
             ("gameplan", "set-normals"),
-            ["gameplan input_file"],
-            ["GAMEPLAN_PATH", "INPUT_PATH"],
+            ["gameplan play_list"],
+            ["GAMEPLAN_PATH", "PLAY_LIST_PATH"],
         ),
         (
             ("gameplan", "set-specials"),
-            ["path input_file"],
-            ["TARGET", "INPUT_PATH"],
+            ["path play_list"],
+            ["TARGET", "PLAY_LIST_PATH"],
         ),
         (
             ("generate-schedule",),

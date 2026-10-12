@@ -20,6 +20,7 @@ __all__ = ["Config", "ConfigFileError", "load_config"]
 @dataclass(frozen=True, slots=True)
 class Config:
     play_path: Path
+    league_file: Path  # the league.toml that sets play_path, for its errors
     playpool_rules: Path | None = None  # optional playpool rules TOML
     rule_files: tuple[Path, ...] = ()
     categories: CategoryLabels = field(default_factory=CategoryLabels)
@@ -35,7 +36,8 @@ def load_config(
     play_path = cfg.path("play_path")
     if play_path is None:
         raise ConfigFileError(
-            f"no play_path for the league; set play_path in {cfg.dir / LEAGUE_FILE}"
+            "No play_path for the league. Set play_path in this file.",
+            cfg.dir / LEAGUE_FILE,
         )
     files = (
         tuple(rule_files)
@@ -44,6 +46,7 @@ def load_config(
     )
     return Config(
         play_path=play_path,
+        league_file=cfg.dir / LEAGUE_FILE,
         playpool_rules=cfg.rules_file(PLAYPOOL_RULES_FILE),
         rule_files=files,
         categories=cfg.categories,

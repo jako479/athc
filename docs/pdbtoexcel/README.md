@@ -17,7 +17,7 @@ athc convert-pdb stats.pdb out.xlsx --league PCFL
 - The workbook always includes the Total Stats team.
 - `--skip-calcs` drops the percentage columns.
 - Missing folders in the output path are created.
-- Lines: `Creating '<workbook>'` as progress on stderr; a `WARN` line per notice (a play file not found, a stale `[deleted_plays]` entry, invalid PDB data, a play-pool issue, a `playpool.toml` notice); then `OK   <output_file>: <n> play(s)`. Exit 0 done (warnings included), 2 on an error (a missing or bad file, config, no `play_path`, I/O) or usage (bad extension, etc.); `FAIL <why>` names the problem. Shared console and codes: [architecture](../design/architecture.md#console-run-log-and-errors).
+- Lines: `Creating '<workbook>'` as progress on stderr; a `WARN` line per notice (a play with no play file in the pool, a stale `[deleted_plays]` entry, invalid PDB data, a play-pool issue, a `playpool.toml` notice), each naming its file first where one is to blame; then `OK   <output_file>: <n> play(s)`. Exit 0 done (warnings included), 2 on an error (a missing or bad file, config, no `play_path`, I/O) or usage (bad extension, etc.); `FAIL <why>` names the problem. Shared console and codes: [architecture](../design/architecture.md#console-run-log-and-errors).
 
 Plays are grouped by their category, shown under the league's name for it
 (`PSL`, `RunLeft`) and sorted in the league's order.

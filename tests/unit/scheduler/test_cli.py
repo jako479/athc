@@ -83,7 +83,7 @@ def test_errors_on_oserror(runner, monkeypatch, config_dir: Path) -> None:
     monkeypatch.setattr(cli_module, "run_generate", boom)
     result = runner.invoke(generate_schedule, ["--season", "2048"])
     assert result.exit_code == 2
-    assert result.stderr == "FAIL disk full\n"
+    assert result.stderr == "FAIL Disk full.\n"
 
 
 def test_errors_when_dependency_missing(runner, monkeypatch, config_dir: Path) -> None:
@@ -96,7 +96,7 @@ def test_errors_when_dependency_missing(runner, monkeypatch, config_dir: Path) -
     monkeypatch.setattr(cli_module, "run_generate", boom)
     result = runner.invoke(generate_schedule, ["--season", "2048"])
     assert result.exit_code == 2
-    assert result.stderr == "FAIL missing ortools -- reinstall athc\n"
+    assert result.stderr == "FAIL Missing ortools. Reinstall athc.\n"
 
 
 def test_errors_when_no_feasible_schedule(
@@ -169,7 +169,7 @@ def test_cli_errors_without_division_standings(runner, config_dir: Path) -> None
     result = runner.invoke(generate_schedule, ["--season", "2048"])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {_standings_path(config_dir, 2048)}: must have exactly one of the "
+        f"FAIL {_standings_path(config_dir, 2048)}: Must have exactly one of the "
         "[DivisionStandings] and [ConferenceStandings] sections.\n"
     )
 

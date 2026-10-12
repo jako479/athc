@@ -14,7 +14,7 @@ from fractions import Fraction
 
 from athc.fbpro98_gameplan import GamePlan
 from athc.fbpro98_play import UNKNOWN_CATEGORY, resolve_category
-from athc.gameplan.model import RuleName, Violation
+from athc.gameplan.model import RuleName, RuleViolation
 from athc.gameplan.rules import DefenseCategoryRule, OffenseCategoryRule, Rules
 from athc.playpool import (
     DefensiveFront,
@@ -28,9 +28,9 @@ from athc.playpool import (
 
 def validate_gameplan(
     gameplan: GamePlan, rules: Rules, play_pool: PlayPool
-) -> tuple[Violation, ...]:
+) -> tuple[RuleViolation, ...]:
     """Run every validator against `gameplan` and return the combined report."""
-    violations: list[Violation] = []
+    violations: list[RuleViolation] = []
 
     resolved, name_violations = _resolve_normal_plays(gameplan, play_pool)
     violations.extend(name_violations)
@@ -62,11 +62,11 @@ def validate_gameplan(
 
 def _resolve_normal_plays(
     gameplan: GamePlan, play_pool: PlayPool
-) -> tuple[list[Play], list[Violation]]:
+) -> tuple[list[Play], list[RuleViolation]]:
     """Resolve each filled normal slot against the pool, reporting duplicate and
     unresolved plays. Unresolved plays are dropped from category counts."""
     resolved: list[Play] = []
-    violations: list[Violation] = []
+    violations: list[RuleViolation] = []
     seen: dict[str, int] = {}
 
     for slot, play in enumerate(gameplan.normal_plays):
@@ -75,7 +75,7 @@ def _resolve_normal_plays(
         upper = play.name.upper()
         if upper in seen:
             violations.append(
-                Violation(
+                RuleViolation(
                     rule_name=RuleName.DUPLICATE_PLAY,
                     message=(
                         f"Duplicate play '{play.name}' at {_slot_label(slot)} "
@@ -89,7 +89,7 @@ def _resolve_normal_plays(
         record = play_pool.find_by_name(play.name)
         if record is None:
             violations.append(
-                Violation(
+                RuleViolation(
                     rule_name=RuleName.UNRESOLVED_PLAY,
                     message=f"Play '{play.name}' at {_slot_label(slot)} "
                     "not found in play pool",
@@ -104,15 +104,15 @@ def _resolve_normal_plays(
 def _validate_offense(
     by_category: Mapping[str, list[Play]],
     category_rules: Mapping[str, OffenseCategoryRule],
-) -> list[Violation]:
-    violations: list[Violation] = []
+) -> list[RuleViolation]:
+    violations: list[RuleViolation] = []
 
     for category, rule in category_rules.items():
         plays = by_category.get(category, [])
         if not plays:
             if rule.required:
                 violations.append(
-                    Violation(
+                    RuleViolation(
                         RuleName.CATEGORY_REQUIRED,
                         f"Required offensive category '{category}' has no plays",
                         category,
@@ -122,7 +122,7 @@ def _validate_offense(
 
         if len(plays) < rule.min_count:
             violations.append(
-                Violation(
+                RuleViolation(
                     RuleName.CATEGORY_MIN_COUNT,
                     f"Offensive category '{category}' has {len(plays)} plays; "
                     f"requires at least {rule.min_count}.",
@@ -132,7 +132,7 @@ def _validate_offense(
 
         if rule.max_count is not None and len(plays) > rule.max_count:
             violations.append(
-                Violation(
+                RuleViolation(
                     RuleName.CATEGORY_MAX_COUNT,
                     f"Offensive category '{category}' has {len(plays)} plays; "
                     f"allows at most {rule.max_count}.",
@@ -150,7 +150,7 @@ def _validate_offense(
         )
         if cap is not None:
             violations.append(
-                Violation(
+                RuleViolation(
                     RuleName.CATEGORY_MAX_QB_DRAWS,
                     f"Offensive category '{category}' has {qb_draws} of "
                     f"{len(plays)} QB draws; allows at most {cap}.",
@@ -168,7 +168,7 @@ def _validate_offense(
         )
         if cap is not None:
             violations.append(
-                Violation(
+                RuleViolation(
                     RuleName.CATEGORY_MAX_ROLLOUTS,
                     f"Offensive category '{category}' has {rollouts} of "
                     f"{len(plays)} rollouts; allows at most {cap}.",
@@ -190,7 +190,7 @@ def _validate_offense(
         )
         if cap is not None:
             violations.append(
-                Violation(
+                RuleViolation(
                     RuleName.CATEGORY_MAX_TIMED,
                     f"Offensive category '{category}' has {timed} of "
                     f"{len(plays)} timed passes; allows at most {cap}.",
@@ -204,15 +204,15 @@ def _validate_offense(
 def _validate_defense(
     by_category: Mapping[str, list[Play]],
     category_rules: Mapping[str, DefenseCategoryRule],
-) -> list[Violation]:
-    violations: list[Violation] = []
+) -> list[RuleViolation]:
+    violations: list[RuleViolation] = []
 
     for category, rule in category_rules.items():
         plays = by_category.get(category, [])
         if not plays:
             if rule.required:
                 violations.append(
-                    Violation(
+                    RuleViolation(
                         RuleName.CATEGORY_REQUIRED,
                         f"Required defensive category '{category}' has no plays",
                         category,
@@ -222,7 +222,7 @@ def _validate_defense(
 
         if len(plays) < rule.min_count:
             violations.append(
-                Violation(
+                RuleViolation(
                     RuleName.CATEGORY_MIN_COUNT,
                     f"Defensive category '{category}' has {len(plays)} plays; "
                     f"requires at least {rule.min_count}.",
@@ -232,7 +232,7 @@ def _validate_defense(
 
         if rule.max_count is not None and len(plays) > rule.max_count:
             violations.append(
-                Violation(
+                RuleViolation(
                     RuleName.CATEGORY_MAX_COUNT,
                     f"Defensive category '{category}' has {len(plays)} plays; "
                     f"allows at most {rule.max_count}.",
@@ -255,7 +255,7 @@ def _validate_defense(
         )
         if cap is not None:
             violations.append(
-                Violation(
+                RuleViolation(
                     RuleName.CATEGORY_MAX_TWO_DL,
                     f"Defensive category '{category}' has {two_dl} of "
                     f"{len(plays)} 2-DL plays; allows at most {cap}.",
@@ -289,13 +289,13 @@ def _cap_exceeded(
 
 def _validate_allowed(
     by_category: Mapping[str, list[Play]], allowed: frozenset[str], side: str
-) -> list[Violation]:
+) -> list[RuleViolation]:
     """When the rules list the allowed categories, a gameplan may contain plays
     in no other category. An empty list allows every category."""
     if not allowed:
         return []
     return [
-        Violation(
+        RuleViolation(
             RuleName.CATEGORY_NOT_ALLOWED,
             f"{side} category '{category}' is not allowed; has {len(plays)} play(s).",
             category,
@@ -307,15 +307,15 @@ def _validate_allowed(
 
 def _validate_special_categories(
     gameplan: GamePlan, required: frozenset[int]
-) -> list[Violation]:
+) -> list[RuleViolation]:
     """Each required special category (1-12) must have a custom or stock play."""
-    violations: list[Violation] = []
+    violations: list[RuleViolation] = []
     for category in sorted(required):
         slot = gameplan.special_plays[category - 1]
         if slot.custom is None and slot.stock is None:
             name = _special_name(gameplan, category)
             violations.append(
-                Violation(
+                RuleViolation(
                     RuleName.SPECIAL_CATEGORY_REQUIRED,
                     f"Required special category '{name}' has no play",
                     name,
@@ -324,16 +324,16 @@ def _validate_special_categories(
     return violations
 
 
-def _validate_custom_special_plays(gameplan: GamePlan) -> list[Violation]:
+def _validate_custom_special_plays(gameplan: GamePlan) -> list[RuleViolation]:
     """A populated special category must use its custom slot. Only categories
     that have one are checked; the clock categories are stock-only."""
-    violations: list[Violation] = []
+    violations: list[RuleViolation] = []
     for category in GamePlan.CUSTOM_SPECIAL_CATEGORIES:
         slot = gameplan.special_plays[category - 1]
         if slot.stock is not None and slot.custom is None:
             name = _special_name(gameplan, category)
             violations.append(
-                Violation(
+                RuleViolation(
                     RuleName.CUSTOM_SPECIAL_PLAY_REQUIRED,
                     f"Special category '{name}' uses a stock play; "
                     "a custom play is required",

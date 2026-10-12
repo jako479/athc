@@ -19,9 +19,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from athc.config import LEAGUE_FILE, ConfigFileError, load_league_config
+from athc.config import LEAGUE_FILE, ConfigFileError, config_file, load_league_config
 from athc.config import load_config as load_athc_config
-from athc.errors import reason_of
+from athc.errors import missing_reason, reason_of, toml_reason
 from athc.fbpro98_play import (
     CategoryLabels,
     DefensiveCategory,
@@ -60,6 +60,8 @@ def empty_category_order() -> CategoryOrder:
 @dataclass(frozen=True, slots=True)
 class Config:
     play_path: str = ""
+    league_file: Path = Path(LEAGUE_FILE)  # the league.toml that sets play_path
+    pdbtoexcel_file: Path = Path(PDBTOEXCEL_FILE)  # for its warnings
     playpool_rules: Path | None = None  # optional; tags plays
     calculate_percentages: bool = True
     include_category_worksheets: bool = False
@@ -88,14 +90,18 @@ def load_config(league: str | None = None) -> Config:
     play_path = cfg.path("play_path")
     if play_path is None:
         raise ConfigFileError(
-            f"no play_path for the league; set play_path in {cfg.dir / LEAGUE_FILE}"
+            "No play_path for the league. Set play_path in this file.",
+            cfg.dir / LEAGUE_FILE,
         )
     raw = load_athc_config().get(SECTION, {})
+    pdbtoexcel_file = cfg.rules_file_path(PDBTOEXCEL_FILE)
     category_order, deleted_plays = read_pdbtoexcel_toml(
-        cfg.rules_file_path(PDBTOEXCEL_FILE), cfg.categories
+        pdbtoexcel_file, cfg.categories
     )
     return Config(
         play_path=str(play_path),
+        league_file=cfg.dir / LEAGUE_FILE,
+        pdbtoexcel_file=pdbtoexcel_file,
         playpool_rules=cfg.rules_file(PLAYPOOL_RULES_FILE),
         calculate_percentages=_bool(raw, "calculate_percentages", True),
         include_category_worksheets=_bool(raw, "include_category_worksheets", False),
@@ -121,21 +127,18 @@ def read_pdbtoexcel_toml(
     unknown key, a wrong type or a bad name is a ConfigFileError."""
     if not path.is_file():
         raise ConfigFileError(
-            f"not found (convert-pdb needs the league's {PDBTOEXCEL_FILE})", path
+            f"{missing_reason(path)} convert-pdb needs this file in the league folder.",
+            path,
         )
     try:
         data = tomllib.loads(path.read_text(encoding="utf-8-sig"))
     except OSError as e:
         raise ConfigFileError(reason_of(e), path) from e
     except tomllib.TOMLDecodeError as e:
-        raise ConfigFileError(str(e), path) from e
-    for key in data:
-        if key not in (ORDER_TABLE, DELETED_TABLE):
-            raise ConfigFileError(
-                f"unknown key {key!r} (expected {ORDER_TABLE}, {DELETED_TABLE})", path
-            )
+        raise ConfigFileError(toml_reason(e), path) from e
+    _check_keys(data, (ORDER_TABLE, DELETED_TABLE), "(top)", path)
     if ORDER_TABLE not in data:
-        raise ConfigFileError(f"[{ORDER_TABLE}] is missing", path)
+        raise ConfigFileError(f"Missing the [{ORDER_TABLE}] table.", path)
     order = _category_order(_table(data, ORDER_TABLE, path), labels, path)
     deleted = _deleted_plays(_table(data, DELETED_TABLE, path), path)
     return order, deleted
@@ -144,7 +147,7 @@ def read_pdbtoexcel_toml(
 def _table(data: Mapping[str, Any], key: str, path: Path) -> Mapping[str, Any]:
     value = data.get(key, {})
     if not isinstance(value, Mapping):
-        raise ConfigFileError(f"[{key}] must be a table", path)
+        raise ConfigFileError(f"[{key}]: Must be a table.", path)
     return value
 
 
@@ -153,26 +156,26 @@ def _string_array(
 ) -> list[str]:
     value = table[key]
     if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
-        raise ConfigFileError(f"[{section}] {key}: expected an array of strings", path)
+        raise ConfigFileError(f"[{section}] {key}: Expected an array of strings.", path)
     return value
 
 
 def _check_keys(
-    table: Mapping[str, Any], expected: Iterable[str], section: str, path: Path
+    table: Mapping[str, Any], expected: Iterable[str], where: str, path: Path
 ) -> None:
     allowed = sorted(expected)
-    for key in table:
-        if key not in allowed:
-            expected = ", ".join(allowed)
-            raise ConfigFileError(
-                f"[{section}] {key}: unknown key (expected {expected})", path
-            )
+    unknown = sorted(set(table) - set(allowed))
+    if unknown:
+        names, valid = ", ".join(unknown), ", ".join(allowed)
+        raise ConfigFileError(
+            f"{where}: Unknown key(s): {names}. Valid: {valid}.", path
+        )
 
 
 def _category_order(
     table: Mapping[str, Any], labels: CategoryLabels, path: Path
 ) -> CategoryOrder:
-    _check_keys(table, _ORDER_KEYS, ORDER_TABLE, path)
+    _check_keys(table, _ORDER_KEYS, f"[{ORDER_TABLE}]", path)
     offense = {labels.label(c): c for c in OffensiveCategory}
     defense = {labels.label(c): c for c in DefensiveCategory}
     # Per key: the names that belong in its list, and the whole side for the
@@ -185,7 +188,7 @@ def _category_order(
     order: dict[PLAY_DATA.PLAY_TYPE, tuple[PlayCategory, ...]] = {}
     for key, play_type in _ORDER_KEYS.items():
         if key not in table:
-            raise ConfigFileError(f"[{ORDER_TABLE}] {key}: missing", path)
+            raise ConfigFileError(f"[{ORDER_TABLE}] {key}: Missing.", path)
         names = _string_array(table, key, ORDER_TABLE, path)
         order[play_type] = tuple(_resolve(names, key, *valid[key], path))
     return order
@@ -211,22 +214,22 @@ def _resolve(
             ):
                 kind = "run" if other.is_run else "pass"
                 raise ConfigFileError(
-                    f"{where}: {name!r} is a {kind} category, not a {key} category",
+                    f"{where}: {name!r} is a {kind} category, not a {key} category.",
                     path,
                 )
             raise ConfigFileError(
                 f"{where}: {name!r} is not a {key} category of this league. "
-                f"Valid: {sorted(valid)}",
+                f"Valid: {', '.join(sorted(valid))}.",
                 path,
             )
         if member in members:
-            raise ConfigFileError(f"{where}: {name!r} is listed twice", path)
+            raise ConfigFileError(f"{where}: {name!r} is listed twice.", path)
         members.append(member)
     return members
 
 
 def _deleted_plays(table: Mapping[str, Any], path: Path) -> frozenset[str]:
-    _check_keys(table, (DELETED_KEY,), DELETED_TABLE, path)
+    _check_keys(table, (DELETED_KEY,), f"[{DELETED_TABLE}]", path)
     if DELETED_KEY not in table:
         return frozenset()
     return frozenset(_string_array(table, DELETED_KEY, DELETED_TABLE, path))
@@ -243,6 +246,7 @@ def _bool(raw: Mapping[str, str], key: str, default: bool) -> bool:
     if lowered in _FALSE:
         return False
     raise ConfigFileError(
-        f"[{SECTION}] {key}: expected true or false (yes/no, on/off, 1/0 also "
-        f"work), got {value!r}"
+        f"[{SECTION}] {key}: Must be true or false (yes/no, on/off and 1/0 also "
+        f"work), got {value!r}.",
+        config_file(),
     )

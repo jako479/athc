@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from athc.cli.gameplan.set_normals import set_normals
+from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_gameplan import CustomPlayRef, PlayRef, read_gameplan
 from tests.conftest import LEAGUE, league_toml
 from tests.integration.conftest import GP_OFFENSE, PLAYS, POOL_RULES
@@ -52,7 +53,7 @@ def test_requires_gameplan(runner) -> None:
     assert runner.invoke(set_normals, []).exit_code == 2
 
 
-def test_requires_input_file(runner, tmp_path: Path) -> None:
+def test_requires_play_list(runner, tmp_path: Path) -> None:
     assert runner.invoke(set_normals, [str(_copy(tmp_path))]).exit_code == 2
 
 
@@ -83,6 +84,16 @@ def test_writes_from_file(runner, tmp_path: Path) -> None:
     rt = read_gameplan(str(p))
     assert rt.normal_plays[0] is not None and rt.normal_plays[0].name == NORMAL
     assert all(x is None for x in rt.normal_plays[1:])
+
+
+def test_a_list_saved_with_a_bom_reads_its_first_play(runner, tmp_path: Path) -> None:
+    """Notepad's "UTF-8 with BOM" puts a mark before the first play name."""
+    p = _copy(tmp_path)
+    inp = tmp_path / "plays.txt"
+    inp.write_text(NORMAL + "\n", encoding="utf-8-sig")
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 0
+    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
 
 
 def test_slot_path_starts_with_play_pool_folder(runner, tmp_path: Path) -> None:
@@ -152,10 +163,33 @@ def test_dash_input_errors_name_no_file(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_normals, [str(p), "-"], input="NOTAREALPLAY\n")
     assert result.exit_code == 2
     assert (
-        "FAIL line 1: 'NOTAREALPLAY' not found in the play pool (slot 1-1)\n"
+        "FAIL line 1: 'NOTAREALPLAY' not found in the play pool (slot 1-1).\n"
         in result.stderr
     )
     assert "FAIL - " not in result.stderr
+
+
+def test_dash_input_line_is_the_real_line(runner, tmp_path: Path) -> None:
+    """Blank and `::` lines count, CRLF or not, as in a file."""
+    p = _copy(tmp_path)
+    text = "\r\n:: my list\r\nNOTAREALPLAY\r\n"
+    result = runner.invoke(set_normals, [str(p), "-"], input=text)
+    assert result.exit_code == 2
+    assert (
+        "FAIL line 3: 'NOTAREALPLAY' not found in the play pool (slot 1-1).\n"
+        in result.stderr
+    )
+
+
+def test_file_input_line_is_the_real_line(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    inp = _input(tmp_path, f":: header\n\n{NORMAL}\nNOTAREALPLAY\n")
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 2
+    assert (
+        f"FAIL {inp}: line 4: 'NOTAREALPLAY' not found in the play pool (slot 1-2).\n"
+        in result.stderr
+    )
 
 
 # ── validation / errors (target left untouched) ───────────────────────────────
@@ -168,7 +202,7 @@ def test_rejects_special_teams_play(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_normals, [str(p), str(inp)])
     assert result.exit_code == 2
     assert (
-        f"FAIL {inp} line 1: '{SPECIAL}' is a special teams play; use set-specials"
+        f"FAIL {inp}: line 1: '{SPECIAL}' is a special teams play. Use set-specials.\n"
         in result.stderr
     )
     assert p.read_bytes() == original
@@ -181,7 +215,7 @@ def test_missing_play_aborts(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_normals, [str(p), str(inp)])
     assert result.exit_code == 2
     assert (
-        f"FAIL {inp} line 1: 'NOTAREALPLAY' not found in the play pool (slot 1-1)"
+        f"FAIL {inp}: line 1: 'NOTAREALPLAY' not found in the play pool (slot 1-1).\n"
         in result.stderr
     )
     assert p.read_bytes() == original
@@ -189,25 +223,39 @@ def test_missing_play_aborts(runner, tmp_path: Path) -> None:
 
 def test_too_many_plays_rejected(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
-    result = runner.invoke(
-        set_normals, [str(p), str(_input(tmp_path, (NORMAL + "\n") * 65))]
-    )
+    inp = _input(tmp_path, (NORMAL + "\n") * 65)
+    result = runner.invoke(set_normals, [str(p), str(inp)])
     assert result.exit_code == 2
-    assert result.stderr == "FAIL input has 65 play(s), max is 64\n"
+    assert result.stderr == f"FAIL {inp}: Too many plays (65). The most is 64.\n"
+
+
+def test_too_many_plays_from_the_console_names_no_file(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    result = runner.invoke(set_normals, [str(p), "-"], input=(NORMAL + "\n") * 65)
+    assert result.exit_code == 2
+    assert result.stderr == "FAIL Too many plays (65). The most is 64.\n"
+
+
+def test_as_many_plays_as_slots_accepted(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    inp = _input(tmp_path, (NORMAL + "\n") * 64)
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 0
+    assert result.stdout == f"OK   {p}: 64 normal play(s)\n"
 
 
 def test_missing_pln(runner, tmp_path: Path) -> None:
     inp = _input(tmp_path, NORMAL + "\n")
     result = runner.invoke(set_normals, [str(tmp_path / "nope.pln"), str(inp)])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {tmp_path / 'nope.pln'}: not found\n"
+    assert result.stderr == f"FAIL {tmp_path / 'nope.pln'}: {FILE_NOT_FOUND}\n"
 
 
-def test_missing_input_file(runner, tmp_path: Path) -> None:
+def test_missing_play_list(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
     result = runner.invoke(set_normals, [str(p), str(tmp_path / "nope.txt")])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {tmp_path / 'nope.txt'}: not found\n"
+    assert result.stderr == f"FAIL {tmp_path / 'nope.txt'}: {FILE_NOT_FOUND}\n"
 
 
 def test_invalid_play_path(runner, league: Path, tmp_path: Path) -> None:
@@ -219,5 +267,6 @@ def test_invalid_play_path(runner, league: Path, tmp_path: Path) -> None:
     result = runner.invoke(set_normals, [str(p), str(inp)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {tmp_path / 'missing'}: play path is not a directory\n"
+        f"FAIL {tmp_path / 'missing'}: {PATH_NOT_FOUND} "
+        f"Set play_path in {league / 'league.toml'}.\n"
     )

@@ -47,40 +47,55 @@ def test_missing_section_is_empty(tmp_path: Path) -> None:
 
 
 def test_schema_version_is_an_unknown_section(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="unknown section"):
+    with pytest.raises(RulesFileError, match=r"\(top\): Unknown key\(s\): schema_"):
         load_rules(write(tmp_path, "schema_version = 1\n"))
 
 
 def test_unknown_section(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="unknown section"):
-        load_rules(write(tmp_path, "[Bogus]\nsuffix_any = []\n"))
+    text = "[Bogus]\nsuffix_any = []\n[Zap]\n"
+    message = "(top): Unknown key(s): Bogus, Zap. Valid: QBRun, RolloutPass, TimedPass."
+    with pytest.raises(RulesFileError) as exc:
+        load_rules(write(tmp_path, text))
+    assert [e.split(": ", 1)[1] for e in exc.value.errors] == [message]
 
 
 def test_unknown_key(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="unknown key"):
-        load_rules(write(tmp_path, "[TimedPass]\nbogus = []\n"))
+    message = (
+        "[TimedPass]: Unknown key(s): bogus, zap. "
+        "Valid: exclude, include, regex_any, regex_none, suffix_any, suffix_none."
+    )
+    with pytest.raises(RulesFileError) as exc:
+        load_rules(write(tmp_path, "[TimedPass]\nbogus = []\nzap = []\n"))
+    assert [e.split(": ", 1)[1] for e in exc.value.errors] == [message]
 
 
 def test_bad_value_type(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="must be a list of strings"):
+    with pytest.raises(RulesFileError, match="Must be a list of strings"):
         load_rules(write(tmp_path, '[TimedPass]\nsuffix_any = "T"\n'))
 
 
 def test_section_not_a_table(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="must be a table"):
+    with pytest.raises(RulesFileError, match="Must be a table"):
         load_rules(write(tmp_path, "TimedPass = 1\n"))
 
 
 def test_bad_regex(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="invalid regex"):
+    with pytest.raises(RulesFileError, match="Invalid regex"):
         load_rules(write(tmp_path, '[TimedPass]\nregex_any = ["("]\n'))
+
+
+def test_a_bad_regex_shows_as_written(tmp_path: Path) -> None:
+    """No Python repr: a backslash in the pattern shows once, not doubled."""
+    with pytest.raises(RulesFileError) as exc:
+        load_rules(write(tmp_path, "[TimedPass]\nregex_any = ['\\d(']\n"))
+    assert "Invalid regex '\\d(': " in str(exc.value)
 
 
 def test_two_bad_regexes_both_reported(tmp_path: Path) -> None:
     src = write(tmp_path, '[TimedPass]\nregex_any = ["(", "["]\n')
     with pytest.raises(RulesFileError) as ei:
         load_rules(src)
-    bad = [e for e in ei.value.errors if "invalid regex" in e]
+    bad = [e for e in ei.value.errors if "Invalid regex" in e]
     assert len(bad) == 2
     assert any("'('" in e for e in bad)
     assert any("'['" in e for e in bad)
@@ -99,10 +114,10 @@ def test_collects_multiple_errors(tmp_path: Path) -> None:
     with pytest.raises(RulesFileError) as ei:
         load_rules(src)
     errors = ei.value.errors
-    assert any("unknown section" in e for e in errors)
-    assert any("unknown key" in e for e in errors)
-    assert any("must be a list of strings" in e for e in errors)
-    regex_errors = [e for e in errors if "invalid regex" in e]
+    assert any("(top): Unknown key(s): Bogus." in e for e in errors)
+    assert any("[TimedPass]: Unknown key(s): bogus." in e for e in errors)
+    assert any("Must be a list of strings" in e for e in errors)
+    regex_errors = [e for e in errors if "Invalid regex" in e]
     assert len(regex_errors) == 2
     assert any("'('" in e for e in regex_errors)
     assert any("'['" in e for e in regex_errors)
@@ -110,7 +125,7 @@ def test_collects_multiple_errors(tmp_path: Path) -> None:
 
 
 def test_toml_parse_error(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="TOML parse error"):
+    with pytest.raises(RulesFileError, match="Not valid TOML: "):
         load_rules(write(tmp_path, "not = valid = toml"))
 
 

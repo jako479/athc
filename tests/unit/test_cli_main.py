@@ -14,7 +14,7 @@ import pytest
 from click.testing import CliRunner
 
 from athc.cli import CONTEXT_SETTINGS, AthcCommand, cli
-from athc.errors import AthcError
+from athc.errors import ALREADY_EXISTS, FILE_NOT_FOUND, AthcError
 
 
 def _command(raiser: Callable[[], None]) -> click.Command:
@@ -46,7 +46,7 @@ def test_os_error_is_a_fail_line_exit_2() -> None:
 
     result = CliRunner().invoke(_command(_raise), [])
     assert result.exit_code == 2
-    assert result.stderr == "FAIL [Errno 2] No such file or directory: 'x.pln'\n"
+    assert result.stderr == f"FAIL x.pln: {FILE_NOT_FOUND}\n"
 
 
 def test_unwritable_log_folder_is_a_fail_line_exit_2(
@@ -55,11 +55,9 @@ def test_unwritable_log_folder_is_a_fail_line_exit_2(
     blocker = tmp_path / "logs"
     blocker.write_text("not a folder", encoding="utf-8")
     monkeypatch.setenv("ATHC_LOG_DIR", str(blocker))
-    with pytest.raises(OSError) as os_error:  # the system's own wording
-        blocker.mkdir(parents=True, exist_ok=True)
     result = CliRunner().invoke(_command(lambda: None), [])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {blocker}: {os_error.value.strerror}\n"
+    assert result.stderr == f"FAIL {blocker}: {ALREADY_EXISTS}\n"
     assert result.stdout == ""
 
 
@@ -69,7 +67,9 @@ def test_bug_is_unexpected_with_traceback_in_the_log(log_dir: Path) -> None:
 
     result = CliRunner().invoke(_command(_raise), [])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL unexpected error (see log: {log_dir / 'athc.log'})\n"
+    assert result.stderr == (
+        f"FAIL Unexpected error. See {log_dir / 'athc.log'} for details.\n"
+    )
     assert "RuntimeError: kaboom" in _log(log_dir)
 
 
@@ -79,7 +79,7 @@ def test_ctrl_c_is_interrupted_130(log_dir: Path) -> None:
 
     result = CliRunner().invoke(_command(_raise), [])
     assert result.exit_code == 130
-    assert result.stderr.endswith("FAIL interrupted\n")
+    assert result.stderr.endswith("FAIL Interrupted.\n")
     assert "INFO exit 130" in _log(log_dir)
 
 

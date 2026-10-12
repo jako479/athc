@@ -35,8 +35,8 @@ src/athc/playpool/
   Receivers). With no rules these stay off.
 - **Warns** (never reclassifies) when a play sits in a recognized PNFL folder
   that contradicts its file: a wrong side, or — when the side matches — a category
-  differing from the folder's. Each warning ends with the play's path, e.g.
-  `Pass Short Left play in a Pass Medium Left folder: Offense/PML/X.ply`. A wrong
+  differing from the folder's. Each warning starts with the play's path, e.g.
+  `Offense/PML/X.ply: Pass Short Left play in a Pass Medium Left folder.`. A wrong
   side is reported alone; unrecognized folders (flat / non-PNFL) never warn. A
   category with no PNFL folder (`User Specific`, Pass Long Left/Middle, Razzle
   Dazzle Run) warns only when filed inside a category folder, not when loose.

@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from athc.cli._files import Collected, collect_files, is_glob, named_file
+from athc.config import play_dir
 from athc.console import console
 from athc.errors import ConfigFileError
 from athc.fbpro98_gameplan import GamePlan, PlayRef
@@ -17,7 +18,8 @@ from athc.fbpro98_play import (
     PlayCategory,
     resolve_category,
 )
-from athc.gameplan import Rules, Violation, load_rules
+from athc.gameplan import Rules, RuleViolation, load_rules
+from athc.gameplan.writer import PlayLine
 from athc.playpool import PlayPool, read_play_pool, rule_warnings
 from athc.playpool import load_rules as load_pool_rules
 
@@ -76,10 +78,11 @@ _DEFENSE_CATEGORY_ORDER: tuple[PlayCategory, ...] = (
 )
 
 
-def parse_play_list(text: str) -> list[str]:
-    """Play names in order; drops blanks, `::` lines, and ` ::` trailers."""
-    out: list[str] = []
-    for raw in text.splitlines():
+def parse_play_list(text: str) -> list[PlayLine]:
+    """Play names in order with their line numbers; drops blanks, `::` lines,
+    and ` ::` trailers."""
+    out: list[PlayLine] = []
+    for number, raw in enumerate(text.splitlines(), start=1):
         line = raw.strip()
         if not line or line.startswith(COMMENT_TOKEN):
             continue
@@ -87,7 +90,7 @@ def parse_play_list(text: str) -> list[str]:
         if idx >= 0:
             line = line[:idx].rstrip()
         if line:
-            out.append(line)
+            out.append(PlayLine(number, line))
     return out
 
 
@@ -111,7 +114,7 @@ def find_in_gameplan(
     return normal_hits, special_hits
 
 
-def format_violation(v: Violation) -> str:
+def format_violation(v: RuleViolation) -> str:
     """One violation as `check` prints it: `[category] message`, or just the
     message when it has no category."""
     prefix = f"[{v.category}] " if v.category else ""
@@ -125,30 +128,31 @@ def load_rules_or_raise(rule_files: Iterable[Path], labels: CategoryLabels) -> R
     files = list(rule_files)
     if not files:
         raise ConfigFileError(
-            "no rules configured - nothing to check. "
-            "Add gameplan.toml to the league folder."
+            "No rules configured. Add gameplan.toml to the league folder."
         )
     return load_rules(files, labels=labels)
 
 
 def build_pool(
-    play_path: Path, playpool_rules: Path | None, labels: CategoryLabels
+    play_path: Path,
+    playpool_rules: Path | None,
+    labels: CategoryLabels,
+    league_file: Path,
 ) -> PlayPool:
     """Build a PlayPool from `play_path` (each play classified from its file) with
     the league's category `labels` naming its folders. Optional `playpool_rules`
     is the playpool filename-filter TOML. Every pool issue and every notice
-    about the names the rules file lists is a `WARN` line. ConfigFileError when
-    `play_path` is not a directory; an unreadable rules file raises its own
-    error."""
-    if not play_path.is_dir():
-        raise ConfigFileError("play path is not a directory", play_path)
+    about the names the rules file lists is a `WARN` line. ConfigFileError,
+    naming `league_file`, when `play_path` is not a folder; an unreadable rules
+    file raises its own error."""
+    play_dir(play_path, league_file)
     rules = load_pool_rules(playpool_rules) if playpool_rules else None
     pool = read_play_pool(play_path, rules=rules, labels=labels)
     for issue in pool.issues:
         console.warn(issue)
     if rules is not None and playpool_rules is not None:
         for notice in rule_warnings(pool, rules):
-            console.warn(f"{playpool_rules.name}: {notice}")
+            console.warn(f"{playpool_rules}: {notice}")
     return pool
 
 

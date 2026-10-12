@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from fractions import Fraction
 from functools import partial
 from pathlib import Path
@@ -49,30 +50,30 @@ def test_defense_short_label_maps_to_full_name(tmp_path: Path) -> None:
 
 def test_unknown_offense_label(tmp_path: Path) -> None:
     text = MINIMAL + "[offense.ZZZ]\nrequired = true\nmin_count = 1\n"
-    with pytest.raises(RulesFileError, match="not an offense category label"):
+    with pytest.raises(RulesFileError, match="Not an offense category label"):
         load_rules([write(tmp_path, text)])
 
 
 def test_unknown_defense_label(tmp_path: Path) -> None:
     text = MINIMAL + "[defense.Nonsense]\nrequired = true\nmin_count = 1\n"
-    with pytest.raises(RulesFileError, match="not a defense category label"):
+    with pytest.raises(RulesFileError, match="Not a defense category label"):
         load_rules([write(tmp_path, text)])
 
 
 def test_side_not_a_table_rejected(tmp_path: Path) -> None:
     text = MINIMAL + 'offense = "RM"\n'
-    with pytest.raises(RulesFileError, match=r"\[offense\] must be a table"):
+    with pytest.raises(RulesFileError, match=r"\[offense\]: Must be a table"):
         load_rules([write(tmp_path, text)])
 
 
 def test_section_not_a_table_rejected(tmp_path: Path) -> None:
     text = MINIMAL + "[offense]\nRM = 5\n"
-    with pytest.raises(RulesFileError, match=r"\[offense.RM\] must be a table"):
+    with pytest.raises(RulesFileError, match=r"\[offense.RM\]: Must be a table"):
         load_rules([write(tmp_path, text)])
 
 
 def test_league_label_section_needs_the_league_labels(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match="not an offense category label"):
+    with pytest.raises(RulesFileError, match="Not an offense category label"):
         _load_rules([write(tmp_path, MINIMAL + OFF_SECTION)], labels=CategoryLabels())
 
 
@@ -84,16 +85,18 @@ def test_game_name_section_loads_without_league_labels(tmp_path: Path) -> None:
 
 def test_game_name_section_rejected_when_league_labels_it(tmp_path: Path) -> None:
     text = MINIMAL + '[offense."Run Middle"]\nrequired = true\n'
-    with pytest.raises(RulesFileError, match="not an offense category label") as exc:
+    with pytest.raises(RulesFileError, match="Not an offense category label") as exc:
         load_rules([write(tmp_path, text)])
-    # The message lists the valid labels: the league's `RM`, not the game name.
-    assert "'RM'" in str(exc.value)
-    assert "'Run Middle'" not in str(exc.value)
+    # The message lists the valid labels, plainly: the league's `RM`, not the
+    # game name.
+    valid = str(exc.value).split("Valid: ", 1)[1]
+    assert ", RM, " in valid
+    assert "Run Middle" not in valid
 
 
 def test_unknown_label_message_lists_the_league_labels(tmp_path: Path) -> None:
     text = MINIMAL + "[defense.Nonsense]\nrequired = true\n"
-    with pytest.raises(RulesFileError, match="'RunDazzle'"):
+    with pytest.raises(RulesFileError, match=", RunDazzle, "):
         load_rules([write(tmp_path, text)])
 
 
@@ -121,7 +124,7 @@ def test_user_specific_label_loads_on_each_side(tmp_path: Path) -> None:
 
 def test_game_name_label_on_wrong_side_is_rejected(tmp_path: Path) -> None:
     text = MINIMAL + '[defense."Pass Long Left"]\nmax_count = 0\n'
-    with pytest.raises(RulesFileError, match="not a defense category label"):
+    with pytest.raises(RulesFileError, match="Not a defense category label"):
         load_rules([write(tmp_path, text)])
 
 
@@ -140,7 +143,7 @@ def test_required_special_accepts_clock_categories(tmp_path: Path) -> None:
 def test_required_special_rejects_unknown_name(tmp_path: Path) -> None:
     """One past the twelve known names: a name no special category has."""
     text = MINIMAL + 'required_special_categories = ["Spike"]\n'
-    with pytest.raises(RulesFileError, match="unknown name 'Spike'"):
+    with pytest.raises(RulesFileError, match="Unknown name 'Spike'"):
         load_rules([write(tmp_path, text)])
 
 
@@ -159,7 +162,7 @@ def test_required_and_min_count_default_when_omitted(tmp_path: Path) -> None:
 
 def test_empty_section_rejected(tmp_path: Path) -> None:
     text = MINIMAL + "[offense.RM]\n"
-    with pytest.raises(RulesFileError, match="empty rule"):
+    with pytest.raises(RulesFileError, match="Empty rule"):
         load_rules([write(tmp_path, text)])
 
 
@@ -184,19 +187,19 @@ def test_max_count_absent_is_none(tmp_path: Path) -> None:
 
 def test_max_count_must_be_int(tmp_path: Path) -> None:
     text = MINIMAL + '[offense.RM]\nrequired = true\nmin_count = 4\nmax_count = "x"\n'
-    with pytest.raises(RulesFileError, match="must be an integer"):
+    with pytest.raises(RulesFileError, match="Must be an integer"):
         load_rules([write(tmp_path, text)])
 
 
 def test_required_must_be_bool(tmp_path: Path) -> None:
     text = MINIMAL + "[offense.RM]\nrequired = 1\nmin_count = 4\n"
-    with pytest.raises(RulesFileError, match="must be a boolean"):
+    with pytest.raises(RulesFileError, match="Must be a boolean"):
         load_rules([write(tmp_path, text)])
 
 
 def test_min_count_must_be_int(tmp_path: Path) -> None:
     text = MINIMAL + '[offense.RM]\nmin_count = "x"\n'
-    with pytest.raises(RulesFileError, match="must be an integer"):
+    with pytest.raises(RulesFileError, match="Must be an integer"):
         load_rules([write(tmp_path, text)])
 
 
@@ -208,7 +211,7 @@ def test_run_cap_rejected_on_pass(tmp_path: Path) -> None:
         MINIMAL
         + "[offense.PSL]\nrequired = true\nmin_count = 5\nmax_qb_draws_count = 1\n"
     )
-    with pytest.raises(RulesFileError, match="unknown key"):
+    with pytest.raises(RulesFileError, match="Unknown key"):
         load_rules([write(tmp_path, text)])
 
 
@@ -239,7 +242,7 @@ def test_two_forms_of_one_attribute_rejected(
     tmp_path: Path, section: str, attr: str
 ) -> None:
     text = MINIMAL + f'{section}\n{attr}_count = 2\n{attr}_ratio = "1/2"\n'
-    with pytest.raises(RulesFileError, match="at most one of"):
+    with pytest.raises(RulesFileError, match="Set at most one of"):
         load_rules([write(tmp_path, text)])
 
 
@@ -311,7 +314,7 @@ def test_ratio_out_of_range_rejected(
 
 def test_ratio_must_be_string(tmp_path: Path) -> None:
     text = MINIMAL + "[offense.PSL]\nmax_timed_ratio = 0.5\n"
-    with pytest.raises(RulesFileError, match='must be a string like "1/2"'):
+    with pytest.raises(RulesFileError, match='Must be a string like "1/2"'):
         load_rules([write(tmp_path, text)])
 
 
@@ -335,7 +338,7 @@ def test_percent_out_of_range_rejected(tmp_path: Path, val: int) -> None:
 
 def test_percent_must_be_int(tmp_path: Path) -> None:
     text = MINIMAL + '[offense.PSL]\nmax_timed_percent = "50"\n'
-    with pytest.raises(RulesFileError, match="must be an integer"):
+    with pytest.raises(RulesFileError, match="Must be an integer"):
         load_rules([write(tmp_path, text)])
 
 
@@ -358,37 +361,42 @@ def test_allowed_categories_parse(tmp_path: Path) -> None:
 def test_allowed_game_name_rejected(tmp_path: Path) -> None:
     """Only league names count, even for a category the league has no name for."""
     text = MINIMAL + 'allowed_offensive_categories = ["Pass Long Left"]\n'
-    with pytest.raises(RulesFileError, match="not an offense category label"):
+    with pytest.raises(RulesFileError, match="is not an offense category label"):
         load_rules([write(tmp_path, text)])
 
 
 def test_allowed_needs_the_league_names(tmp_path: Path) -> None:
     text = MINIMAL + 'allowed_offensive_categories = ["RM"]\n'
-    with pytest.raises(RulesFileError, match="not an offense category label"):
+    with pytest.raises(RulesFileError, match="is not an offense category label"):
         _load_rules([write(tmp_path, text)], labels=CategoryLabels())
 
 
 def test_allowed_unknown_offense_label(tmp_path: Path) -> None:
     text = MINIMAL + 'allowed_offensive_categories = ["Bogus"]\n'
-    with pytest.raises(RulesFileError, match="not an offense category label"):
+    with pytest.raises(RulesFileError) as exc:
         load_rules([write(tmp_path, text)])
+    assert str(exc.value).startswith(
+        f"{tmp_path / 'rules.toml'}: allowed_offensive_categories: "
+        "'Bogus' is not an offense category label. Valid: "
+    )
+    assert str(exc.value).endswith(".")
 
 
 def test_allowed_unknown_defense_label(tmp_path: Path) -> None:
     text = MINIMAL + 'allowed_defensive_categories = ["Bogus"]\n'
-    with pytest.raises(RulesFileError, match="not a defense category label"):
+    with pytest.raises(RulesFileError, match="is not a defense category label"):
         load_rules([write(tmp_path, text)])
 
 
 def test_allowed_must_be_list(tmp_path: Path) -> None:
     text = MINIMAL + 'allowed_offensive_categories = "RM"\n'
-    with pytest.raises(RulesFileError, match="must be a list"):
+    with pytest.raises(RulesFileError, match="Must be a list"):
         load_rules([write(tmp_path, text)])
 
 
 def test_allowed_entries_must_be_strings(tmp_path: Path) -> None:
     text = MINIMAL + "allowed_offensive_categories = [1]\n"
-    with pytest.raises(RulesFileError, match="entries must be strings"):
+    with pytest.raises(RulesFileError, match="Entries must be strings"):
         load_rules([write(tmp_path, text)])
 
 
@@ -425,7 +433,11 @@ def test_profile_compatibility_parses(tmp_path: Path) -> None:
 
 def test_profile_compatibility_unknown_key(tmp_path: Path) -> None:
     text = MINIMAL + "[profile_compatibility]\nbogus = true\n"
-    with pytest.raises(RulesFileError, match=r"\[profile_compatibility\]: unknown key"):
+    message = (
+        "[profile_compatibility]: Unknown key(s): bogus. "
+        "Valid: require_all_gameplan_categories_in_profile."
+    )
+    with pytest.raises(RulesFileError, match=re.escape(message)):
         load_rules([write(tmp_path, text)])
 
 
@@ -434,13 +446,13 @@ def test_profile_compatibility_must_be_bool(tmp_path: Path) -> None:
         MINIMAL
         + '[profile_compatibility]\nrequire_all_gameplan_categories_in_profile = "x"\n'
     )
-    with pytest.raises(RulesFileError, match="must be a boolean"):
+    with pytest.raises(RulesFileError, match="Must be a boolean"):
         load_rules([write(tmp_path, text)])
 
 
 def test_profile_compatibility_must_be_table(tmp_path: Path) -> None:
     text = MINIMAL + "profile_compatibility = true\n"
-    with pytest.raises(RulesFileError, match="must be a table"):
+    with pytest.raises(RulesFileError, match="Must be a table"):
         load_rules([write(tmp_path, text)])
 
 
@@ -462,7 +474,7 @@ def test_layering_overrides_profile_compatibility(tmp_path: Path) -> None:
 
 
 def test_schema_version_is_an_unknown_key(tmp_path: Path) -> None:
-    with pytest.raises(RulesFileError, match=r"\(top\): unknown key"):
+    with pytest.raises(RulesFileError, match=r"\(top\): Unknown key"):
         load_rules([write(tmp_path, "schema_version = 1\n")])
 
 
@@ -470,7 +482,7 @@ def test_schema_version_is_an_unknown_key(tmp_path: Path) -> None:
 
 
 def test_empty_paths_rejected() -> None:
-    with pytest.raises(RulesFileError, match="at least one"):
+    with pytest.raises(RulesFileError, match="At least one"):
         load_rules([])
 
 
@@ -530,9 +542,9 @@ def test_collects_multiple_errors(tmp_path: Path) -> None:
         load_rules([write(tmp_path, text)])
     assert len(exc.value.errors) == 3
     joined = "\n".join(exc.value.errors)
-    assert "unknown key" in joined
+    assert "Unknown key" in joined
     assert ">= 0" in joined
-    assert "not an offense category label" in joined
+    assert "Not an offense category label" in joined
 
 
 def test_collects_errors_across_files(tmp_path: Path) -> None:

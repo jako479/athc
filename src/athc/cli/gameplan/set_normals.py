@@ -14,7 +14,11 @@ from athc.console import console
 from athc.errors import AthcError
 from athc.fbpro98_gameplan import GamePlan, read_gameplan, write_gameplan
 from athc.gameplan.config import load_config
-from athc.gameplan.writer import InvalidPlayInputError, apply_normal_plays
+from athc.gameplan.writer import (
+    InvalidPlay,
+    InvalidPlayListError,
+    apply_normal_plays,
+)
 
 NORMAL_COUNT = GamePlan.NUMBER_NORMAL_PLAYS
 
@@ -22,8 +26,8 @@ NORMAL_COUNT = GamePlan.NUMBER_NORMAL_PLAYS
 @gameplan.command(name="set-normals", context_settings=CONTEXT_SETTINGS)
 @click.argument("gameplan_path", metavar="gameplan", type=click.Path(path_type=Path))
 @click.argument(
-    "input_path",
-    metavar="input_file",
+    "play_list_path",
+    metavar="play_list",
     type=click.Path(path_type=Path, allow_dash=True),
 )
 @click.option("-q", "--quiet", is_flag=True, help="Suppress the success message.")
@@ -32,45 +36,54 @@ NORMAL_COUNT = GamePlan.NUMBER_NORMAL_PLAYS
 def set_normals(
     ctx: click.Context,
     gameplan_path: Path,
-    input_path: Path,
+    play_list_path: Path,
     quiet: bool,
     league: str | None,
 ) -> None:
-    """Replace the 64 normal slots of gameplan from the play list in input_file.
+    """Replace the 64 normal slots of gameplan from play_list.
 
-    An input_file of `-` reads the list from the console. One play name per line;
+    A play_list of `-` reads the list from the console. One play name per line;
     `::` comment lines and ` ::` trailers are ignored. The league's play pool
     resolves names; run `check` to validate the result.
     """
     gameplan_path = named_file(gameplan_path)
-    if str(input_path) == "-":
+    from_console = str(play_list_path) == "-"
+    if from_console:
         text = sys.stdin.read()
-        source = ""  # a list from the console has no file to name
     else:
-        text = named_file(input_path).read_text(encoding="utf-8")
-        source = f"{input_path} "
-    lines = parse_play_list(text)
-    if len(lines) > NORMAL_COUNT:
-        raise AthcError(f"input has {len(lines)} play(s), max is {NORMAL_COUNT}")
+        text = named_file(play_list_path).read_text(encoding="utf-8-sig")
+    # A list from the console has no file to name.
+    source = "" if from_console else f"{play_list_path}: "
+    plays = parse_play_list(text)
+    if len(plays) > NORMAL_COUNT:
+        raise AthcError(
+            f"Too many plays ({len(plays)}). The most is {NORMAL_COUNT}.",
+            None if from_console else play_list_path,
+        )
     config = load_config(league, rule_files=())  # no gameplan rules needed
-    pool = build_pool(config.play_path, config.playpool_rules, config.categories)
+    pool = build_pool(
+        config.play_path, config.playpool_rules, config.categories, config.league_file
+    )
 
     specials = [
-        f"line {i}: '{name}' is a special teams play; use set-specials"
-        for i, name in enumerate(lines, start=1)
-        if (r := pool.find_by_name(name)) is not None and r.play_file.is_special_teams
+        InvalidPlay(
+            play.line, f"'{play.name}' is a special teams play. Use set-specials."
+        )
+        for play in plays
+        if (r := pool.find_by_name(play.name)) is not None
+        and r.play_file.is_special_teams
     ]
     if specials:
-        for err in specials:
-            console.fail(f"{source}{err}")
+        for invalid in specials:
+            console.fail(f"{source}line {invalid.line}: {invalid.reason}")
         ctx.exit(2)
 
     gp = read_gameplan(gameplan_path)
     try:
-        updated = apply_normal_plays(gp, lines, pool)
-    except InvalidPlayInputError as error:
-        for violation in error.violations:
-            console.fail(f"{source}{violation}")
+        updated = apply_normal_plays(gp, plays, pool)
+    except InvalidPlayListError as error:
+        for invalid in error.invalid_plays:
+            console.fail(f"{source}line {invalid.line}: {invalid.reason}")
         ctx.exit(2)
     write_gameplan(updated, gameplan_path)
     count = sum(1 for p in updated.normal_plays if p is not None)

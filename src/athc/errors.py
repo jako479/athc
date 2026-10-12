@@ -11,43 +11,107 @@ each, whichever tool is asking.
 from __future__ import annotations
 
 import configparser
+import tomllib
 from collections.abc import Iterable
 from os import PathLike, fspath
+from pathlib import Path
 
 StrPath = str | PathLike[str]
+
+FILE_NOT_FOUND = "The system cannot find the file specified."
+PATH_NOT_FOUND = "The system cannot find the path specified."
+ACCESS_DENIED = "Access is denied."
+DIRECTORY_INVALID = "The directory name is invalid."
+ALREADY_EXISTS = "Cannot create a file when that file already exists."
+UNSPECIFIED_ERROR = "Unspecified error."  # Windows' words for an error with no text
+
+# Windows' own words for the problems a user meets, whichever call hit them:
+# Python gives one problem two texts (open: "No such file or directory",
+# os.stat: "The system cannot find the file specified").
+_BY_WINERROR = {
+    2: FILE_NOT_FOUND,
+    3: PATH_NOT_FOUND,
+    5: ACCESS_DENIED,
+    183: ALREADY_EXISTS,
+    267: DIRECTORY_INVALID,
+}
+# Python picks the subclass from the error number, so the class covers an
+# error made from a number and one raised without any.
+_BY_KIND: tuple[tuple[type[OSError], str], ...] = (
+    (PermissionError, ACCESS_DENIED),
+    (IsADirectoryError, ACCESS_DENIED),  # Windows refuses to open a folder this way
+    (NotADirectoryError, DIRECTORY_INVALID),
+    (FileExistsError, ALREADY_EXISTS),
+)
 
 
 def _line(reason: str, path: StrPath | None) -> str:
     return reason if path is None else f"{fspath(path)}: {reason}"
 
 
+def sentence(text: str) -> str:
+    """`text` as a sentence: capital first letter, exactly one trailing period."""
+    text = text.strip().rstrip(".")
+    return f"{text[:1].upper()}{text[1:]}." if text else ""
+
+
+def _file_name(error: OSError) -> StrPath | None:
+    name = error.filename
+    return name if isinstance(name, str | PathLike) else None
+
+
+def missing_reason(path: StrPath) -> str:
+    """What Windows says for a missing `path`: the path phrase when the folder
+    it should be in is missing too, else the file phrase."""
+    return FILE_NOT_FOUND if Path(path).parent.is_dir() else PATH_NOT_FOUND
+
+
 def reason_of(error: OSError) -> str:
-    """An OSError's reason alone (`No such file or directory`), for an
-    AthcError that carries the path itself; Python's own text would name the
-    path a second time, with its errno."""
-    return error.strerror or str(error)
+    """An OSError's reason alone, in Windows' words, for a line that names the
+    path itself; Python's own text would name the path a second time, with
+    its errno."""
+    winerror = getattr(error, "winerror", None)
+    if winerror in _BY_WINERROR:
+        return _BY_WINERROR[winerror]
+    # Any other Windows code has its own words (a file in use, a network path,
+    # a name too long); only an error without one goes by its kind.
+    if winerror is None and isinstance(error, FileNotFoundError):
+        name = _file_name(error)
+        return FILE_NOT_FOUND if name is None else missing_reason(name)
+    if winerror is None:
+        for kind, phrase in _BY_KIND:
+            if isinstance(error, kind):
+                return phrase
+    return sentence(error.strerror or str(error)) or UNSPECIFIED_ERROR
 
 
 def ini_reason(error: configparser.Error) -> str:
-    """A configparser error's reason alone, on one line, for an AthcError that
-    carries the path itself; configparser's own text names the file and
+    """A configparser error as one line without the path, for an AthcError
+    that carries the path itself; configparser's own text names the file and
     spans lines."""
     match error:
         case configparser.MissingSectionHeaderError():
-            return f"line {error.lineno}: no [section] header above it"
+            reason = f"No [section] header above it (at line {error.lineno})"
         case configparser.ParsingError():
             numbers = [str(lineno) for lineno, _ in error.errors]
             noun = "line" if len(numbers) == 1 else "lines"
-            return f"{noun} {', '.join(numbers)}: not a 'key = value' line"
+            reason = f"Not a 'key = value' line (at {noun} {', '.join(numbers)})"
         case configparser.DuplicateSectionError():
-            return f"line {error.lineno}: section [{error.section}] repeats"
+            reason = f"Section [{error.section}] repeats (at line {error.lineno})"
         case configparser.DuplicateOptionError():
-            return (
-                f"line {error.lineno}: option '{error.option}' in "
-                f"[{error.section}] repeats"
+            reason = (
+                f"Option '{error.option}' in [{error.section}] repeats "
+                f"(at line {error.lineno})"
             )
         case _:
-            return error.message
+            reason = " ".join(error.message.split())
+    return sentence(f"Not valid INI: {reason}")
+
+
+def toml_reason(error: tomllib.TOMLDecodeError) -> str:
+    """A TOML parse error as one sentence; tomllib's text already names the
+    line and column."""
+    return sentence(f"Not valid TOML: {error}")
 
 
 class AthcError(Exception):
@@ -73,6 +137,10 @@ class LeagueError(AthcError):
     """No league can be resolved, or the named league has no folder."""
 
 
+class FileFormatError(AthcError):
+    """A game file athc reads is not in the format it expects."""
+
+
 class RulesFileError(AthcError):
     """A rules TOML file cannot be parsed or validated. Carries one or more
     lines (`errors`), each `<path>: <reason>` when raised with a path; every
@@ -87,3 +155,17 @@ class RulesFileError(AthcError):
 
     def __str__(self) -> str:
         return "\n".join(self.errors)
+
+
+def error_line(error: AthcError | OSError, what: str | None = None) -> str:
+    """The line a `FAIL` shows: an AthcError's own text, or an OSError as
+    `<file>: <reason>`. An error that names no file is put under `what` (the
+    item a loop was on), or shown alone without one."""
+    if isinstance(error, AthcError):
+        text, named = str(error), error.path is not None
+    else:
+        name = _file_name(error)
+        text, named = _line(reason_of(error), name), name is not None
+    if named or what is None:
+        return text
+    return "\n".join(_line(line, what) for line in text.splitlines())

@@ -31,11 +31,11 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 | Wrong side | pass label under run / run under pass / offense under defense | error says which | `test_wrong_side_is_an_error` `[P]` | ☑ |
 | Repeated name | `RL` twice | "listed twice" | `test_repeated_name_is_an_error` | ☑ |
 | Missing key / table | no `defense` / no `[category_order]` | "missing" | `test_missing_key_is_an_error` / `test_missing_table_is_an_error` | ☑ |
-| Table written as a value | `category_order = 1` / `deleted_plays = 1` | "must be a table" | `test_table_written_as_a_value_is_an_error` `[P]` | ☑ |
+| Table written as a value | `category_order = 1` / `deleted_plays = 1` | "Must be a table." | `test_table_written_as_a_value_is_an_error` `[P]` | ☑ |
 | Not an array of strings | string, `[1]`, mixed | "expected an array of strings" | `test_list_must_be_an_array_of_strings` `[P]` | ☑ |
 | Unknown key / table | `special`, `[filters]` | "unknown key" | `test_unknown_key_is_an_error` / `test_unknown_table_is_an_error` | ☑ |
 | Missing `play_path` | league without it | "no play_path for the league" naming `league.toml` | `test_missing_play_path_is_an_error` | ☑ |
-| Missing file | no `pdbtoexcel.toml` | "not found" | `test_missing_file_is_an_error` | ☑ |
+| Missing file | no `pdbtoexcel.toml` | "The system cannot find the file specified." | `test_missing_file_is_an_error` | ☑ |
 | Bad TOML / BOM | malformed; `utf-8-sig` | error names the file; BOM loads | `test_bad_toml_is_an_error` / `test_bom_is_skipped` | ☑ |
 | Deleted plays | `[deleted_plays] names` | names as written; absent → empty | `test_deleted_plays_read_as_written` / `test_deleted_plays_table_without_names_is_empty` | ☑ |
 | Deleted plays wrong type / key | string, `[1]`; `plays` | error | `test_deleted_plays_must_be_an_array_of_strings` `[P]` / `test_deleted_plays_unknown_key_is_an_error` | ☑ |
@@ -63,7 +63,7 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 | `--skip-calcs` omits % columns | synth + pool | no "Fumble %" header | `test_skip_calcs_omits_percent_columns` | ☑ |
 | Totals add "Total Stats" team | synth + pool | summed team present | `test_totals_adds_total_stats_team` | ☑ |
 | Category worksheets when enabled | synth + pool | "Run Categories" sheet + row | `test_category_worksheets_when_enabled` | ☑ |
-| Special-teams / unknown skipped | synth + pool | absent from sheets; "Play file not found" warning | `test_special_teams_and_unknown_plays_skipped` | ☑ |
+| Special-teams / unknown skipped | synth + pool | absent from sheets; "has no play file" warning | `test_special_teams_and_unknown_plays_skipped` | ☑ |
 | Tendencies written | synth | 16 rows per team | `test_tendencies_written` | ☑ |
 | Slot column from gameplan | synth + pool + pln | slot 0 → "1-1" | `test_slot_column_from_gameplan` | ☑ |
 

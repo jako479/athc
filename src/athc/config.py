@@ -10,7 +10,16 @@ from typing import Any
 
 from platformdirs import user_config_path
 
-from athc.errors import ConfigFileError, LeagueError, ini_reason, reason_of
+from athc.errors import (
+    DIRECTORY_INVALID,
+    PATH_NOT_FOUND,
+    ConfigFileError,
+    LeagueError,
+    StrPath,
+    ini_reason,
+    reason_of,
+    toml_reason,
+)
 from athc.fbpro98_play import CategoryLabels
 
 CONFIG_FILE = "athc.ini"
@@ -47,12 +56,17 @@ def resolve_path(value: str | os.PathLike[str]) -> Path:
 
 def load_config() -> dict[str, dict[str, str]]:
     """`athc.ini` as `{section: {key: value}}`; `{}` when the file is absent.
-    ConfigFileError, naming the file, when it cannot be parsed."""
+    ConfigFileError, naming the file, when it cannot be opened or parsed."""
     path = config_dir() / CONFIG_FILE
     cp = configparser.ConfigParser(interpolation=None)
-    if path.is_file():
+    if path.exists():
+        # Opened here: ConfigParser.read skips a file it cannot open, which
+        # would read as an empty athc.ini.
         try:
-            cp.read(path, encoding="utf-8")
+            with path.open(encoding="utf-8") as handle:
+                cp.read_file(handle)
+        except OSError as e:
+            raise ConfigFileError(reason_of(e), path) from e
         except configparser.Error as e:
             raise ConfigFileError(ini_reason(e), path) from e
     return {section: dict(cp[section]) for section in cp.sections()}
@@ -76,7 +90,7 @@ class LeagueConfig:
         ConfigFileError when the key was written as an array."""
         if key in self.lists:
             raise ConfigFileError(
-                f"[{LEAGUE_SECTION}] {key}: expected a string, got an array",
+                f"[{LEAGUE_SECTION}] {key}: Expected a string, got an array.",
                 self.dir / LEAGUE_FILE,
             )
         raw = self.values.get(key)
@@ -100,7 +114,8 @@ class LeagueConfig:
         ConfigFileError when the key was written as a single string."""
         if key in self.values:
             raise ConfigFileError(
-                f"[{LEAGUE_SECTION}] {key}: expected an array of strings, got a string",
+                f"[{LEAGUE_SECTION}] {key}: "
+                "Expected an array of strings, got a string.",
                 self.dir / LEAGUE_FILE,
             )
         names = self.lists.get(key)
@@ -140,7 +155,7 @@ def league_dir(name: str) -> Path:
         or Path(name).name != name
         or not path.is_dir()
     ):
-        raise LeagueError(f"league '{name}' not found: no folder {path}.{_available()}")
+        raise LeagueError(f"League '{name}' not found. No folder {path}.{_available()}")
     return path
 
 
@@ -158,7 +173,7 @@ def resolve_league(league: str | None = None) -> str:
     name = league or configured_league()
     if not name:
         raise LeagueError(
-            "no league selected; run 'athc config set league NAME' or pass "
+            "No league selected. Run 'athc config set league NAME' or pass "
             f"--league.{_available()}"
         )
     league_dir(name)
@@ -180,7 +195,7 @@ def load_league_config(league: str | None = None) -> LeagueConfig:
     except OSError as e:
         raise ConfigFileError(reason_of(e), path) from e
     except tomllib.TOMLDecodeError as e:
-        raise ConfigFileError(str(e), path) from e
+        raise ConfigFileError(toml_reason(e), path) from e
     values, lists = _league_values(_table(data, LEAGUE_SECTION, path), path)
     categories = _category_labels(_table(data, CATEGORIES_SECTION, path), path)
     return LeagueConfig(
@@ -195,7 +210,7 @@ def _table(
     `name` is the table's full dotted name for the message."""
     value = data.get(key, {})
     if not isinstance(value, Mapping):
-        raise ConfigFileError(f"[{name or key}] must be a table", path)
+        raise ConfigFileError(f"[{name or key}]: Must be a table.", path)
     return value
 
 
@@ -213,7 +228,7 @@ def _league_values(
             lists[key] = tuple(value)
         else:
             raise ConfigFileError(
-                f"[{LEAGUE_SECTION}] {key}: expected a string or an array of strings",
+                f"[{LEAGUE_SECTION}] {key}: Expected a string or an array of strings.",
                 path,
             )
     return values, lists
@@ -264,3 +279,13 @@ def _available() -> str:
     if names:
         return f" Available: {', '.join(names)}."
     return f" No league folders under {leagues_dir()}."
+
+
+def play_dir(play_path: StrPath, league_file: Path) -> Path:
+    """`play_path` when it is a folder; else ConfigFileError in Windows' words,
+    pointing at the league.toml that sets it."""
+    path = Path(play_path)
+    if not path.is_dir():
+        reason = DIRECTORY_INVALID if path.exists() else PATH_NOT_FOUND
+        raise ConfigFileError(f"{reason} Set play_path in {league_file}.", path)
+    return path

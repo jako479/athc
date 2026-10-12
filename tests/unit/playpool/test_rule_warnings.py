@@ -52,7 +52,7 @@ def test_clean_rules_give_no_warnings(pool: PlayPool) -> None:
 def test_name_not_in_the_pool(pool: PlayPool, key: str) -> None:
     rules = _rules("TimedPass", **{key: ["NOPE"]})
     assert rule_warnings(pool, rules) == [
-        f"[TimedPass] {key} 'NOPE' is not in the play pool"
+        f"[TimedPass] {key} 'NOPE' is not in the play pool."
     ]
 
 
@@ -71,14 +71,14 @@ def test_wrong_side_is_reported(
 ) -> None:
     rules = _rules(section, include=[name])
     assert rule_warnings(pool, rules) == [
-        f"[{section}] include '{name}' is a {kind} play; it has no effect"
+        f"[{section}] include '{name}' is a {kind} play. It has no effect."
     ]
 
 
 def test_exclude_on_the_wrong_side_is_reported(pool: PlayPool) -> None:
     rules = _rules("QBRun", exclude=["PASSER"])
     assert rule_warnings(pool, rules) == [
-        "[QBRun] exclude 'PASSER' is a pass play; it has no effect"
+        "[QBRun] exclude 'PASSER' is a pass play. It has no effect."
     ]
 
 
@@ -89,7 +89,7 @@ def test_name_in_both_include_and_exclude_reported_once(
     # Once whether or not the name is in the pool: the other checks skip it.
     rules = _rules("QBRun", include=[name], exclude=[name])
     assert rule_warnings(pool, rules) == [
-        f"[QBRun] '{name}' is in both include and exclude; exclude wins"
+        f"[QBRun] '{name}' is in both include and exclude. Exclude wins."
     ]
 
 
@@ -101,7 +101,7 @@ def test_warnings_are_sorted_by_section_then_name(pool: PlayPool) -> None:
         }
     )
     assert rule_warnings(pool, rules) == [
-        "[TimedPass] include 'MMM' is not in the play pool",
-        "[QBRun] include 'AAA' is not in the play pool",
-        "[QBRun] include 'ZZZ' is not in the play pool",
+        "[TimedPass] include 'MMM' is not in the play pool.",
+        "[QBRun] include 'AAA' is not in the play pool.",
+        "[QBRun] include 'ZZZ' is not in the play pool.",
     ]

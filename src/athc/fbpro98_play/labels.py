@@ -72,16 +72,18 @@ def _validate[C: PlayCategory](
         where = f"[categories.{side}] {name!r}"
         member = by_name.get(name)
         if member is None:
-            raise ConfigFileError(f"{where}: not a game category name for {side}", path)
+            raise ConfigFileError(
+                f"{where}: Not a game category name for {side}.", path
+            )
         if not isinstance(value, str) or not value.strip():
-            raise ConfigFileError(f"{where}: label must be a non-empty string", path)
+            raise ConfigFileError(f"{where}: Label must be a non-empty string.", path)
         if value in by_name:
             raise ConfigFileError(
-                f"{where}: label {value!r} is a game category name for {side}", path
+                f"{where}: Label {value!r} is a game category name for {side}.", path
             )
         if value in used:
             raise ConfigFileError(
-                f"{where}: label {value!r} already used by {used[value]!r}", path
+                f"{where}: Label {value!r} already used by {used[value]!r}.", path
             )
         used[value] = name
         result[member] = value

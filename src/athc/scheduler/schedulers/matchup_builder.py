@@ -202,7 +202,7 @@ class _NonConferenceModel:
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             raise SchedulerError(
                 f"Two-phase CP-SAT non-conference model returned status "
-                f"{solver.status_name(status)} - no feasible inventory"
+                f"{solver.status_name(status)} - no feasible inventory."
             )
 
         return {
@@ -264,7 +264,8 @@ class MatchupBuilder:
             pair = (i, j)
             if pair in self.selected_nonconference:
                 raise SchedulerError(
-                    f"Duplicate non-conference pair in phase-1 inventory: {pair}"
+                    "Duplicate non-conference pair in phase-1 inventory: "
+                    f"{i.metro} vs {j.metro}."
                 )
             self.matchups.append(pair)
             self.selected_nonconference.add(pair)
@@ -275,8 +276,8 @@ class MatchupBuilder:
                 or self.remaining_nonconference[j] < 0
             ):
                 raise SchedulerError(
-                    f"Non-conference slot count went negative after reserving pair "
-                    f"{pair}"
+                    "Non-conference slot count went negative after reserving "
+                    f"{i.metro} vs {j.metro}."
                 )
 
     def _same_place_pairs(self) -> set[Matchup]:
@@ -324,7 +325,7 @@ class MatchupBuilder:
             seed=self.seed, time_limit=self.phase1_time_limit, workers=self.workers
         )
         if not fixed_pairs <= nonconference_pairs:
-            raise SchedulerError("CP-SAT solve dropped a fixed non-conference pair")
+            raise SchedulerError("CP-SAT solve dropped a fixed non-conference pair.")
         self._add_nonconference_pairs(nonconference_pairs)
 
         if any(slots != 0 for slots in self.remaining_nonconference.values()):
@@ -334,19 +335,21 @@ class MatchupBuilder:
                 if slots != 0
             }
             raise SchedulerError(
-                f"Non-conference inventory left unresolved slots: {unresolved}"
+                "Non-conference inventory left unresolved slots: "
+                + ", ".join(f"{metro} {slots}" for metro, slots in unresolved.items())
+                + "."
             )
         expected_nonconference = sum(self.nonconference_games.values()) // 2
         if len(self.selected_nonconference) != expected_nonconference:
             raise SchedulerError(
                 f"Expected {expected_nonconference} non-conference games, got "
-                f"{len(self.selected_nonconference)}"
+                f"{len(self.selected_nonconference)}."
             )
         expected_total = self.weeks * GAMES_PER_WEEK
         if len(self.matchups) != expected_total:
             raise SchedulerError(
                 f"Expected {expected_total} total matchups in phase-1 inventory, got "
-                f"{len(self.matchups)}"
+                f"{len(self.matchups)}."
             )
 
         return MatchupPlan(

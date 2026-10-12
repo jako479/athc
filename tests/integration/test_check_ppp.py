@@ -20,7 +20,13 @@ from click.testing import Result
 
 from athc.cli import cli
 from athc.cli.check_ppp import check_ppp
-from athc.errors import AthcError
+from athc.errors import (
+    ACCESS_DENIED,
+    DIRECTORY_INVALID,
+    FILE_NOT_FOUND,
+    PATH_NOT_FOUND,
+    AthcError,
+)
 from athc.fbpro98_lg2.schema import FILENAME_SIZE, FOLDER_SIZE, TEAM_TRAILER_SIZE
 from tests.conftest import (
     CATEGORIES_TOML,
@@ -29,7 +35,6 @@ from tests.conftest import (
     league_not_found,
     no_league_selected,
     no_rules_configured,
-    os_error,
     toml_error,
 )
 from tests.integration.conftest import (
@@ -206,17 +211,18 @@ def test_cli_one_file_is_an_error(runner, full_league: Path, path: Path) -> None
     result = run(runner, path)
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {path}: not a directory; pass one profile and one gameplan, "
-        "or a directory\n"
+        f"FAIL {path}: {DIRECTORY_INVALID} Pass one profile and one gameplan, "
+        "or a folder.\n"
     )
     assert result.stdout == ""
 
 
 def test_cli_one_missing_path(runner, full_league: Path, tmp_path: Path) -> None:
+    """One path is a folder argument, so a missing one is a missing path."""
     missing = tmp_path / "nope"
     result = run(runner, missing)
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {missing}: not found\n"
+    assert result.stderr == f"FAIL {missing}: {PATH_NOT_FOUND}\n"
     assert result.stdout == ""
 
 
@@ -387,8 +393,8 @@ def test_cli_cross_check_follows_league_settings(
 @pytest.mark.parametrize(
     "prof,gameplan,sides",
     [
-        (OFF1, GP_DEFENSE, "profile is offense but gameplan is defense"),
-        (DEF1, GP_OFFENSE, "profile is defense but gameplan is offense"),
+        (OFF1, GP_DEFENSE, "Profile is offense but gameplan is defense."),
+        (DEF1, GP_OFFENSE, "Profile is defense but gameplan is offense."),
     ],
 )
 def test_cli_side_mismatch_stops_the_checks(
@@ -409,7 +415,7 @@ def test_cli_missing_file(runner, full_league: Path, tmp_path: Path) -> None:
     missing = tmp_path / "nope.prf"
     result = run(runner, missing, GP_OFFENSE)
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {missing}: not found\n"
+    assert result.stderr == f"FAIL {missing}: {FILE_NOT_FOUND}\n"
     assert result.stdout == ""
 
 
@@ -420,15 +426,15 @@ def test_cli_reports_every_input_error(
     wrong = write_bytes(tmp_path, "plan.txt")
     result = run(runner, missing, wrong)
     assert result.exit_code == 2
-    assert f"FAIL {missing}: not found" in result.stderr
-    assert f"FAIL {wrong}: not a .prf or .pln file" in result.stderr
+    assert f"FAIL {missing}: {FILE_NOT_FOUND}" in result.stderr
+    assert f"FAIL {wrong}: Not a .prf or .pln file." in result.stderr
 
 
 def test_cli_wrong_extension(runner, full_league: Path, tmp_path: Path) -> None:
     wrong = write_bytes(tmp_path, "plan.txt")
     result = run(runner, OFF1, wrong)
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {wrong}: not a .prf or .pln file\n"
+    assert result.stderr == f"FAIL {wrong}: Not a .prf or .pln file.\n"
     assert result.stdout == ""
 
 
@@ -439,7 +445,7 @@ def test_cli_directory_next_to_a_file_is_not_a_file(
     folder.mkdir()
     result = run(runner, folder, GP_OFFENSE)
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {folder}: not a file\n"
+    assert result.stderr == f"FAIL {folder}: {ACCESS_DENIED}\n"
     assert result.stdout == ""
 
 
@@ -469,7 +475,7 @@ def test_cli_second_file_of_a_kind_is_an_error(
     result = run(runner, first, second)
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {second}: second {kind} file; pass one profile and one gameplan\n"
+        f"FAIL {second}: Second {kind} file. Pass one profile and one gameplan.\n"
     )
     assert result.stdout == ""
 
@@ -481,7 +487,7 @@ def test_cli_bad_input_checks_nothing(
     wrong = write_bytes(tmp_path, "plan.txt")
     result = run(runner, OFF1, wrong)
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {wrong}: not a .prf or .pln file\n"
+    assert result.stderr == f"FAIL {wrong}: Not a .prf or .pln file.\n"
     assert result.stdout == ""
 
 
@@ -512,7 +518,7 @@ def test_cli_bad_profile_still_checks_gameplan(
     bad = write_bytes(tmp_path, "broken.prf")
     result = run(runner, bad, GP_OFFENSE)
     assert result.exit_code == 2
-    assert f"FAIL {bad}: File too small to contain F95 block\n" in result.stderr
+    assert f"FAIL {bad}: File too small to contain F95 block.\n" in result.stderr
     assert result.stderr.count(str(bad)) == 1
     assert normalized(result, GP_OFFENSE) == (
         golden("offense") + "\n2 file(s) checked, 1 with violations, 1 failed\n"
@@ -527,7 +533,7 @@ def test_cli_bad_gameplan_still_checks_profile(
     result = run(runner, OFF1, bad)
     assert result.exit_code == 2
     assert (
-        f"FAIL {bad}: File too small to contain PLN header and offsets table\n"
+        f"FAIL {bad}: File too small to contain PLN header and offsets table.\n"
         in result.stderr
     )
     assert result.stderr.count(str(bad)) == 1
@@ -651,7 +657,8 @@ def test_cli_no_play_path(
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL no play_path for the league; set play_path in {folder / 'league.toml'}\n"
+        f"FAIL {folder / 'league.toml'}: No play_path for the league. "
+        "Set play_path in this file.\n"
     )
 
 
@@ -661,11 +668,14 @@ def test_cli_play_path_not_a_directory(
     write_config: WriteConfig,
     tmp_path: Path,
 ) -> None:
-    league(play_path=tmp_path / "nope")
+    folder = league(play_path=tmp_path / "nope")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {tmp_path / 'nope'}: play path is not a directory\n"
+    assert result.stderr == (
+        f"FAIL {tmp_path / 'nope'}: {PATH_NOT_FOUND} "
+        f"Set play_path in {folder / 'league.toml'}.\n"
+    )
 
 
 @pytest.mark.parametrize("side", ["profile", "gameplan"])
@@ -683,8 +693,7 @@ def test_cli_bad_rules_toml(
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {folder / f'{side}.toml'}: TOML parse error: "
-        f"{toml_error('not = valid = toml')}\n"
+        f"FAIL {folder / f'{side}.toml'}: {toml_error('not = valid = toml')}\n"
     )
     assert result.stdout == ""
 
@@ -734,7 +743,7 @@ def test_cli_missing_listed_rules_file(
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     gone = folder / "gone.toml"
-    assert result.stderr == f"FAIL {gone}: {os_error(gone.read_bytes).strerror}\n"
+    assert result.stderr == f"FAIL {gone}: {FILE_NOT_FOUND}\n"
 
 
 def test_cli_malformed_ini(
@@ -745,7 +754,9 @@ def test_cli_malformed_ini(
     ini = write_config("[athc\nbroken\n")
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {ini}: line 1: no [section] header above it\n"
+    assert result.stderr == (
+        f"FAIL {ini}: Not valid INI: No [section] header above it (at line 1).\n"
+    )
     assert result.stdout == ""
 
 
@@ -901,8 +912,8 @@ def test_dir_subfolders_are_not_searched(runner, lg2_league, tmp_path: Path) -> 
     assert result.exit_code == 0
     assert result.stdout == "\n0 file(s) checked, 0 with violations, 0 failed\n"
     assert result.stderr.endswith(
-        f"WARN {folder}: no profile and gameplan pairs from the league file in "
-        "directory\n"
+        f"WARN {folder}: No profile and gameplan pairs from the league file in "
+        "directory.\n"
     )
 
 
@@ -914,25 +925,43 @@ def test_dir_empty(runner, lg2_league, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert result.stdout == "\n0 file(s) checked, 0 with violations, 0 failed\n"
     assert result.stderr.endswith(
-        f"WARN {folder}: no profile and gameplan pairs from the league file in "
-        "directory\n"
+        f"WARN {folder}: No profile and gameplan pairs from the league file in "
+        "directory.\n"
     )
+
+
+def test_dir_locked_gameplan_is_access_denied(
+    runner, lg2_league, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A gameplan Windows will not open fails in Windows' words."""
+    lg2_league(team(off1=OFF))
+    folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
+
+    def locked(path: str) -> None:
+        raise PermissionError(13, "Permission denied", path)
+
+    monkeypatch.setattr("athc.cli.check_ppp.read_gameplan", locked)
+    result = run(runner, folder)
+    assert result.exit_code == 2
+    assert f"FAIL {folder / GP_OFFENSE.name}: {ACCESS_DENIED}\n" in result.stderr
 
 
 def test_dir_expected_error_in_a_pair_is_its_fail_line(
     runner, lg2_league, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """An expected error inside one pair's check fails that pair, not the run."""
+    """An expected error inside one pair's check fails that pair, not the run;
+    naming no file of its own, its line names the pair."""
     lg2_league(team(off1=OFF))
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
 
     def boom(prof: object, rules: object) -> tuple[()]:
-        raise AthcError("rules exploded")
+        raise AthcError("Rules exploded.")
 
     monkeypatch.setattr("athc.cli.check_ppp.validate_profile", boom)
     result = run(runner, folder)
     assert result.exit_code == 2
-    assert result.stderr.splitlines()[-1] == "FAIL rules exploded"  # after WARNs
+    pair = f"{folder / OFF1.name} + {folder / GP_OFFENSE.name}"
+    assert result.stderr.splitlines()[-1] == f"FAIL {pair}: Rules exploded."
     assert "unexpected error" not in result.stderr
     assert result.stdout.endswith("0 file(s) checked, 0 with violations, 1 failed\n")
 
@@ -986,7 +1015,7 @@ def test_dir_unreadable_directory_has_no_pairs(
     assert result.exit_code == 0
     assert result.stdout == "\n0 file(s) checked, 0 with violations, 0 failed\n"
     assert message not in result.stderr
-    assert "no profile and gameplan pairs from the league file" in result.stderr
+    assert "No profile and gameplan pairs from the league file" in result.stderr
 
 
 def test_dir_side_mismatch_is_that_pairs_error(
@@ -1000,7 +1029,7 @@ def test_dir_side_mismatch_is_that_pairs_error(
     assert result.exit_code == 2
     files = [folder / p.name for p in (OFF1, DEF1, GP_DEFENSE)]
     assert (
-        f"FAIL {folder / 'TST-OFF1.prf'}: profile is offense but gameplan is defense"
+        f"FAIL {folder / 'TST-OFF1.prf'}: Profile is offense but gameplan is defense."
         in result.stderr
     )
     assert normalized(result, *files) == (
@@ -1066,8 +1095,8 @@ def test_dir_no_path(runner, full_league: Path, tmp_path: Path) -> None:
     result = run(runner, folder)
     assert result.exit_code == 2
     assert (
-        "no path for the league; set path in "
-        f"{full_league / 'league.toml'}" in result.stderr
+        f"FAIL {full_league / 'league.toml'}: No path for the league. "
+        "Set path in this file." in result.stderr
     )
     assert result.stdout == ""
 
@@ -1103,7 +1132,7 @@ def test_dir_stock_league_file(
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
     result = run(runner, folder)
     assert result.exit_code == 2
-    assert f"FAIL {lg2}: stock league not supported\n" in result.stderr
+    assert f"FAIL {lg2}: Stock league not supported.\n" in result.stderr
     assert result.stdout == ""
 
 
@@ -1197,7 +1226,7 @@ def test_tree_pair_split_across_folders_is_not_found(
     assert result.exit_code == 0
     assert result.stdout == "\n0 file(s) checked, 0 with violations, 0 failed\n"
     assert result.stderr.endswith(
-        f"WARN {folder}: no profile and gameplan pairs from the league file in tree\n"
+        f"WARN {folder}: No profile and gameplan pairs from the league file in tree.\n"
     )
 
 
@@ -1399,7 +1428,7 @@ def test_entry_point_errors_go_to_stderr(
     result = _athc(config_dir, log_dir, missing, GP_OFFENSE)
     assert result.returncode == 2
     assert result.stdout == ""
-    assert f"FAIL {missing}: not found" in result.stderr
+    assert f"FAIL {missing}: {FILE_NOT_FOUND}" in result.stderr
     log = (log_dir / "athc.log").read_text(encoding="utf-8")
-    assert f" ERROR FAIL {missing}: not found" in log
+    assert f" ERROR FAIL {missing}: {FILE_NOT_FOUND}" in log
     assert log.rstrip().endswith(" INFO exit 2")

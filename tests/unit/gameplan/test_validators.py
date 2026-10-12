@@ -15,7 +15,7 @@ from pathlib import Path
 from athc.fbpro98_gameplan import GamePlan, ProfileType
 from athc.fbpro98_gameplan.model import CustomPlayRef, SpecialSlot, StockPlayRef
 from athc.fbpro98_play import PlayFile
-from athc.gameplan import RuleName, validate_gameplan
+from athc.gameplan import RuleName, RuleViolation, validate_gameplan
 from athc.gameplan.rules import DefenseCategoryRule, OffenseCategoryRule, Rules
 from athc.playpool import (
     DefensiveFront,
@@ -601,3 +601,10 @@ def test_custom_special_play_required_names_the_category() -> None:
         "Special category 'Field Goal/PAT Defense' uses a stock play; "
         "a custom play is required"
     ) in _messages(gp, rules, make_pool([]))
+
+
+def test_a_rule_violation_is_a_named_tuple() -> None:
+    violation = RuleViolation(RuleName.DUPLICATE_PLAY, "Twice.")
+    assert violation == (RuleName.DUPLICATE_PLAY, "Twice.", None)
+    rule_name, message, category = violation
+    assert (rule_name, message, category) == (RuleName.DUPLICATE_PLAY, "Twice.", None)

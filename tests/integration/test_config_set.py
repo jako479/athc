@@ -86,8 +86,11 @@ def test_cli_rejects_unknown_league(
     ini = write_config(COMMENTED)
     result = runner.invoke(set_, ["league", OTHER_LEAGUE])
     assert result.exit_code == 2
-    assert "not found" in result.stderr
-    assert f"Available: {LEAGUE}" in result.stderr
+    # Click's sentence goes on, so athc's part starts lowercase.
+    assert f"Error: Invalid value for value: league '{OTHER_LEAGUE}' not found. " in (
+        result.stderr
+    )
+    assert result.stderr.endswith(f"Available: {LEAGUE}.\n")
     assert f"league = {LEAGUE}" in ini.read_text(encoding="utf-8")  # untouched
 
 
@@ -109,7 +112,9 @@ def test_cli_malformed_ini_is_clean_error(
     ini = write_config("[athc\nbroken\n")
     result = runner.invoke(set_, ["league", LEAGUE])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {ini}: line 1: no [section] header above it\n"
+    assert result.stderr == (
+        f"FAIL {ini}: Not valid INI: No [section] header above it (at line 1).\n"
+    )
     assert result.stdout == ""
     assert ini.read_text(encoding="utf-8") == "[athc\nbroken\n"  # left as written
 
@@ -118,8 +123,9 @@ def test_cli_rejects_unknown_key(runner, write_config: WriteConfig) -> None:
     ini = write_config(COMMENTED)
     result = runner.invoke(set_, ["colour", "blue"])
     assert result.exit_code == 2
-    assert "unknown key 'colour'" in result.stderr
-    assert "league" in result.stderr  # names the known keys
+    assert result.stderr.endswith(
+        "Error: Invalid value for key: unknown key 'colour'. Known keys: league.\n"
+    )
     assert "colour" not in ini.read_text(encoding="utf-8")
 
 

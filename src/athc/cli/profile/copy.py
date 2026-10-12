@@ -10,7 +10,7 @@ from athc.cli import CONTEXT_SETTINGS
 from athc.cli.profile import profile
 from athc.cli.profile._common import collect_files, named_file
 from athc.console import console
-from athc.errors import AthcError
+from athc.errors import AthcError, error_line
 from athc.fbpro98_profile import read_profile, write_profile
 from athc.profile.writer import ProfileWriter
 
@@ -86,9 +86,9 @@ def copy(
     """
     if not any(flags.values()):
         raise click.UsageError(
-            "at least one copy option is required "
+            "At least one copy option is required "
             "(--stop-clock, --sub-percent, --field-goal-range, "
-            "--fourth-down, --goal-line, --pat-logic)"
+            "--fourth-down, --goal-line, --pat-logic)."
         )
     side = "offense" if read_profile(named_file(source)).is_offense else "defense"
 
@@ -115,7 +115,7 @@ def copy(
             result = ProfileWriter(source, path).apply(**flags)
             write_profile(result, str(path))
         except (AthcError, OSError) as error:
-            console.fail(str(error))
+            console.fail(error_line(error))
             failed += 1
             continue
         except Exception:

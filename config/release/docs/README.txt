@@ -140,14 +140,16 @@ An error with no detail (or filing a bug report):
     The run log holds the full technical detail, every traceback included:
     %LOCALAPPDATA%\athc\Logs\athc.log. Attach it to the report.
 
-convert-pdb says "Play file not found" for every play, and the play
-sheets are empty:
+convert-pdb says "has no play file in the play pool" for every play, and
+the play sheets are empty:
     play_path in leagues\<NAME>\league.toml is not your plays folder.
 
-convert-pdb says "pdbtoexcel.toml: not found":
+convert-pdb says "pdbtoexcel.toml: The system cannot find the file
+specified.":
     The league folder has no pdbtoexcel.toml. For PNFL or PCFL, run the
     setup.exe again to add it back; for another league, copy the one from
     leagues\PNFL\ and edit it.
 
-convert-pdb says a game plan was not found:
+convert-pdb says "The system cannot find the file specified." for a game
+plan:
     Fix the path after -o / -o2 / -d / -d2, or leave that option out.

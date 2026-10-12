@@ -10,7 +10,7 @@ TOML file, never in code.
 src/athc/profile/          # tool logic (no Click)
 ├── __init__.py    # public API
 ├── config.py      # profile.toml (or profile_rules list) from the league folder
-├── model.py       # RuleName, Violation
+├── model.py       # RuleName, RuleViolation
 ├── rules.py       # ProfileRules, SituationRule, SubstitutionRule/PercentBound, load_rules, RulesFileError
 ├── validators.py  # validate_profile
 ├── compat.py      # check_gameplan_compatibility + gameplan_extra_categories -> CompatIssue (profile vs .pln; used by check-ppp)

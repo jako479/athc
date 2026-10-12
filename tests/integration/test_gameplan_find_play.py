@@ -13,6 +13,7 @@ from athc.cli.gameplan.find_play import (
     find_play,
     format_hit_line,
 )
+from athc.errors import FILE_NOT_FOUND
 from athc.fbpro98_gameplan import (
     CustomPlayRef,
     GamePlan,
@@ -215,7 +216,7 @@ def test_cli_single_arg_empty_directory_exit_1(
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(find_play, [KNOWN_NORMAL])
     assert result.exit_code == 1
-    assert result.stderr == "WARN .: no .pln files\n"
+    assert result.stderr == "WARN .: No .pln files.\n"
     assert f"'{KNOWN_NORMAL}': found 0 instance(s) in 0 gameplan(s)" in result.stdout
 
 
@@ -227,7 +228,7 @@ def test_cli_two_args_last_is_the_path(
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(find_play, [KNOWN_NORMAL, KNOWN_SPECIAL])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {KNOWN_SPECIAL}: not found\n"
+    assert result.stderr == f"FAIL {KNOWN_SPECIAL}: {FILE_NOT_FOUND}\n"
     assert result.stdout == ""
 
 
@@ -361,7 +362,7 @@ def test_cli_missing_path_exit_2(runner, tmp_path: Path) -> None:
     missing = tmp_path / "nope.pln"
     result = runner.invoke(find_play, [KNOWN_NORMAL, str(missing)])
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {missing}: not found\n"
+    assert result.stderr == f"FAIL {missing}: {FILE_NOT_FOUND}\n"
     assert result.stdout == ""  # a single path that failed: no tally
 
 
@@ -372,7 +373,7 @@ def test_cli_malformed_pln_exit_2(runner, tmp_path: Path) -> None:
     assert result.exit_code == 2
     assert (
         result.stderr
-        == f"FAIL {bad}: File too small to contain PLN header and offsets table\n"
+        == f"FAIL {bad}: File too small to contain PLN header and offsets table.\n"
     )
 
 
@@ -381,5 +382,7 @@ def test_cli_wildcard_path_is_rejected(runner, tmp_path: Path) -> None:
     shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
     result = runner.invoke(find_play, [KNOWN_NORMAL, str(tmp_path / "*.pln")])
     assert result.exit_code == 2
-    assert "wildcards are not supported" in result.stderr
+    assert result.stderr.endswith(
+        "Error: Path must be a .pln file or a directory; wildcards are not supported.\n"
+    )
     assert "found in slot" not in result.stdout

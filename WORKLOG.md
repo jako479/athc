@@ -4,6 +4,23 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-09 — **athc**: review of the error-wording branch. Choices made
+  while building it were checked against mainstream tools: a file in use
+  keeps Windows' own words, a game-file reader writes its own sentences
+  instead of having them rewritten, a key never starts a sentence (style
+  guides say to reword), and the screen-grab warning says the likely cause,
+  as yt-dlp and urllib3 say what they were trying. A missing button image is
+  a broken install, so it stops the run instead of retrying forever. The
+  deferred items followed: config files that cannot be opened fail, play
+  lists with a BOM read, unknown keys list the valid ones, and the scheduler
+  names its table and key first.
+- 2026-10-09 — **athc**: error wording, from the console review's open items.
+  Research into Windows' own tools and end-user Python tools set the style:
+  Windows' phrases for file problems, whatever call hit them, and every
+  `FAIL` / `WARN` line a sentence that names its file once. A file error
+  reads the same whether athc finds it first or Windows reports it, a rules
+  file with several problems is several labeled lines, play-list errors point
+  at the real line, and Python's lists and bytes no longer show through.
 - 2026-10-09 — **gameplan**: `replace-play` takes a list of replacements and
   uses, per gameplan, the first one not already in it with which the
   gameplan passes `check`, so a swap never leaves a gameplan failing, say

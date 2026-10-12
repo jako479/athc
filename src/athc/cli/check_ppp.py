@@ -19,7 +19,15 @@ from athc.cli.gameplan._common import load_rules_or_raise as load_gameplan_rules
 from athc.cli.profile._common import load_rules_or_raise as load_profile_rules
 from athc.config import LEAGUE_FILE, load_league_config
 from athc.console import console
-from athc.errors import AthcError, ConfigFileError
+from athc.errors import (
+    ACCESS_DENIED,
+    DIRECTORY_INVALID,
+    PATH_NOT_FOUND,
+    AthcError,
+    ConfigFileError,
+    error_line,
+    missing_reason,
+)
 from athc.fbpro98_gameplan import GamePlan, InvalidGamePlanError, read_gameplan
 from athc.fbpro98_lg2 import LeagueType, Lg2File, read_lg2
 from athc.fbpro98_profile import (
@@ -29,7 +37,7 @@ from athc.fbpro98_profile import (
     read_profile,
 )
 from athc.gameplan import Rules, validate_gameplan
-from athc.gameplan import Violation as GameplanViolation
+from athc.gameplan import RuleViolation as GameplanRuleViolation
 from athc.gameplan.config import load_config as load_gameplan_config
 from athc.playpool import PlayPool
 from athc.profile import (
@@ -39,7 +47,7 @@ from athc.profile import (
     gameplan_extra_categories,
     validate_profile,
 )
-from athc.profile import Violation as ProfileViolation
+from athc.profile import RuleViolation as ProfileRuleViolation
 from athc.profile.config import load_config as load_profile_config
 
 LEAGUE_PATH_KEY = "path"
@@ -94,10 +102,12 @@ def check_ppp(
 
 def check_pair(first: str, second: str, league: str | None) -> int:
     """Check one profile with one gameplan; return the exit code."""
-    profile_path, gameplan_path, input_errors = sort_inputs([first, second])
-    for error in input_errors:
+    profile_path, gameplan_path, argument_errors = identify_profile_and_gameplan(
+        [first, second]
+    )
+    for error in argument_errors:
         console.fail(error)
-    if input_errors or profile_path is None or gameplan_path is None:
+    if argument_errors or profile_path is None or gameplan_path is None:
         return 2  # both files are required, so neither is checked
     setup = load_setup(league)
     reports, mismatch = check_files(profile_path, gameplan_path, setup)
@@ -113,11 +123,12 @@ def check_directory(raw: str, league: str | None, *, recursive: bool) -> int:
     with `recursive`); return the exit code."""
     directory = Path(raw)
     if not directory.exists():
-        console.fail(f"{raw}: not found")
+        console.fail(f"{raw}: {PATH_NOT_FOUND}")
         return 2
     if not directory.is_dir():
         console.fail(
-            f"{raw}: not a directory; pass one profile and one gameplan, or a directory"
+            f"{raw}: {DIRECTORY_INVALID} Pass one profile and one gameplan, "
+            "or a folder."
         )
         return 2
     setup = load_setup(league)
@@ -127,7 +138,7 @@ def check_directory(raw: str, league: str | None, *, recursive: bool) -> int:
         # Not an error: no file has to be there.
         scope = "tree" if recursive else "directory"
         console.warn(
-            f"{raw}: no profile and gameplan pairs from the league file in {scope}"
+            f"{raw}: No profile and gameplan pairs from the league file in {scope}."
         )
 
     reports: list[tuple[int, str]] = []
@@ -142,7 +153,7 @@ def check_directory(raw: str, league: str | None, *, recursive: bool) -> int:
                 report_gameplan=gameplan_path not in done,
             )
         except (AthcError, OSError) as error:
-            console.fail(str(error))
+            console.fail(error_line(error, what=f"{profile_path} + {gameplan_path}"))
             failed += 1
             continue
         except Exception:
@@ -172,6 +183,7 @@ def load_setup(league: str | None) -> Setup:
         gameplan_config.play_path,
         gameplan_config.playpool_rules,
         gameplan_config.categories,
+        gameplan_config.league_file,
     )
     return Setup(profile_rules, gameplan_rules, pool)
 
@@ -184,12 +196,12 @@ def load_lg2(league: str | None) -> Lg2File:
     folder = config.path(LEAGUE_PATH_KEY)
     if folder is None:
         raise ConfigFileError(
-            f"no {LEAGUE_PATH_KEY} for the league; set {LEAGUE_PATH_KEY} in "
-            f"{config.dir / LEAGUE_FILE}"
+            f"No {LEAGUE_PATH_KEY} for the league. Set {LEAGUE_PATH_KEY} in this file.",
+            config.dir / LEAGUE_FILE,
         )
     lg2 = read_lg2(config.name, folder)
     if lg2.league_type is not LeagueType.CUSTOM:
-        raise AthcError("stock league not supported", folder / f"{config.name}.lg2")
+        raise AthcError("Stock league not supported.", folder / f"{config.name}.lg2")
     return lg2
 
 
@@ -259,8 +271,11 @@ def summarize(reports: Sequence[tuple[int, str]], failed: int = 0) -> int:
     return 2 if failed else 1 if files_with_violations else 0
 
 
-def sort_inputs(paths: Sequence[str]) -> tuple[Path | None, Path | None, list[str]]:
-    """Split the file arguments by extension into `(profile, gameplan, errors)`.
+def identify_profile_and_gameplan(
+    paths: Sequence[str],
+) -> tuple[Path | None, Path | None, list[str]]:
+    """Which file argument is the profile and which the gameplan, by extension:
+    `(profile, gameplan, errors)`.
 
     A missing path, a non-file, another extension, or a second file of a kind
     is an error.
@@ -272,19 +287,19 @@ def sort_inputs(paths: Sequence[str]) -> tuple[Path | None, Path | None, list[st
         path = Path(raw)
         suffix = path.suffix.lower()
         if not path.exists():
-            errors.append(f"{raw}: not found")
+            errors.append(f"{raw}: {missing_reason(raw)}")
         elif not path.is_file():
-            errors.append(f"{raw}: not a file")
+            errors.append(f"{raw}: {ACCESS_DENIED}")
         elif suffix == ".prf" and profile is None:
             profile = path
         elif suffix == ".pln" and gameplan is None:
             gameplan = path
         elif suffix in (".prf", ".pln"):
             errors.append(
-                f"{raw}: second {suffix} file; pass one profile and one gameplan"
+                f"{raw}: Second {suffix} file. Pass one profile and one gameplan."
             )
         else:
-            errors.append(f"{raw}: not a .prf or .pln file")
+            errors.append(f"{raw}: Not a .prf or .pln file.")
     return profile, gameplan, errors
 
 
@@ -329,7 +344,7 @@ def read_profile_file(path: Path) -> Profile | str:
     try:
         return read_profile(str(path))
     except (OSError, InvalidProfileError, UnsupportedProfileError) as error:
-        return str(error)
+        return error_line(error)
 
 
 def read_gameplan_file(path: Path) -> GamePlan | str:
@@ -337,16 +352,16 @@ def read_gameplan_file(path: Path) -> GamePlan | str:
     try:
         return read_gameplan(str(path))
     except (OSError, InvalidGamePlanError) as error:
-        return str(error)
+        return error_line(error)
 
 
 def side_mismatch(path: Path, prof: Profile, gameplan: GamePlan) -> str | None:
-    """The `<path>: profile is X but gameplan is Y` line when the sides differ."""
+    """The `<path>: Profile is X but gameplan is Y.` line when the sides differ."""
     if prof.is_offense == gameplan.is_offense:
         return None
     return (
-        f"{path}: profile is {_side(prof.is_offense)} but gameplan is "
-        f"{_side(gameplan.is_offense)}"
+        f"{path}: Profile is {_side(prof.is_offense)} but gameplan is "
+        f"{_side(gameplan.is_offense)}."
     )
 
 
@@ -400,14 +415,14 @@ def gameplan_report(path: Path, gp: GamePlan, setup: Setup) -> tuple[int, str]:
     return len(violations), "\n".join(lines)
 
 
-def _profile_violation(v: ProfileViolation) -> str:
+def _profile_violation(v: ProfileRuleViolation) -> str:
     prefix = (
         f"[situation {v.situation_number}] " if v.situation_number is not None else ""
     )
     return f"{prefix}{v.message}"
 
 
-def _gameplan_violation(v: GameplanViolation) -> str:
+def _gameplan_violation(v: GameplanRuleViolation) -> str:
     prefix = f"[{v.category}] " if v.category else ""
     return f"{prefix}{v.message}"
 

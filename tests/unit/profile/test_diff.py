@@ -161,7 +161,7 @@ def test_combined_changes_counts() -> None:
 
 def test_type_mismatch_raises() -> None:
     with pytest.raises(
-        ProfileTypeMismatchError, match="cannot diff OFFENSE against DEFENSE"
+        ProfileTypeMismatchError, match=r"^Cannot compare offense with defense\.$"
     ):
         diff_profiles(
             make_profile(ProfileType.OFFENSE), make_profile(ProfileType.DEFENSE)

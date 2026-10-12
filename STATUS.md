@@ -43,6 +43,14 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
 ### Console, run log and errors
 
+- Error wording (2026-10-09): every `FAIL` and `WARN` line is a sentence in
+  Windows' words (`The system cannot find the file specified.`), names its
+  file once and fits on one line; `athc/errors.py` holds the phrases and
+  helpers (`reason_of`, `error_line`, `sentence`); play-list errors name the
+  list and the real line. A key never starts a sentence (it joins the
+  location), unknown keys are one line per table with the valid ones, and a
+  config file athc cannot open fails instead of reading as empty. Rules:
+  [docs/design/architecture.md](docs/design/architecture.md#console-run-log-and-errors).
 - Done the pdf-converter way (2026-10-08): `athc/console.py` (Rich, one
   instance) prints every line; `athc/log.py` writes the rotating run log under
   `%LOCALAPPDATA%\athc\Logs` (`ATHC_LOG_DIR` overrides it); `athc/errors.py`
@@ -157,6 +165,10 @@ athc.
 Working. Docs: [README](docs/autocontinue/README.md) ·
 [ARCHITECTURE](docs/autocontinue/ARCHITECTURE.md)
 
+- The Continue button image loads once at start; a missing or unreadable one
+  stops the run (`Reinstall athc.`). A locked screen, screensaver or
+  disconnected Remote Desktop is a `WARN` naming those causes, retried every
+  60 seconds.
 - Hot-corner toggle, focus checks and halftime assets added.
 
 Open: halftime handling itself.

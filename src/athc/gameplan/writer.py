@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
+from typing import NamedTuple
 
 from athc.errors import AthcError
 from athc.fbpro98_gameplan import CustomPlayRef, GamePlan
@@ -16,13 +17,28 @@ from athc.playpool import Play, PlayPool
 MAX_NORMAL_PLAYS = GamePlan.NUMBER_NORMAL_PLAYS
 
 
-class InvalidPlayInputError(AthcError):
-    """Aggregates per-line input violations so the user sees every problem at once."""
+class PlayLine(NamedTuple):
+    """One play name and the line of the list it is on (1-based, blank and
+    `::` lines counted), so an error points at the line the user sees."""
 
-    def __init__(self, violations: Sequence[str]) -> None:
-        self.violations = list(violations)
-        body = "\n  - ".join(self.violations)
-        super().__init__(f"{len(self.violations)} invalid input line(s):\n  - {body}")
+    line: int
+    name: str
+
+
+class InvalidPlay(NamedTuple):
+    """One play the list cannot place: its line and a sentence saying why.
+    The caller names the list or the gameplan, so the line reads right."""
+
+    line: int
+    reason: str
+
+
+class InvalidPlayListError(AthcError):
+    """Every play the list cannot place, so the user sees them all at once."""
+
+    def __init__(self, invalid_plays: Sequence[InvalidPlay]) -> None:
+        self.invalid_plays = list(invalid_plays)
+        super().__init__(f"{len(self.invalid_plays)} invalid play(s).")
 
 
 def _normal_slot_grid(slot_index: int) -> str:
@@ -43,123 +59,154 @@ def build_custom_play(record: Play, root_dir: Path) -> CustomPlayRef:
     )
 
 
-def apply_normal_plays(gp: GamePlan, lines: Sequence[str], pool: PlayPool) -> GamePlan:
+def apply_normal_plays(
+    gp: GamePlan, plays: Sequence[PlayLine], pool: PlayPool
+) -> GamePlan:
     """Place plays into the 64 normal slots in input order (>64 truncates; blank = empty
-    slot). Per-line failures raise InvalidPlayInputError. Returns a new GamePlan."""
+    slot). Per-line failures raise InvalidPlayListError. Returns a new GamePlan."""
     entries: list[CustomPlayRef | None] = []
-    violations: list[str] = []
-    for slot, line in enumerate(list(lines)[:MAX_NORMAL_PLAYS]):
-        entries.append(_resolve_normal_line(slot, line, gp, pool, violations))
-    if violations:
-        raise InvalidPlayInputError(violations)
+    invalid_plays: list[InvalidPlay] = []
+    for slot, play in enumerate(list(plays)[:MAX_NORMAL_PLAYS]):
+        entries.append(_resolve_normal_line(slot, play, gp, pool, invalid_plays))
+    if invalid_plays:
+        raise InvalidPlayListError(invalid_plays)
     return gp.with_normal_plays(entries)  # with_normal_plays pads to 64
 
 
-def apply_special_plays(gp: GamePlan, lines: Sequence[str], pool: PlayPool) -> GamePlan:
+def apply_special_plays(
+    gp: GamePlan, plays: Sequence[PlayLine], pool: PlayPool
+) -> GamePlan:
     """Merge custom special plays (unlisted categories preserved). Each play self-slots
-    by its special category. Per-line failures raise InvalidPlayInputError."""
+    by its special category. Per-line failures raise InvalidPlayListError."""
     merged: list[CustomPlayRef | None] = list(gp.custom_special_plays)
     seen_names: dict[str, int] = {}
     seen_categories: set[int] = set()
-    violations: list[str] = []
-    for index, line in enumerate(lines):
-        name = line.strip()
+    invalid_plays: list[InvalidPlay] = []
+    for play in plays:
+        name = play.name.strip()
         if not name:
             continue
         entry = _resolve_special_line(
-            index, name, gp, pool, seen_names, seen_categories, violations
+            play.line, name, gp, pool, seen_names, seen_categories, invalid_plays
         )
         if entry is not None:
             merged[entry.special_category - 1] = entry
             seen_names[name.upper()] = entry.special_category
             seen_categories.add(entry.special_category)
-    if violations:
-        raise InvalidPlayInputError(violations)
+    if invalid_plays:
+        raise InvalidPlayListError(invalid_plays)
     return gp.with_custom_special_plays(merged)
 
 
 def _resolve_normal_line(
-    slot: int, line: str, gp: GamePlan, pool: PlayPool, violations: list[str]
+    slot: int,
+    play: PlayLine,
+    gp: GamePlan,
+    pool: PlayPool,
+    invalid_plays: list[InvalidPlay],
 ) -> CustomPlayRef | None:
-    name = line.strip()
+    name = play.name.strip()
     if not name:
         return None
-    line_no = slot + 1
     grid = _normal_slot_grid(slot)
     record = pool.find_by_name(name)
     if record is None:
-        violations.append(
-            f"line {line_no}: '{name}' not found in the play pool (slot {grid})"
+        invalid_plays.append(
+            InvalidPlay(
+                play.line, f"'{name}' not found in the play pool (slot {grid})."
+            )
         )
         return None
     pf = record.play_file
     if pf.is_special_teams:
-        violations.append(
-            f"line {line_no}: '{name}' is a special teams play, cannot add to "
-            "normal slots"
+        invalid_plays.append(
+            InvalidPlay(
+                play.line,
+                f"'{name}' is a special teams play and cannot go in a normal slot.",
+            )
         )
         return None
     if gp.is_offense and pf.is_defensive:
-        violations.append(
-            f"line {line_no}: '{name}' is a defensive play but gameplan is offensive"
+        invalid_plays.append(
+            InvalidPlay(
+                play.line,
+                f"'{name}' is a defensive play, but the gameplan is offensive.",
+            )
         )
         return None
     if gp.is_defense and pf.is_offensive:
-        violations.append(
-            f"line {line_no}: '{name}' is an offensive play but gameplan is defensive"
+        invalid_plays.append(
+            InvalidPlay(
+                play.line,
+                f"'{name}' is an offensive play, but the gameplan is defensive.",
+            )
         )
         return None
     return build_custom_play(record, pool.root_dir)
 
 
 def _resolve_special_line(
-    index: int,
+    line: int,
     name: str,
     gp: GamePlan,
     pool: PlayPool,
     seen_names: dict[str, int],
     seen_categories: set[int],
-    violations: list[str],
+    invalid_plays: list[InvalidPlay],
 ) -> CustomPlayRef | None:
     upper = name.upper()
-    line_no = index + 1
     if upper in seen_names:
-        violations.append(
-            f"line {line_no}: duplicate special play '{name}', "
-            f"already used for special category {seen_names[upper]}"
+        invalid_plays.append(
+            InvalidPlay(
+                line,
+                f"Duplicate special play '{name}', "
+                f"already used for special category {seen_names[upper]}.",
+            )
         )
         return None
     record = pool.find_by_name(name)
     if record is None:
-        violations.append(f"line {line_no}: '{name}' not found in the play pool")
+        invalid_plays.append(InvalidPlay(line, f"'{name}' not found in the play pool."))
         return None
     pf = record.play_file
     if not pf.is_special_teams:
-        violations.append(f"line {line_no}: '{name}' is not a special teams play")
+        invalid_plays.append(
+            InvalidPlay(line, f"'{name}' is not a special teams play.")
+        )
         return None
     if gp.is_offense and not pf.is_offensive:
-        violations.append(
-            f"line {line_no}: '{name}' is a defensive special play "
-            "but gameplan is offensive"
+        invalid_plays.append(
+            InvalidPlay(
+                line,
+                f"'{name}' is a defensive special play, but the gameplan is offensive.",
+            )
         )
         return None
     if gp.is_defense and not pf.is_defensive:
-        violations.append(
-            f"line {line_no}: '{name}' is an offensive special play "
-            "but gameplan is defensive"
+        invalid_plays.append(
+            InvalidPlay(
+                line,
+                f"'{name}' is an offensive special play, "
+                "but the gameplan is defensive.",
+            )
         )
         return None
     cat = pf.special_category
     if cat not in GamePlan.CUSTOM_SPECIAL_CATEGORIES:
-        violations.append(
-            f"line {line_no}: '{name}' is in special category {cat}, "
-            "which has no custom slot"
+        invalid_plays.append(
+            InvalidPlay(
+                line,
+                f"'{name}' is in special category {cat}, which has no custom slot.",
+            )
         )
         return None
     if cat in seen_categories:
-        violations.append(
-            f"line {line_no}: '{name}' targets special category {cat}, "
-            "already filled by another play"
+        invalid_plays.append(
+            InvalidPlay(
+                line,
+                f"'{name}' targets special category {cat}, "
+                "already filled by another play.",
+            )
         )
         return None
     return build_custom_play(record, pool.root_dir)

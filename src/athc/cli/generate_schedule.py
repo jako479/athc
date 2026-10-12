@@ -84,7 +84,7 @@ def generate_schedule(
         )
     except ImportError as error:
         raise AthcError(
-            f"missing {error.name or 'ortools'} -- reinstall athc"
+            f"Missing {error.name or 'ortools'}. Reinstall athc."
         ) from error
     for path in generated.files:
         console.ok(str(path))
