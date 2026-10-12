@@ -40,6 +40,7 @@
 
 ## 2.0.0
 
+- athc: list the players who show P-1 but will still be injured for the next game after weekly healing; chart in [game behavior](docs/design/fbpro98-game-behavior.md#p-1-that-stays-injured)
 - convert-pdb: Total Stats filtering (from pnfl's TODO): remove filtering via script? add filtering to config? convert to a table for filtering (greater-than, less-than)?
 - gameplan-check: rule for excluded files [ME ONLY?]
 - playpool-check: check that each play's name matches its play category
