@@ -32,24 +32,25 @@ POS = {
 }
 ATTR = ["AC", "AG", "DI", "EN", "HA", "IN", "SP", "ST"]  # file order (alphabetical)
 STAT_CAT = {
-    0: "field goals (att, made)",
-    1: "kicking detail (unresolved)",
+    0: "extra points (att, made)",
+    # Values 1-5 each pack two bytes: low byte made, high byte att.
+    1: "field goals (long, <20, 20-29, 30-39, 40-49, 50+)",
     2: "rushing (att, yds, long, td)",
     3: "passing (att, yds, long, td, comp, int, sacked, sack yds)",
     4: "receiving (rec, yds, long, td)",
     5: "interceptions (int, yds, long, td)",
-    6: "punting (punts, yds, long, ?, ?, ?, ?, ?)",
-    7: "punt returns (ret, yds, long, td, fc?)",
+    6: "punting (punts, yds, long, ?, ?, ?, return yds, touchbacks)",
+    7: "punt returns (ret, yds, long, td, ?)",
     8: "kick returns (ret, yds, long, td)",
     9: "fumbles (n)",
     10: "fumble recoveries (n, yds, long, td)",
     11: "sacks (n)",
-    12: "unknown defensive count",
+    12: "unknown defensive count (career only)",
     13: "tackles (n)",
-    14: "misc/participation (unresolved)",
+    14: "unresolved",
     15: "unresolved",
-    16: "unresolved",
-    17: "unresolved (2-pt conv?)",
+    16: "team: last opponent, ?, ?, possession secs, ?, ?",
+    17: "two-point conversions (att, made)",
 }
 STAT_BLOCK = [
     (0, 32, "player, last game"),
@@ -57,8 +58,8 @@ STAT_BLOCK = [
     (64, 32, "player, career"),
     (96, 34, "team, last game"),
     (130, 34, "team, season"),
-    (164, 34, "team block 3"),
-    (198, 34, "team block 4"),
+    (164, 34, "opponents, last game"),
+    (198, 34, "opponents, season"),
 ]
 
 
@@ -226,13 +227,16 @@ def parse_lgc(buf: bytes) -> list[tuple[str, int, str, int]]:  # championship hi
 
 # ---------------------------------------------------------------- stats (.dat)
 def parse_stats(dat: bytes) -> list[tuple[int, int, tuple[int, ...]]]:
-    """20-byte records at a 20-byte stride: type u16, id u16, 8 x int16.
-    Unused trailing fields hold leftover memory, not zeros."""
+    """140-byte header, then 20-byte slots: type u16, id u16, 8 x int16.
+    A deleted slot starts with 0xFF. Unused trailing fields hold leftover
+    memory, not zeros."""
+    slots_end = struct.unpack_from("<I", dat, 8)[0]  # last byte of the last slot
     out = []
-    for off in range(0, len(dat) - 20, 20):
+    for off in range(140, slots_end + 1, 20):
+        if dat[off] == 0xFF:
+            continue
         ty, rid = struct.unpack_from("<HH", dat, off)
-        if ty <= 255 and (100 <= rid < 10000 or 1 <= rid <= 18):
-            out.append((ty, rid, struct.unpack_from("<8h", dat, off + 4)))
+        out.append((ty, rid, struct.unpack_from("<8h", dat, off + 4)))
     return out
 
 
