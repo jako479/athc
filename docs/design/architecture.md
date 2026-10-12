@@ -62,6 +62,7 @@ athc/
     playpool/                  py.typed  model.py  reader.py  rules.py
     fbpro98_gameplan/          py.typed  model.py  reader.py  writer.py
     fbpro98_lg2/               py.typed  model.py  reader.py
+    fbpro98_lge/               py.typed  model.py  reader.py
     fbpro98_play/              py.typed  model.py  reader.py
     fbpro98_profile/           py.typed  model.py  reader.py  writer.py
 ```
@@ -93,6 +94,7 @@ Each library's `docs/<lib>/README.md` is its quickstart and API reference: Featu
 - [playpool](../playpool/README.md)
 - [fbpro98_gameplan](../fbpro98_gameplan/README.md)
 - [fbpro98_lg2](../fbpro98_lg2/README.md)
+- [fbpro98_lge](../fbpro98_lge/README.md)
 - [fbpro98_play](../fbpro98_play/README.md)
 - [fbpro98_profile](../fbpro98_profile/README.md)
 

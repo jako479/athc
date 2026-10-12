@@ -211,9 +211,21 @@ Docs: [spec](docs/fbpro98_lg2/specs/lg2.md)
 - Reader in, with unit tests; reads custom and stock leagues (modern and
   old) and says which.
 
-## fbpro98 league files (specs only)
+## fbpro98_lge (library)
 
-Reverse engineered from the PNFL's game files; no libraries yet. Docs:
+Reads conference, division and team names and standings from a league's
+`.lge`. Docs: [spec](docs/fbpro98_lge/specs/lge.md)
+
+- Standings: each team's W-L-T, PF and PA from the schedule; division and
+  conference order by win percentage, then point differential.
+- Reader in, with unit tests; every league size, 8 to 30 teams, stock and
+  custom.
+- No command uses it yet.
+
+## fbpro98 league files (specs)
+
+Reverse engineered from the PNFL's game files; only `.lge` has a library so
+far (`fbpro98_lge`, names and standings). Docs:
 [overview](docs/design/fbpro98-files.md), [lge spec](docs/fbpro98_lge/specs/lge.md),
 [pyr spec](docs/fbpro98_pyr/specs/pyr.md), [cities spec](docs/fbpro98_cities/specs/cities.md),
 [stats spec](docs/fbpro98_stats/specs/stats_dat.md), [notes](docs/design/research/pnfl-formats.md).

@@ -1,9 +1,9 @@
 # .lge - Front Page Sports Football Pro '98 League File Format
 
-- **Owner:** none yet
+- **Owner:** FBPro98 Lge Library
 - **Encoding:** Integers little-endian; strings ASCII, NUL-terminated, with leftover text after the NUL. Team and roster chunks are masked (section 8).
 
-A `.lge` holds a league's structure, teams, rosters and schedule. It is named after its league (`PNFL.lge`) and sits in the game folder. One layout in every sampled file, stock (1992-1997) and custom. Sample: `PNFL.lge` (18 teams, 10,495 bytes).
+A `.lge` holds a league's structure, teams, rosters and schedule. It is named after its league (`PNFL.lge`) and sits in the game folder. One layout in every sampled file, stock (1992-1997) and custom, with the chunks in one of two orders (section 1). Sample: `PNFL.lge` (18 teams, 10,495 bytes).
 
 ---
 
@@ -24,6 +24,8 @@ L03  league
     ...
 S03  schedule
 ```
+
+Five stock files (`_default.lge`, `Sierra.lge`, `NFLPA93E.LGE`, `NFLPA94E.lge`, `NFLPI95E.lge`) write the same chunks grouped by kind instead: L03, every C03, every D03, every T03, every R03, then S03. The counts nest them the same way, and team numbers still run 1..N. The offsets below are for the nested order.
 
 | Offset           |     Size | Name   | Description                       | Section |
 | :--------------- | -------: | :----- | :-------------------------------- | :------ |
@@ -214,7 +216,7 @@ Starts right after the last R03 (0x2557 in `PNFL.lge`); the data below begins 8 
 | -----: | -----: | :--- | :------------- | :-------------------------------------- |
 |   0x00 |      1 | u8   | Regular weeks  | `16`                                    |
 |   0x01 |      1 | u8   | Playoff rounds | `3`                                     |
-|   0x02 |      1 | u8   | Weeks played   | `6`; equals the weeks that carry scores |
+|   0x02 |      1 | u8   | Weeks played   | `6`; equals the weeks that carry scores; `255` after the last playoff game |
 |   0x03 | varies | week | Weeks          | regular weeks + playoff rounds weeks    |
 
 Week: a u8 game count, then that many games of 6 bytes:

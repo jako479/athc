@@ -137,6 +137,11 @@ high-level change completed alongside it gets its own line.
 
 - added the `.lg2` league file reader
 
+## fbpro98_lge
+
+- standings: each team's W-L-T, points for and against, and division and conference order
+- added the `.lge` league file reader: conference, division and team names, every league size
+
 ## fbpro98_play
 
 - an unrecognized play category is an invalid `.ply` now (it was logged as an error); the play pool skips the file with a warning
