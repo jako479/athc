@@ -458,7 +458,8 @@ Argument errors check nothing, since both files are required.
 | Setup error stops before the pairs / files | no profile rules | exit 2; stderr: `FAIL no rules configured ...` only; stdout empty | `test_dir_setup_error_stops_before_the_pairs` / `test_dir_setup_error_stops_before_the_files` | ☑ |
 | No league | empty config | exit 2; stderr: `FAIL no league selected ...`, once | `test_dir_no_league` | ☑ |
 | No `path` | `full_league` | exit 2; stderr: `FAIL no path for the league; set path in <league.toml>` | `test_dir_no_path` | ☑ |
-| Bad league file | invalid bytes / old stock | exit 2; stderr: `FAIL` with the library message naming the file | `test_dir_bad_league_file` `[P]` | ☑ |
+| Bad league file | invalid bytes | exit 2; stderr: `FAIL` with the library message naming the file | `test_dir_bad_league_file` | ☑ |
+| Stock league file | old / modern stock `.lg2` | exit 2; stderr: `FAIL <file>: stock league not supported`; stdout empty | `test_dir_stock_league_file` `[P]` | ☑ |
 | League file missing | `path` folder without `<league>.lg2` | exit 2; stderr: `FAIL` naming the file | `test_dir_league_file_missing` | ☑ |
 | Relative `path` | `lg2` folder inside the league folder | exit 1 | `test_dir_relative_path_is_in_the_league_folder` | ☑ |
 

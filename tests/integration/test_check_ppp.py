@@ -1083,26 +1083,27 @@ def test_dir_first_setup_error_stops_the_run(
     assert result.stderr == no_rules_configured("profile.toml")
 
 
-@pytest.mark.parametrize(
-    "data,message",
-    [
-        (b"\x00\x01\x02", "not a whole number"),
-        (team(off1=OFF, folder=""), "Old stock league not supported"),
-    ],
-    ids=["invalid", "stock"],
-)
-def test_dir_bad_league_file(
-    runner,
-    lg2_league,
-    tmp_path: Path,
-    data: bytes,
-    message: str,
-) -> None:
-    lg2 = lg2_league(data)
+def test_dir_bad_league_file(runner, lg2_league, tmp_path: Path) -> None:
+    lg2 = lg2_league(b"\x00\x01\x02")
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
     result = run(runner, folder)
     assert result.exit_code == 2
-    assert message in result.stderr and str(lg2) in result.stderr
+    assert "not a whole number" in result.stderr and str(lg2) in result.stderr
+    assert result.stdout == ""
+
+
+@pytest.mark.parametrize(
+    "lg2_folder", ["", "STOCK\x00A\\FBPRO97\\STOCK"], ids=["old", "modern"]
+)
+def test_dir_stock_league_file(
+    runner, lg2_league, tmp_path: Path, lg2_folder: str
+) -> None:
+    """Every kind of stock league gets the same one line."""
+    lg2 = lg2_league(team(off1=OFF, folder=lg2_folder))
+    folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
+    result = run(runner, folder)
+    assert result.exit_code == 2
+    assert f"FAIL {lg2}: stock league not supported\n" in result.stderr
     assert result.stdout == ""
 
 

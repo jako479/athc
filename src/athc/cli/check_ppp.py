@@ -21,7 +21,7 @@ from athc.config import LEAGUE_FILE, load_league_config
 from athc.console import console
 from athc.errors import AthcError, ConfigFileError
 from athc.fbpro98_gameplan import GamePlan, InvalidGamePlanError, read_gameplan
-from athc.fbpro98_lg2 import Lg2File, read_lg2
+from athc.fbpro98_lg2 import LeagueType, Lg2File, read_lg2
 from athc.fbpro98_profile import (
     InvalidProfileError,
     Profile,
@@ -178,7 +178,8 @@ def load_setup(league: str | None) -> Setup:
 
 def load_lg2(league: str | None) -> Lg2File:
     """The league's `.lg2`, read from the folder `path` names (the file is
-    named after the league). ConfigFileError when the league has no `path`."""
+    named after the league). ConfigFileError when the league has no `path`;
+    AthcError for a stock league, which is not checked."""
     config = load_league_config(league)
     folder = config.path(LEAGUE_PATH_KEY)
     if folder is None:
@@ -186,7 +187,10 @@ def load_lg2(league: str | None) -> Lg2File:
             f"no {LEAGUE_PATH_KEY} for the league; set {LEAGUE_PATH_KEY} in "
             f"{config.dir / LEAGUE_FILE}"
         )
-    return read_lg2(config.name, folder)
+    lg2 = read_lg2(config.name, folder)
+    if lg2.league_type is not LeagueType.CUSTOM:
+        raise AthcError("stock league not supported", folder / f"{config.name}.lg2")
+    return lg2
 
 
 def league_pairs(lg2: Lg2File) -> list[tuple[str, str]]:

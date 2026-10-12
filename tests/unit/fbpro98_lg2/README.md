@@ -2,7 +2,7 @@
 
 Cases covered for the `.lg2` league file library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
 
-One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` = constructed bytes, `golden` = real `.lg2` in `data/` (`PNFL.lg2` custom, `NFLPI97.LG2` modern stock, `08_TEAMS.LG2` old stock). Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_lg2` → 34 passing.
+One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` = constructed bytes, `golden` = real `.lg2` in `data/` (`PNFL.lg2` custom, `NFLPI97.LG2` modern stock, `08_TEAMS.LG2` old stock). Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_lg2` → 42 passing.
 
 ## reader.py — `parse_lg2` / `read_lg2`
 
@@ -13,20 +13,28 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` =
 | Custom league files, incl. leftover text and a shared game plan | golden | teams 0, 5, 17 exact | `test_custom_league_team_files` `[P]` | ☑ |
 | `read` returns `Lg2File`; `parse == read` | golden | equal | `test_read_returns_lg2_file_and_matches_parse` | ☑ |
 | `read` accepts a `str` folder | golden | equal to `Path` | `test_read_accepts_str_league_dir` | ☑ |
+| Custom league type | golden | `CUSTOM` | `test_custom_league_type` | ☑ |
 
-### Stock leagues → `UnsupportedLg2Error`
+### Stock leagues
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Modern and old stock | golden | "Modern stock league" / "Old stock league" | `test_stock_league_rejected` `[P]` | ☑ |
-| Stock folder on a later entry | make_team | read; `STOCK\…` or bare filename | `test_stock_folder_on_later_entry_is_read` `[P]` | ☑ |
-| Stock folder on the second team | make_team | read | `test_stock_folder_on_second_team_is_read` | ☑ |
-| `STOCK` without the full signature | make_team | read as custom | `test_stock_folder_without_full_signature_is_custom` `[P]` | ☑ |
+| Modern stock type and team count | golden | `MODERN_STOCK`, 30 teams | `test_modern_stock_league_type_and_team_count` | ☑ |
+| Modern stock files | golden | teams 0, 1, 29 exact, under `STOCK` | `test_modern_stock_league_team_files` `[P]` | ☑ |
+| Old stock | golden | `OLD_STOCK`; 8 teams, same bare filenames | `test_old_stock_league` | ☑ |
 
-### Check order: size, then stock, then fields
+### League type: the first entry's folder field decides
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Stock signature, size short by one | make_team | `InvalidLg2Error` "not a whole number" | `test_size_checked_before_stock` | ☑ |
-| Stock signature, empty filename later | make_team | `UnsupportedLg2Error` | `test_stock_checked_before_fields` | ☑ |
+| Full modern signature / empty folder on entry 1 | make_team | `MODERN_STOCK` / `OLD_STOCK`; other entries keep their folder | `test_first_entry_decides_league_type` `[P]` | ☑ |
+| Stock folder on a later entry | make_team | `CUSTOM`; `STOCK\…` or bare filename | `test_stock_folder_on_later_entry_is_read` `[P]` | ☑ |
+| Stock folder on the second team | make_team | `CUSTOM` | `test_stock_folder_on_second_team_is_read` | ☑ |
+| `STOCK` without the full signature, or one character past it | make_team | `CUSTOM` | `test_stock_folder_without_full_signature_is_custom` `[P]` | ☑ |
+
+### Stock leagues get the same checks
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Stock signature, size short by one | make_team | `InvalidLg2Error` "not a whole number" | `test_stock_league_size_checked` | ☑ |
+| Modern / old stock, empty filename later | make_team | `InvalidLg2Error` "Empty filename" | `test_stock_league_fields_checked` `[P]` | ☑ |
 
 ### Limits → `InvalidLg2Error`
 | Case | Input | Expected | Test | Status |
@@ -50,7 +58,7 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` =
 
 | Case | Expected | Test | Status |
 |---|---|---|---|
-| Nested access | half → side → profile / gameplan | `test_nested_access` | ☑ |
+| Nested access | `league_type`; half → side → profile / gameplan | `test_nested_access` | ☑ |
 | Frozen | assignment raises | `test_frozen` | ☑ |
 
 ## schema.py

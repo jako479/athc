@@ -4,6 +4,11 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-09 — **fbpro98_lg2**: stock leagues are read, not rejected. All
+  three layouts are fully specified and differ only in the folder field, so
+  one parser serves them; the old stock check became `league_type`, so a
+  caller can still tell them apart. `check-ppp` still fails on a stock
+  league, now by checking `league_type` itself.
 - 2026-10-08 — **athc**: the eight console follow-ups decided after the
   review landed, in order: an error carries its file's path as data and
   composes `<path>: <reason>` itself, the way `OSError` does, so the readers

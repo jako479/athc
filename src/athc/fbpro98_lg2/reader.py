@@ -6,7 +6,13 @@ from os import PathLike
 from pathlib import Path
 
 from athc.errors import AthcError
-from athc.fbpro98_lg2.model import FilePair, HalfFiles, Lg2File, TeamFiles
+from athc.fbpro98_lg2.model import (
+    FilePair,
+    HalfFiles,
+    LeagueType,
+    Lg2File,
+    TeamFiles,
+)
 from athc.fbpro98_lg2.schema import (
     FILE_ENTRY_SIZE,
     FILENAME_SIZE,
@@ -24,15 +30,6 @@ class InvalidLg2Error(AthcError):
     """Raised when a `.lg2` file is structurally invalid."""
 
 
-class UnsupportedLg2Error(AthcError):
-    """Raised when the first folder field matches a stock league signature.
-
-    Both stock layouts are rejected: modern (folder `STOCK`) and old (empty
-    folder). The check runs before the field checks. See specs/lg2.md
-    sections 3 and 4.
-    """
-
-
 def read_lg2(league: str, league_dir: StrPath) -> Lg2File:
     """Read and parse a league's .lg2 file from disk.
 
@@ -47,7 +44,6 @@ def read_lg2(league: str, league_dir: StrPath) -> Lg2File:
         InvalidLg2Error: If the file is empty or not a whole number of team
             records, a folder or filename field has no NUL, or a filename is
             empty.
-        UnsupportedLg2Error: If the file is for a stock league.
         OSError: If the file cannot be opened or read.
     """
     file_path = Path(league_dir) / f"{league}.lg2"
@@ -69,7 +65,6 @@ def parse_lg2(buffer: bytes, path: StrPath = "<buffer>") -> Lg2File:
         InvalidLg2Error: If the buffer is empty or not a whole number of team
             records, a folder or filename field has no NUL, or a filename is
             empty.
-        UnsupportedLg2Error: If the buffer is for a stock league.
     """
     file_path = Path(path)
     if not buffer:
@@ -81,21 +76,22 @@ def parse_lg2(buffer: bytes, path: StrPath = "<buffer>") -> Lg2File:
             f"{TEAM_RECORD_SIZE}-byte team records",
             file_path,
         )
-    _check_stock(buffer, file_path)
     return Lg2File(
+        league_type=_league_type(buffer),
         teams=tuple(
             _parse_team(buffer, index * TEAM_RECORD_SIZE, file_path)
             for index in range(team_count)
-        )
+        ),
     )
 
 
-def _check_stock(buffer: bytes, path: Path) -> None:
+def _league_type(buffer: bytes) -> LeagueType:
     # Only the first entry decides; a later stock-looking entry is read as is.
     if buffer.startswith(MODERN_STOCK_FOLDER):
-        raise UnsupportedLg2Error("Modern stock league not supported", path)
+        return LeagueType.MODERN_STOCK
     if buffer.startswith(OLD_STOCK_FOLDER):
-        raise UnsupportedLg2Error("Old stock league not supported", path)
+        return LeagueType.OLD_STOCK
+    return LeagueType.CUSTOM
 
 
 def _parse_team(buffer: bytes, offset: int, path: Path) -> TeamFiles:

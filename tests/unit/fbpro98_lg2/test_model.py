@@ -4,7 +4,7 @@ import dataclasses
 
 import pytest
 
-from athc.fbpro98_lg2 import FilePair, HalfFiles, Lg2File, TeamFiles
+from athc.fbpro98_lg2 import FilePair, HalfFiles, LeagueType, Lg2File, TeamFiles
 
 
 def _team() -> TeamFiles:
@@ -21,7 +21,8 @@ def _team() -> TeamFiles:
 
 
 def test_nested_access():
-    lg2 = Lg2File(teams=(_team(),))
+    lg2 = Lg2File(league_type=LeagueType.CUSTOM, teams=(_team(),))
+    assert lg2.league_type is LeagueType.CUSTOM
     assert lg2.teams[0].first_half.offense.profile == "P\\O1.prf"
     assert lg2.teams[0].second_half.defense.gameplan == "P\\D2.pln"
 

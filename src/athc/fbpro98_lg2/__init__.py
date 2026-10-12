@@ -3,12 +3,12 @@
 from athc.fbpro98_lg2.model import (
     FilePair,
     HalfFiles,
+    LeagueType,
     Lg2File,
     TeamFiles,
 )
 from athc.fbpro98_lg2.reader import (
     InvalidLg2Error,
-    UnsupportedLg2Error,
     parse_lg2,
     read_lg2,
 )
@@ -17,9 +17,9 @@ __all__ = [
     "FilePair",
     "HalfFiles",
     "InvalidLg2Error",
+    "LeagueType",
     "Lg2File",
     "TeamFiles",
-    "UnsupportedLg2Error",
     "parse_lg2",
     "read_lg2",
 ]

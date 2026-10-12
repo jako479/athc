@@ -17,7 +17,7 @@ from athc.errors import (
     reason_of,
 )
 from athc.fbpro98_gameplan import InvalidGamePlanError
-from athc.fbpro98_lg2 import InvalidLg2Error, UnsupportedLg2Error
+from athc.fbpro98_lg2 import InvalidLg2Error
 from athc.fbpro98_play import CategoryLabels, InvalidPlayFileError
 from athc.fbpro98_profile import InvalidProfileError, UnsupportedProfileError
 from athc.gameplan import RulesFileError as GameplanRulesFileError
@@ -38,7 +38,6 @@ from athc.scheduler.schedulers.errors import SchedulerError
         RulesFileError,
         InvalidGamePlanError,
         InvalidLg2Error,
-        UnsupportedLg2Error,
         InvalidPlayFileError,
         InvalidProfileError,
         UnsupportedProfileError,
@@ -75,7 +74,6 @@ def test_athc_error_takes_a_str_path() -> None:
         LeagueError,
         InvalidGamePlanError,
         InvalidLg2Error,
-        UnsupportedLg2Error,
         InvalidPlayFileError,
         InvalidProfileError,
         UnsupportedProfileError,

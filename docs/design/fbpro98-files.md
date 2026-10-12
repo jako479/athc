@@ -25,7 +25,7 @@ season 2049) and the stock leagues shipped with the game (1992-1997).
   side, as folder + filename. Three layouts by league age: custom, modern
   stock (`STOCK` folder) and old stock (empty folder). Team order is the
   `.lge` order. Spec: [lg2.md](../fbpro98_lg2/specs/lg2.md). Library:
-  `fbpro98_lg2` (custom only). Not masked.
+  `fbpro98_lg2`. Not masked.
 
 ## League files (one set per league, in the game folder)
 

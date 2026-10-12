@@ -27,6 +27,7 @@ team it lists four pairs: 1st-half offense profile and gameplan, 1st-half
 defense, 2nd-half offense, 2nd-half defense.
 
 - Matched by file name only, ignoring case; the `.lg2` folders don't matter.
+- A stock league's `.lg2`, modern or old, is an error.
 - Both files of a pair must be in the same folder.
 - Pairs with a file missing, files no pair names, and folders that can't be
   read are skipped. With no pairs at all, it says so and exits 0.

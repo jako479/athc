@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-08. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-09. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -171,7 +171,8 @@ Working. Checks profiles with their gameplans, and how they fit. Docs:
 - In a directory, the league's `.lg2` (in the `path` folder) names each
   team's four pairs; every pair with both files in one folder is checked,
   matched by file name, ignoring case. Each folder of a tree stands alone. A
-  gameplan used for both halves reports once.
+  gameplan used for both halves reports once. A stock league's `.lg2` is an
+  error.
 - Each file is checked and printed exactly as `profile check` and
   `gameplan check` do, with its own code. A pair must be the same side, and
   each side's rules decide what fails: the profile rules'
@@ -207,7 +208,8 @@ Docs: [spec](docs/fbpro98_lg2/specs/lg2.md)
 - Used by `check-ppp` to pair a folder's files; `path` in
   `league.toml` names the folder that holds the file.
 - Team order is the league's `.lge` order (spec section 1).
-- Reader in, with unit tests; stock leagues are rejected.
+- Reader in, with unit tests; reads custom and stock leagues (modern and
+  old) and says which.
 
 ## fbpro98 league files (specs only)
 

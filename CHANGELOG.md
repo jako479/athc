@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- check-ppp: every kind of stock league gets the same `stock league not supported` line
+- fbpro98_lg2: reads stock leagues, modern and old, and says which kind of league it read
 - fbpro98_play: the `.ply` spec decodes each player's position and logic boxes, enough to tell a timed pass, QB run or rollout, and a 2-DL, 4-3 or 3-4 defense
 - athc: the `.lge` spec shows how a roster slot sets a player's status (Assigned, Open Active, Open Inactive) and depth
 - athc: the `.pyr` spec is checked against the game's Player Editor and injury screens

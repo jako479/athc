@@ -14,9 +14,9 @@ from athc.fbpro98_lg2 import (
     FilePair,
     HalfFiles,
     InvalidLg2Error,
+    LeagueType,
     Lg2File,
     TeamFiles,
-    UnsupportedLg2Error,
     parse_lg2,
     read_lg2,
 )
@@ -25,10 +25,13 @@ from athc.fbpro98_lg2.schema import FILENAME_SIZE, FOLDER_SIZE, TEAM_RECORD_SIZE
 FIXTURE_DIR = Path(__file__).resolve().parent / "data"
 LEAGUE = "PNFL"
 CUSTOM = FIXTURE_DIR / "PNFL.lg2"
+MODERN_STOCK = FIXTURE_DIR / "NFLPI97.LG2"
+OLD_STOCK = FIXTURE_DIR / "08_TEAMS.LG2"
 
 
 def _team(folder: str, names: tuple[str, ...]) -> TeamFiles:
-    paths = [f"{folder}\\{name}" for name in names]
+    # An empty folder leaves just the filename, as in an old stock league.
+    paths = [f"{folder}\\{name}" if folder else name for name in names]
     return TeamFiles(
         first_half=HalfFiles(
             offense=FilePair(profile=paths[0], gameplan=paths[1]),
@@ -118,14 +121,45 @@ def test_read_accepts_str_league_dir():
     assert read_lg2(LEAGUE, str(FIXTURE_DIR)) == read_lg2(LEAGUE, FIXTURE_DIR)
 
 
+def test_custom_league_type():
+    assert read_lg2(LEAGUE, FIXTURE_DIR).league_type is LeagueType.CUSTOM
+
+
 # Parsed from bytes: the stock fixtures keep the game's upper-case `.LG2` name.
+
+
+def test_modern_stock_league_type_and_team_count():
+    lg2 = parse_lg2(MODERN_STOCK.read_bytes())
+    assert lg2.league_type is LeagueType.MODERN_STOCK
+    assert len(lg2.teams) == 30
+
+
 @pytest.mark.parametrize(
-    ("name", "message"),
-    [("NFLPI97.LG2", "Modern stock league"), ("08_TEAMS.LG2", "Old stock league")],
+    ("index", "prefix"),
+    [(0, "BILLS"), (1, "COLTS"), (29, "RAMS")],
 )
-def test_stock_league_rejected(name: str, message: str):
-    with pytest.raises(UnsupportedLg2Error, match=message):
-        parse_lg2((FIXTURE_DIR / name).read_bytes())
+def test_modern_stock_league_team_files(index: int, prefix: str):
+    # Game plans end in a zero, not an O: BILLS0.PLN.
+    names = ("O1.PRF", "0.PLN", "D1.PRF", "D.PLN", "O2.PRF", "0.PLN", "D2.PRF", "D.PLN")
+    expected = _team("STOCK", tuple(prefix + name for name in names))
+    assert parse_lg2(MODERN_STOCK.read_bytes()).teams[index] == expected
+
+
+def test_old_stock_league():
+    """Every team uses the same files, with no folder."""
+    lg2 = parse_lg2(OLD_STOCK.read_bytes())
+    names = (
+        "OFF1.PRF",
+        "OFF.PLN",
+        "DEF1.PRF",
+        "DEF.PLN",
+        "OFF2.PRF",
+        "OFF.PLN",
+        "DEF2.PRF",
+        "DEF.PLN",
+    )
+    assert lg2.league_type is LeagueType.OLD_STOCK
+    assert lg2.teams == (_team("", names),) * 8
 
 
 def test_missing_file_raises_oserror_for_built_path(tmp_path: Path):
@@ -134,7 +168,28 @@ def test_missing_file_raises_oserror_for_built_path(tmp_path: Path):
     assert Path(info.value.filename) == tmp_path / "missing.lg2"
 
 
-# --- stock signatures decide on the first entry only ---
+# --- league type: the first entry's folder field decides ---
+
+
+@pytest.mark.parametrize(
+    ("folder", "league_type", "profile"),
+    [
+        (b"STOCK\x00A\\FBPRO97\\STOCK", LeagueType.MODERN_STOCK, "STOCK\\O1.prf"),
+        (b"", LeagueType.OLD_STOCK, "O1.prf"),
+    ],
+)
+def test_first_entry_decides_league_type(
+    make_entry,
+    make_team,
+    make_entries,
+    folder: bytes,
+    league_type: LeagueType,
+    profile: str,
+):
+    lg2 = parse_lg2(make_team(make_entries(0, make_entry(folder=folder))))
+    assert lg2.league_type is league_type
+    assert lg2.teams[0].first_half.offense.profile == profile
+    assert lg2.teams[0].first_half.offense.gameplan == "Plans\\Team\\O1.pln"
 
 
 @pytest.mark.parametrize(
@@ -151,36 +206,45 @@ def test_stock_folder_on_later_entry_is_read(
     entries = make_entries(1, make_entry(folder=folder, filename=b"O1.pln"))
     lg2 = parse_lg2(make_team(entries))
     assert lg2.teams[0].first_half.offense.gameplan == expected
+    assert lg2.league_type is LeagueType.CUSTOM
 
 
 def test_stock_folder_on_second_team_is_read(make_entry, make_team, make_entries):
     stock = make_entries(0, make_entry(folder=b"STOCK\x00A\\FBPRO97\\STOCK"))
     lg2 = parse_lg2(make_team() + make_team(stock))
     assert lg2.teams[1].first_half.offense.profile == "STOCK\\O1.prf"
+    assert lg2.league_type is LeagueType.CUSTOM
 
 
-@pytest.mark.parametrize("folder", [b"STOCK", b"STOCK\x00OLD\\PATH"])
+@pytest.mark.parametrize(
+    "folder",
+    [b"STOCK", b"STOCK\x00OLD\\PATH", b"STOCK\x00A\\FBPRO97\\STOCKX"],
+)
 def test_stock_folder_without_full_signature_is_custom(
     make_entry, make_team, make_entries, folder: bytes
 ):
     entries = make_entries(0, make_entry(folder=folder))
     lg2 = parse_lg2(make_team(entries))
     assert lg2.teams[0].first_half.offense.profile == "STOCK\\O1.prf"
+    assert lg2.league_type is LeagueType.CUSTOM
 
 
-# --- check order: size, then stock, then fields ---
+# --- stock leagues get the same checks ---
 
 
-def test_size_checked_before_stock(make_entry, make_team, make_entries):
+def test_stock_league_size_checked(make_entry, make_team, make_entries):
     stock = make_entries(0, make_entry(folder=b"STOCK\x00A\\FBPRO97\\STOCK"))
     with pytest.raises(InvalidLg2Error, match="not a whole number"):
         parse_lg2(make_team(stock)[:-1])
 
 
-def test_stock_checked_before_fields(make_entry, make_team, make_entries):
-    stock = make_entries(0, make_entry(folder=b"STOCK\x00A\\FBPRO97\\STOCK"))
+@pytest.mark.parametrize("folder", [b"STOCK\x00A\\FBPRO97\\STOCK", b""])
+def test_stock_league_fields_checked(
+    make_entry, make_team, make_entries, folder: bytes
+):
+    stock = make_entries(0, make_entry(folder=folder))
     stock[3] = make_entry(filename=b"")
-    with pytest.raises(UnsupportedLg2Error, match="Modern stock league"):
+    with pytest.raises(InvalidLg2Error, match="Empty filename"):
         parse_lg2(make_team(stock))
 
 

@@ -8,6 +8,15 @@ library's play filenames; split it with `PureWindowsPath`.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
+
+
+class LeagueType(Enum):
+    """Which of the three .lg2 layouts a file has; see specs/lg2.md."""
+
+    CUSTOM = "custom"
+    MODERN_STOCK = "modern stock"
+    OLD_STOCK = "old stock"
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,7 +48,11 @@ class TeamFiles:
 
 @dataclass(frozen=True, slots=True)
 class Lg2File:
-    """Full in-memory representation of a custom league's `.lg2` file."""
+    """Full in-memory representation of a `.lg2` league file."""
+
+    league_type: LeagueType
+    """Custom, modern stock or old stock, judged by the first file entry's
+    folder field (see the README)."""
 
     teams: tuple[TeamFiles, ...]
     """One entry per team, in file order: the league's `.lge` team order (see
