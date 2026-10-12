@@ -248,7 +248,7 @@ fn team_chunk_format(ref auto t) {
 // ---- R03: roster, masked ----
 
 struct RosterFields<auto Team, auto Start> {
-    MU16<Team, Start> players[63] [[comment("Player ids (.pyr), 0 = empty. Slots 0-33 Assigned, 34-45 Open Active, 46-52 Open Inactive, 53-62 unknown")]];
+    MU16<Team, Start> players[63] [[comment("Player ids (.pyr), 0 = empty. Slots 0-33 Assigned, 34-45 Open Active, 46-52 Open Inactive, 53-62 Injured Reserve")]];
     MU8<Team, Start> numbers[63] [[comment("Jersey number per slot")]];
     MBytes<Team, Start, 9> permutation;
     MBytes<Team, Start, 65> zero;

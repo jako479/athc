@@ -163,14 +163,14 @@ Bytes 0-1 are the team number (u16), in clear. Bytes 2-324 are masked (section 8
 
 Slot status, the "A"/"O"/"I" column of the game's roster screen; no status byte exists:
 
-| Slots | Status        | Screen | Note                                                    |
-| ----: | :------------ | :----- | :------------------------------------------------------ |
-|  0-33 | Assigned      | "A"    | The depth chart (below)                                 |
-| 34-45 | Open Active   | "O"    | Depth numbers carry on (WR5, WR6)                       |
-| 46-52 | Open Inactive | "I"    | No depth number                                         |
-| 53-62 | Unknown       | "IF"   | Shown on the injury screen; not in the roster counts    |
+| Slots | Status          | Screen | Note                                                    |
+| ----: | :-------------- | :----- | :------------------------------------------------------ |
+|  0-33 | Assigned        | "A"    | The depth chart (below)                                 |
+| 34-45 | Open Active     | "O"    | Depth numbers carry on (WR5, WR6)                       |
+| 46-52 | Open Inactive   | "I"    | No depth number                                         |
+| 53-62 | Injured Reserve | "IF"   | The game's ten IR slots; not in the roster counts       |
 
-Checked against Denver's roster screen: Assigned 34, Open Active 12, Open Inactive 7. Denver's slots 53-62 hold two injured players and eight healthy ones.
+Checked against Denver's roster screen: Assigned 34, Open Active 12, Open Inactive 7. Denver's slots 53-62 hold two injured players and eight healthy ones: a player stays on IR until the next season, even once healed, and the PNFL also uses the IR slots as a practice squad.
 
 Depth chart slots, the same in all 18 teams of `PNFL.lge`:
 
@@ -243,6 +243,7 @@ T03 and R03 data is XORed byte by byte with (0x69 × team + i) mod 256, team the
 ## 9. Open Questions
 
 - L03 bytes 0x00, 0x02-0x07, 0x0C-0x0E and the 7-byte tail
+- C03 byte 0x03
 - T03 bytes 0x7F-0x91
 - Whether the game shows the T03 stadium name: Denver's weather screen says `Mile High Stadium`, the chunk `Empire Field`
-- What R03 slots 53-62 are ("IF" on the injury screen), and what the permutation and the 60-byte table mean
+- What the R03 permutation and the 60-byte table mean
