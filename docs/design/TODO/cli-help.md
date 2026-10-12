@@ -89,7 +89,7 @@ Rules for every command and group:
 10. **Shared options read the same everywhere:**
     - `-r, --recursive  Include subfolders.`
     - `--league NAME  League to use (default: the one set with athc config set league).`
-11. **Short options:** one letter, standard meanings only (`-o` output, `-q` quiet, `-r` recursive).
+11. **Short options:** one letter, standard meanings only (`-o` output, `-q` quiet, `-r` recursive); convert-pdb keeps its `-o`, `-o2`, `-d` and `-d2`.
 12. **Long options:** spelled out (`--skip-calculations`, not `--skip-calcs`).
 13. **Description:** two to four lines; rule details belong in the tool's docs.
 14. **Examples:** one or two real examples per command, in an "Examples" epilog.
@@ -152,7 +152,7 @@ Project changes that come with the general fixes:
 
 ### convert-pdb
 
-- `-o` means "output" elsewhere (`profile diff`, and the standard); `-o2` and `-d2` are not single letters. Replace with long options only: `--offense`, `--offense-2`, `--defense`, `--defense-2`, each taking `GAME_PLAN`.
+- `-o`, `-o2`, `-d` and `-d2` (`--pln-off`, `--pln-off-2`, `--pln-def`, `--pln-def-2`) stay as they are.
 - `--skip-calcs` becomes `--skip-calculations`.
 - Usage becomes `[OPTIONS] PDB_FILE OUTPUT_FILE`; PDB_FILE help: "WinLogStats .pdb file."; OUTPUT_FILE help: ".xlsx, or .xlsm to include sorting macros."
 - Summary becomes "Convert a WinLogStats PDB to an Excel workbook."
