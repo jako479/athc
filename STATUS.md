@@ -214,10 +214,10 @@ Docs: [spec](docs/fbpro98_lg2/specs/lg2.md)
 Reverse engineered from the PNFL's game files; no libraries yet. Docs:
 [overview](docs/design/fbpro98-files.md), [lge spec](docs/fbpro98_lge/specs/lge.md),
 [pyr spec](docs/fbpro98_pyr/specs/pyr.md), [cities spec](docs/fbpro98_cities/specs/cities.md),
-[notes](docs/design/research/pnfl-formats.md).
+[stats spec](docs/fbpro98_stats/specs/stats.md), [notes](docs/design/research/pnfl-formats.md).
 
 - `.lge`, `.rst`, `.pyr`, `.PYF`, `.dft`, `.tmn` and `.lgc` decoded in full;
-  `.dat` stat records mostly.
+  `.dat` + `.idx` mostly (stat categories 12, 14, 15 and part of 16 unmapped).
 - `research/pnfl_decode.py` reads them all (stdlib, read-only).
 
 ## fbpro98_play (library)

@@ -46,12 +46,12 @@ season 2049) and the stock leagues shipped with the game (1992-1997).
   `1995.PYR` and `1996.PYR`, the same layout for those NFL seasons.
 - `.dat` + `.idx` statistics: 20-byte records keyed by type and id. Type =
   block + category; blocks for a player's last game, season and career and a
-  team's own and opponents' last game and season; categories for field goals,
-  rushing, passing, receiving, interceptions, punting, returns, fumbles,
-  sacks and tackles (some unmapped). Unused fields hold leftover memory. The
-  index is a 512-byte-block tree over (id, type) whose offsets land one record
-  late; scanning `.dat` is enough. Not masked. Research:
-  [pnfl-formats.md](research/pnfl-formats.md). Fresh stock leagues ship
+  team's own and opponents' last game and season; categories for extra
+  points, field goals, rushing, passing, receiving, interceptions, punting,
+  returns, fumbles, sacks, tackles and two-point conversions (some unmapped).
+  Unused fields hold leftover memory. The index is a B-tree of 512-byte
+  blocks over (type, id) that points at each record. Not masked. Spec:
+  [stats.md](../fbpro98_stats/specs/stats.md). No library. Fresh stock leagues ship
   an empty pair (140 and 512 bytes).
 - `.PYF` free agents: `PPD:` chunk of player ids. `.PYC`: same shape, empty,
   or a 0-byte file. Not masked.
