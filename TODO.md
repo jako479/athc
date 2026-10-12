@@ -2,6 +2,7 @@
 
 ## 1.0.0
 
+- [ ] athc: logging updates — messages name the file and line number, then say the problem in plain words; see [docs/design/TODO/logging-updates.md](docs/design/TODO/logging-updates.md)
 - [ ] gameplan: set-normals: decide whether to keep `-q/--quiet`, the only quiet option in athc: drop it, keep it, or give every file-writing command one; pdf-converter has none
 - [ ]
 - [ ] convert-pdb: add a problems section to the release docs
