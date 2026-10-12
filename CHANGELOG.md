@@ -7,6 +7,10 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- fbpro98_play: the `.ply` spec explains bit 7 of the category bytes: clear when the formation is left-heavy at the snap
+- fbpro98_play: the `.ply` spec decodes each player's record (position, snap and kick role, logic boxes, commands) and shows how to read a play's personnel, run or pass type and coverage
+- athc: the `.lge` spec shows how a roster slot sets a player's status (Assigned, Open Active, Open Inactive) and depth
+- athc: the `.pyr` spec is checked against the game's Player Editor and injury screens
 - gameplan: `set-normals` / `set-specials` input errors from the console no longer start with `- `; `find-play` prints no tally for a single path that failed
 - playpool: `check` on a folder that does not exist says `not found`, and `not a directory` only for a file in its place
 - athc: bare `athc` no longer writes its whole help text into the run log
