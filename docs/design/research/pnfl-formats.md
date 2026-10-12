@@ -1,7 +1,7 @@
 # PNFL league files: research notes
 
 - Source: `E:\SIERRA\FbPro98\PNFL.*` as of 2026-10-02 (season 2049, 6 weeks played), read-only.
-- Specs written from these notes: [lge.md](../../fbpro98_lge/specs/lge.md), [pyr.md](../../fbpro98_pyr/specs/pyr.md), [lg2.md](../../fbpro98_lg2/specs/lg2.md), [cities.md](../../fbpro98_cities/specs/cities.md), [stats.md](../../fbpro98_stats/specs/stats.md). Overview: [fbpro98-files.md](../fbpro98-files.md).
+- Specs written from these notes: [lge.md](../../fbpro98_lge/specs/lge.md), [pyr.md](../../fbpro98_pyr/specs/pyr.md), [lg2.md](../../fbpro98_lg2/specs/lg2.md), [cities.md](../../fbpro98_cities/specs/cities.md), [stats_dat.md](../../fbpro98_stats/specs/stats_dat.md). Overview: [fbpro98-files.md](../fbpro98-files.md).
 - Decoder: [research/pnfl_decode.py](../../../research/pnfl_decode.py) (stdlib, read-only): `python pnfl_decode.py <game folder> teams | roster 5 | player 6283 | freeagents | schedule | champions | draft | tmn | stats 6283`.
 
 ## 1. Team order in PNFL.lg2
@@ -92,7 +92,7 @@ Two files are scrambled. Everything else is plain; leftover text after a NUL and
 - Categories: 0 extra points (att, made); 1 field goals (long, then 5 distance ranges of made/att byte pairs); 2 rushing (att, yds, long, TD); 3 passing (att, yds, long, TD, comp, INT, sacked, sack yds); 4 receiving (rec, yds, long, TD); 5 interceptions (n, yds, long, TD); 6 punting (punts, yds, long, 3 unresolved, return yds, touchbacks); 7 punt returns (n, yds, long, TD, 1 unresolved); 8 kick returns (n, yds, long, TD); 9 fumbles; 10 fumble recoveries (n, yds, long, TD); 11 sacks; 12 unknown defensive count (career only); 13 tackles; 14-15 unresolved; 16 team: latest opponent, time of possession (s), rest unresolved; 17 two-point conversions (att, made).
 - Cross-checks: every team's points, season and last game, equal 6 x TD + extra points + 3 x FG + 2 x two-point conversions; Stroud's last-game passing equals Denver's team last-game line; Denver's season passing equals the sum of its three QBs' lines.
 - `.idx`: 512-byte blocks, a B-tree (433 nodes, 6 unused blocks filled with `0xFF`); 18-byte node header (leaf flag at byte 17) + 8-byte entries: `.dat` offset u32, then the key, type u16 and id u16, big-endian. Every leaf entry points at its own record.
-- Layout in [stats.md](../../fbpro98_stats/specs/stats.md).
+- Layout in [stats_dat.md](../../fbpro98_stats/specs/stats_dat.md).
 
 ### PNFL.PYF (1,968 B), PNFL.PYC (10 B)
 

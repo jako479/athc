@@ -51,7 +51,7 @@ season 2049) and the stock leagues shipped with the game (1992-1997).
   returns, fumbles, sacks, tackles and two-point conversions (some unmapped).
   Unused fields hold leftover memory. The index is a B-tree of 512-byte
   blocks over (type, id) that points at each record. Not masked. Spec:
-  [stats.md](../fbpro98_stats/specs/stats.md). No library. Fresh stock leagues ship
+  [stats_dat.md](../fbpro98_stats/specs/stats_dat.md). No library. Fresh stock leagues ship
   an empty pair (140 and 512 bytes).
 - `.PYF` free agents: `PPD:` chunk of player ids. `.PYC`: same shape, empty,
   or a 0-byte file. Not masked.
