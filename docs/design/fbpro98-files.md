@@ -7,8 +7,8 @@ season 2049) and the stock leagues shipped with the game (1992-1997).
 
 ## Coaching files (one per team or coach)
 
-- `.ply` play: one `P95` block; 11 player records with pre-snap, play and
-  end-of-play logic boxes; three category bytes. Spec:
+- `.ply` play: one `P95` block; 11 player records with pre-snap and
+  after-snap logic boxes; three category bytes. Spec:
   [ply.md](../fbpro98_play/specs/ply.md). Library: `fbpro98_play`. Not masked.
   One layout seen.
 - `.pln` game plan: `G95` (86 play slots and play records), `J95` (counts),
