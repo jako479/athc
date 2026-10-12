@@ -7,8 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
-- fbpro98_play: the `.ply` spec explains bit 7 of the category bytes: clear when the formation is left-heavy at the snap
-- fbpro98_play: the `.ply` spec decodes each player's record (position, snap and kick role, logic boxes, commands) and shows how to read a play's personnel, run or pass type and coverage
+- fbpro98_play: the `.ply` spec decodes each player's position and logic boxes, enough to tell a timed pass, QB run or rollout, and a 2-DL, 4-3 or 3-4 defense
 - athc: the `.lge` spec shows how a roster slot sets a player's status (Assigned, Open Active, Open Inactive) and depth
 - athc: the `.pyr` spec is checked against the game's Player Editor and injury screens
 - gameplan: `set-normals` / `set-specials` input errors from the console no longer start with `- `; `find-play` prints no tally for a single path that failed
@@ -52,7 +51,7 @@ high-level change completed alongside it gets its own line.
 - profile: `copy --pat-logic` copies the PAT play-calling table into the targets
 - athc: the file specs hold only the file layout, its validity rules and open questions; each library's README documents its API, indexed in the architecture overview
 - athc: the file specs name fields in prose and keep code font for what is stored in the file
-- fbpro98_play: the `.ply` spec explains the category bytes bit by bit, the shared bits 7–6, and shows sample plays
+- fbpro98_play: the `.ply` spec explains the category bytes and shows sample plays
 - gameplan: the `.pln` spec no longer defines category values; a plan's bytes are a copy of the play file's
 - gameplan: `check` and `find-play` work on the current folder when no path is given
 - profile: `check` works on the current folder when no path is given

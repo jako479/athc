@@ -105,8 +105,6 @@ IR/PS.
 ## Play editor
 
 Which options the game's play editor offers each player, checked in the editor.
-How they are stored is in
-[ply.md section 2.5](../fbpro98_play/specs/ply.md#25-command-codes).
 
 ### Normal plays
 
@@ -142,8 +140,6 @@ Who gets the before-snap options:
 - Pass is Timed pass, Check receivers or Fake pass; Handoff/Pitch and Blitz are
   real or fake; Go in motion continues to the snap, stops and gets set, or
   reverses.
-- Preferred Player is a defensive before-snap setting stored in the role byte
-  (ply.md section 4.2), not a command.
 - Every return-team position gets the same after-snap options; once Pass rush,
   Run rush or Block is in a logic box, only Pursuit is can still be added to
   it.
