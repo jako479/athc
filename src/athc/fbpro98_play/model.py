@@ -141,7 +141,7 @@ class PlayerHeader:
     """One player's header within a .ply play file.
 
     Parsed from the leading bytes of each player record. See specs/ply.md
-    section 2.4 for the on-disk layout.
+    section 2.1 for the on-disk layout.
     """
 
     offset: int
@@ -151,12 +151,13 @@ class PlayerHeader:
     """Depth-chart rank (u8 at +0x00)."""
 
     player_type: int
-    """Record type (u8 at +0x01). Observed: 0x01 pre-snap, 0x02 after-snap,
-    0x04 kicking."""
+    """Role bits (u8 at +0x01): 0x01 snaps (defense: Preferred Player), 0x02
+    takes the snap, 0x04 kicks;
+    specs/ply.md section 4.2."""
 
     position: int
-    """Position code (u16 at +0x02). Observed: 0x20 QB, 0x12 C, 0x11 T,
-    0x10 G, 0x81 TE, 0x80 WR, 0x42 HB."""
+    """Position code (u16 at +0x02), e.g. 0x20 QB, 0x42 HB, 0x0200 LB;
+    specs/ply.md section 4.1."""
 
 
 @dataclass(frozen=True, slots=True)
