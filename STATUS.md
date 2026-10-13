@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-12. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-13. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -417,6 +417,11 @@ construction, never pruned · then the quirk budget in
 
 ## Decisions
 
+- **`gameplan check` and `profile check` are not dropped for check-ppp.**
+  They check files of one kind by any name, many at once, with wildcards and
+  trees; check-ppp pairs files only as the league file names them, plus one
+  pair given by hand. The split is helm lint beside yamllint and cargo check
+  beside rustc. Plan: [check-ppp-cli.md](docs/design/TODO/check-ppp-cli.md).
 - **Wildcards stay, expanded by athc.** `gameplan check`, `set-specials`,
   `replace-play`, `profile check` and `profile copy` take one; `find-play`
   refuses one. Turning off Click's own Windows expansion is in the cli-help
