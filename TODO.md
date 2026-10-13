@@ -2,6 +2,13 @@
 
 ## 1.0.0
 
+- [ ] profile: CLI plan (the four names `off1 def1 off2 def2` on check, diff and copy, `--team`, `copy SOURCE TARGET...`, `--substitutions`); see [docs/design/TODO/profile-cli.md](docs/design/TODO/profile-cli.md)
+- [ ] playpool: CLI plan (`check [FOLDER]` with `pass the folder` hints; new `show PLAY...` for a play's side, category, attributes and file; new `list [CATEGORY]...` listing a category's plays with their attributes as a play list); see [docs/design/TODO/playpool-cli.md](docs/design/TODO/playpool-cli.md)
+- [ ] generate-schedule: CLI plan (`--previous` and `--upcoming` folder rules, the same-folder warning, the No path hint, seed and time-limit bounds, writable-folder check before the solve, Ctrl+C handling); see [docs/design/TODO/generate-schedule-cli.md](docs/design/TODO/generate-schedule-cli.md)
+- [ ] gameplan: CLI plan (the four names, `--team`, `--path` on find-play, replace-play and set-specials with the team's game plans as default, `-q` dropped, cap lines name the plays); see [docs/design/TODO/gameplan-cli.md](docs/design/TODO/gameplan-cli.md)
+- [ ] convert-pdb: CLI plan (optional `OUTPUT_FILE` beside the PDB, Slot columns from the team's game plans with per-slot `-o/-o2/-d/-d2` and `--path FOLDER`, `--team`, `--percentages/--no-percentages`); see [docs/design/TODO/convert-pdb-cli.md](docs/design/TODO/convert-pdb-cli.md)
+- [ ] config: CLI plan (`get KEY` for athc.ini and league.toml keys; `path`, `edit` and `reveal` take FILE `athc.ini` or `league.toml` with `--league`; `edit` via `os.startfile`); see [docs/design/TODO/config-cli.md](docs/design/TODO/config-cli.md)
+- [ ] autocontinue: CLI plan (every setting optional with shipped defaults, `--delay`, `-n/--dry-run`, hot corner checked every pass, window lines, clicks on the button's point); see [docs/design/TODO/autocontinue-cli.md](docs/design/TODO/autocontinue-cli.md)
 - [ ] check-ppp: team and league modes (`team` and `ppp_path` in league.toml, `--team`, `--all-teams`); `gameplan check` and `profile check` stay; see [docs/design/TODO/check-ppp-cli.md](docs/design/TODO/check-ppp-cli.md)
 - [ ] athc: reorganize the docs folders and set the rule for design docs and plans; see [docs/design/TODO/docs-layout.md](docs/design/TODO/docs-layout.md)
 - [ ] athc: go through the CLI and help text for each command; see [docs/design/TODO/cli-help.md](docs/design/TODO/cli-help.md)

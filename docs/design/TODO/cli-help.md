@@ -2,7 +2,7 @@
 
 **Goal:** every athc command's usage and help text follow one mainstream, modern style.
 
-**Status:** proposal, 2026-10-11; nothing changed yet.
+**Status:** proposal, 2026-10-11, rules 16 to 28 added 2026-10-13; nothing changed yet.
 
 ## 1. CLI libraries
 
@@ -48,27 +48,36 @@ athc today writes placeholders in plain lowercase (`play replacement path`) and 
 Style A, which is Click's default:
 
 ```
-Usage: athc gameplan replace-play [OPTIONS] PLAY REPLACEMENT PATH
+Usage: athc gameplan replace-play [OPTIONS] PLAY REPLACEMENT...
 
   Replace one play with another in game plans.
 
-  Rules are not checked; run `athc gameplan check` afterward.
+  Each game plan gets the first REPLACEMENT not already in it with which it
+  still passes athc gameplan check; the others are backups, tried in order.
 
 Positional arguments:
   PLAY         Play to replace (any case).
-  REPLACEMENT  Play to put in its place; must be in the play pool.
-  PATH         A .pln file, a folder or a wildcard.
+  REPLACEMENT  Plays to put in its place, in order; each must be in the play
+               pool.
 
 Options:
+  --path PATH      Game plans to edit: a .pln file, a folder, a wildcard, or
+                   off1, def1, off2 or def2 (default: your team's game
+                   plans).
   -r, --recursive  Include subfolders.
-  --league NAME    League to use (default: the one set with `athc config
-                   set league`).
+  --team NAME      Team whose game plans off1, def1, off2 and def2 name
+                   (default: team in league.toml).
+  --league NAME    League to use (default: the one set with athc config
+                   set league).
   -h, --help       Show this message and exit.
 
   Examples:
 
-    athc gameplan replace-play "Old Play" "New Play" .
+    athc gameplan replace-play OLDRUN NEWRUN
+    athc gameplan replace-play OLDRUN NEWRUN BACKUP --path plans -r
 ```
+
+(The block is [gameplan-cli.md](gameplan-cli.md)'s replace-play; the command plans decide each command's arguments and options.)
 
 Rules for every command and group:
 
@@ -89,13 +98,31 @@ Rules for every command and group:
 10. **Shared options read the same everywhere:**
     - `-r, --recursive  Include subfolders.`
     - `--league NAME  League to use (default: the one set with athc config set league).`
-11. **Short options:** one letter, standard meanings only (`-o` output, `-q` quiet, `-r` recursive); convert-pdb keeps its `-o`, `-o2`, `-d` and `-d2`.
-12. **Long options:** spelled out (`--skip-calculations`, not `--skip-calcs`).
+11. **Short options:** one letter, standard meanings only (`-o` output, `-r` recursive); convert-pdb keeps its `-o`, `-o2`, `-d` and `-d2`.
+12. **Long options:** spelled out (`--substitutions`, not `--sub-percent`).
 13. **Description:** two to four lines; rule details belong in the tool's docs.
 14. **Examples:** one or two real examples per command, in an "Examples" epilog.
-15. **Wildcards:** athc expands them itself, only in these arguments, and their help says so: PATH in `gameplan check`, `profile check`, `gameplan set-specials` and `gameplan replace-play`; TARGET in `profile copy`. `find-play --path` refuses them. A name that exists is a name, never a wildcard, so a folder like `Season [2029]` works. Each of the five gets one CLI test with a wildcard.
+15. **Wildcards:** athc expands them itself, only in these arguments, and their help says so: PATH in `gameplan check` and `profile check`; `--path PATH` in `gameplan find-play`, `gameplan replace-play` and `gameplan set-specials`; TARGET in `profile copy`. A name that exists is a name, never a wildcard, so a folder like `Season [2029]` works. Each of the six gets one CLI test with a wildcard.
+
+Rules shared by the command plans ([autocontinue](autocontinue-cli.md), [check-ppp](check-ppp-cli.md), [config](config-cli.md), [convert-pdb](convert-pdb-cli.md), [gameplan](gameplan-cli.md), [generate-schedule](generate-schedule-cli.md), [playpool](playpool-cli.md), [profile](profile-cli.md)); each plan states them in its own words with its reasons:
+
+16. **Path rule:** no path means the configured default (your team's files; the league's play pool), `.` the current folder, an explicit path overrides both. `gameplan check` and `profile check` default to the current folder, and a plan that prefers the current folder says why.
+17. **The four names:** `off1`, `def1`, `off2`, `def2`, lowercase in help and docs (rule 2 reserves capitals for placeholders), matched without case, accepted wherever a game plan or profile file operand is (`check` PATH included): your team's 1st-half offense, 1st-half defense, 2nd-half offense and 2nd-half defense file of the command's kind, found in `ppp_path` by its `.lg2` name, else at the league location (`path` joined with the `.lg2` folder). An existing path wins over a name (rule 15). In text, "the four names". Every command that takes them lists them once: in the operand's help line, or in the description for option values.
+18. **`--team NAME`:** on every command that accepts the four names, declared once as `team_option(head)` in `src/athc/cli/__init__.py` beside `league_option`; the help is a per-command head plus the shared tail `(default: team in league.toml).`. `--team` with no name among the operands is `Error: Cannot use --team with a path.`, exit 2. `ppp_path` applies only to the team `team` in `league.toml` resolves to; another team uses the league locations. The team resolver, the league-file loader and the file locator live in `src/athc/cli/_team.py`.
+19. **`--league NAME`:** always a required value with rule 10's text; never a contradiction; a named league must exist (the existing not-found line, exit 2), and its files are read only when the run needs them.
+20. **`--path`:** "where the game plans are" on every command that has it: `--path PATH` on `find-play`, `replace-play` and `set-specials` (a `.pln` file, a folder, a wildcard or one of the four names; default: your team's game plans), `--path FOLDER` on `convert-pdb` (a folder only; the team's four plans by their `.lg2` names, because the workbook has four slots).
+21. **Hints:** `FAIL <league.toml>: No team for the league. Set team in this file, or pass --team or <alternative>.` and `FAIL <league.toml>: No path for the league. Set path in this file, or pass <alternative>.`, the alternative being the command's own path form (`--path`, `a .pln file`, `a .prf file`, `the folder`, `-o, -o2, -d and -d2 as .pln files`, check-ppp's `--all-teams`), or `--team` alone when the command's path form is already on the line (convert-pdb with `--path`). A team file missing at its league location, when the team is yours, adds `Set ppp_path in <league.toml>, or pass <the file|--path|the folder>.`. A folder named like one of the four names where one file is needed is `FAIL off1: Access is denied. Run from another folder to use your team's <game plan|profile>.`; on an operand that takes folders that folder is the folder, and a file named `off1` is `Not a .pln file.` / `Not a .prf file.`.
+22. **No argument metavars:** Click derives the placeholder from the parameter name (`game_plan` gives `GAME_PLAN`, `output_file` gives `[OUTPUT_FILE]`, `play` with `nargs=-1, required=True` gives `PLAY...`), because an explicit metavar prints verbatim in the usage line and in Click's error hint. An argument's own validation is an athc callback raising `click.BadParameter(..., param_hint="'FILE'")`, so the hint reads `'FILE'`, never `'[FILE]'`.
+23. **Usage-error period:** every command prints `Got unexpected extra argument (x).`; the period is added once in `src/athc/cli/__init__.py` where usage errors are rendered, and no command raises its own copy.
+24. **No quiet flag:** no athc command has `-q/--quiet`; scripts use `> nul`, which hides the OK lines and keeps every FAIL on standard error.
+25. **One form:** every command plan describes this plan's form only (`[OPTIONS]`, uppercase placeholders, a Positional arguments section, an Examples epilog) and says "Depends on cli-help.md landing first."; this plan lands before any of them.
+26. **`FILE`** joins rule 3: a file named outright where none of the other names fits (`profile diff --output FILE`; `config path | edit | reveal FILE`, a choice of `athc.ini` or `league.toml`, lowercase literals matched without case).
+27. **On/off pairs over an `athc.ini` boolean:** `--x/--no-x` with `default=None`, help `Overrides <key> in athc.ini (on by default).` (`autocontinue --hot-corner`, `convert-pdb --percentages`).
+28. **Derived output:** an optional `OUTPUT_FILE` defaults to the input's name with the product's extension, beside the input; its help says `(default: <INPUT> with .<ext>, beside it)`; a binary product refuses `-` (rule 3's exception).
 
 ## 5. Issues and fixes
+
+The command plans named above decide each command's arguments, options and lines; where a plan's "cli-help.md changes" subsection amends a line below, the plan wins.
 
 ### General (every command)
 
@@ -153,7 +180,7 @@ Project changes that come with the general fixes:
 ### convert-pdb
 
 - `-o`, `-o2`, `-d` and `-d2` (`--pln-off`, `--pln-off-2`, `--pln-def`, `--pln-def-2`) stay as they are.
-- `--skip-calcs` becomes `--skip-calculations`.
+- `--skip-calcs` becomes `--percentages/--no-percentages` (rule 27; [convert-pdb-cli.md](convert-pdb-cli.md)).
 - Usage becomes `[OPTIONS] PDB_FILE OUTPUT_FILE`; PDB_FILE help: "WinLogStats .pdb file."; OUTPUT_FILE help: ".xlsx, or .xlsm to include sorting macros."
 - Summary becomes "Convert a WinLogStats PDB to an Excel workbook."
 - The description drops the game title.
