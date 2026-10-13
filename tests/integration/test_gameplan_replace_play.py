@@ -647,6 +647,70 @@ def test_cli_rollout_cap_uses_playpool_rules(
     )
 
 
+# A swap across categories moves one play from the losing category to the
+# gaining one; both counts are checked against the rules afterwards.
+PSL_TARGET = "AF1AwagR"  # offense Pass Short Left, in the pool
+PSL_OTHER = "JJ1AarrX"  # a second Pass Short Left play in the pool
+PML_REPL = "AT4Aqp01"  # offense Pass Medium Left, in the pool
+PML_OTHER = "AT4AcrsB"  # a second Pass Medium Left play in the pool
+
+
+def _psl_pml_plan(tmp_path: Path) -> Path:
+    """Two Pass Short Left plays and one Pass Medium Left, all in the pool, the
+    target at 1-1. Two PSL plays because min_count is not checked on a category
+    the swap empties."""
+    gp = _offense_gameplan(
+        normals={
+            0: offense_normal(PSL_TARGET, 0x07),
+            1: offense_normal(PSL_OTHER, 0x07),
+            2: offense_normal(PML_OTHER, 0x17),
+        }
+    )
+    return _write(gp, tmp_path)
+
+
+def test_cli_cross_category_swap_within_limits(
+    runner, league: Path, tmp_path: Path
+) -> None:
+    """PSL -> PML lands the losing category on its min_count and the gaining one
+    on its max_count, so the plan still passes check and the swap is made."""
+    (league / "gameplan.toml").write_text(
+        "[offense.PSL]\nmin_count = 1\n[offense.PML]\nmax_count = 2\n", "utf-8"
+    )
+    p = _psl_pml_plan(tmp_path)
+    result = runner.invoke(replace_play, [PSL_TARGET, PML_REPL, str(p)])
+    assert result.exit_code == 0
+    assert result.stdout == (
+        f"OK   {p}: '{PSL_TARGET}' (PSL) replaced with '{PML_REPL}' (PML) [1-1]\n"
+    )
+    rt = read_gameplan(str(p))
+    assert [_name(rt.normal_plays[i]) for i in range(3)] == [
+        PML_REPL,
+        PSL_OTHER,
+        PML_OTHER,
+    ]
+
+
+def test_cli_cross_category_swap_leaves_losing_category_short(
+    runner, league: Path, tmp_path: Path
+) -> None:
+    """PSL -> PML with PSL already at its min_count: the swap would leave PSL one
+    short, so the plan fails check and nothing is replaced."""
+    (league / "gameplan.toml").write_text(
+        "[offense.PSL]\nmin_count = 2\n[offense.PML]\nmax_count = 2\n", "utf-8"
+    )
+    p = _psl_pml_plan(tmp_path)
+    original = p.read_bytes()
+    result = runner.invoke(replace_play, [PSL_TARGET, PML_REPL, str(p)])
+    assert result.exit_code == 1
+    assert result.stdout == (
+        f"SKIP {p}: '{PML_REPL}' fails check: [Pass Short Left] Offensive "
+        "category 'Pass Short Left' has 1 plays; requires at least 2.\n"
+        f"{p}: '{PSL_TARGET}' not replaced, no valid replacement\n"
+    )
+    assert p.read_bytes() == original
+
+
 def test_cli_no_valid_replacement_single_file(
     runner, league: Path, tmp_path: Path
 ) -> None:

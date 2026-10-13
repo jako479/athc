@@ -318,6 +318,8 @@ In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `split_args`,
 | First already in the gameplan | constructed | `SKIP … already in the gameplan`, then `OK` with the second; exit 0 | `test_cli_backup_used_when_first_already_in_plan` | ☑ |
 | First breaks a `gameplan.toml` rule | constructed; `[offense.RM] max_count = 0` | `SKIP … fails check: [Run Middle] …`, then `OK`; exit 0 | `test_cli_backup_used_when_first_breaks_rule` | ☑ |
 | Rollout cap needs `playpool.toml` | constructed; test playpool rules; `[offense.PSL] max_rollouts_count = 0` | the rollout skipped, the other used | `test_cli_rollout_cap_uses_playpool_rules` | ☑ |
+| Swap across categories, both landing on their limits | constructed; `[offense.PSL] min_count = 1`, `[offense.PML] max_count = 2` | `OK … (PSL) replaced with … (PML)`; exit 0 | `test_cli_cross_category_swap_within_limits` | ☑ |
+| Swap across categories leaves the losing category short | constructed; `[offense.PSL] min_count = 2` | `SKIP … requires at least 2.`, not replaced; exit 1; unchanged | `test_cli_cross_category_swap_leaves_losing_category_short` | ☑ |
 | None fits, single file | constructed | `SKIP` lines, `<file>: 'OLDRUN' not replaced, no valid replacement`; exit 1; unchanged | `test_cli_no_valid_replacement_single_file` | ☑ |
 | None fits in one of two | tmp dir | tally `… 0 failed, 1 not replaced`; exit 1 | `test_cli_directory_counts_not_replaced` | ☑ |
 | Later replacement refused by the model | constructed | `SKIP` line, then `FAIL <file>: 'NEW' does not fit: …`; exit 2; unchanged | `test_cli_refused_later_replacement_names_it` | ☑ |
