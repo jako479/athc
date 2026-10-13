@@ -1,0 +1,423 @@
+athc - USAGE
+============
+
+The help text of every athc command, exactly as --help prints it. For what
+each tool does, with examples, see COMMANDS.txt in this same folder.
+
+
+athc --help
+-----------
+
+Usage: athc [-h] [--version] command [args]...
+
+  Assistant to the Head Coach.
+
+  Tools for Front Page Sports Football Pro '98 coaches and league managers.
+
+Options:
+  --version   Show the version and exit.
+  -h, --help  Show this message and exit.
+
+Commands:
+  autocontinue  Watch for the 'Continue' button between plays and click it.
+  check-ppp     Validate .prf profiles with their .pln gameplans against...
+  config        Print the path to athc.ini, edit it, reveal it, or set a...
+  convert-pdb   Create an Excel workbook from a WinLogStats PDB and...
+  gameplan      Validate and edit Front Page Sports Football Pro '98...
+  playpool      Check a Front Page Sports Football Pro '98 play pool (.ply).
+  profile       Validate and edit Front Page Sports Football Pro '98...
+
+
+athc gameplan --help
+--------------------
+
+Usage: athc gameplan [-h] command [args]...
+
+  Validate and edit Front Page Sports Football Pro '98 gameplans (.pln).
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  check          Validate one or more .pln gameplans against the league's...
+  find-play      Find one or more plays by name across .pln files (normal...
+  list-normals   List the 64 normal plays from gameplan.
+  list-specials  List the custom special-teams plays from gameplan, in...
+  replace-play   Replace every instance of play with the first...
+  set-normals    Replace the 64 normal slots of gameplan from play_list.
+  set-specials   Set the custom special-teams plays of path from play_list.
+
+
+athc gameplan check --help
+--------------------------
+
+Usage: athc gameplan check [-h] [-r] [--league name] [path]...
+
+  Validate one or more .pln gameplans against the league's rules.
+
+  Each path is a .pln file, a directory (top level, or the whole tree with
+  -r), or a glob. With no path, the current directory is checked.
+
+Options:
+  -r, --recursive  Recurse into subdirectories of a directory path.
+  --league name    League name (a folder under leagues\ in the config dir).
+  -h, --help       Show this message and exit.
+
+
+athc gameplan list-normals --help
+---------------------------------
+
+Usage: athc gameplan list-normals [-h] [--sort slot|name|category]
+                                  [--league name] gameplan [output_file]
+
+  List the 64 normal plays from gameplan.
+
+  Writes them, under a `:: <source>` header line, to output_file, or by
+  default to <name>.normals.txt next to gameplan; an existing file is
+  replaced. An output_file of `-` prints them instead. `--sort slot` keeps
+  slot positions (empty slots blank); `name` drops blanks; `category` drops
+  blanks and groups the plays by category, each group under a `::` header with
+  the league's category name (RL, RunLeft, ...; the game's name where the
+  league has none).
+
+Options:
+  --sort [slot|name|category]  Order of the listed plays.  [default: slot]
+  --league name                League name (a folder under leagues\ in the
+                               config dir).
+  -h, --help                   Show this message and exit.
+
+
+athc gameplan list-specials --help
+----------------------------------
+
+Usage: athc gameplan list-specials [-h] gameplan [output_file]
+
+  List the custom special-teams plays from gameplan, in source order.
+
+  Writes them, under a `:: <source>` header line, to output_file, or by
+  default to <name>.specials.txt next to gameplan; an existing file is
+  replaced. An output_file of `-` prints them instead. Empty special slots are
+  blank lines.
+
+Options:
+  -h, --help  Show this message and exit.
+
+
+athc gameplan find-play --help
+------------------------------
+
+Usage: athc gameplan find-play [-h] [-r] play... [path]
+
+  Find one or more plays by name across .pln files (normal + custom-special
+  slots).
+
+  play... are one or more case-insensitive names; path is a .pln file or a
+  directory (top level, or the whole tree with -r), never a wildcard. A single
+  argument is a play searched in the current directory; with two or more, the
+  last is always the path. Hits show the slot(s); special hits also show the
+  game category. Each file missing a play prints 'not found'. Directory/tree:
+  a per-play summary is appended.
+
+Options:
+  -r, --recursive  Recurse into subdirectories when path is a directory.
+  -h, --help       Show this message and exit.
+
+
+athc gameplan set-normals --help
+--------------------------------
+
+Usage: athc gameplan set-normals [-h] [-q] [--league name] gameplan play_list
+
+  Replace the 64 normal slots of gameplan from play_list.
+
+  A play_list of `-` reads the list from the console. One play name per line;
+  `::` comment lines and ` ::` trailers are ignored. The league's play pool
+  resolves names; run `check` to validate the result.
+
+Options:
+  -q, --quiet    Suppress the success message.
+  --league name  League name (a folder under leagues\ in the config dir).
+  -h, --help     Show this message and exit.
+
+
+athc gameplan set-specials --help
+---------------------------------
+
+Usage: athc gameplan set-specials [-h] [-r] [--league name] path play_list
+
+  Set the custom special-teams plays of path from play_list.
+
+  path is a .pln file or a directory (top level, or the tree with -r); a
+  play_list of `-` reads the list from the console. Files of the wrong side
+  are skipped (offense .pln are even-sized, defense odd). Merge semantics:
+  unlisted special categories are preserved. The league's play pool resolves
+  names.
+
+Options:
+  -r, --recursive  Recurse into subdirectories when path is a directory.
+  --league name    League name (a folder under leagues\ in the config dir).
+  -h, --help       Show this message and exit.
+
+
+athc gameplan replace-play --help
+---------------------------------
+
+Usage: athc gameplan replace-play [-h] [-r] [--league name]
+                                  play replacement... [path]
+
+  Replace every instance of play with the first replacement that fits.
+
+  play and each replacement are single, case-insensitive names; the
+  replacements are tried in order, each a backup for the one before it. path
+  is a .pln file, a directory (top level, or the whole tree with -r) or a
+  wildcard, the current directory when left out; the last name counts as the
+  path when it is an existing file or folder, or has a \ or /, a .pln ending
+  or a wildcard. In each gameplan the first replacement not already in it,
+  with which the gameplan passes `check`, is used. Every replacement must
+  exist in the league's play pool; play need not (it may already be gone).
+  Normal and custom-special slots are searched.
+
+Options:
+  -r, --recursive  Recurse into subdirectories when path is a directory.
+  --league name    League name (a folder under leagues\ in the config dir).
+  -h, --help       Show this message and exit.
+
+
+athc profile --help
+-------------------
+
+Usage: athc profile [-h] command [args]...
+
+  Validate and edit Front Page Sports Football Pro '98 coaching profiles
+  (.prf).
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  check  Validate one or more .prf coaching profiles against the league's...
+  copy   Copy selected fields from the source .prf into one or more...
+  diff   Show the differences between two .prf coaching profiles (same...
+
+
+athc profile check --help
+-------------------------
+
+Usage: athc profile check [-h] [-r] [--league name] [path]...
+
+  Validate one or more .prf coaching profiles against the league's rules.
+
+  Each path is a .prf file, a directory (top level, or the whole tree with
+  -r), or a glob. With no path, the current directory is checked.
+
+Options:
+  -r, --recursive  Recurse into subdirectories of a directory path.
+  --league name    League name (a folder under leagues\ in the config dir).
+  -h, --help       Show this message and exit.
+
+
+athc profile copy --help
+------------------------
+
+Usage: athc profile copy [-h] [-r] [--stop-clock] [--sub-percent]
+                         [--field-goal-range] [--fourth-down] [--goal-line]
+                         [--pat-logic] source target
+
+  Copy selected fields from the source .prf into one or more target .prf
+  files.
+
+  target is a .prf file or a directory (top level, or the whole tree with -r).
+  Files of the wrong side (offense vs defense) are skipped. At least one copy
+  flag is required.
+
+Options:
+  -r, --recursive     Recurse into subdirectories when target is a directory.
+  --stop-clock        Copy the stop-clock flag for every situation.
+  --sub-percent       Copy all substitution percentages.
+  --field-goal-range  Copy the field-goal range.
+  --fourth-down       Copy every 4th-down situation.
+  --goal-line         Copy every goal-line situation (inside DEF 5 or OFF 5).
+  --pat-logic         Copy the PAT play-calling table (all 60 situations).
+  -h, --help          Show this message and exit.
+
+
+athc profile diff --help
+------------------------
+
+Usage: athc profile diff [-h] [-o file] file1 file2
+
+  Show the differences between two .prf coaching profiles (same side only).
+
+  Compares situations, PAT situations, substitution percentages, field-goal
+  range, and audibles; only changed records are shown.
+
+Options:
+  -o, --output file  Write the report to file instead of stdout; format from
+                     the extension (.txt or .csv).
+  -h, --help         Show this message and exit.
+
+
+athc check-ppp --help
+---------------------
+
+Usage: athc check-ppp [-h] [-r] [--league name] path [path]
+
+  Validate .prf profiles with their .pln gameplans against the league rules.
+
+  Pass one profile and one gameplan, in either order (the extension tells them
+  apart), or a directory (the whole tree with -r). In a directory, the
+  league's .lg2 file, in the folder that path in league.toml names, says which
+  files go together (1st half offense profile with 1st half offense gameplan,
+  and so on); every pair whose two files are both in the same folder is
+  checked.
+
+  Each file is checked like `profile check` and `gameplan check`. A pair must
+  be the same side. The league's profile rules decide whether profile
+  categories with no custom play in the gameplan fail the check, and its
+  gameplan rules whether gameplan categories the profile never uses do; unused
+  gameplan categories that don't fail are listed as info only.
+
+Options:
+  -r, --recursive  Recurse into subdirectories of a directory path.
+  --league name    League name (a folder under leagues\ in the config dir).
+  -h, --help       Show this message and exit.
+
+
+athc playpool --help
+--------------------
+
+Usage: athc playpool [-h] command [args]...
+
+  Check a Front Page Sports Football Pro '98 play pool (.ply).
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  check  Check the play pool: plays in the wrong folder, duplicate play...
+
+
+athc playpool check --help
+--------------------------
+
+Usage: athc playpool check [-h] [--league name] [play_dir]
+
+  Check the play pool: plays in the wrong folder, duplicate play names, and
+  invalid play files.
+
+  play_dir defaults to the league's play_path. A given play_dir needs no
+  league, but a league that resolves still lends its category names to the
+  folders; without one no folder name means a category. The messages are the
+  warnings other commands show when they load the pool.
+
+Options:
+  --league name  League name (a folder under leagues\ in the config dir).
+  -h, --help     Show this message and exit.
+
+
+athc convert-pdb --help
+-----------------------
+
+Usage: athc convert-pdb [-h] [-o pln_file] [-o2 pln_file] [-d pln_file]
+                        [-d2 pln_file] [--skip-calcs] [--league name] pdb_file
+                        output_file
+
+  Create an Excel workbook from a WinLogStats PDB and optional game plans.
+
+  pdb_file is a `.pdb`; output_file is `.xlsx` or `.xlsm` (`.xlsm` embeds
+  sorting macros). Cross-reference up to two offensive (`-o`/`-o2`) and two
+  defensive (`-d`/`-d2`) Front Page Sports Football Pro '98 game plans.
+
+Options:
+  -o, --pln-off pln_file     Offensive game plan (.pln).
+  -o2, --pln-off-2 pln_file  Second offensive game plan (.pln).
+  -d, --pln-def pln_file     Defensive game plan (.pln).
+  -d2, --pln-def-2 pln_file  Second defensive game plan (.pln).
+  --skip-calcs               Omit the extra calculation (percentage) columns.
+  --league name              League name (a folder under leagues\ in the
+                             config dir).
+  -h, --help                 Show this message and exit.
+
+
+athc autocontinue --help
+------------------------
+
+Usage: athc autocontinue [-h] [--hot-corner | --no-hot-corner]
+
+  Watch for the 'Continue' button between plays and click it.
+
+  Clicks the 'Continue' button in Front Page Sports Football Pro '98. Stop
+  with CTRL-C, or by moving the mouse to the top-left screen corner (the "hot
+  corner", on by default; disable with --no-hot-corner or the config). Reads
+  `[autocontinue]` (mouse_move_duration, delay_before_continue, hot_corner)
+  from athc.ini, re-reading whenever the file changes so edits apply while it
+  runs.
+
+Options:
+  --hot-corner / --no-hot-corner  Stop when the mouse hits the top-left corner
+                                  (overrides config; default on).
+  -h, --help                      Show this message and exit.
+
+
+athc config --help
+------------------
+
+Usage: athc config [-h] command [args]...
+
+  Print the path to athc.ini, edit it, reveal it, or set a value in it.
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  edit    Open athc.ini in its default app, creating it if missing.
+  path    Print the full path to athc.ini (it need not exist yet).
+  reveal  Reveal athc.ini in the file manager, or open its folder if it's...
+  set     Set key to value in athc.ini (comments are kept).
+
+
+athc config path --help
+-----------------------
+
+Usage: athc config path [-h]
+
+  Print the full path to athc.ini (it need not exist yet).
+
+Options:
+  -h, --help  Show this message and exit.
+
+
+athc config edit --help
+-----------------------
+
+Usage: athc config edit [-h]
+
+  Open athc.ini in its default app, creating it if missing.
+
+Options:
+  -h, --help  Show this message and exit.
+
+
+athc config reveal --help
+-------------------------
+
+Usage: athc config reveal [-h]
+
+  Reveal athc.ini in the file manager, or open its folder if it's absent.
+
+Options:
+  -h, --help  Show this message and exit.
+
+
+athc config set --help
+----------------------
+
+Usage: athc config set [-h] key value
+
+  Set key to value in athc.ini (comments are kept).
+
+  Keys: league -- the league used when --league is not given (value must be a
+  folder under leagues\ in the config dir).
+
+Options:
+  -h, --help  Show this message and exit.

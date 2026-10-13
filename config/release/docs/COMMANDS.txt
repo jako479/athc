@@ -10,9 +10,11 @@ Run tools from any terminal (Command Prompt or PowerShell):
    athc <group> --help                list subcommands in a group
    athc <group> <subcommand> --help   show help for one subcommand
 
+USAGE_ORIGINAL.txt in this same folder lists every command's help text.
+
 Settings live in athc.ini (the file documents every option inline). Each league
 is a folder under leagues\ next to it: league.toml (path, play_path, category names)
-and rule files (gameplan.toml, profile.toml, scheduler.toml).
+and rule files (gameplan.toml, profile.toml, pdbtoexcel.toml, scheduler.toml).
 League-aware tools use the league named by [athc] league unless the command is
 given --league NAME.
 
@@ -122,7 +124,7 @@ given --league NAME.
 
    Updates one .pln, every .pln in a directory, or a tree (-r), from a play
    list file; - reads the list from the screen instead. Wrong-side files are
-   skipped silently (offense .pln are even-sized, defense odd). Merge
+   skipped with a SKIP line (offense .pln are even-sized, defense odd). Merge
    semantics: unlisted special categories are kept. No backup is made.
    Comment syntax: same as set-normals.
 
@@ -185,8 +187,8 @@ given --league NAME.
    --------------------------------------------------------------
 
    Updates a single .prf, every .prf in a directory, or a tree (-r).
-   Wrong-side files are skipped silently. No backup is made. Copy does not
-   validate -- use `profile check` for that.
+   Wrong-side files, and the source itself, are skipped with a SKIP line. No
+   backup is made. Copy does not validate -- use `profile check` for that.
 
    Show help:
       athc profile copy -h
@@ -226,12 +228,12 @@ given --league NAME.
 
    Each file gets the same check as profile check and gameplan check, with
    the rules from the current league; --league picks another league. A pair
-   must be the same side, and the league's profile.toml decides whether
-   profile categories with no custom play in the game plan, and game plan
-   categories the profile never uses, fail the check. Unused game plan
-   categories that don't fail are listed as info only. Every bad or missing
-   file is reported, not just the first; a config or rules problem stops
-   the run at once.
+   must be the same side. The league's profile.toml decides whether profile
+   categories with no custom play in the game plan fail the check, and its
+   gameplan.toml whether game plan categories the profile never uses do.
+   Unused game plan categories that don't fail are listed as info only.
+   Every bad or missing file is reported, not just the first; a config or
+   rules problem stops the run at once.
 
    Show help:
       athc check-ppp -h
