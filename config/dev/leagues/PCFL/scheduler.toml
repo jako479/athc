@@ -50,3 +50,9 @@ pairs = [
     ["Clemson", "Miami"],
     ["Penn State", "Boston College"],
 ]
+
+# Teams that changed their name between seasons, one table per upcoming season:
+# previous name = "new name". generate-schedule matches the previous season's
+# teams to the upcoming season's by name; a team not listed keeps its name.
+# [renames.2030]
+# "Penn State" = "Pittsburgh"

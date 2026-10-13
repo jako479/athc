@@ -493,7 +493,6 @@ def test_release_league_loads(name: str) -> None:
     assert cfg.values["play_path"]
     assert cfg.values["path"]
     assert cfg.categories.offense and cfg.categories.defense
-    assert (cfg.dir / "standings").is_dir()
 
 
 @pytest.mark.usefixtures("release_config_dir")
@@ -558,18 +557,10 @@ def test_release_convert_pdb_defaults() -> None:
 @pytest.mark.usefixtures("release_config_dir")
 @pytest.mark.parametrize("name", SHIPPED_LEAGUES)
 def test_release_scheduler_files_load(name: str) -> None:
-    from athc.scheduler.config import (
-        find_league_path,
-        load_scheduler_config,
-        scheduler_rules_path,
-    )
+    from athc.scheduler.config import load_scheduler_config, scheduler_rules_path
 
+    assert scheduler_rules_path(name) == RELEASE / "leagues" / name / "scheduler.toml"
     load_scheduler_config(scheduler_rules_path(name))
-    standings = sorted((RELEASE / "leagues" / name / "standings").glob("*.league.ini"))
-    assert standings
-    for standings_file in standings:
-        season = int(standings_file.name.split(".")[0])
-        assert find_league_path(name, season) == standings_file
 
 
 def test_dev_mirrors_release_layout() -> None:
@@ -578,7 +569,6 @@ def test_dev_mirrors_release_layout() -> None:
             "athc.ini",
             "leagues/*/league.toml",
             "leagues/*/*.toml",
-            "leagues/*/standings/*.league.ini",
         )
         return {p.relative_to(root) for pat in patterns for p in root.glob(pat)}
 

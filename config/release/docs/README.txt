@@ -53,14 +53,14 @@ folder, for example:
    [league]
    play_path = 'D:\SIERRA\FBPRO98\PNFL\plays'
 
-To check every profile and game plan in a folder with check-ppp, also set
-path to the folder that holds the league's files (like PNFL.lg2), for
-example:
+To check every profile and game plan in a folder with check-ppp, or to
+generate a schedule, also set path to the folder that holds the league's
+files (like PNFL.lg2 and PNFL.lge), for example:
 
    path = 'D:\SIERRA\FBPRO98'
 
-Each league is a folder under leagues\ with its league.toml, rule files
-(*.toml) and standings\. athc ships two: PNFL and PCFL. To switch league, run:
+Each league is a folder under leagues\ with its league.toml and rule files
+(*.toml). athc ships two: PNFL and PCFL. To switch league, run:
 
    athc config set league PCFL
 
@@ -98,15 +98,14 @@ That folder will contain:
       profile.toml
       playpool.toml
       pdbtoexcel.toml      convert-pdb's category order and deleted plays
-      scheduler.toml
-      standings\           <season>.league.ini for the scheduler
+      scheduler.toml       the scheduler's settings and renamed teams
    leagues\PCFL\        the PCFL league, same layout
 
 To open this folder, run 'athc config reveal' (or paste
 %LOCALAPPDATA%\athc into File Explorer's address bar).
 
 Upgrading or reinstalling never overwrites a file in this folder: your
-edits to athc.ini, league.toml, the rule files and the standings are kept.
+edits to athc.ini, league.toml and the rule files are kept.
 It only adds files that are missing, so to get a fresh copy of a shipped
 file, delete it and run the setup.exe again.
 
@@ -121,8 +120,8 @@ UNINSTALLING
 
 Uninstall "Assistant to the Head Coach" from Settings > Apps. This
 removes the program and the whole %LOCALAPPDATA%\athc\ folder,
-including your settings, league files and standings. Copy anything you
-want to keep first.
+including your settings and league rule files. Copy anything you want
+to keep first.
 
 
 TROUBLESHOOTING

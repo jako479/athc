@@ -1,7 +1,8 @@
 """The scheduler (two-phase CP-SAT): NFL-like same-place seeding.
 
 Phase 1 fixes the same-place games (each division place plays the same place in
-every other-conference division that has it, from `[DivisionStandings]`) and any
+every other-conference division that has it, from the divisions' finish orders)
+and any
 cross-conference rivalry, then one CP-SAT solve picks the rest, tilting each
 team's average opponent conference rank by the configurable `spread`.
 

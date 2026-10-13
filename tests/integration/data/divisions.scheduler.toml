@@ -1,12 +1,16 @@
 # Frozen scheduler config for the generate-schedule golden test. Test-owned and
 # independent of the shipped release rules: the golden is a function of exactly
-# these values plus data/divisions.2026.ini and the fixed seed. Change a value here only
-# with a deliberate re-bless (python -m tests.integration.test_generate_schedule
-# --bless). Every output-affecting key is set explicitly so nothing rides on
-# in-code defaults.
+# these values plus data/PNFL-2047-after-super-bowl.lge (the standings),
+# data/PNFL-2048-after-week1.lge (the league) and the fixed seed. Change a value
+# here only with a deliberate re-bless (python -m
+# tests.integration.test_generate_schedule --bless). Every output-affecting key
+# is set explicitly so nothing rides on in-code defaults.
 
 [league]
 weeks = 16
+
+[renames.2048]
+Baltimore = "Los Angeles"
 
 [difficulty]
 spread = 2.5

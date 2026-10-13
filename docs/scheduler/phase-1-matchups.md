@@ -12,7 +12,7 @@ Phase 1 — [`matchup_builder.py`](../../src/athc/scheduler/schedulers/matchup_b
 
 Each team's non-conference count is `weeks` minus its structural games (a 4-team-division team has one more than a 5-team-division team).
 
-1. **Same-place pairs** — each place in a division plays the same place in every other-conference division that has that place. With two 4-team and two 5-team divisions that is 17 pairs: places 1-4 get two games each, the two 5th places play each other. Places come from the standings file's finish order.
+1. **Same-place pairs** — each place in a division plays the same place in every other-conference division that has that place. With two 4-team and two 5-team divisions that is 17 pairs: places 1-4 get two games each, the two 5th places play each other. Places come from each division's finish order: its teams ranked by their previous-season records (see the [README](README.md#the-standings)).
 
 2. **Rivalries** — a cross-conference `[rivalries]` pair is a fixed non-conference game.
 

@@ -174,11 +174,10 @@ def write_config_file(config_dir: Path, body: str, name: str = "athc.ini") -> Pa
 def make_league_dir(
     config_dir: Path, name: str = LEAGUE, body: str | None = None
 ) -> Path:
-    """Create `leagues/<name>/` (with `standings/`) under `config_dir`,
-    write `league.toml` from `body` when given, and return the folder."""
+    """Create `leagues/<name>/` under `config_dir`, write `league.toml` from
+    `body` when given, and return the folder."""
     folder = config_dir / "leagues" / name
     folder.mkdir(parents=True)
-    (folder / "standings").mkdir()
     if body is not None:
         write_config_file(folder, body, "league.toml")
     return folder

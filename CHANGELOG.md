@@ -7,6 +7,10 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- generate-schedule: reads the standings from the previous season's `.lge` (`--previous folder`) and the conferences, divisions and teams from the upcoming season's (`--upcoming folder`, default the league's `path`); the `standings\<season>.league.ini` files are gone; a team that changed its name is listed under `[renames.<season>]` in `scheduler.toml`
+- generate-schedule: the overall order is the league's own: playoff finish, record, strength of schedule, then point differential
+- fbpro98_lge: standings follow the game's own order for a finished season (the manual's tie-breakers: head-to-head, division record, conference record, net points, strength of schedule) instead of point differential; any teams of a file can be ranked the same way
+- fbpro98_lge: reads the played games by week and playoff round, with each game's winner and loser, and how many games are left
 - tests: every CLI test checks stdout and stderr apart; console, `NO_COLOR` and run-log tests added
 - docs: the cross-cutting rules live in one `architecture.md`; each tool's README lists its status lines and exit codes
 - gameplan: `set-normals` / `set-specials` call their list argument `play_list`, and a console list's errors say `(play list line N)`

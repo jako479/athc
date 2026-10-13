@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import configparser
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
@@ -8,10 +7,9 @@ from os import PathLike
 from pathlib import Path
 from typing import Any, Final, Literal
 
-from athc.config import STANDINGS_DIR, league_dir
+from athc.config import league_dir
 from athc.errors import (
     ConfigFileError,
-    ini_reason,
     missing_reason,
     reason_of,
     sentence,
@@ -22,11 +20,14 @@ from athc.scheduler.domain.league import (
     League,
     RivalryPair,
     Team,
-    build_league,
     lookup_team,
 )
 
 StrPath = str | PathLike[str]
+
+# `[renames.<season>]` tables: the upcoming season -> each renamed team's
+# previous name -> its new name.
+type Renames = Mapping[int, Mapping[str, str]]
 
 SCHEDULER_RULES_FILE = "scheduler.toml"  # in the league folder
 DEFAULT_WEEKS = 16  # regular-season weeks when the rules file sets none
@@ -51,7 +52,7 @@ DEFAULT_SOLVER_WORKERS: SolverWorkers = AUTO_WORKERS
 
 @dataclass(frozen=True, slots=True)
 class LeagueConfig:
-    """League shape the standings file does not carry."""
+    """League shape the league files do not carry."""
 
     weeks: int = DEFAULT_WEEKS
 
@@ -164,6 +165,7 @@ class SchedulerConfig:
     solver: SolverConfig = field(default_factory=SolverConfig)
     phase2: Phase2Config = field(default_factory=Phase2Config)
     rivalries: RivalriesConfig = field(default_factory=RivalriesConfig)
+    renames: Renames = field(default_factory=dict)
     # The scheduler.toml these came from (or would have), so the checks that
     # need the league too can name it; where a value came from is not a value.
     source: Path | None = field(default=None, compare=False)
@@ -215,55 +217,9 @@ def load_scheduler_config(path: StrPath, *, required: bool = True) -> SchedulerC
         ),
         phase2=_phase2(data.get("phase2", {}), resolved),
         rivalries=_rivalries(data.get("rivalries"), resolved),
+        renames=_renames(data.get("renames"), resolved),
         source=resolved,
     )
-
-
-DIVISION_SECTION = "DivisionStandings"
-CONFERENCE_SECTION = "ConferenceStandings"
-
-
-def load_league(path: StrPath) -> League:
-    """Read a league from `[OverallStandings]` (overall 1-18 `Order`) plus exactly
-    one of `[DivisionStandings]` (per-division teams in finish order -- a league
-    with divisions)
-    or `[ConferenceStandings]` (per-conference teams in finish order -- a league
-    without divisions). Per-conference 1-9 ranks derive from the overall order.
-    """
-    resolved = Path(path)
-    if not resolved.is_file():
-        raise ConfigFileError(missing_reason(resolved), resolved)
-    cp = _read_config(resolved)
-    has_divisions = cp.has_section(DIVISION_SECTION)
-    has_conferences = cp.has_section(CONFERENCE_SECTION)
-    if has_divisions == has_conferences:
-        raise ConfigFileError(
-            "Must have exactly one of the "
-            f"[{DIVISION_SECTION}] and [{CONFERENCE_SECTION}] sections.",
-            resolved,
-        )
-    _require_section(cp, resolved, "OverallStandings")
-    overall = _required_multiline(cp, resolved, "OverallStandings", "Order")
-    section = DIVISION_SECTION if has_divisions else CONFERENCE_SECTION
-    standings = {key: _parse_multiline(cp, section, key) for key in cp.options(section)}
-    try:
-        return build_league(standings, overall, divisions=has_divisions)
-    except ValueError as error:
-        raise ConfigFileError(
-            sentence(f"Invalid league data: {error}"), resolved
-        ) from error
-
-
-def find_league_path(league: str, season: int) -> Path:
-    """`standings/<season>.league.ini` in the league's folder; ConfigFileError if
-    missing, LeagueError when the league has no folder."""
-    path = league_dir(league) / STANDINGS_DIR / f"{season}.league.ini"
-    if not path.is_file():
-        raise ConfigFileError(
-            f"{missing_reason(path)} Add the {league} season {season} standings file.",
-            path,
-        )
-    return path
 
 
 def _number(
@@ -385,49 +341,48 @@ def _rivalries(table: Mapping[str, Any] | None, path: Path) -> RivalriesConfig:
     )
 
 
+def _renames(value: object, path: Path) -> dict[int, dict[str, str]]:
+    """`[renames.<season>]` tables: each key a previous team name, each value
+    the team's name in that season."""
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ConfigFileError("[renames]: Must be a table.", path)
+    renames: dict[int, dict[str, str]] = {}
+    for key, table in value.items():
+        if not (isinstance(key, str) and key.isdecimal()):
+            raise ConfigFileError(
+                f"[renames] {key}: Must be a season year, e.g. 2048.", path
+            )
+        name = f"renames.{key}"
+        if not isinstance(table, Mapping):
+            raise ConfigFileError(f"[{name}]: Must be a table.", path)
+        entries: dict[str, str] = {}
+        for old, new in table.items():
+            old = str(old).strip()
+            if not old:
+                raise ConfigFileError(f"[{name}]: A team name is blank.", path)
+            if not isinstance(new, str) or not new.strip():
+                raise ConfigFileError(f"[{name}] {old}: Must be a team name.", path)
+            new = new.strip()
+            if new == old:
+                raise ConfigFileError(
+                    f"[{name}] {old}: Renames the team to itself.", path
+                )
+            if old in entries:
+                raise ConfigFileError(f"[{name}] {old}: Listed twice.", path)
+            if new in entries.values():
+                raise ConfigFileError(f"[{name}]: Two teams renamed to {new}.", path)
+            entries[old] = new
+        renames[int(key)] = entries
+    return renames
+
+
 def _plain(value: object) -> str:
     """A TOML value as a user wrote it, without Python's brackets and quotes."""
     if isinstance(value, list):
         return ", ".join(str(item) for item in value)
     return str(value)
-
-
-def _read_config(path: Path) -> configparser.ConfigParser:
-    cp = configparser.ConfigParser()
-    cp.optionxform = str  # type: ignore[assignment]
-    # Opened here: ConfigParser.read skips a file it cannot open, which would
-    # read as an empty standings file.
-    try:
-        with path.open(encoding="utf-8") as handle:
-            cp.read_file(handle)
-    except OSError as error:
-        raise ConfigFileError(reason_of(error), path) from error
-    except configparser.Error as error:
-        raise ConfigFileError(ini_reason(error), path) from error
-    return cp
-
-
-def _require_section(cp: configparser.ConfigParser, path: Path, section: str) -> None:
-    if not cp.has_section(section):
-        raise ConfigFileError(f"Missing the required [{section}] section.", path)
-
-
-def _required_multiline(
-    cp: configparser.ConfigParser, path: Path, section: str, key: str
-) -> tuple[str, ...]:
-    if not cp.has_option(section, key):
-        raise ConfigFileError(f"Missing required setting '{key}' in [{section}].", path)
-    values = _parse_multiline(cp, section, key)
-    if not values:
-        raise ConfigFileError(f"Empty '{key}' in [{section}].", path)
-    return values
-
-
-def _parse_multiline(
-    cp: configparser.ConfigParser, section: str, key: str
-) -> tuple[str, ...]:
-    raw = cp.get(section, key, fallback="")
-    return tuple(line.strip() for line in raw.splitlines() if line.strip())
 
 
 # --- Checks that need both the rules and the league --------------------------

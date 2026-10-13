@@ -18,6 +18,7 @@ from athc.fbpro98_lge import (
     Record,
     Team,
     parse_lge,
+    ranked,
     read_lge,
 )
 from athc.fbpro98_lge.schema import (
@@ -76,65 +77,82 @@ def _names(team: Team) -> tuple[str, str]:
 
 # --- real files ---
 
-PNFL = LgeFile(
-    conferences=(
-        Conference(
-            name="",
-            divisions=(
-                Division(
-                    name="East",
-                    teams=(
-                        Team("Jacksonville", "Jaguars", Record(5, 1, 0, 164, 112)),
-                        Team("San Diego", "Chargers", Record(4, 2, 0, 145, 105)),
-                        Team("New England", "Patriots", Record(2, 4, 0, 114, 155)),
-                        Team("Miami", "Dolphins", Record(2, 4, 0, 144, 154)),
-                    ),
+# PNFL.lge's tree: conference name, then each division's name and teams in
+# file order (standings are checked separately below).
+PNFL_TREE = (
+    (
+        "",
+        (
+            (
+                "East",
+                (
+                    Team("Jacksonville", "Jaguars", Record(5, 1, 0, 164, 112)),
+                    Team("San Diego", "Chargers", Record(4, 2, 0, 145, 105)),
+                    Team("New England", "Patriots", Record(2, 4, 0, 114, 155)),
+                    Team("Miami", "Dolphins", Record(2, 4, 0, 144, 154)),
                 ),
-                Division(
-                    name="West",
-                    teams=(
-                        Team("Denver", "Broncos", Record(2, 4, 0, 131, 157)),
-                        Team("Las Vegas", "Raiders", Record(3, 3, 0, 132, 129)),
-                        Team("Cincinnati", "Bengals", Record(2, 4, 0, 138, 149)),
-                        Team("Baltimore", "Ravens", Record(4, 2, 0, 166, 137)),
-                        Team("Pittsburgh", "Steelers", Record(3, 3, 0, 137, 119)),
-                    ),
+            ),
+            (
+                "West",
+                (
+                    Team("Denver", "Broncos", Record(2, 4, 0, 131, 157)),
+                    Team("Las Vegas", "Raiders", Record(3, 3, 0, 132, 129)),
+                    Team("Cincinnati", "Bengals", Record(2, 4, 0, 138, 149)),
+                    Team("Baltimore", "Ravens", Record(4, 2, 0, 166, 137)),
+                    Team("Pittsburgh", "Steelers", Record(3, 3, 0, 137, 119)),
                 ),
             ),
         ),
-        Conference(
-            name="",
-            divisions=(
-                Division(
-                    name="East",
-                    teams=(
-                        Team("Atlanta", "Falcons", Record(4, 2, 0, 130, 122)),
-                        Team("New York", "Giants", Record(1, 5, 0, 121, 164)),
-                        Team("Philadelphia", "Eagles", Record(3, 3, 0, 138, 149)),
-                        Team("Washington", "Redskins", Record(2, 4, 0, 92, 129)),
-                    ),
+    ),
+    (
+        "",
+        (
+            (
+                "East",
+                (
+                    Team("Atlanta", "Falcons", Record(4, 2, 0, 130, 122)),
+                    Team("New York", "Giants", Record(1, 5, 0, 121, 164)),
+                    Team("Philadelphia", "Eagles", Record(3, 3, 0, 138, 149)),
+                    Team("Washington", "Redskins", Record(2, 4, 0, 92, 129)),
                 ),
-                Division(
-                    name="West",
-                    teams=(
-                        Team("Green Bay", "Packers", Record(2, 4, 0, 113, 137)),
-                        Team("Chicago", "Cardinals", Record(3, 3, 0, 179, 135)),
-                        Team("Detroit", "Lions", Record(2, 4, 0, 90, 129)),
-                        Team("Minnesota", "Vikings", Record(6, 0, 0, 156, 103)),
-                        Team("San Francisco", "49ers", Record(4, 2, 0, 159, 164)),
-                    ),
+            ),
+            (
+                "West",
+                (
+                    Team("Green Bay", "Packers", Record(2, 4, 0, 113, 137)),
+                    Team("Chicago", "Cardinals", Record(3, 3, 0, 179, 135)),
+                    Team("Detroit", "Lions", Record(2, 4, 0, 90, 129)),
+                    Team("Minnesota", "Vikings", Record(6, 0, 0, 156, 103)),
+                    Team("San Francisco", "49ers", Record(4, 2, 0, 159, 164)),
                 ),
             ),
         ),
-    )
+    ),
 )
+
+
+def _tree(lge: LgeFile):
+    return tuple(
+        (
+            conference.name,
+            tuple((division.name, division.teams) for division in conference.divisions),
+        )
+        for conference in lge.conferences
+    )
 
 
 def test_custom_league():
     # Empty conference names and several team names carry leftover text after
     # the NUL. Records are from six played weeks, as on the game's Week Seven
-    # standings screen.
-    assert read_lge(LEAGUE, FIXTURE_DIR) == PNFL
+    # standings screen. The games themselves are checked below.
+    assert _tree(read_lge(LEAGUE, FIXTURE_DIR)) == PNFL_TREE
+
+
+def test_teams_are_in_file_order():
+    lge = read_lge(LEAGUE, FIXTURE_DIR)
+    assert lge.teams == tuple(_teams(lge))
+    assert lge.teams[0].name == "Jacksonville"
+    assert lge.teams[17].name == "San Francisco"
 
 
 @pytest.mark.parametrize(
@@ -238,10 +256,10 @@ def test_missing_file_raises_oserror_for_built_path(tmp_path: Path):
 
 def test_built_file_parses(make_lge):
     # Every chunk at its exact size: the accepted side of each size limit.
-    division = Division(name="D1", teams=(Team("T1", "N1", NO_GAMES),))
-    assert parse_lge(make_lge()) == LgeFile(
-        conferences=(Conference(name="C1", divisions=(division,)),)
-    )
+    team = Team("T1", "N1", NO_GAMES)
+    division = Division(name="D1", teams=(team,), standings=(team,))
+    conference = Conference(name="C1", divisions=(division,), standings=(team,))
+    assert parse_lge(make_lge()) == LgeFile(conferences=(conference,))
 
 
 @pytest.mark.parametrize(
@@ -483,23 +501,64 @@ def test_error_names_the_path_first():
 
 # --- standings ---
 
-# Division order on the game's Week Seven standings screen for PNFL.lge.
-PNFL_WEEK_SEVEN = (
-    ("Jacksonville", "San Diego", "Miami", "New England"),
-    ("Baltimore", "Pittsburgh", "Las Vegas", "Cincinnati", "Denver"),
-    ("Atlanta", "Philadelphia", "Washington", "New York"),
-    ("Minnesota", "San Francisco", "Chicago", "Green Bay", "Detroit"),
+# The 2048 season after week 16, as the game's League Standings screen showed
+# it: Miami above Buffalo (both 10-6) on the tie-breakers (a split series,
+# equal division records, Miami's better conference record), though Buffalo
+# scored 97 more points. In season the screen sorts tied teams by points for
+# instead; see docs/design/fbpro98-game-behavior.md.
+PNFL_2048_FINAL = (
+    ("Miami", "Buffalo", "New England", "Jacksonville"),
+    ("Cincinnati", "Pittsburgh", "Las Vegas", "Denver", "Los Angeles"),
+    ("Washington", "Atlanta", "New York", "Philadelphia"),
+    ("Chicago", "Minnesota", "Green Bay", "San Francisco", "Seattle"),
 )
 
 
-def test_division_standings_match_the_game():
-    lge = read_lge(LEAGUE, FIXTURE_DIR)
-    standings = tuple(
+def _division_order(lge: LgeFile) -> tuple[tuple[str, ...], ...]:
+    return tuple(
         tuple(team.name for team in division.standings)
         for conference in lge.conferences
         for division in conference.divisions
     )
-    assert standings == PNFL_WEEK_SEVEN
+
+
+def test_division_standings_match_the_games_season_end_screen():
+    assert _division_order(_parse_fixture("PNFL-2048-after-week16.lge")) == (
+        PNFL_2048_FINAL
+    )
+
+
+def test_division_ties_follow_the_manuals_steps():
+    # 2043: Indianapolis over New England and Las Vegas over Pittsburgh on
+    # division record; 2046: Jacksonville over Denver head-to-head, Chicago
+    # over Green Bay on conference record (Green Bay's points were better).
+    assert _division_order(_parse_fixture("PNFL-2043-after-super-bowl.lge")) == (
+        ("New York A", "Indianapolis", "New England", "Jacksonville"),
+        ("Kansas City", "Minnesota", "Los Angeles", "Las Vegas", "Pittsburgh"),
+        ("Washington", "Detroit", "New York N", "Atlanta"),
+        ("Chicago", "San Francisco", "New Orleans", "Seattle", "Anaheim"),
+    )
+    assert _division_order(_parse_fixture("PNFL-2046-after-super-bowl.lge")) == (
+        ("New York A", "Buffalo", "Indianapolis", "New England"),
+        ("Pittsburgh", "Houston", "Las Vegas", "Jacksonville", "Denver"),
+        ("Washington", "Philadelphia", "Atlanta", "New York N"),
+        ("Minnesota", "Seattle", "San Francisco", "Chicago", "Green Bay"),
+    )
+
+
+def test_ranked_orders_any_teams_of_the_file():
+    # 2048's wild cards: Buffalo over Pittsburgh (both 10-6) head-to-head, as
+    # the game seeded them.
+    lge = _parse_fixture("PNFL-2048-after-week16.lge")
+    by_name = {team.name: team for team in lge.teams}
+    pair = (by_name["Pittsburgh"], by_name["Buffalo"])
+    assert tuple(t.name for t in ranked(lge, pair)) == ("Buffalo", "Pittsburgh")
+
+
+def test_ranked_default_covers_every_team_of_the_file():
+    lge = _parse_fixture("PNFL-2048-after-week16.lge")
+    assert sorted(t.name for t in ranked(lge)) == sorted(t.name for t in lge.teams)
+    assert len(ranked(lge)) == 18
 
 
 def test_final_regular_season_records():
@@ -514,7 +573,7 @@ def test_final_regular_season_records():
     assert wins + ties // 2 == 16 * 9
 
 
-def test_conference_standings_break_ties_by_point_differential():
+def test_conference_standings_break_ties_by_the_manuals_steps():
     afc, nfc = _parse_fixture(WEEK16).conferences
     assert tuple(team.name for team in afc.standings) == (
         "Baltimore",
@@ -527,8 +586,7 @@ def test_conference_standings_break_ties_by_point_differential():
         "Pittsburgh",
         "Buffalo",
     )
-    # 7-9: New York -40 above Green Bay -43; 6-10: Philadelphia +14 above
-    # San Francisco -60.
+    # 7-9: New York beat Green Bay; 6-10: Philadelphia beat San Francisco.
     assert tuple(team.name for team in nfc.standings) == (
         "Chicago",
         "Minnesota",
@@ -604,6 +662,19 @@ def test_playoff_games_skipped(
     assert {team.record for team in _teams(parse_lge(make_lge(chunks)))} == {NO_GAMES}
 
 
+def test_built_standings_break_a_split_series_on_division_net_points(
+    make_chunks, make_chunk, make_schedule_data, make_game, make_lge
+):
+    # Team 2 won its game by more: it ranks first in the division and the
+    # conference though team 1 comes first in the file.
+    regular = [[make_game(1, 20, 2, 10)], [make_game(2, 30, 1, 10)]]
+    chunks = _with_schedule(make_chunks, make_chunk, make_schedule_data(regular))
+    lge = parse_lge(make_lge(chunks))
+    first, second = _teams(lge)
+    assert lge.conferences[0].divisions[0].standings == (second, first)
+    assert lge.conferences[0].standings == (second, first)
+
+
 @pytest.mark.parametrize(("home", "away"), [(1, 2), (2, 1)])
 def test_played_game_with_first_and_last_team_accepted(
     make_chunks, make_chunk, make_schedule_data, make_game, make_lge, home, away
@@ -651,4 +722,89 @@ def test_schedule_with_data_after_the_last_week_rejected(
     data = make_schedule_data([[make_game(1, 7, 2, 3)]]) + b"\x00"
     chunks = _with_schedule(make_chunks, make_chunk, data)
     with pytest.raises(InvalidLgeError, match=r"has data after the last week\.$"):
+        parse_lge(make_lge(chunks))
+
+
+# --- games ---
+
+
+def test_games_and_playoffs_after_the_super_bowl():
+    lge = _parse_fixture(SUPER_BOWL)
+    assert [len(week) for week in lge.weeks] == [9] * 16
+    assert [len(round_) for round_ in lge.playoffs] == [4, 2, 1]
+    final = lge.playoffs[-1][0]
+    assert final.winner is not None and final.loser is not None
+    assert (final.winner.name, final.loser.name) == ("Miami", "Minnesota")
+    assert (final.home_score, final.away_score) == (14, 10)
+    assert lge.unplayed_games == 0
+
+
+def test_no_playoff_game_before_the_playoffs():
+    lge = _parse_fixture(WEEK16)
+    assert lge.playoffs == ((), (), ())
+    assert lge.unplayed_games == 7
+
+
+def test_no_game_before_week_one():
+    lge = _parse_fixture(BEFORE_WEEK1)
+    assert lge.weeks == ((),) * 16
+    assert lge.unplayed_games == 16 * 9 + 7
+
+
+def test_games_reference_the_file_teams():
+    lge = read_lge(LEAGUE, FIXTURE_DIR)
+    teams = _teams(lge)
+    games = [game for week in lge.weeks for game in week]
+    assert len(games) == 54  # six weeks played
+    assert all(
+        any(game.home is team for team in teams)
+        and any(game.away is team for team in teams)
+        for game in games
+    )
+    assert sum(team.record.games for team in teams) == 2 * len(games)
+
+
+def test_tied_game_has_no_winner_or_loser(
+    make_chunks, make_chunk, make_schedule_data, make_game, make_lge
+):
+    data = make_schedule_data([[make_game(1, 10, 2, 10)]])
+    chunks = _with_schedule(make_chunks, make_chunk, data)
+    (game,) = parse_lge(make_lge(chunks)).weeks[0]
+    assert game.winner is None
+    assert game.loser is None
+
+
+def test_unplayed_playoff_game_skipped_and_counted(
+    make_chunks, make_chunk, make_schedule_data, make_game, make_lge
+):
+    # Teams may be known (0xFF scores) before the round is played.
+    data = make_schedule_data(playoffs=[[make_game(1, 0xFF, 2, 0xFF, status=2)]])
+    chunks = _with_schedule(make_chunks, make_chunk, data)
+    lge = parse_lge(make_lge(chunks))
+    assert lge.playoffs == ((),)
+    assert lge.unplayed_games == 1
+
+
+@pytest.mark.parametrize(("home", "away"), [(1, 2), (2, 1)])
+def test_played_playoff_game_with_first_and_last_team_read(
+    make_chunks, make_chunk, make_schedule_data, make_game, make_lge, home, away
+):
+    data = make_schedule_data(playoffs=[[make_game(home, 7, away, 3)]])
+    chunks = _with_schedule(make_chunks, make_chunk, data)
+    lge = parse_lge(make_lge(chunks))
+    (game,) = lge.playoffs[0]
+    assert game.winner is _teams(lge)[home - 1]
+    assert game.loser is _teams(lge)[away - 1]
+
+
+@pytest.mark.parametrize(("home", "away", "bad"), [(0, 2, 0), (1, 3, 3)])
+def test_played_playoff_game_with_unknown_team_rejected(
+    make_chunks, make_chunk, make_schedule_data, make_game, make_lge, home, away, bad
+):
+    # No regular week here, so the first playoff round is week 1.
+    data = make_schedule_data(playoffs=[[make_game(home, 7, away, 3)]])
+    chunks = _with_schedule(make_chunks, make_chunk, data)
+    with pytest.raises(
+        InvalidLgeError, match=rf"week 1: No team {bad} \(teams are 1-2\)\.$"
+    ):
         parse_lge(make_lge(chunks))

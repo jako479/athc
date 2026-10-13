@@ -18,7 +18,7 @@ Build it with `packaging/release-build.ps1` and test it in Windows Sandbox with 
 
 ## Configuration
 
-`athc` reads `%LOCALAPPDATA%\athc\athc.ini` for app-wide settings and `leagues\<NAME>\` next to it for each league (`league.toml`, rule TOMLs, `standings\`); missing file or section falls back to defaults. `athc config set league NAME` picks the league.
+`athc` reads `%LOCALAPPDATA%\athc\athc.ini` for app-wide settings and `leagues\<NAME>\` next to it for each league (`league.toml` and rule TOMLs); missing file or section falls back to defaults. `athc config set league NAME` picks the league.
 
 ```ini
 [toolname]

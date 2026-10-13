@@ -11,8 +11,8 @@ from athc.scheduler.writers.txt_writer import TxtScheduleWriter
 from athc.scheduler.writers.writer import available_writer_formats, get_writer
 
 # A tiny hand-built schedule — no solver needed to exercise the writers.
-_CONFERENCE = Conference("C")
-_DIVISION = Division("C_D", _CONFERENCE, 2)
+_CONFERENCE = Conference(1, "C")
+_DIVISION = Division(1, "C_D", _CONFERENCE, 2)
 ALPHA = Team("Alpha", _CONFERENCE, _DIVISION)
 BETA = Team("Beta", _CONFERENCE, _DIVISION)
 SCHEDULE = Schedule(

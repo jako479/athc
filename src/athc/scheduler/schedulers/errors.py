@@ -4,4 +4,5 @@ from athc.errors import AthcError
 
 
 class SchedulerError(AthcError):
-    """Raised when a scheduler cannot build a valid matchup list or schedule."""
+    """Raised when the scheduler cannot build a league from its files, a valid
+    matchup list or a schedule."""

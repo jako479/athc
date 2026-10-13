@@ -76,7 +76,7 @@ def _unknown_league_args(command: click.Command, tmp_path: Path) -> list[str]:
         return [str(OFF1), str(GP_OFFENSE)]
     if command is convert_pdb:
         return [str(DATA / "2045-2047.pdb"), str(tmp_path / "out.xlsx")]
-    return ["--season", "2048"]  # generate_schedule
+    return ["--season", "2048", "--previous", str(tmp_path)]  # generate_schedule
 
 
 @pytest.mark.parametrize("command", LEAGUE_COMMANDS)
@@ -194,8 +194,8 @@ USAGE_CASES = [
     (("profile", "diff"), "athc profile diff [-h] [-o file] file1 file2"),
     (
         ("generate-schedule",),
-        "athc generate-schedule [-h] --season year [--seed number] "
-        "[--time-limit number] [--league name]",
+        "athc generate-schedule [-h] --season year --previous folder "
+        "[--upcoming folder] [--seed number] [--time-limit number] [--league name]",
     ),
     (("autocontinue",), "athc autocontinue [-h] [--hot-corner | --no-hot-corner]"),
     (("playpool",), "athc playpool [-h] command [args]..."),

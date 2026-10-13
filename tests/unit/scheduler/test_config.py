@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from athc.config import LeagueError
-from athc.errors import ACCESS_DENIED, FILE_NOT_FOUND, ConfigFileError
+from athc.errors import FILE_NOT_FOUND, ConfigFileError
 from athc.scheduler import config
 from athc.scheduler.config import (
     Phase2Config,
@@ -14,13 +14,11 @@ from athc.scheduler.config import (
     SchedulerConfig,
     check_opening_weeks,
     check_weeks,
-    find_league_path,
-    load_league,
     load_scheduler_config,
     resolve_rivalries,
     scheduler_rules_path,
 )
-from athc.scheduler.domain.league import TOTAL_TEAMS, League, lookup_team
+from athc.scheduler.domain.league import lookup_team
 from tests.conftest import ROOT, shipped_files, shipped_id
 
 from .conftest import (
@@ -30,27 +28,21 @@ from .conftest import (
 )
 
 LEAGUE = "divisions"  # the test league's name
-SEASON = 2048
 
-# Every shipped standings and scheduler rules file.
-SHIPPED_STANDINGS = shipped_files("*/standings/*.league.ini")
+# Every shipped scheduler rules file.
 SHIPPED_RULES = shipped_files("*/scheduler.toml")
 
 
 # ---------------------------------------------------------------------------
-# Scheduler tunables live in leagues/<league>/scheduler.toml; league data is
-# a separate <season>.league.ini in leagues/<league>/standings/:
-# [DivisionStandings] (per-division teams in finish order -- this defines
-# division membership) plus [OverallStandings] (overall 1-18). Tests derive
-# invalid variants from VALID_LEAGUE.
+# Scheduler tunables live in leagues/<league>/scheduler.toml; the league itself
+# comes from its .lge files (see test_league_files.py).
 # ---------------------------------------------------------------------------
 
 
 def _league_folder(config_dir: Path, name: str = LEAGUE) -> Path:
-    """`leagues/<name>/` with `standings/` under the config dir."""
+    """`leagues/<name>/` under the config dir."""
     folder = config_dir / "leagues" / name
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "standings").mkdir(exist_ok=True)
     return folder
 
 
@@ -65,71 +57,9 @@ def _write_scheduler_toml(config_dir: Path, body: str) -> Path:
     return path
 
 
-# [DivisionStandings] alone: each division's teams in finish order (best first).
-DIVISION_STANDINGS = """\
-[DivisionStandings]
-AFC_EAST =
-    New England
-    Miami
-    Jacksonville
-    Buffalo
-AFC_WEST =
-    Cincinnati
-    Pittsburgh
-    Denver
-    Los Angeles
-    Las Vegas
-NFC_EAST =
-    Washington
-    Atlanta
-    New York
-    Philadelphia
-NFC_WEST =
-    Chicago
-    Minnesota
-    San Francisco
-    Green Bay
-    Seattle
-"""
-
-
-# [OverallStandings] alone: the overall 1-18 finish (a valid file needs this too).
-OVERALL_STANDINGS = """\
-[OverallStandings]
-Order =
-    New England
-    Washington
-    Miami
-    Atlanta
-    Jacksonville
-    New York
-    Buffalo
-    Philadelphia
-    Cincinnati
-    Chicago
-    Pittsburgh
-    Minnesota
-    Denver
-    San Francisco
-    Los Angeles
-    Green Bay
-    Las Vegas
-    Seattle
-"""
-
-VALID_LEAGUE = DIVISION_STANDINGS + "\n" + OVERALL_STANDINGS
-LEAGUE_MISSING_DIVISION_STANDINGS = (
-    OVERALL_STANDINGS  # no [DivisionStandings] -> invalid
-)
-
-
 def _write(path: Path, text: str) -> Path:
     path.write_text(text, encoding="utf-8")
     return path
-
-
-def _valid_league(tmp_path: Path) -> Path:
-    return _write(tmp_path / "league.ini", VALID_LEAGUE)
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +227,7 @@ def test_load_scheduler_config_errors_on_non_integer_phase2(config_dir: Path) ->
 
 
 # ---------------------------------------------------------------------------
-# path resolution — athc.ini optional, league.ini required
+# path resolution — the rules file sits in the league folder
 # ---------------------------------------------------------------------------
 
 
@@ -311,236 +241,6 @@ def test_scheduler_rules_path_is_named_by_league(config_dir: Path) -> None:
 def test_scheduler_rules_path_needs_the_league_folder() -> None:
     with pytest.raises(LeagueError, match=f"League '{LEAGUE}' not found"):
         scheduler_rules_path(LEAGUE)
-
-
-def test_find_league_path_errors_when_none_exist(config_dir: Path) -> None:
-    folder = _league_folder(config_dir)
-    with pytest.raises(ConfigFileError) as exc:
-        find_league_path(LEAGUE, SEASON)
-    assert str(folder / "standings" / f"{SEASON}.league.ini") in str(exc.value)
-
-
-def test_find_league_path_resolves_league_and_season_file(config_dir: Path) -> None:
-    folder = _league_folder(config_dir)
-    present = _write(folder / "standings" / f"{SEASON}.league.ini", VALID_LEAGUE)
-    other = _league_folder(config_dir, "other")
-    _write(other / "standings" / f"{SEASON}.league.ini", VALID_LEAGUE)
-    assert find_league_path(LEAGUE, SEASON) == present
-
-
-# ---------------------------------------------------------------------------
-# load_league — required sections and keys
-# ---------------------------------------------------------------------------
-
-
-def test_load_league_reads_valid_config(tmp_path: Path) -> None:
-    league = load_league(_valid_league(tmp_path))
-    assert isinstance(league, League)
-    assert len(league.teams) == 18
-    assert league.rankings.overall is not None  # [OverallStandings] -> overall known
-
-
-def test_load_league_derives_conference_rank_from_standings(tmp_path: Path) -> None:
-    # Conference 1-9 ranks come from the overall [OverallStandings] order, not a separate
-    # section. New England is 1st overall and the top AFC team; Washington 2nd
-    # overall and the top NFC team.
-    league = load_league(_valid_league(tmp_path))
-    new_england = next(t for t in league.teams if t.metro == "New England")
-    washington = next(t for t in league.teams if t.metro == "Washington")
-    assert league.rankings.overall_rank(new_england) == 1
-    assert league.rankings.rank_of(new_england) == 1
-    assert league.rankings.overall_rank(washington) == 2
-    assert league.rankings.rank_of(washington) == 1
-
-
-def test_load_league_errors_when_division_standings_section_missing(
-    tmp_path: Path,
-) -> None:
-    # [DivisionStandings] defines membership; without it there is no league.
-    ini = _write(tmp_path / "league.ini", LEAGUE_MISSING_DIVISION_STANDINGS)
-    with pytest.raises(ConfigFileError, match="DivisionStandings"):
-        load_league(ini)
-
-
-def test_load_league_errors_when_standings_section_missing(tmp_path: Path) -> None:
-    ini = _write(tmp_path / "league.ini", DIVISION_STANDINGS)  # no [OverallStandings]
-    with pytest.raises(ConfigFileError, match="OverallStandings"):
-        load_league(ini)
-
-
-def test_load_league_errors_on_duplicate_team(tmp_path: Path) -> None:
-    # Same metro in two divisions (Miami replaces Cincinnati in AFC_WEST).
-    text = VALID_LEAGUE.replace("    Cincinnati\n", "    Miami\n", 1)
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigFileError):
-        load_league(ini)
-
-
-def test_load_league_errors_when_standings_team_not_in_divisions(
-    tmp_path: Path,
-) -> None:
-    # [OverallStandings] names a team absent from [DivisionStandings] (Nowhere replaces
-    # New England in the overall order).
-    text = VALID_LEAGUE.replace("Order =\n    New England", "Order =\n    Nowhere")
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigFileError):
-        load_league(ini)
-
-
-def test_load_league_errors_when_order_key_missing(tmp_path: Path) -> None:
-    text = VALID_LEAGUE[
-        : VALID_LEAGUE.index("Order =")
-    ]  # [OverallStandings] but no Order
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigFileError):
-        load_league(ini)
-
-
-def test_load_league_errors_when_order_empty(tmp_path: Path) -> None:
-    text = VALID_LEAGUE[: VALID_LEAGUE.index("Order =")] + "Order =\n"
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigFileError):
-        load_league(ini)
-
-
-def test_load_league_errors_on_invalid_league_data(tmp_path: Path) -> None:
-    # Drop a team from AFC_EAST so the division is the wrong size.
-    ini = _write(
-        tmp_path / "league.ini",
-        VALID_LEAGUE.replace("    Buffalo\nAFC_WEST =", "AFC_WEST ="),
-    )
-    with pytest.raises(ConfigFileError):
-        load_league(ini)
-
-
-def test_load_league_errors_on_invalid_ini(tmp_path: Path) -> None:
-    ini = _write(tmp_path / "league.ini", "[DivisionStandings\nbroken")
-    with pytest.raises(ConfigFileError):
-        load_league(ini)
-
-
-def test_load_league_errors_when_file_missing(tmp_path: Path) -> None:
-    with pytest.raises(ConfigFileError):
-        load_league(tmp_path / "absent.ini")
-
-
-def test_load_league_errors_on_division_key_without_conference(
-    tmp_path: Path,
-) -> None:
-    # A division key is <CONFERENCE>_<DIVISION>; no underscore, no conference.
-    text = VALID_LEAGUE.replace("AFC_EAST =", "AFCEAST =", 1)
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigFileError, match="CONFERENCE"):
-        load_league(ini)
-
-
-def test_load_league_accepts_any_division_name(tmp_path: Path) -> None:
-    text = VALID_LEAGUE.replace("AFC_EAST =", "AFC_NORTH =", 1)
-    league = load_league(_write(tmp_path / "league.ini", text))
-    assert "AFC_NORTH" in {d.name for d in league.divisions}
-
-
-def test_load_league_errors_on_standings_duplicate(tmp_path: Path) -> None:
-    # Duplicate a team in [OverallStandings] (Seattle twice; Las Vegas dropped).
-    text = VALID_LEAGUE.replace(
-        "    Las Vegas\n    Seattle", "    Seattle\n    Seattle"
-    )
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigFileError):
-        load_league(ini)
-
-
-@pytest.mark.parametrize("path", SHIPPED_STANDINGS, ids=shipped_id)
-def test_shipped_standings_file_loads(path: Path) -> None:
-    league = load_league(path)
-    assert len(league.teams) == TOTAL_TEAMS
-    assert league.rankings.overall is not None
-
-
-def test_shipped_file_sets_match_between_dev_and_release() -> None:
-    # The two config twins ship the same standings and rules files.
-    by_folder = {
-        folder: {
-            p.relative_to(ROOT / "config" / folder)
-            for p in SHIPPED_STANDINGS + SHIPPED_RULES
-            if p.is_relative_to(ROOT / "config" / folder)
-        }
-        for folder in ("dev", "release")
-    }
-    assert by_folder["dev"] == by_folder["release"]
-    assert any(p.suffix == ".ini" for p in by_folder["dev"])
-
-
-# ---------------------------------------------------------------------------
-# load_league — [DivisionStandings] defines membership + per-division finish
-# ---------------------------------------------------------------------------
-
-
-def test_load_league_reads_division_standings(tmp_path: Path) -> None:
-    league = load_league(_valid_league(tmp_path))
-    standings = {d.name: order for d, order in league.division_standings.items()}
-    assert [t.metro for t in standings["AFC_EAST"]] == [
-        "New England",
-        "Miami",
-        "Jacksonville",
-        "Buffalo",
-    ]
-    assert [t.metro for t in standings["NFC_WEST"]] == [
-        "Chicago",
-        "Minnesota",
-        "San Francisco",
-        "Green Bay",
-        "Seattle",
-    ]
-
-
-def test_load_league_derives_conferences_and_sizes_from_the_keys(
-    tmp_path: Path,
-) -> None:
-    league = load_league(_valid_league(tmp_path))
-    assert [c.name for c in league.conferences] == ["AFC", "NFC"]
-    assert {d.name: (d.conference.name, d.expected_size) for d in league.divisions} == {
-        "AFC_EAST": ("AFC", 4),
-        "AFC_WEST": ("AFC", 5),
-        "NFC_EAST": ("NFC", 4),
-        "NFC_WEST": ("NFC", 5),
-    }
-
-
-def test_load_league_teams_are_alphabetical_within_division(tmp_path: Path) -> None:
-    # Membership comes from [DivisionStandings] (finish order), but the teams
-    # tuple is canonical: alphabetical within each division.
-    league = load_league(_valid_league(tmp_path))
-    afc_east = [
-        t.metro
-        for t in league.teams
-        if t.division is not None and t.division.name == "AFC_EAST"
-    ]
-    assert afc_east == ["Buffalo", "Jacksonville", "Miami", "New England"]
-
-
-def test_load_league_errors_when_division_missing(tmp_path: Path) -> None:
-    # A whole division absent from [DivisionStandings].
-    text = VALID_LEAGUE.replace(
-        "NFC_WEST =\n    Chicago\n    Minnesota\n    San Francisco\n"
-        "    Green Bay\n    Seattle\n",
-        "",
-        1,
-    )
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigFileError):
-        load_league(ini)
-
-
-def test_load_league_errors_on_division_standings_duplicate(tmp_path: Path) -> None:
-    # A division lists the same team twice.
-    text = VALID_LEAGUE.replace(
-        "AFC_EAST =\n    New England\n    Miami",
-        "AFC_EAST =\n    New England\n    New England",
-    )
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigFileError):
-        load_league(ini)
 
 
 # ---------------------------------------------------------------------------
@@ -599,17 +299,6 @@ def test_a_bad_rivalry_pair_shows_plain_names(tmp_path: Path) -> None:
         load_scheduler_config(path)
     assert str(exc.value) == (
         f"{path}: [rivalries] pairs: Each pair must be two team names, got A, B, C."
-    )
-
-
-def test_missing_standings_file_is_one_line(config_dir: Path) -> None:
-    folder = config_dir / "leagues" / LEAGUE
-    (folder / "standings").mkdir(parents=True)
-    path = folder / "standings" / "2049.league.ini"
-    with pytest.raises(ConfigFileError) as exc:
-        find_league_path(LEAGUE, 2049)
-    assert str(exc.value) == (
-        f"{path}: {FILE_NOT_FOUND} Add the {LEAGUE} season 2049 standings file."
     )
 
 
@@ -698,37 +387,6 @@ def test_a_bad_value_names_its_table_and_key_first(
     with pytest.raises(ConfigFileError) as exc:
         load_scheduler_config(path)
     assert str(exc.value) == f"{path}: {reason}"
-
-
-def test_load_league_malformed_ini_names_the_file_once(tmp_path: Path) -> None:
-    path = _write(tmp_path / "2049.league.ini", "garbage\n")
-    with pytest.raises(ConfigFileError) as exc:
-        load_league(path)
-    assert str(exc.value) == (
-        f"{path}: Not valid INI: No [section] header above it (at line 1)."
-    )
-
-
-def test_load_league_that_cannot_be_opened_fails_in_windows_words(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Never read as an empty file: a standings file Windows will not open."""
-    path = _valid_league(tmp_path)
-
-    def denied(self: Path, *args: object, **kwargs: object) -> None:
-        raise PermissionError(13, "Permission denied", str(self))
-
-    monkeypatch.setattr(Path, "open", denied)
-    with pytest.raises(ConfigFileError) as exc:
-        load_league(path)
-    assert str(exc.value) == f"{path}: {ACCESS_DENIED}"
-
-
-def test_load_league_missing_file_names_it(tmp_path: Path) -> None:
-    missing = tmp_path / "2049.league.ini"
-    with pytest.raises(ConfigFileError) as exc:
-        load_league(missing)
-    assert str(exc.value) == f"{missing}: {FILE_NOT_FOUND}"
 
 
 def test_load_scheduler_config_optional_path_defaults_when_missing(
@@ -841,6 +499,64 @@ def test_load_scheduler_config_rejects_bad_rivalries(
 
 
 # ---------------------------------------------------------------------------
+# [renames.<season>] — previous name = new name
+# ---------------------------------------------------------------------------
+
+
+def test_load_scheduler_config_reads_renames(config_dir: Path) -> None:
+    _write_scheduler_toml(
+        config_dir,
+        """
+        [renames.2048]
+        Baltimore = "Los Angeles"
+        [renames.2049]
+        "Los Angeles" = " Baltimore "
+        Seattle = "Detroit"
+        """,
+    )
+    assert _load().renames == {
+        2048: {"Baltimore": "Los Angeles"},
+        2049: {"Los Angeles": "Baltimore", "Seattle": "Detroit"},
+    }
+
+
+def test_renames_default_to_none() -> None:
+    assert SchedulerConfig().renames == {}
+
+
+@pytest.mark.parametrize(
+    ("body", "reason"),
+    [
+        ("renames = 1\n", "[renames]: Must be a table."),
+        ("[renames]\nabc = 1\n", "[renames] abc: Must be a season year, e.g. 2048."),
+        (
+            '[renames.abc]\nA = "B"\n',
+            "[renames] abc: Must be a season year, e.g. 2048.",
+        ),
+        ('[renames]\n2048 = "x"\n', "[renames.2048]: Must be a table."),
+        ("[renames.2048]\nA = 1\n", "[renames.2048] A: Must be a team name."),
+        ('[renames.2048]\nA = " "\n', "[renames.2048] A: Must be a team name."),
+        ('[renames.2048]\n" " = "B"\n', "[renames.2048]: A team name is blank."),
+        ('[renames.2048]\nA = "A"\n', "[renames.2048] A: Renames the team to itself."),
+        ('[renames.2048]\n"A " = "B"\nA = "C"\n', "[renames.2048] A: Listed twice."),
+        # A Unicode digit passes str.isdigit but is no year.
+        ('[renames."²"]\nA = "B"\n', "[renames] ²: Must be a season year, e.g. 2048."),
+        (
+            '[renames.2048]\nA = "C"\nB = "C"\n',
+            "[renames.2048]: Two teams renamed to C.",
+        ),
+    ],
+)
+def test_bad_renames_name_the_table_and_key(
+    tmp_path: Path, body: str, reason: str
+) -> None:
+    path = _write(tmp_path / "s.toml", body)
+    with pytest.raises(ConfigFileError) as exc:
+        load_scheduler_config(path)
+    assert str(exc.value) == f"{path}: {reason}"
+
+
+# ---------------------------------------------------------------------------
 # League-resolved checks
 # ---------------------------------------------------------------------------
 
@@ -936,107 +652,51 @@ def test_resolve_rivalries_rejects(pairs, message: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# load_league — [ConferenceStandings] (a league without divisions)
+# Shipped files — every config/dev/ and config/release/ scheduler.toml
 # ---------------------------------------------------------------------------
-
-CONFERENCE_STANDINGS = """\
-[ConferenceStandings]
-WESTERN =
-    Ohio State
-    Notre Dame
-    UCLA
-    Washington
-    Oklahoma
-    USC
-    Colorado
-    Oregon
-    Michigan
-EASTERN =
-    Texas
-    Tennessee
-    Boston College
-    Arkansas
-    LSU
-    Clemson
-    Georgia
-    Penn State
-    Miami
-"""
-
-CONFERENCES_OVERALL_STANDINGS = """\
-[OverallStandings]
-Order =
-    Texas
-    Tennessee
-    Notre Dame
-    Arkansas
-    Ohio State
-    Boston College
-    LSU
-    UCLA
-    Washington
-    Clemson
-    Oklahoma
-    Georgia
-    Penn State
-    USC
-    Colorado
-    Miami
-    Oregon
-    Michigan
-"""
-
-
-def test_load_league_reads_conference_standings(tmp_path: Path) -> None:
-    ini = _write(
-        tmp_path / "league.ini",
-        CONFERENCE_STANDINGS + "\n" + CONFERENCES_OVERALL_STANDINGS,
-    )
-    league = load_league(ini)
-    assert league == CONFERENCES_LEAGUE
-    assert not league.has_divisions
-
-
-def test_load_league_errors_with_both_sections(tmp_path: Path) -> None:
-    ini = _write(tmp_path / "league.ini", VALID_LEAGUE + "\n" + CONFERENCE_STANDINGS)
-    with pytest.raises(
-        ConfigFileError, match=r"DivisionStandings.*ConferenceStandings"
-    ):
-        load_league(ini)
-
-
-def test_load_league_errors_on_wrong_conference_size(tmp_path: Path) -> None:
-    text = (
-        CONFERENCE_STANDINGS.replace("    Michigan\n", "")
-        + CONFERENCES_OVERALL_STANDINGS
-    )
-    ini = _write(tmp_path / "league.ini", text)
-    with pytest.raises(ConfigFileError, match="exactly 9 teams"):
-        load_league(ini)
 
 
 @pytest.mark.parametrize("path", SHIPPED_RULES, ids=shipped_id)
-def test_shipped_rules_file_fits_its_leagues_standings(path: Path) -> None:
-    # A league's scheduler.toml must fit every standings file in its folder.
-    folder = path.parent
-    standings = [p for p in SHIPPED_STANDINGS if p.parents[1] == folder]
-    assert standings, f"no standings file in {folder}"
+def test_shipped_rules_file_fits_its_league_shape(path: Path) -> None:
+    # A rules file with rivalries is the conference league's; one without is a
+    # divisional league's. Each must fit the test league of that shape.
     config = load_scheduler_config(path)
-    for standings_path in standings:
-        league = load_league(standings_path)
-        check_weeks(league, config.league.weeks)
-        check_opening_weeks(
-            league, config.league.weeks, config.phase2.opening_nonconference_weeks
-        )
-        resolve_rivalries(league, config.rivalries)
+    league = (
+        CONFERENCES_LEAGUE
+        if config.rivalries.pairs
+        else (ONE_PLAYOFF_TEAM_FROM_4_TEAM_DIVISION)
+    )
+    check_weeks(league, config.league.weeks)
+    check_opening_weeks(
+        league, config.league.weeks, config.phase2.opening_nonconference_weeks
+    )
+    resolve_rivalries(league, config.rivalries)
 
 
-def test_shipped_conference_league_files_match_the_test_league() -> None:
+def test_shipped_file_sets_match_between_dev_and_release() -> None:
+    # The two config twins ship the same rules files.
+    by_folder = {
+        folder: {
+            p.relative_to(ROOT / "config" / folder)
+            for p in SHIPPED_RULES
+            if p.is_relative_to(ROOT / "config" / folder)
+        }
+        for folder in ("dev", "release")
+    }
+    assert by_folder["dev"] == by_folder["release"]
+    assert len(by_folder["dev"]) == 2
+
+
+def test_shipped_conference_league_rules_match_the_test_league() -> None:
     # The conference test league copies a shipped league; keep them in step.
-    matches = [p for p in SHIPPED_STANDINGS if load_league(p) == CONFERENCES_LEAGUE]
+    matches = [
+        p
+        for p in SHIPPED_RULES
+        if load_scheduler_config(p).rivalries.pairs == CONFERENCES_RIVALRIES
+    ]
     assert matches
-    for standings_path in matches:
-        config = load_scheduler_config(standings_path.parents[1] / "scheduler.toml")
+    for path in matches:
+        config = load_scheduler_config(path)
         assert config.league.weeks == 12
         assert config.difficulty.spread == 0.0
         assert config.phase2.max_consecutive_conference_home_or_away == 2
@@ -1044,4 +704,3 @@ def test_shipped_conference_league_files_match_the_test_league() -> None:
         assert config.phase2.require_home_balance_per_six_weeks is False
         assert config.phase2.require_home_away_streak_caps is False
         assert config.phase2.require_mixed_home_away_at_season_ends is False
-        assert config.rivalries.pairs == CONFERENCES_RIVALRIES

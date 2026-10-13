@@ -91,6 +91,50 @@ AG, ST, HA and EN are cut, rounded down; IN and DI are not.
 | Tuipulotu (DT) | D      | Normal  | 59 | 54 | 63 | 97 | 55 | 88 | 86 | 88 |
 |                |        | Shown   | 17 | 16 | 18 | 29 | 16 | 26 | 86 | 88 |
 
+## Standings
+
+### Tie-breakers
+
+The manual (page 129, "Post-Season Play") breaks a tie in the standings in
+this order:
+
+1. Head-to-head: won-lost-tied percentage in games between the tied clubs.
+2. Won-lost-tied percentage within the division.
+3. Won-lost-tied percentage within the conference.
+4. Net points in division games.
+5. Net points in all games.
+6. Strength of schedule: combined won-lost-tied percentage of all opponents,
+   each division opponent counted once.
+7. Net touchdowns in all games.
+8. Coin toss.
+
+Draft-order ties use step 6 (page 136).
+
+Checked against the PNFL's 2043-2048 league files: applying the list to the
+regular-season results gives the division winners, wild cards and seeds the
+game's playoff bracket shows every season. Round 1 is seed 1 hosting 4 and
+seed 2 hosting 3; the higher seed hosts round 2; the Super Bowl host is the
+higher seed, or the better record when the seeds are equal. The ties that
+mattered were settled by steps 1-3; none reached net points or strength of
+schedule. The games between the tied clubs count however many were played:
+2043 Chicago took the first seed over Washington on one win.
+
+### The standings screen
+
+The League Standings screen sorts tied teams two ways:
+
+- In season, by points for: in 2049 after week 7 it showed Jacksonville (192
+  points) above San Diego (185) though San Diego had the better conference
+  record, and Cincinnati, Las Vegas, Denver, Pittsburgh (169, 166, 165, 154)
+  in that order though Pittsburgh had the best head-to-head record among
+  them; in 2048 after week 15, Buffalo (364) above Miami (284) though the
+  tie-breakers already favored Miami.
+- Once the regular season is complete, by the tie-breakers: the same 2048
+  file after week 16 shows Miami above Buffalo (298 points to 395), the
+  order the playoff bracket used.
+
+The `fbpro98_lge` library gives the season-end order.
+
 ## Positions
 
 Notes specific to each position.

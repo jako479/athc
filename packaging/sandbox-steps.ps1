@@ -66,8 +66,8 @@ foreach ($doc in 'README.txt', 'COMMANDS.txt', 'SCHEDULER-COMMANDS.txt', 'CHANGE
     Check "install: $doc in the install folder" (Test-Path (Join-Path $app $doc))
 }
 foreach ($file in 'athc.ini', 'leagues\PNFL\league.toml', 'leagues\PNFL\gameplan.toml',
-                  'leagues\PNFL\standings\2049.league.ini', 'leagues\PCFL\league.toml',
-                  'leagues\PCFL\standings\2029.league.ini') {
+                  'leagues\PNFL\scheduler.toml', 'leagues\PCFL\league.toml',
+                  'leagues\PCFL\scheduler.toml') {
     Check "install: $file seeded" (Test-Path (Join-Path $cfgDir $file))
 }
 Check 'install: start-menu shortcut present' (Test-Path $lnk)
@@ -98,7 +98,7 @@ Set-Content (Join-Path $work 'specials.txt') 'LIONKICK'
 # the goldens use) with play_path at the fixture pool, plus the tests' rule
 # files and the seeded PNFL pdbtoexcel.toml.
 $testLeague = Join-Path $leagues 'TEST'
-New-Item -ItemType Directory -Force (Join-Path $testLeague 'standings') | Out-Null
+New-Item -ItemType Directory -Force $testLeague | Out-Null
 (Get-Content (Join-Path $leagues 'PNFL\league.toml')) -replace '^play_path = .*', "play_path = '$data\plays'" |
     Set-Content (Join-Path $testLeague 'league.toml')
 Copy-Item (Join-Path $data 'profile_rules.toml') (Join-Path $testLeague 'profile.toml')
@@ -106,13 +106,21 @@ Copy-Item (Join-Path $data 'gameplan_rules.toml') (Join-Path $testLeague 'gamepl
 Copy-Item (Join-Path $data 'playpool_rules.toml') (Join-Path $testLeague 'playpool.toml')
 Copy-Item (Join-Path $leagues 'PNFL\pdbtoexcel.toml') (Join-Path $testLeague 'pdbtoexcel.toml')
 
-# Leagues divisions and conferences: the scheduler goldens' standings and rules.
-$schedules = @(@{ League = 'divisions'; Season = 2026 }, @{ League = 'conferences'; Season = 2029 })
+# Leagues divisions and conferences: the scheduler goldens' rules and the two
+# league files each (previous season for the standings, upcoming for the teams).
+$schedules = @(
+    @{ League = 'divisions'; Season = 2048; Previous = 'PNFL-2047-after-super-bowl.lge'; Upcoming = 'PNFL-2048-after-week1.lge' },
+    @{ League = 'conferences'; Season = 2029; Previous = 'conferences-previous.lge'; Upcoming = 'conferences-upcoming.lge' }
+)
 foreach ($case in $schedules) {
     $folder = Join-Path $leagues $case.League
-    New-Item -ItemType Directory -Force (Join-Path $folder 'standings') | Out-Null
-    Copy-Item (Join-Path $data "$($case.League).$($case.Season).ini") (Join-Path $folder "standings\$($case.Season).league.ini")
+    New-Item -ItemType Directory -Force $folder | Out-Null
     Copy-Item (Join-Path $data "$($case.League).scheduler.toml") (Join-Path $folder 'scheduler.toml')
+    $previous = Join-Path $work "$($case.League)-previous"
+    $upcoming = Join-Path $work "$($case.League)-upcoming"
+    New-Item -ItemType Directory -Force $previous, $upcoming | Out-Null
+    Copy-Item (Join-Path $data $case.Previous) (Join-Path $previous "$($case.League).lge")
+    Copy-Item (Join-Path $data $case.Upcoming) (Join-Path $upcoming "$($case.League).lge")
 }
 
 # --- every command and group answers -h ----------------------------------
@@ -235,7 +243,10 @@ function Report([string]$html) {
 foreach ($case in $schedules) {
     $dir = Join-Path $work "schedule-$($case.League)"
     New-Item -ItemType Directory -Force $dir | Out-Null
-    $r = Athc @('generate-schedule', '--league', $case.League, '--season', $case.Season, '--seed', '0') $dir
+    $previous = Join-Path $work "$($case.League)-previous"
+    $upcoming = Join-Path $work "$($case.League)-upcoming"
+    $r = Athc @('generate-schedule', '--league', $case.League, '--season', $case.Season,
+                '--previous', $previous, '--upcoming', $upcoming, '--seed', '0') $dir
     $files = @(Get-ChildItem $dir -Filter "schedule_$($case.Season)_*")
     $txt = $files | Where-Object { $_.Extension -eq '.txt' }
     $html = $files | Where-Object { ($_.Extension -eq '.html') -and ($_.Name -notlike '*_report.html') }
@@ -274,7 +285,7 @@ if (Test-Path $extra) { . $extra }
 $marker  = Join-Path $app '_internal\STALE_MARKER.txt'
 $ini     = Join-Path $cfgDir 'athc.ini'
 $rules   = Join-Path $leagues 'PNFL\gameplan.toml'
-$deleted = Join-Path $leagues 'PNFL\standings\2049.league.ini'
+$deleted = Join-Path $leagues 'PCFL\pdbtoexcel.toml'
 $readme  = Join-Path $app 'README.txt'
 $commands = Join-Path $app 'COMMANDS.txt'
 Set-Content $marker 'left over from an older bundle'

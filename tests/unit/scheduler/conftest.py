@@ -9,7 +9,7 @@ default (`-m 'not slow'`); run with `pytest -m slow`.
 from __future__ import annotations
 
 import random
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
@@ -24,12 +24,49 @@ from athc.scheduler.config import (
     SchedulerConfig,
     SolverConfig,
 )
-from athc.scheduler.domain.league import League, build_league
+from athc.scheduler.domain.league import (
+    Conference,
+    Division,
+    League,
+    Team,
+    build_league,
+)
 from athc.scheduler.domain.schedule import Schedule
 from athc.scheduler.schedulers.types import SchedulerResult, get_scheduler
 from athc.scheduler.writers.report import HtmlReportWriter, build_schedule_report
 
 SLOW_SOLVE_TIME_LIMIT = 1200.0  # cap each slow-test solve at 20 minutes
+
+
+def league_from_tables(
+    standings: Mapping[str, Sequence[str]], overall: Sequence[str], *, divisions: bool
+) -> League:
+    """A League from name tables, numbering conferences and divisions by first
+    appearance. With `divisions`, each key is `<CONFERENCE>_<DIVISION>` and its
+    teams are the division's finish order; without, each key is a conference
+    name. `overall` is the 1-18 finish."""
+    conferences: dict[str, Conference] = {}
+    teams: list[Team] = []
+    finish: dict[Division, tuple[Team, ...]] = {}
+    for key, metros in standings.items():
+        conference_name = key.partition("_")[0] if divisions else key
+        conference = conferences.setdefault(
+            conference_name, Conference(len(conferences) + 1, conference_name)
+        )
+        division = (
+            Division(len(finish) + 1, key, conference, len(metros))
+            if divisions
+            else None
+        )
+        members = tuple(Team(metro, conference, division) for metro in metros)
+        teams.extend(members)
+        if division is not None:
+            finish[division] = members
+    # Every team of each listed metro, so a table with a team twice or one
+    # missing reaches build_league's own checks.
+    ranking = [team for metro in overall for team in teams if team.metro == metro]
+    return build_league(teams, ranking, finish if divisions else None)
+
 
 # --- A league with divisions: two 4-team and two 5-team divisions -------------
 
@@ -66,7 +103,7 @@ def _divisional_league(first: Sequence[str], second: Sequence[str]) -> League:
         )
         for name, members in _DIVISIONS.items()
     }
-    return build_league(standings, overall, divisions=True)
+    return league_from_tables(standings, overall, divisions=True)
 
 
 # Two test leagues: same teams and divisions, different standings. They differ
@@ -169,8 +206,10 @@ CONFERENCES_OVERALL = (
     "Oregon",
     "Michigan",
 )
-CONFERENCES_LEAGUE = build_league(
-    {"WESTERN": CONFERENCES_WEST, "EASTERN": CONFERENCES_EAST},
+# EASTERN first: conferences order by position, and the pinned models and
+# goldens were built with EASTERN as the first conference.
+CONFERENCES_LEAGUE = league_from_tables(
+    {"EASTERN": CONFERENCES_EAST, "WESTERN": CONFERENCES_WEST},
     CONFERENCES_OVERALL,
     divisions=False,
 )

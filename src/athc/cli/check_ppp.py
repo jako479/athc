@@ -17,7 +17,7 @@ from athc.cli import CONTEXT_SETTINGS, AthcCommand, league_option
 from athc.cli.gameplan._common import build_pool
 from athc.cli.gameplan._common import load_rules_or_raise as load_gameplan_rules
 from athc.cli.profile._common import load_rules_or_raise as load_profile_rules
-from athc.config import LEAGUE_FILE, load_league_config
+from athc.config import LEAGUE_FILE, LEAGUE_PATH_KEY, load_league_config
 from athc.console import console
 from athc.errors import (
     ACCESS_DENIED,
@@ -49,8 +49,6 @@ from athc.profile import (
 )
 from athc.profile import RuleViolation as ProfileRuleViolation
 from athc.profile.config import load_config as load_profile_config
-
-LEAGUE_PATH_KEY = "path"
 
 
 @dataclass(frozen=True, slots=True)

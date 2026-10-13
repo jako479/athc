@@ -15,25 +15,22 @@ from pathlib import Path
 import pytest
 from ortools.sat.python import cp_model
 
-from athc.scheduler.config import load_league, load_scheduler_config, resolve_rivalries
+from athc.scheduler.config import load_scheduler_config, resolve_rivalries
 from athc.scheduler.schedulers.errors import SchedulerError
 from athc.scheduler.schedulers.matchup_builder import MatchupBuilder
 from athc.scheduler.schedulers.schedule_builder import ScheduleBuilder
+from tests.integration.league_files import CASE_BY_LEAGUE, case_league
 
-DATA = Path(__file__).resolve().parents[2] / "integration" / "data"
-
-# (league name, season, phase-1 sha256, phase-2 sha256)
+# (league name, phase-1 sha256, phase-2 sha256)
 PINNED = [
     pytest.param(
         "divisions",
-        2026,
-        "fca475dd405c803ade596bfda5422049b651e99e679e24f315f05813ddcd64a7",
-        "ef93b4a3f93b7656a87479294cfa914c8545e83832661b5d19e23226d4c2e60c",
+        "ea944d39a327f6e4e70d74e09f593edc4ffd340118c4f8240a5a8a881f82d34d",
+        "41d55300fdfacfb76dc9535fabef867d0a5a610b4a7f32722054197fc77fbaf0",
         id="divisions",
     ),
     pytest.param(
         "conferences",
-        2029,
         "85066772f3f2a71093b82d0b1f23a1f44b0ca437ab7088c5b700cec00b1bb9ae",
         "f53c3b57a8efce4e75941a4146ab6d69747dc61a900fbbd17e36d9854496faa7",
         id="conferences",
@@ -51,12 +48,13 @@ def _sha256(model: cp_model.CpModel) -> str:
         return hashlib.sha256(proto_path.read_bytes()).hexdigest()
 
 
-@pytest.mark.parametrize(("league_name", "season", "phase1", "phase2"), PINNED)
+@pytest.mark.parametrize(("league_name", "phase1", "phase2"), PINNED)
 def test_phase_models_are_unchanged(
-    league_name: str, season: int, phase1: str, phase2: str
+    league_name: str, phase1: str, phase2: str, tmp_path: Path
 ) -> None:
-    league = load_league(DATA / f"{league_name}.{season}.ini")
-    config = load_scheduler_config(DATA / f"{league_name}.scheduler.toml")
+    case = CASE_BY_LEAGUE[league_name]
+    league = case_league(case, tmp_path)
+    config = load_scheduler_config(case.rules)
     rivalries = resolve_rivalries(league, config.rivalries)
 
     builder = MatchupBuilder(
@@ -79,7 +77,7 @@ def test_phase_models_are_unchanged(
         weeks=config.league.weeks,
         rivalries=rivalries,
         rotate_rivalry_home_by_season=config.rivalries.rotate_home_by_season,
-        season=season,
+        season=case.season,
     )
     schedule_builder._populate_model(plan.matchups)
     actual2 = _sha256(schedule_builder.model)

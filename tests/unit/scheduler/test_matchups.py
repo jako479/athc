@@ -16,7 +16,7 @@ import pytest
 
 from athc.scheduler import cpu
 from athc.scheduler.config import DEFAULT_SOLVER_WORKERS, resolve_rivalries
-from athc.scheduler.domain.league import League, Team, build_league
+from athc.scheduler.domain.league import League, Team
 from athc.scheduler.domain.schedule import GAMES_PER_WEEK, Schedule
 from athc.scheduler.schedulers import matchup_builder, scheduler
 from athc.scheduler.schedulers.matchup_builder import MatchupBuilder, difficulty_target
@@ -28,7 +28,7 @@ from athc.scheduler.schedulers.types import (
 )
 from athc.scheduler.schedulers.utils import make_solver
 
-from .conftest import MATCHUP_CASES, LeagueCase
+from .conftest import MATCHUP_CASES, LeagueCase, league_from_tables
 
 FAST_SPREAD = 2.5
 TOP_HALF = 5  # conference ranks 1-5 are the top half, 5-9 the bottom half
@@ -332,7 +332,7 @@ def test_fixed_pairs_follow_division_standings_not_rank() -> None:
         "NFC_EAST": ("Washington", "Atlanta", "New York", "Philadelphia"),
         "NFC_WEST": ("Chicago", "Minnesota", "San Francisco", "Green Bay", "Seattle"),
     }
-    league = build_league(standings, overall, divisions=True)
+    league = league_from_tables(standings, overall, divisions=True)
     plan = MatchupBuilder(league).build_matchup_plan()
     assert plan.fixed_nonconference_pairs == _expected_same_place_pairs(league)
     jacksonville = next(t for t in league.teams if t.metro == "Jacksonville")

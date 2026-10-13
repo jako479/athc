@@ -90,7 +90,7 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   from the tests' own files, and shipped-file tests run once per league folder.
 - The PCFL ships gameplan, playpool and profile rules, copied from the PNFL's.
 - One folder per league under `leagues\`; every league-aware tool reads its
-  rules and standings there. `athc.ini` keeps only app-wide settings.
+  rules there. `athc.ini` keeps only app-wide settings.
 - The league in use is `[athc] league`, set by hand or with
   `athc config set league NAME`, which rewrites `athc.ini` and keeps its
   comments. `--league NAME` on a league-aware command overrides it for one run
@@ -116,17 +116,13 @@ leagues\
     gameplan.toml
     profile.toml
     playpool.toml
-    scheduler.toml
-    standings\
-      2045.league.ini … 2049.league.ini
+    scheduler.toml            rules, solver settings, [renames.<season>]
   PCFL\
     league.toml               [league] path, play_path (dev also db_path); [categories.*]
     gameplan.toml
     profile.toml
     playpool.toml
     scheduler.toml
-    standings\
-      2029.league.ini
 ```
 
 - League keys in `athc.ini` are lowercase (`play_path`, `playpool_rules`) like
@@ -229,14 +225,20 @@ Docs: [spec](docs/fbpro98_lg2/specs/lg2.md)
 
 ## fbpro98_lge (library)
 
-Reads conference, division and team names and standings from a league's
-`.lge`. Docs: [spec](docs/fbpro98_lge/specs/lge.md)
+Reads conference, division and team names, standings and the played games
+from a league's `.lge`. Docs: [spec](docs/fbpro98_lge/specs/lge.md)
 
 - Standings: each team's W-L-T, PF and PA from the schedule; division and
-  conference order by win percentage, then point differential.
+  conference order the way the game orders a finished season (the manual's
+  tie-breakers, checked against six seasons' playoff brackets and the 2048
+  season-end screen); in season the game's screen sorts ties by points for.
+- Games: each regular-season week's and each playoff round's played games
+  (winner, loser), and how many games are not played yet.
+- `ranked(lge, teams)`: any teams of a file in the same order, every team by
+  default; the scheduler uses it for a division whose members changed.
 - Reader in, with unit tests; every league size, 8 to 30 teams, stock and
   custom.
-- No command uses it yet.
+- Used by `generate-schedule` for the standings and the league structure.
 
 ## fbpro98 league files (specs)
 
@@ -385,13 +387,24 @@ Working. Docs: [README](docs/scheduler/README.md) ·
   on Intel hybrid CPUs) minus 2. A benchmark on an i5-14600KF found 8-12
   threads fastest and 18-24 slower. The report shows the CPU, thread count and
   seed, so a schedule can be reproduced on another machine.
-- League-agnostic: `--league NAME` picks the league; its standings are
-  `standings\<season>.league.ini` and its rules `scheduler.toml` in the
-  league folder. Conferences and divisions come from the standings file, the
-  same-place games from the divisions, and the writers take the league name.
-  No league or division name is left in scheduler code or tests; one validator
-  and one test suite run every league. The PCFL ships in `leagues\PCFL\` in
-  `config/dev/` and `config/release/`.
+- League data from the game's files: `--previous folder` holds the previous
+  season's `<league>.lge` (standings: records, opponents, playoff results),
+  `--upcoming folder` the upcoming season's (conferences, divisions, names;
+  default the league's `path`). Teams match by name; `[renames.<season>]` in
+  `scheduler.toml` lists the ones that changed (a realignment moves team
+  numbers, so numbers never match). Overall order: playoff finish, record,
+  strength of schedule, point differential, which reproduces the PNFL's
+  published 2048 order. Division finish: each upcoming division's members in
+  the lge library's order for the previous season as it stood, so a team that
+  moved keeps its record and the others shift around it (the 2002 NFL
+  realignment ranked its new divisions the same way). The
+  `standings\<season>.league.ini` files are gone.
+- League-agnostic: `--league NAME` picks the league; its rules are
+  `scheduler.toml` in the league folder. Conferences and divisions come from
+  the league file by position, the same-place games from the divisions, and
+  the writers take the league name. No league or division name is left in
+  scheduler code or tests; one validator and one test suite run every league.
+  The PCFL ships in `leagues\PCFL\` in `config/dev/` and `config/release/`.
 - Two league formats: the PNFL (divisions, 16 weeks) and the PCFL (two
   conferences of nine, 12 weeks, rivalry week). One matchup builder and one
   schedule builder; PNFL-only rules are toggles.
@@ -402,11 +415,12 @@ Working. Docs: [README](docs/scheduler/README.md) ·
 - Both phases run multithreaded and stop on deterministic time, not
   wall-clock, through one shared solver setup. Verified against the OR-Tools
   source: interleave search is valid here and used correctly.
-- league.ini simplified to `[DivisionStandings]` and `[OverallStandings]`.
-- Golden integration test compares three output files byte for byte.
+- Golden integration test compares three output files byte for byte; the
+  divisional case is the real 2048 PNFL season from its league files, the
+  conference case a built pair of league files.
 - Past PNFL seasons were re-ranked from real results using SOS tiebreaks, which
-  gave each following season's `league.ini` standings and a real-schedule
-  baseline to measure generated seasons against.
+  gave a real-schedule baseline to measure generated seasons against and the
+  ranking rule the loader now applies.
 - Every run writes to a new timestamped folder, so nothing is overwritten and
   there is no backup to make.
 

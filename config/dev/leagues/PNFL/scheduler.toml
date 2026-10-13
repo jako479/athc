@@ -104,3 +104,22 @@ soft_open_weeks_1_2_weight = 100
 # Season ending
 require_final_week_divisional = true         # final week is all divisional games (8 of 9)
 require_divisional_in_final_two_weeks = true # every team plays at least one in the last 2 weeks
+
+# Teams that changed their name between seasons, one table per upcoming season:
+# previous name = "new name". generate-schedule matches the previous season's
+# teams to the upcoming season's by name; a team not listed keeps its name.
+
+[renames.2047]
+# From the 2047 standings notes; to be confirmed.
+Houston = "Miami"
+"New York A" = "Cincinnati"
+Indianapolis = "Baltimore"
+"New York N" = "New York"
+
+[renames.2048]
+Baltimore = "Los Angeles"
+
+[renames.2049]
+Buffalo = "San Diego"
+"Los Angeles" = "Baltimore"
+Seattle = "Detroit"

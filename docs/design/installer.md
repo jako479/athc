@@ -73,7 +73,7 @@ feature with its `wsb` command line for the test.
   `CHANGELOG.txt` and `LICENSE.txt`. Adds a Start-menu shortcut to the README
   and opens it after install.
 - Seeds every file in `%LOCALAPPDATA%\athc` only if it is missing: `athc.ini`,
-  and each league's `league.toml`, standings and rule TOMLs.
+  and each league's `league.toml` and rule TOMLs.
 - Uninstall removes the program, its PATH entry, the Start-menu shortcut and
   the whole `%LOCALAPPDATA%\athc` folder, user edits included.
 

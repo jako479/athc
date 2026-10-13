@@ -4,6 +4,28 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-13 — **scheduler**: how a division whose members changed gets its
+  finish order. The lge library's method that ranked an arbitrary team list
+  was rejected as a kluge; the first replacement idea, rebuilding the previous
+  season under the upcoming divisions, was checked against the 2002 NFL
+  realignment and found wrong (New Orleans finished ahead of Atlanta on their
+  old division's record; the new division's would have flipped them). So the
+  previous season stays as it stood, ranked by a plain library function the
+  loader calls once per division; a loader sort was the simpler alternative
+  but would have been a second standings rule. The moved-team cases are
+  documented with the 2047 AFC East; the dead point-differential research
+  files went.
+- 2026-10-12 — **scheduler**: the standings come from the game's own league
+  files instead of a hand-written INI per season. The lge library grew the
+  played games, playoff results and the unplayed count; a new loader matches
+  the previous season's teams to the upcoming season's by name (with a
+  `[renames.<season>]` table, since a realignment moves team numbers around)
+  and ranks them. Point differential, the library's own tiebreak, got two tie
+  groups of the real 2048 order wrong; the league's strength-of-schedule rule
+  reproduces it exactly, so the scheduler uses that for the overall order.
+  Conferences and divisions now go by file position: the PNFL's conference
+  names are empty. The divisional golden moved to the real 2047 -> 2048 files;
+  the conference league gets a built pair so its goldens stayed.
 - 2026-10-09 — **athc**: review of the error-wording branch. Choices made
   while building it were checked against mainstream tools: a file in use
   keeps Windows' own words, a game-file reader writes its own sentences

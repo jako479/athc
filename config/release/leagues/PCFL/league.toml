@@ -1,10 +1,10 @@
 # PCFL league settings. Rules live here (gameplan.toml, profile.toml,
-# playpool.toml, pdbtoexcel.toml, scheduler.toml) and season standings in standings\
-# (<season>.league.ini). Reinstalling never overwrites this file.
+# playpool.toml, pdbtoexcel.toml, scheduler.toml). Reinstalling never
+# overwrites this file.
 
 [league]
-# Needed for check-ppp on a directory -- the folder that holds this
-# league's files (PCFL.lg2 and the rest).
+# Needed for check-ppp on a directory and for generate-schedule -- the folder
+# that holds this league's files (PCFL.lg2, PCFL.lge and the rest).
 path = 'E:\SIERRA\FbPro98'
 # REQUIRED for gameplan/profile/convert-pdb -- your FbPro98 league plays folder.
 play_path = 'E:\SIERRA\FbPro98\PCFL'

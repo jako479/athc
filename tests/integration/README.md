@@ -636,11 +636,12 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`.
 
 # `athc generate-schedule`
 
-In [test_generate_schedule.py](test_generate_schedule.py). Slow (a full solve per league) → `pytest -m slow`; not run by default. One test parametrized over two test leagues — `divisions` (2026) and `conferences` (2029). For each it installs committed, test-owned inputs into the config dir as `leagues/<league>/` — `data/<league>.<season>.ini` as `standings/<season>.league.ini` and the frozen `data/<league>.scheduler.toml` as `scheduler.toml` — then runs the scheduler end-to-end via the CLI (`athc generate-schedule --league <league>`) at a fixed seed (no `--time-limit`; the rules file drives the solve). **Golden regression**: validates the produced schedule against every rule that applies to that league (`schedule_validation.py`, the one validator), cross-checks that the `.html` schedule encodes the same games as the `.txt`, recomputes the report's ranks/SOS, then asserts the three output files byte-match the league's goldens in `expected/` (`schedule_<season>.*`; report run-info fields normalized). Depends on the fixed `solver_workers` reproducibility contract. Regenerate both golden sets with `python -m tests.integration.test_generate_schedule --bless`.
+In [test_generate_schedule.py](test_generate_schedule.py). Slow (a full solve per league) → `pytest -m slow`; not run by default. One test parametrized over two test leagues — `divisions` (the real 2048 PNFL season: `data/PNFL-2047-after-super-bowl.lge` and `data/PNFL-2048-after-week1.lge`) and `conferences` (2029: `data/conferences-previous.lge` and `data/conferences-upcoming.lge`, built by `league_files.py` from the test league's tables). For each it copies the two league files into `previous/` and `upcoming/` folders, installs the league in the config dir as `leagues/<league>/` — a `league.toml` whose `path` is the upcoming folder and the frozen `data/<league>.scheduler.toml` as `scheduler.toml` — then runs the scheduler end-to-end via the CLI (`athc generate-schedule --league <league> --previous <folder>`) at a fixed seed (no `--time-limit`; the rules file drives the solve). **Golden regression**: validates the produced schedule against every rule that applies to that league (`schedule_validation.py`, the one validator), cross-checks that the `.html` schedule encodes the same games as the `.txt`, recomputes the report's ranks/SOS, then asserts the three output files byte-match the league's goldens in `expected/` (`schedule_<season>.*`; report run-info fields normalized). Depends on the fixed `solver_workers` reproducibility contract. Regenerate the built conference files and both golden sets with `python -m tests.integration.test_generate_schedule --bless`. Two fast tests guard the built files: they reproduce the conference test league exactly, and the committed bytes match the builder.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Schedule follows every rule + matches golden, per league | `leagues/<league>/standings/<season>.league.ini`; `--league`, `--season --seed` | exit 0; all rules pass; 3 files byte-equal to that league's `expected/` goldens | `test_generate_schedule_matches_golden[divisions]` / `[conferences]` | ☑ |
+| Schedule follows every rule + matches golden, per league | the two `.lge` files; `--league`, `--season --previous --seed` | exit 0; all rules pass; 3 files byte-equal to that league's `expected/` goldens | `test_generate_schedule_matches_golden[divisions]` / `[conferences]` | ☑ |
+| Built conference files | `league_files.py` | reproduce the conference test league; committed bytes match | `test_conference_league_files_reproduce_the_test_league`, `test_committed_conference_league_files_match_the_builder` | ☑ |
 
 ---
 
@@ -714,14 +715,14 @@ In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.i
 |---|---|---|---|---|
 | At least one league ships | config/release/ | league folders found | `test_release_ships_leagues` | ☑ |
 | `[athc] league` names a shipped league | config/release/ | loads | `test_release_selected_league_loads` | ☑ |
-| Every league | config/release/ | play_path and path set; standings folder present | `test_release_league_loads` `[P]` | ☑ |
+| Every league | config/release/ | play_path and path set; category labels present | `test_release_league_loads` `[P]` | ☑ |
 | `[autocontinue]` | config/release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
 | gameplan, every league | config/release/ | loads; playpool rules and rule files exist | `test_release_gameplan_config_loads` `[P]` | ☑ |
 | profile, every league | config/release/ | loads; rule files exist | `test_release_profile_config_loads` `[P]` | ☑ |
 | convert-pdb, every league | config/release/ | loads; the league's `playpool.toml` exists | `test_release_convert_pdb_config_loads` `[P]` | ☑ |
 | `[convert-pdb]` options | config/release/ | spelled out in `athc.ini`; sacks counted as attempts | `test_release_convert_pdb_defaults` | ☑ |
-| scheduler, every league | config/release/ | tunables load; every standings file resolves | `test_release_scheduler_files_load` `[P]` | ☑ |
-| `config/dev/` mirrors `config/release/` | both | same `athc.ini`, `league.toml`, rules and standings files | `test_dev_mirrors_release_layout` | ☑ |
+| scheduler, every league | config/release/ | the rules path is the league folder's `scheduler.toml`; it loads | `test_release_scheduler_files_load` `[P]` | ☑ |
+| `config/dev/` mirrors `config/release/` | both | same `athc.ini`, `league.toml` and rules files | `test_dev_mirrors_release_layout` | ☑ |
 
 ---
 

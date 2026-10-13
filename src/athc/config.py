@@ -26,8 +26,8 @@ CONFIG_FILE = "athc.ini"
 LEAGUES_DIR = "leagues"
 LEAGUE_FILE = "league.toml"
 LEAGUE_SECTION = "league"
+LEAGUE_PATH_KEY = "path"  # [league] path: the folder holding the league's files
 CATEGORIES_SECTION = "categories"
-STANDINGS_DIR = "standings"
 
 
 def config_dir() -> Path:

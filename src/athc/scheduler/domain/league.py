@@ -12,11 +12,18 @@ CONFERENCES_PER_LEAGUE = 2
 
 @dataclass(frozen=True, slots=True)
 class Conference:
+    number: int
+    """1-based position in the league file: the identity and the sort key,
+    since a name may be empty or repeat (the PNFL's are both empty)."""
+
     name: str
 
 
 @dataclass(frozen=True, slots=True)
 class Division:
+    number: int
+    """1-based position in the league file, counted across conferences."""
+
     name: str
     conference: Conference
     expected_size: int
@@ -32,7 +39,7 @@ class Team:
         if self.division is not None and self.division.conference != self.conference:
             raise ValueError(
                 f"{self.metro}: division {self.division.name} is not in conference "
-                f"{self.conference.name}"
+                f"{_label(self.conference)}"
             )
 
     def same_division(self, other: Team) -> bool:
@@ -65,69 +72,20 @@ class ConferenceRankings:
         return self.overall.index(team) + 1
 
 
-def _division_name(team: Team) -> str:
-    return team.division.name if team.division is not None else ""
+def _label(conference: Conference) -> str:
+    # For messages: the name, or the position when the league file names none.
+    return conference.name or f"Conference {conference.number}"
+
+
+def _division_number(team: Team) -> int:
+    return team.division.number if team.division is not None else 0
 
 
 def ordered_teams(teams: Sequence[Team]) -> list[Team]:
-    """Canonical order: conference name, division name, metro."""
-    return sorted(teams, key=lambda t: (t.conference.name, _division_name(t), t.metro))
-
-
-def _clean(metros: Sequence[str]) -> tuple[str, ...]:
-    return tuple(m.strip() for m in metros if m.strip())
-
-
-def build_teams(
-    standings: Mapping[str, Sequence[str]], *, divisions: bool
-) -> tuple[Team, ...]:
-    """Build the teams tuple from standings-keyed metro lists.
-
-    With `divisions`, each key is `<CONFERENCE>_<DIVISION>` (split on the first
-    underscore) and the division's size is its line count; without, each key is
-    a conference name. Exactly two conferences of nine, no metro twice. Teams are
-    returned in canonical order (conference, division, metro); the input line
-    order (a finish) is kept separately in `division_standings`.
-    """
-    conferences: dict[str, Conference] = {}
-    teams: list[Team] = []
-    seen_metros: set[str] = set()
-    for key, raw in standings.items():
-        metros = _clean(raw)
-        if not metros:
-            raise ValueError(f"{key} lists no teams")
-        if divisions:
-            conference_name, sep, division_name = key.partition("_")
-            if not sep or not conference_name or not division_name:
-                raise ValueError(
-                    f"Division key {key!r} must be <CONFERENCE>_<DIVISION>"
-                )
-            conference = conferences.setdefault(
-                conference_name, Conference(conference_name)
-            )
-            division: Division | None = Division(key, conference, len(metros))
-        else:
-            conference = conferences.setdefault(key, Conference(key))
-            division = None
-        for metro in metros:
-            if metro in seen_metros:
-                raise ValueError(f"Duplicate team in standings: {metro}")
-            seen_metros.add(metro)
-            teams.append(Team(metro=metro, conference=conference, division=division))
-
-    if len(conferences) != CONFERENCES_PER_LEAGUE:
-        raise ValueError(
-            f"Expected exactly {CONFERENCES_PER_LEAGUE} conferences, got "
-            f"{len(conferences)}: {', '.join(sorted(conferences))}"
-        )
-    for conference in conferences.values():
-        size = sum(1 for team in teams if team.conference == conference)
-        if size != TEAMS_PER_CONFERENCE:
-            raise ValueError(
-                f"{conference.name} must have exactly {TEAMS_PER_CONFERENCE} teams; "
-                f"got {size}"
-            )
-    return tuple(ordered_teams(teams))
+    """Canonical order: conference, division (both by file position), metro."""
+    return sorted(
+        teams, key=lambda t: (t.conference.number, _division_number(t), t.metro)
+    )
 
 
 def team_by_metro(teams: Sequence[Team]) -> dict[str, Team]:
@@ -144,7 +102,7 @@ def lookup_team(teams: Sequence[Team], metro: str) -> Team:
 
 @dataclass(frozen=True, slots=True)
 class League:
-    """Teams in canonical order, the two conferences (sorted by name), the
+    """Teams in canonical order, the two conferences (by file position), the
     standings-derived rankings, and each division's previous-season finish
     order (empty for a league without divisions)."""
 
@@ -159,7 +117,7 @@ class League:
 
     @property
     def divisions(self) -> tuple[Division, ...]:
-        return tuple(sorted(self.division_standings, key=lambda d: d.name))
+        return tuple(sorted(self.division_standings, key=lambda d: d.number))
 
     @property
     def max_divisional_games_per_week(self) -> int:
@@ -197,34 +155,52 @@ class League:
 
 
 def build_league(
-    standings: Mapping[str, Sequence[str]],  # key -> finish order
-    overall_ranking: Sequence[str],  # all 18 metros, best to worst
-    *,
-    divisions: bool,
+    teams: Sequence[Team],
+    overall: Sequence[Team],
+    division_standings: Mapping[Division, Sequence[Team]] | None = None,
 ) -> League:
-    """Build a `League`: the standings section (`[DivisionStandings]` or
-    `[ConferenceStandings]`) defines membership and each group's finish order;
-    `[OverallStandings]` gives the 1-18 order."""
-    teams = build_teams(standings, divisions=divisions)
-    division_standings: dict[Division, tuple[Team, ...]] = {}
-    if divisions:
-        by_name = {t.division.name: t.division for t in teams if t.division}
-        division_standings = {
-            by_name[key]: tuple(lookup_team(teams, metro) for metro in _clean(metros))
-            for key, metros in standings.items()
-        }
-    overall = tuple(lookup_team(teams, metro) for metro in overall_ranking)
-    _validate_overall(overall, teams)
-    conferences = tuple(sorted({t.conference for t in teams}, key=lambda c: c.name))
+    """Check and assemble a `League`: `teams` in any order, `overall` the 1-18
+    finish, `division_standings` each division's finish order (None for a
+    league without divisions).
+
+    Raises ValueError: a metro twice; not exactly two conferences; a conference
+    without nine teams; `overall` not every team exactly once; with
+    `division_standings`, a team without a division, a division whose finish
+    is not exactly its members once, a division without a finish, or a
+    division whose `expected_size` is not its member count; without it, a team
+    that has a division.
+    """
+    ordered = tuple(ordered_teams(teams))
+    seen: set[str] = set()
+    for team in ordered:
+        if team.metro in seen:
+            raise ValueError(f"Duplicate team: {team.metro}")
+        seen.add(team.metro)
+    conferences = tuple(sorted({t.conference for t in ordered}, key=lambda c: c.number))
+    if len(conferences) != CONFERENCES_PER_LEAGUE:
+        raise ValueError(
+            f"Expected exactly {CONFERENCES_PER_LEAGUE} conferences, "
+            f"got {len(conferences)}"
+        )
+    for conference in conferences:
+        size = sum(1 for team in ordered if team.conference == conference)
+        if size != TEAMS_PER_CONFERENCE:
+            raise ValueError(
+                f"{_label(conference)} must have exactly {TEAMS_PER_CONFERENCE} "
+                f"teams; got {size}"
+            )
+    ranking = tuple(overall)
+    _validate_overall(ranking, ordered)
+    finish = _validate_divisions(ordered, division_standings)
     by_conference = {
-        conference: tuple(t for t in overall if t.conference == conference)
+        conference: tuple(t for t in ranking if t.conference == conference)
         for conference in conferences
     }
     return League(
-        teams=teams,
+        teams=ordered,
         conferences=conferences,
-        rankings=ConferenceRankings(by_conference=by_conference, overall=overall),
-        division_standings=division_standings,
+        rankings=ConferenceRankings(by_conference=by_conference, overall=ranking),
+        division_standings=finish,
     )
 
 
@@ -238,3 +214,42 @@ def _validate_overall(ranking: tuple[Team, ...], teams: tuple[Team, ...]) -> Non
         raise ValueError(
             f"Overall standings have duplicate teams: {', '.join(duplicates)}"
         )
+    strangers = [t.metro for t in ranking if t not in teams]
+    if strangers:
+        raise ValueError(
+            f"Overall standings name a team not in the league: {', '.join(strangers)}"
+        )
+
+
+def _validate_divisions(
+    teams: tuple[Team, ...],
+    division_standings: Mapping[Division, Sequence[Team]] | None,
+) -> dict[Division, tuple[Team, ...]]:
+    if division_standings is None:
+        placed = [t.metro for t in teams if t.division is not None]
+        if placed:
+            raise ValueError(f"Division finish missing for: {', '.join(placed)}")
+        return {}
+    loose = [t.metro for t in teams if t.division is None]
+    if loose:
+        raise ValueError(f"No division for: {', '.join(loose)}")
+    finish: dict[Division, tuple[Team, ...]] = {}
+    for division in sorted(
+        {t.division for t in teams if t.division}, key=lambda d: d.number
+    ):
+        members = tuple(t for t in teams if t.division == division)
+        if division.expected_size != len(members):
+            raise ValueError(
+                f"{division.name} has {len(members)} teams, "
+                f"not {division.expected_size}"
+            )
+        if division not in division_standings:
+            raise ValueError(f"No finish order for {division.name}")
+        order = tuple(division_standings[division])
+        if len(order) != len(set(order)) or set(order) != set(members):
+            raise ValueError(
+                f"{division.name} finish must list its {len(members)} teams once; "
+                f"got {', '.join(t.metro for t in order)}"
+            )
+        finish[division] = order
+    return finish

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from itertools import islice
 from os import PathLike
 from pathlib import Path
 
 from athc.errors import FileFormatError
-from athc.fbpro98_lge.model import Conference, Division, LgeFile, Record, Team
+from athc.fbpro98_lge.model import Conference, Division, Game, LgeFile, Record, Team
 from athc.fbpro98_lge.schema import (
     CHUNK_HEADER,
     CONFERENCE_BASE_SIZE,
@@ -37,11 +38,27 @@ from athc.fbpro98_lge.schema import (
     TEAM_NAME_OFFSET,
     TEAM_TEXT_SIZE,
 )
+from athc.fbpro98_lge.standings import rank, season_from_games
 
 StrPath = str | PathLike[str]
 
 # A conference's name and its divisions' names and team counts, in file order.
 _Heads = list[tuple[str, list[tuple[str, int]]]]
+
+# A played game as the file has it: home team number, home score, away team
+# number, away score.
+_RawGame = tuple[int, int, int, int]
+
+
+@dataclass(frozen=True, slots=True)
+class _Schedule:
+    """What the S03 chunk gives: each team's record, the played games by
+    regular-season week and by playoff round, and the unplayed count."""
+
+    records: list[Record]
+    weeks: list[list[_RawGame]]
+    playoffs: list[list[_RawGame]]
+    unplayed: int
 
 
 class InvalidLgeError(FileFormatError):
@@ -61,7 +78,8 @@ def read_lge(league: str, league_dir: StrPath) -> LgeFile:
     Raises:
         InvalidLgeError: If the file is empty; a chunk is cut short, missing,
             out of order or the wrong size; the schedule is cut short or
-            followed by data; or a played game names an unknown team.
+            followed by data; or a played game, regular season or playoff,
+            names an unknown team.
         OSError: If the file cannot be opened or read.
     """
     file_path = Path(league_dir) / f"{league}.lge"
@@ -82,7 +100,8 @@ def parse_lge(buffer: bytes, path: StrPath = "<buffer>") -> LgeFile:
     Raises:
         InvalidLgeError: If the buffer is empty; a chunk is cut short, missing,
             out of order or the wrong size; the schedule is cut short or
-            followed by data; or a played game names an unknown team.
+            followed by data; or a played game, regular season or playoff,
+            names an unknown team.
     """
     file_path = Path(path)
     if not buffer:
@@ -95,9 +114,15 @@ def parse_lge(buffer: bytes, path: StrPath = "<buffer>") -> LgeFile:
     heads, names = walk(chunks, conference_count)
     # Required after the tree, so a tree with more conferences, divisions or
     # teams than its counts say fails here.
-    records = _read_schedule(chunks, len(names))
+    schedule = _read_schedule(chunks, len(names))
     chunks.finish()
-    return LgeFile(conferences=_build(heads, names, records))
+    teams, conferences = _build(heads, names, schedule)
+    return LgeFile(
+        conferences=conferences,
+        weeks=_games(schedule.weeks, teams),
+        playoffs=_games(schedule.playoffs, teams),
+        unplayed_games=schedule.unplayed,
+    )
 
 
 def _walk_nested(
@@ -136,7 +161,7 @@ def _walk_grouped(
     return heads, names
 
 
-def _read_schedule(chunks: _Chunks, team_count: int) -> list[Record]:
+def _read_schedule(chunks: _Chunks, team_count: int) -> _Schedule:
     offset = chunks.offset
     data = chunks.take(ID_S03)
     label = f"S03 chunk at {offset:#x}"
@@ -146,8 +171,8 @@ def _read_schedule(chunks: _Chunks, team_count: int) -> list[Record]:
         )
     regular_weeks = data[SCHEDULE_REGULAR_WEEKS_OFFSET]
     weeks = regular_weeks + data[SCHEDULE_PLAYOFF_ROUNDS_OFFSET]
-    # One (scored, allowed) pair per played game, by team number - 1.
-    scores: list[list[tuple[int, int]]] = [[] for _ in range(team_count)]
+    played: list[list[_RawGame]] = []
+    unplayed = 0
     position = SCHEDULE_HEADER_SIZE
     for week in range(1, weeks + 1):
         if position == len(data):
@@ -155,24 +180,59 @@ def _read_schedule(chunks: _Chunks, team_count: int) -> list[Record]:
         end = position + 1 + data[position] * GAME.size
         if end > len(data):
             raise chunks.error(f"{label} is cut short in week {week}.")
-        # Playoff games never count; unplayed ones may not name their teams yet.
-        if week <= regular_weeks:
-            games = GAME.iter_unpack(data[position + 1 : end])
-            for home, home_score, away, away_score, _, status in games:
-                if status != GAME_PLAYED:
-                    continue
-                for number in (home, away):
-                    if not 1 <= number <= team_count:
-                        raise chunks.error(
-                            f"{label}, week {week}: No team {number} "
-                            f"(teams are 1-{team_count})."
-                        )
-                scores[home - 1].append((home_score, away_score))
-                scores[away - 1].append((away_score, home_score))
+        games: list[_RawGame] = []
+        for home, home_score, away, away_score, _, status in GAME.iter_unpack(
+            data[position + 1 : end]
+        ):
+            # An unplayed game may not name its teams yet.
+            if status != GAME_PLAYED:
+                unplayed += 1
+                continue
+            for number in (home, away):
+                if not 1 <= number <= team_count:
+                    raise chunks.error(
+                        f"{label}, week {week}: No team {number} "
+                        f"(teams are 1-{team_count})."
+                    )
+            games.append((home, home_score, away, away_score))
+        played.append(games)
         position = end
     if position != len(data):
         raise chunks.error(f"{label} has data after the last week.")
+    return _Schedule(
+        records=_records(played[:regular_weeks], team_count),
+        weeks=played[:regular_weeks],
+        playoffs=played[regular_weeks:],
+        unplayed=unplayed,
+    )
+
+
+def _records(weeks: list[list[_RawGame]], team_count: int) -> list[Record]:
+    # Playoff games never count. One (scored, allowed) pair per game, by team
+    # number - 1.
+    scores: list[list[tuple[int, int]]] = [[] for _ in range(team_count)]
+    for games in weeks:
+        for home, home_score, away, away_score in games:
+            scores[home - 1].append((home_score, away_score))
+            scores[away - 1].append((away_score, home_score))
     return [_record(team_scores) for team_scores in scores]
+
+
+def _games(
+    weeks: list[list[_RawGame]], teams: list[Team]
+) -> tuple[tuple[Game, ...], ...]:
+    return tuple(
+        tuple(
+            Game(
+                home=teams[home - 1],
+                home_score=home_score,
+                away=teams[away - 1],
+                away_score=away_score,
+            )
+            for home, home_score, away, away_score in games
+        )
+        for games in weeks
+    )
 
 
 def _record(scores: list[tuple[int, int]]) -> Record:
@@ -186,23 +246,52 @@ def _record(scores: list[tuple[int, int]]) -> Record:
 
 
 def _build(
-    heads: _Heads, names: list[tuple[str, str]], records: list[Record]
-) -> tuple[Conference, ...]:
-    # Teams are numbered 1..N in file order, the numbers the schedule uses.
-    teams = iter(
+    heads: _Heads, names: list[tuple[str, str]], schedule: _Schedule
+) -> tuple[list[Team], tuple[Conference, ...]]:
+    """The teams in file order (team N at index N - 1, the numbers the
+    schedule uses) and the conference tree, each division and conference with
+    its standings."""
+    teams = [
         Team(name=name, nickname=nickname, record=record)
-        for (name, nickname), record in zip(names, records, strict=True)
+        for (name, nickname), record in zip(names, schedule.records, strict=True)
+    ]
+    division_of: dict[int, int] = {}
+    conference_of: dict[int, int] = {}
+    number = division_number = 0
+    for conference_number, (_, divisions) in enumerate(heads, 1):
+        for _, count in divisions:
+            division_number += 1
+            for _ in range(count):
+                number += 1
+                division_of[number] = division_number
+                conference_of[number] = conference_number
+    season = season_from_games(
+        (game for week in schedule.weeks for game in week), division_of, conference_of
     )
-    return tuple(
-        Conference(
-            name=name,
-            divisions=tuple(
-                Division(name=division_name, teams=tuple(islice(teams, count)))
-                for division_name, count in divisions
-            ),
+
+    def ranked(numbers: list[int]) -> tuple[Team, ...]:
+        return tuple(teams[n - 1] for n in rank(numbers, season))
+
+    conferences: list[Conference] = []
+    number = 0
+    for name, divisions in heads:
+        built: list[Division] = []
+        members: list[int] = []
+        for division_name, count in divisions:
+            numbers = list(range(number + 1, number + count + 1))
+            number += count
+            members += numbers
+            built.append(
+                Division(
+                    name=division_name,
+                    teams=tuple(teams[n - 1] for n in numbers),
+                    standings=ranked(numbers),
+                )
+            )
+        conferences.append(
+            Conference(name=name, divisions=tuple(built), standings=ranked(members))
         )
-        for name, divisions in heads
-    )
+    return teams, tuple(conferences)
 
 
 def _take_conference(chunks: _Chunks) -> tuple[str, int]:

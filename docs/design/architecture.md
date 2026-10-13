@@ -16,11 +16,11 @@ athc/
   config/
     dev/                                 # dev config (ATHC_CONFIG_DIR), mirrors release\
       athc.ini
-      leagues/                           # per-league league.toml, rule TOMLs, standings\
+      leagues/                           # per-league league.toml and rule TOMLs
     release/                             # source for the end-user release
       docs/                              # user-facing docs (README, COMMANDS, ...)
       athc.ini                           # example config
-      leagues/                           # per-league league.toml, rule TOMLs, standings\
+      leagues/                           # per-league league.toml and rule TOMLs
   src/athc/
     __init__.py
     __main__.py                          # python -m athc
@@ -54,7 +54,7 @@ athc/
     # TOOLS (logic only; no Click)
     gameplan/        config.py  model.py  rules.py  reader.py  writer.py
     profile/         config.py  model.py  diff.py   display.py
-    scheduler/       config.py  main.py   domain/  schedulers/  writers/
+    scheduler/       config.py  main.py   league_files.py  domain/  schedulers/  writers/
     pdbtoexcel/      config.py  main.py  pdb.py  workbook_creator.py  excel_workbook.py
     autocontinue/    config.py  main.py  images/
 
@@ -233,7 +233,7 @@ Per command: each tool's README carries its lines, what counts as a finding, and
 ### Config
 
 - `athc.ini` is INI via stdlib `configparser`, the Windows convention a user edits in Notepad; `%LOCALAPPDATA%\athc\athc.ini`, resolved with `platformdirs`, or the whole dir replaced by `ATHC_CONFIG_DIR` ([Running from source](#running-from-source)). Each league's `league.toml` and rule files are TOML via stdlib `tomllib`: nested tables, quoted keys with spaces, comments. `configparser` is the only mainstream option with native `[DEFAULT]` cascade and `%(key)s` interpolation; pydantic-settings, dynaconf and confuse don't fit. If load-site validation ever hurts, the upgrade is `pydantic.dataclasses.dataclass` on each `Config` class, keeping `configparser` as the loader.
-- `athc.ini` holds only app-wide sections (`[athc] league`, `[autocontinue]`, `[convert-pdb]`). Everything per-league lives in one folder per league under `leagues\`, named by the folder, with fixed well-known file names nothing lists in config: `league.toml`, `gameplan.toml`, `profile.toml`, `playpool.toml`, `pdbtoexcel.toml`, `scheduler.toml`, `standings\<season>.league.ini`.
+- `athc.ini` holds only app-wide sections (`[athc] league`, `[autocontinue]`, `[convert-pdb]`). Everything per-league lives in one folder per league under `leagues\`, named by the folder, with fixed well-known file names nothing lists in config: `league.toml`, `gameplan.toml`, `profile.toml`, `playpool.toml`, `pdbtoexcel.toml`, `scheduler.toml`. League data that lives in the game's own files (standings, teams) is read from those files, never copied into config.
 - `[league]` in `league.toml` holds the per-league values that are not files in the folder (`path`, the folder holding the league's files; `play_path`, the plays folder; athc-admin's `db_path`, `log_dir`); values are strings or arrays of strings, relative paths resolve against the league folder.
 - `[categories.offense]` / `[categories.defense]` in `league.toml` give the league's short names for the game's play categories, keyed by the game's name (`"Run Right" = "RR"`); the shipped files list every category of each side in the game's order, the unlabeled ones commented out. Rule files, play-pool folders, `replace-play` and `convert-pdb`'s category order all use these labels (game name where the league has none); special-teams categories have no labels. A key that is not a category of its side, an empty or repeated label, or a label equal to a category name is a `ConfigFileError`. Code: `CategoryLabels` in `athc.fbpro98_play`, carried as `LeagueConfig.categories`.
 - Each tool reads its one fixed rule file from the league folder; an optional array in `league.toml` (`gameplan_rules`, `profile_rules`) replaces it with an ordered set, later files overriding earlier. No command-line option overrides the league's rules or play pool, and there is no shared default outside the league folders.

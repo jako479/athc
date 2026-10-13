@@ -35,7 +35,8 @@ season 2049) and the stock leagues shipped with the game (1992-1997).
   scores. Chunk tree, depth-first; team numbers 1..N follow it and key every
   other file. Team and roster chunks masked (below). Spec:
   [lge.md](../fbpro98_lge/specs/lge.md). Library: `fbpro98_lge`
-  (conference, division and team names; standings). One layout in every
+  (conference, division and team names; standings; the played games and
+  playoff results), used by `generate-schedule`. One layout in every
   sampled league, nested or grouped by chunk kind (five stock files); the
   8-12 team stock leagues have a one-byte-shorter league chunk.
 - `.rst` rosters: the `.lge` roster chunks, byte for byte. Same mask.

@@ -11,54 +11,66 @@ The scheduler uses the OR-Tools solver, which the installer already includes.
 generate-schedule  --  build the season schedule
    ----------------------------------------------
 
-   Reads the league's standings file, solves the schedule, and writes a .txt
-   and .html schedule plus a sortable HTML report (per-team strength of
+   Reads two of the league's game files, solves the schedule, and writes a
+   .txt and .html schedule plus a sortable HTML report (per-team strength of
    schedule; click a column header to sort) to the current folder. Files are
    named schedule_<season>_<timestamp>; the report adds a _report.html suffix.
+
+   The previous season's <league>.lge (saved after its last playoff game)
+   gives the standings: each team's record and playoff finish. The upcoming
+   season's <league>.lge gives the conferences, divisions and team names.
+   Teams are matched by name; list a team that changed its name under
+   [renames.<season>] in the league's scheduler.toml.
 
    Show help:
       athc generate-schedule -h
 
    Example terminal calls:
-      athc generate-schedule --season 2048
-      athc generate-schedule --league PCFL --season 2029 --seed 7
+      athc generate-schedule --season 2050 --previous "E:\PNFL\2049 final"
+      athc generate-schedule --league PCFL --season 2030 --previous D:\PCFL\2029 --seed 7
 
    Options:
       --league name         league to schedule; default is [athc] league
-      --season year         (required) season to schedule, e.g. 2048; reads
-                            standings\<season>.league.ini from the league
-                            folder (run 'athc config path')
+      --season year         (required) season to schedule, e.g. 2050
+      --previous folder     (required) folder holding the previous season's
+                            league files; its <league>.lge gives the standings
+      --upcoming folder     folder holding the upcoming season's league files;
+                            its <league>.lge gives the conferences, divisions
+                            and teams. Default: path in league.toml
       --seed number         random seed for reproducible output
       --time-limit number   override the solver time limit (CP-SAT
                             deterministic time, not wall-clock seconds)
 
    Progress prints as it runs; each file written gets an OK line, then
    "Generated <n> games (seed <s>)". Exit 0 = written, 2 = bad arguments
-   or an error (league, config, no feasible schedule).
+   or an error (league, config, a league file, no feasible schedule).
+
+   The previous season must be finished (every regular-season and playoff
+   game played). Teams rank by playoff finish, then record, then strength of
+   schedule (opponents' combined record), then point differential; each
+   division's finish order ranks its upcoming members by their records.
+
+   A team that moved keeps its previous season. Renamed in the same
+   division: list it under [renames.<season>] and it keeps its place under
+   the new name. Placed in a different division: that division's finish
+   order ranks its new members on their previous records, so the others
+   shift around it; the overall order is unchanged. 2047 AFC East: Miami
+   (11-5 as Houston) and Jacksonville (5-11) came over from the West,
+   Buffalo (10-6) and New England (3-13) stayed, so the East's order became
+   Miami, Buffalo, Jacksonville, New England.
 
 
 CONFIG FILES (in %LOCALAPPDATA%\athc\leagues\<NAME>\)
    ---------------------------------------------------
 
-   standings\<season>.league.ini (e.g. 2048.league.ini, 2029.league.ini) --
-   the standings. You supply this; --league and --season pick which file to
-   read. Sections:
-
-      [OverallStandings]   Last season's final standings: all 18 teams, one
-                           per line, 1st (best) through 18th. Per-conference
-                           ranks derive from it. Required.
-      [DivisionStandings]  A league with divisions: each division's teams in
-                           last season's finish order, best first. The key
-                           names the conference and the division
-                           (AFC_EAST, NFC_WEST, ...); the line count is the
-                           division's size. Two conferences of nine teams.
-      [ConferenceStandings] A league without divisions: each conference's
-                           teams in finish order, best first. Two conferences
-                           of nine teams.
-
-      A file has exactly one of [DivisionStandings] and [ConferenceStandings].
+   league.toml -- path names the folder that holds the league's files; it is
+   the default upcoming-season folder.
 
    scheduler.toml -- optional tuning (difficulty tilt, solver time
-   limits, weeks, rule amounts and toggles, rivalries). Every key defaults if
-   absent; edit only to change a default. See the comments in the shipped
-   PNFL and PCFL files.
+   limits, weeks, rule amounts and toggles, rivalries) and the renamed teams:
+
+      [renames.2048]
+      Baltimore = "Los Angeles"      previous name = "new name"
+
+   Every other key defaults if absent; edit only to change a default. See the
+   comments in the shipped PNFL and PCFL files.

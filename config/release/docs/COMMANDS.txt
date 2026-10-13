@@ -11,10 +11,10 @@ Run tools from any terminal (Command Prompt or PowerShell):
    athc <group> <subcommand> --help   show help for one subcommand
 
 Settings live in athc.ini (the file documents every option inline). Each league
-is a folder under leagues\ next to it: league.toml (path, play_path, category names), rule files
-(gameplan.toml, profile.toml, playpool.toml, scheduler.toml) and standings\
-(<season>.league.ini). League-aware tools use the league named by [athc] league
-unless the command is given --league NAME.
+is a folder under leagues\ next to it: league.toml (path, play_path, category names)
+and rule files (gameplan.toml, profile.toml, playpool.toml, scheduler.toml).
+League-aware tools use the league named by [athc] league unless the command is
+given --league NAME.
 
 
 1) gameplan check  --  validate a .pln game plan against league rules
