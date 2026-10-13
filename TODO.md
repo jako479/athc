@@ -2,6 +2,7 @@
 
 ## 1.0.0
 
+- [ ] check-ppp: team and league modes (`team` and `ppp_path` in league.toml, `--team`, `--all-teams`); `gameplan check` and `profile check` stay; see [docs/design/TODO/check-ppp-cli.md](docs/design/TODO/check-ppp-cli.md)
 - [ ] athc: reorganize the docs folders and set the rule for design docs and plans; see [docs/design/TODO/docs-layout.md](docs/design/TODO/docs-layout.md)
 - [ ] athc: go through the CLI and help text for each command; see [docs/design/TODO/cli-help.md](docs/design/TODO/cli-help.md)
 - [ ] athc: go through all messages, warnings and errors for each command — messages name the file and line number, then say the problem in plain words; see [docs/design/TODO/logging-updates.md](docs/design/TODO/logging-updates.md)
