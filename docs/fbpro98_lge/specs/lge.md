@@ -190,39 +190,33 @@ Order inside a group is depth: the roster screen numbers each position in slot o
 
 Permutation (0xBD), checked against the stock leagues and the league's saved 2048 copies (`E:\PNFL\League - League Files\2048`, 125 `PNFL.lge` and `pnfl.rst` files, preseason to week 17):
 
-- Every team's is different in `PNFL.lge`.
-- The NFL stock leagues (`NFLPA92` to `NFLPI97R`, `_default`, `Sierra`, `Test`) reuse one fixed list; each 30-team file has two identical pairs.
-- The 0 is last in `PNFL.lge`, its 2048 copies and the NFL stock leagues; the 8-18 team stock leagues (`08_TEAMS` to `18_TEAMS`) put it anywhere and reuse each other's lists.
+- Every team in a file has a different one, except in the 30-team NFL stock leagues: they have only 28, so two pairs of teams share one each.
+- The NFL stock leagues (`NFLPA92` to `NFLPI97R`, `_default`, `Sierra`, `Test`) all use the same 28.
+- The 8-18 team stock leagues (`08_TEAMS` to `18_TEAMS`) share some of theirs with each other.
+- The 0 is last in `PNFL.lge`, its 2048 copies and the NFL stock leagues; the 8-18 team stock leagues put it anywhere.
 - It changes once a season, at the rollover (weeks played back to 0), and stays fixed from preseason to the last week. Each team gets its own new one: none is shifted, reversed or passed to another team; two teams kept theirs at the 2049 rollover.
 - In the 2048 preseason copies, the `pnfl.rst` permutations differ from the `.lge`'s; from week 1 on they match.
 
 Training camp (0xC7): the game's Training Camp screen, opened with the Camp Setup button and saved with Accept Settings. One 8-byte row per position group, in the screen's column order:
 
-| Offset | Position |
-| -----: | :------- |
-|   0xC7 | QB's     |
-|   0xCF | RB's     |
-|   0xD7 | REC's    |
-|   0xDF | OL's     |
-|   0xE7 | DL's     |
-|   0xEF | LB's     |
-|   0xF7 | DB's     |
-|   0xFF | P/K      |
+| Offset | Size | Type  | Name  | Description         |
+| -----: | ---: | :---- | :---- | :------------------ |
+|   0xC7 |    8 | u8[8] | QB's  | Quarterbacks        |
+|   0xCF |    8 | u8[8] | RB's  | Running backs       |
+|   0xD7 |    8 | u8[8] | REC's | Receivers           |
+|   0xDF |    8 | u8[8] | OL's  | Offensive line      |
+|   0xE7 |    8 | u8[8] | DL's  | Defensive line      |
+|   0xEF |    8 | u8[8] | LB's  | Linebackers         |
+|   0xF7 |    8 | u8[8] | DB's  | Defensive backs     |
+|   0xFF |    8 | u8[8] | P/K   | Punters and kickers |
 
 Each row holds one byte per attribute (the screen's rows), in the `.pyr` ratings order, not the screen's:
 
-| Byte | Attribute       | Activity        |
-| ---: | :-------------- | :-------------- |
-|    0 | AC acceleration | Wind Sprints    |
-|    1 | AG agility      | Footwork Drills |
-|    2 | DI discipline   | Scrimmages      |
-|    3 | EN endurance    | Daily Doubles   |
-|    4 | HA hands        | Ball Handling   |
-|    5 | IN intelligence | Game Films      |
-|    6 | SP speed        | Speed Drills    |
-|    7 | ST strength     | Weight Training |
+| Byte      | 0   | 1   | 2   | 3   | 4   | 5   | 6   | 7   |
+| :-------- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| Attribute | AC  | AG  | DI  | EN  | HA  | IN  | SP  | ST  |
 
-Each byte is a percentage, `0`-`100`, and a row totals at most 100. The game saves a row under 100, but the team is ready for camp only when every row totals 100. A team never set up is all zero. Setting camp rewrites the `.lge` only; `pnfl.rst` keeps its old bytes.
+Each byte is a percentage, `0`-`100`, and a row totals at most 100. A team never set up is all zero.
 
 60-byte table (0x107): identical in every team, in all 125 copies of the 2048 season and in the 2049 sample. Every hex digit is 1-7; the last two 4-byte groups are equal.
 
