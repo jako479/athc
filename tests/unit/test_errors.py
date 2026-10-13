@@ -36,7 +36,6 @@ from athc.fbpro98_profile import InvalidProfileError, UnsupportedProfileError
 from athc.gameplan import RulesFileError as GameplanRulesFileError
 from athc.gameplan.writer import InvalidPlayListError
 from athc.pdbtoexcel import InvalidPDBError
-from athc.playpool import RulesFileError as PoolRulesFileError
 from athc.profile import ProfileTypeMismatchError
 from athc.profile import RulesFileError as ProfileRulesFileError
 from athc.scheduler import config as scheduler_config
@@ -316,7 +315,7 @@ def test_toml_reason() -> None:
 
 
 def test_rules_file_error_is_shared() -> None:
-    assert GameplanRulesFileError is ProfileRulesFileError is PoolRulesFileError
+    assert GameplanRulesFileError is ProfileRulesFileError
 
 
 def test_rules_file_error_carries_every_message() -> None:

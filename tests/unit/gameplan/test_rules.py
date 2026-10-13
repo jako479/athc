@@ -209,7 +209,7 @@ def test_min_count_must_be_int(tmp_path: Path) -> None:
 def test_run_cap_rejected_on_pass(tmp_path: Path) -> None:
     text = (
         MINIMAL
-        + "[offense.PSL]\nrequired = true\nmin_count = 5\nmax_qb_draws_count = 1\n"
+        + "[offense.PSL]\nrequired = true\nmin_count = 5\nmax_qb_runs_count = 1\n"
     )
     with pytest.raises(RulesFileError, match="Unknown key"):
         load_rules([write(tmp_path, text)])
@@ -230,7 +230,7 @@ def test_pass_caps_parse(tmp_path: Path) -> None:
 
 # (section, attribute) for every capped attribute.
 ATTRIBUTES = [
-    ("[offense.RM]", "max_qb_draws"),
+    ("[offense.RM]", "max_qb_runs"),
     ("[offense.PSL]", "max_rollouts"),
     ("[offense.PSL]", "max_timed"),
     ("[defense.PassShort]", "max_two_dl"),
@@ -262,7 +262,7 @@ def test_one_form_of_one_attribute_accepted(
 COUNT_SETTINGS = [
     ("[offense.RM]", "min_count"),
     ("[offense.RM]", "max_count"),
-    ("[offense.RM]", "max_qb_draws_count"),
+    ("[offense.RM]", "max_qb_runs_count"),
     ("[offense.PSL]", "max_rollouts_count"),
 ]
 

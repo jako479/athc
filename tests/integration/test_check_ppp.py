@@ -47,7 +47,6 @@ from tests.integration.conftest import (
     OFF1,
     PLAYS,
     PNFL_LG2,
-    POOL_RULES,
     PPP_TREE,
     RULES_TOML,
 )
@@ -69,7 +68,6 @@ def league(make_league: MakeLeague) -> BuildLeague:
         *,
         profile_rules: Path | None = RULES_TOML,
         gameplan_rules: Path | None = GP_RULES,
-        playpool_rules: Path | None = POOL_RULES,
         play_path: Path | None = PLAYS,
         path: Path | str | None = None,
     ) -> Path:
@@ -80,7 +78,6 @@ def league(make_league: MakeLeague) -> BuildLeague:
         for source, target in (
             (profile_rules, "profile.toml"),
             (gameplan_rules, "gameplan.toml"),
-            (playpool_rules, "playpool.toml"),
         ):
             if source is not None:
                 shutil.copy(source, folder / target)
@@ -698,16 +695,6 @@ def test_cli_bad_rules_toml(
     assert result.stdout == ""
 
 
-def test_cli_bad_playpool_rules(
-    runner, league: BuildLeague, write_config: WriteConfig, tmp_path: Path
-) -> None:
-    league(playpool_rules=write_toml(tmp_path, "not = valid = toml"))
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
-    result = run(runner, OFF1, GP_OFFENSE)
-    assert result.exit_code == 2
-    assert result.stdout == ""
-
-
 def test_cli_rule_lists_in_league_toml(
     runner, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
@@ -720,7 +707,6 @@ def test_cli_rule_lists_in_league_toml(
     )
     shutil.copy(RULES_TOML, folder / "my-profile.toml")
     shutil.copy(GP_RULES, folder / "my-gameplan.toml")
-    shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 1

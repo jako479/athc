@@ -2,19 +2,21 @@
 
 Typed play records that wrap a parsed .ply file, and the `PlayPool` that holds
 them. A record's `category` comes from the play file (`play_file.category`, an
-`fbpro98_play` enum member). Folder-derived attributes (offense `screen`; defense
-`defensive_front`) and filename-derived ones (`rollout`, `qb_draw`, `pass_logic`)
-are set by the reader.
+`fbpro98_play` enum member). The reader sets the attributes: offense `screen`
+from the folder; `rollout`, `qb_run`, `pass_logic` and defense
+`defensive_front` from the play file.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from os import PathLike
 from pathlib import Path
 
-from athc.fbpro98_play import PlayCategory, PlayFile
-from athc.playpool.rules import StrPath
+from athc.fbpro98_play import DefensiveFront, PlayCategory, PlayFile
+
+StrPath = str | PathLike[str]
 
 
 class PassLogic(Enum):
@@ -22,14 +24,6 @@ class PassLogic(Enum):
 
     TIMED = "Timed"
     CHECK_RECEIVERS = "Check Receivers"
-
-
-class DefensiveFront(Enum):
-    """Defensive personnel front."""
-
-    THREE_FOUR = "3-4"
-    FOUR_THREE = "4-3"
-    TWO_DL = "2-DL"  # two down linemen (the Run-and-Shoot front)
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,25 +73,25 @@ class Play:
 
 @dataclass(frozen=True, slots=True)
 class OffensivePlay(Play):
-    """An offensive play: `screen` from the folder, the rest from filename rules."""
+    """An offensive play: `screen` from the folder, the rest from the play file."""
 
     screen: bool = False
     rollout: bool = False
-    qb_draw: bool = False
+    qb_run: bool = False
     pass_logic: PassLogic | None = None
 
     def to_dict(self, *, relative_to: Path | None = None) -> dict[str, object]:
         result = self._base_dict(relative_to=relative_to)
         result["screen"] = self.screen
         result["rollout"] = self.rollout
-        result["qb_draw"] = self.qb_draw
+        result["qb_run"] = self.qb_run
         result["pass_logic"] = self.pass_logic.value if self.pass_logic else None
         return result
 
 
 @dataclass(frozen=True, slots=True)
 class DefensivePlay(Play):
-    """A defensive play: `defensive_front` from the folder when present."""
+    """A defensive play: `defensive_front` from the play file, when it has one."""
 
     defensive_front: DefensiveFront | None = None
 
@@ -147,7 +141,6 @@ class PlayPool:
 
 
 __all__ = [
-    "DefensiveFront",
     "DefensivePlay",
     "OffensivePlay",
     "PassLogic",

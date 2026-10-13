@@ -179,7 +179,6 @@ def load_setup(league: str | None) -> Setup:
     )
     pool = build_pool(
         gameplan_config.play_path,
-        gameplan_config.playpool_rules,
         gameplan_config.categories,
         gameplan_config.league_file,
     )

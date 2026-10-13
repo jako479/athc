@@ -490,8 +490,8 @@ class ExcelPdbWorkbook:
 
     def _add_run_play(self, play_data, play_slots, play_record: Play):
         play_type = (
-            "QB draw"
-            if isinstance(play_record, OffensivePlay) and play_record.qb_draw
+            "QB run"
+            if isinstance(play_record, OffensivePlay) and play_record.qb_run
             else ""
         )
 

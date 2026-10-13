@@ -7,6 +7,10 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- convert-pdb: the Type column says `QB run`, not `QB draw`
+- fbpro98_play: a damaged play file reads `The play file is invalid or corrupted.`; a wrong header and an unknown category keep their own messages
+- playpool: QB run, rollout, timed pass and the defensive front come from each play file, not its name or folder; `playpool.toml` is gone
+- fbpro98_play: tells a play's timed pass, QB run, rollout and defensive front (2-DL, 3-4, 4-3) from its players' logic
 - generate-schedule: reads the standings from the previous season's `.lge` (`--previous folder`) and the conferences, divisions and teams from the upcoming season's (`--upcoming folder`, default the league's `path`); the `standings\<season>.league.ini` files are gone; a team that changed its name is listed under `[renames.<season>]` in `scheduler.toml`
 - generate-schedule: the overall order is the league's own: playoff finish, record, strength of schedule, then point differential
 - fbpro98_lge: standings follow the game's own order for a finished season (the manual's tie-breakers: head-to-head, division record, conference record, net points, strength of schedule) instead of point differential; any teams of a file can be ranked the same way

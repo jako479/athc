@@ -14,11 +14,10 @@ from pathlib import Path
 
 from athc.fbpro98_gameplan import GamePlan, ProfileType
 from athc.fbpro98_gameplan.model import CustomPlayRef, SpecialSlot, StockPlayRef
-from athc.fbpro98_play import PlayFile
+from athc.fbpro98_play import DefensiveFront, PlayFile
 from athc.gameplan import RuleName, RuleViolation, validate_gameplan
 from athc.gameplan.rules import DefenseCategoryRule, OffenseCategoryRule, Rules
 from athc.playpool import (
-    DefensiveFront,
     DefensivePlay,
     OffensivePlay,
     PassLogic,
@@ -258,7 +257,7 @@ def make_off_record(
     name: str,
     *,
     user_category: int,
-    qb_draw: bool = False,
+    qb_run: bool = False,
     rollout: bool = False,
     pass_logic: PassLogic | None = None,
 ) -> OffensivePlay:
@@ -266,7 +265,7 @@ def make_off_record(
     return OffensivePlay(
         name,
         play_file,
-        qb_draw=qb_draw,
+        qb_run=qb_run,
         rollout=rollout,
         pass_logic=pass_logic,
     )
@@ -357,29 +356,29 @@ def test_offense_not_allowed_fires() -> None:
 # ── offense: attribute caps ───────────────────────────────────────────────────
 
 
-def test_offense_max_qb_draws_count_fires() -> None:
+def test_offense_max_qb_runs_count_fires() -> None:
     pool = make_off_pool(
-        make_off_record(f"RM{i}", user_category=OFF_RUN_MIDDLE, qb_draw=True)
+        make_off_record(f"RM{i}", user_category=OFF_RUN_MIDDLE, qb_run=True)
         for i in range(2)
     )
     gp = offense_gameplan(
         [make_off_play(f"RM{i}", user_category=OFF_RUN_MIDDLE) for i in range(2)]
     )
     rules = off_rules(
-        offense_categories={"Run Middle": OffenseCategoryRule(max_qb_draws_count=1)}
+        offense_categories={"Run Middle": OffenseCategoryRule(max_qb_runs_count=1)}
     )
-    assert RuleName.CATEGORY_MAX_QB_DRAWS in fired(gp, rules, pool)
+    assert RuleName.CATEGORY_MAX_QB_RUNS in fired(gp, rules, pool)
 
 
-def test_offense_max_qb_draws_count_clean() -> None:
+def test_offense_max_qb_runs_count_clean() -> None:
     pool = make_off_pool(
-        [make_off_record("RM0", user_category=OFF_RUN_MIDDLE, qb_draw=True)]
+        [make_off_record("RM0", user_category=OFF_RUN_MIDDLE, qb_run=True)]
     )
     gp = offense_gameplan([make_off_play("RM0", user_category=OFF_RUN_MIDDLE)])
     rules = off_rules(
-        offense_categories={"Run Middle": OffenseCategoryRule(max_qb_draws_count=1)}
+        offense_categories={"Run Middle": OffenseCategoryRule(max_qb_runs_count=1)}
     )
-    assert RuleName.CATEGORY_MAX_QB_DRAWS not in fired(gp, rules, pool)
+    assert RuleName.CATEGORY_MAX_QB_RUNS not in fired(gp, rules, pool)
 
 
 def test_offense_max_rollouts_count_fires() -> None:

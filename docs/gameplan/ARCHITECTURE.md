@@ -30,21 +30,21 @@ src/athc/cli/gameplan/    # CLI group
 ## Three layers
 
 - `fbpro98_gameplan` — `.pln` read/write, no league knowledge.
-- `playpool` — classifies `.ply` files from the play file (side + category); folders/filename add attributes: offense `screen` / `qb_draw` / `rollout` / `pass_logic`, defense `defensive_front`.
+- `playpool` — classifies `.ply` files from the play file: side, category and the attributes the rules cap (offense `qb_run` / `rollout` / `pass_logic`, defense `defensive_front`); a `Screens` folder adds offense `screen`.
 - `gameplan` — applies league rules; needs the pool because rules check per-play attributes that aren't in the `.pln`.
 
 ## Rules — external, optional, league-agnostic
 
 No rules ship inside the package. `load_rules(paths)` parses one or more external TOML files into a `Rules` value; later files layer over earlier (per-category replace, scalar overwrite). Rules are validation-only — reading a gameplan never needs them.
 
-- `OffenseCategoryRule(required, min_count, max_count, max_qb_draws_*, max_rollouts_*, max_timed_*)`
+- `OffenseCategoryRule(required, min_count, max_count, max_qb_runs_*, max_rollouts_*, max_timed_*)`
 - `DefenseCategoryRule(required, min_count, max_count, max_two_dl_*)`
 - Aggregate counts over the 64 normal slots: min/max plays per game category + per-category attribute caps; required special categories (1-12, clock categories included); allowed categories; optional `custom_special_play_required` (categories 1-10, the ones with a custom slot).
 - `[profile_compatibility]` — `require_all_gameplan_categories_in_profile`, read only by `athc check-ppp` ([../check_ppp/README.md](../check_ppp/README.md)); `validate_gameplan` ignores it.
 
 Section labels are the league's category labels from `league.toml` (`load_rules(paths, labels=...)`) — `[offense.RM]` (Run Middle), `[defense.RunDazzle]` (Run Dazzle); a category the league does not label is named by its game name, quoted (`[offense."Pass Long Left"]`, `[defense."User Specific"]`). Every per-category key is optional (`required` defaults false, `min_count` 0), but a section must set at least one. The loader rejects unknown labels, subkeys applied to the wrong category type, and an `offense` / `defense` value or section that is not a table. `allowed_offensive_categories` / `allowed_defensive_categories` list, by the league's labels only, the categories a gameplan may contain; a play in any other category is a violation, and an omitted or empty list allows every category.
 
-Each capped attribute (`qb_draws`, `rollouts`, `timed`, `two_dl`) takes one of three forms — `max_<attr>_count` (whole plays), `max_<attr>_ratio` (`"1/2"`, an exact `Fraction`) or `max_<attr>_percent` (whole number 0-100). A section may set at most one form per attribute; a second is a rules-file error. Ratio and percent compare the exact play ratio, so nothing rounds.
+Each capped attribute (`qb_runs`, `rollouts`, `timed`, `two_dl`) takes one of three forms — `max_<attr>_count` (whole plays), `max_<attr>_ratio` (`"1/2"`, an exact `Fraction`) or `max_<attr>_percent` (whole number 0-100). A section may set at most one form per attribute; a second is a rules-file error. Ratio and percent compare the exact play ratio, so nothing rounds.
 
 Loading reports every problem at once (`RulesFileError.errors`); any error aborts `check` with each logged (exit 2).
 
@@ -55,13 +55,13 @@ Each league's rule set is `config/release/leagues/<NAME>/gameplan.toml` — data
 The league folder `leagues\<NAME>\` (see [../design/architecture.md](../design/architecture.md#config)), chosen by `--league` / `[athc] league`:
 
 - `gameplan.toml` — the rules (or a `gameplan_rules` array in `league.toml`, later files layering over earlier).
-- `league.toml` `play_path` (play pool dir), its `[categories.*]` labels, and `playpool.toml` (optional filename-filter TOML).
+- `league.toml` `play_path` (play pool dir) and its `[categories.*]` labels.
 
 `check` and `replace-play` read all of these from the league folder only. With no rules resolvable `check` has nothing to validate → log an error, exit 2; `replace-play` checks no league rule.
 
 ## check
 
-`athc gameplan check [PATH]...` walks the PATHs (the current directory when none is given), builds one `PlayPool` from `play_path` (plus optional playpool rules), loads the gameplan `Rules`, and runs `validate_gameplan(read_gameplan(file), rules, pool)` per `.pln`. Exit `0` = clean, `1` = violations, `2` = usage/config error.
+`athc gameplan check [PATH]...` walks the PATHs (the current directory when none is given), builds one `PlayPool` from `play_path`, loads the gameplan `Rules`, and runs `validate_gameplan(read_gameplan(file), rules, pool)` per `.pln`. Exit `0` = clean, `1` = violations, `2` = usage/config error.
 
 ## list-normals / list-specials
 
@@ -75,8 +75,8 @@ The league folder `leagues\<NAME>\` (see [../design/architecture.md](../design/a
 
 `gameplan.writer` resolves a play list against the pool into `.pln` slot entries (`apply_normal_plays` / `apply_special_plays`), aggregating every per-line problem into one `InvalidPlayListError`. Side and special-teams classification come from each play's `.ply` header, not the rules. A play in a stock-only special category (11-12) is rejected per line. The list format is one name per line, `::` comment lines, ` ::` inline trailers (`parse_play_list`). Input or read failures abort before any write. Each slot's play path is the play pool's folder name, then the play's path inside the pool (`<pool folder>\Offense\RL\OR45RL01.ply`).
 
-- `set-normals gameplan play_list` replaces all 64 normal slots of one `.pln`; an `play_list` of `-` reads stdin. The pool and its playpool rules come from the league. No backup is made. Special-teams plays are rejected (use set-specials). Exit `0` = updated, `2` = usage or error.
-- `set-specials path play_list` merges the custom special slots (unlisted categories preserved) of one `.pln`, or every `.pln` in a directory/tree (`-r`); an `play_list` of `-` reads stdin. Each play self-slots by its special category; wrong-side files are skipped with a `SKIP` line (offense `.pln` are even-sized, defense odd). The pool and its playpool rules come from the league. No backup is made. Exit `0` = all updated, `2` = usage, setup error or a failed file.
+- `set-normals gameplan play_list` replaces all 64 normal slots of one `.pln`; an `play_list` of `-` reads stdin. The pool comes from the league. No backup is made. Special-teams plays are rejected (use set-specials). Exit `0` = updated, `2` = usage or error.
+- `set-specials path play_list` merges the custom special slots (unlisted categories preserved) of one `.pln`, or every `.pln` in a directory/tree (`-r`); an `play_list` of `-` reads stdin. Each play self-slots by its special category; wrong-side files are skipped with a `SKIP` line (offense `.pln` are even-sized, defense odd). The pool comes from the league. No backup is made. Exit `0` = all updated, `2` = usage, setup error or a failed file.
 
 ## replace-play
 
@@ -102,9 +102,8 @@ would fail `check` is skipped — so a play in several slots, which becomes a
 duplicate, never fits — and the first one with which it passes is written.
 None fitting leaves the file untouched (a finding).
 The rules are the league's, as `check` reads them (none configured: no league
-rule is checked); the pool is built with the league's playpool rules, as
-`check` builds it, so the attribute caps (rollouts, QB draws, timed, 2-DL)
-apply. The `GamePlan` model still validates each swap (side parity; a special
+rule is checked); the pool is built as `check` builds it, so the attribute
+caps (rollouts, QB runs, timed, 2-DL) apply. The `GamePlan` model still validates each swap (side parity; a special
 play's category must match its slot); a refused swap fails that file
 (reported, not written), after the `SKIP` lines before it, and names the
 replacement when several are listed (`FAIL <file>: 'NEW' does not fit:

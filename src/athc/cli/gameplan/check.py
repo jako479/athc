@@ -47,9 +47,7 @@ def check(
         paths = (".",)
     config = load_config(league)
     rules = load_rules_or_raise(config.rule_files, config.categories)
-    pool = build_pool(
-        config.play_path, config.playpool_rules, config.categories, config.league_file
-    )
+    pool = build_pool(config.play_path, config.categories, config.league_file)
 
     collected = collect_files(paths, suffix=".pln", recursive=recursive)
     for line in collected.errors:

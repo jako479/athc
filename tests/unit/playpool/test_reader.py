@@ -10,9 +10,15 @@ from pathlib import Path
 import pytest
 
 from athc.errors import ACCESS_DENIED
-from athc.fbpro98_play import CategoryLabels
+from athc.fbpro98_play import CategoryLabels, Command, DefensiveFront, LogicBox
+from athc.fbpro98_play.schema import (
+    COMMAND_MOVE_TO,
+    COMMAND_RUN,
+    COMMAND_TIMED_PASS,
+    POSITION_QB,
+    POSITION_T,
+)
 from athc.playpool import (
-    DefensiveFront,
     DefensivePlay,
     OffensivePlay,
     PassLogic,
@@ -22,23 +28,27 @@ from athc.playpool import (
 )
 from athc.playpool.reader import folder_warnings
 from tests.conftest import PNFL_LABELS
+from tests.unit.fbpro98_play.conftest import build_ply, build_record
 from tests.unit.playpool.conftest import PLAYS, MakePlay
 
 ALL_POOLS = ["league_pool", "flat_pool", "arbitrary_pool"]
 
-# File-driven attributes — identical in every layout.
-# (name, category, rollout, qb_draw, pass_logic)
+# Attributes from the play file — identical in every layout. GBglpH1R and
+# JJ9ZXOTR are not rollouts: their QBs stay inside the tackles (131 and 60
+# units inside) before they throw.
+# (name, category, rollout, qb_run, pass_logic)
 OFFENSE = [
     ("AF21rm12", "Run Middle", False, False, None),
     ("AF2AshtZ", "Pass Short Middle", False, False, PassLogic.CHECK_RECEIVERS),
     ("AF6A02T", "Pass Medium Right", False, False, PassLogic.TIMED),
     ("AF6Zscrn", "Pass Medium Right", False, False, PassLogic.CHECK_RECEIVERS),
-    ("GBglpH1R", "Goal Line Pass", True, False, PassLogic.TIMED),
-    ("JJ9ZXOTR", "Pass Long Right", True, False, PassLogic.TIMED),
+    ("GBglpH1R", "Goal Line Pass", False, False, PassLogic.TIMED),
+    ("JJ9ZXOTR", "Pass Long Right", False, False, PassLogic.TIMED),
     ("WR10GR01", "Goal Line Run", False, True, None),
 ]
 
-# (name, category, league_front) — front appears only in the league folder layout.
+# (name, category, front) — the front comes from the play file, in every
+# layout.
 DEFENSE = [
     ("AF22PL01", "Pass Long", DefensiveFront.TWO_DL),
     ("AF31rl3H", "Run Left", DefensiveFront.THREE_FOUR),
@@ -51,14 +61,14 @@ DEFENSE = [
 
 
 @pytest.mark.parametrize("pool_name", ALL_POOLS)
-@pytest.mark.parametrize("name,category,rollout,qb_draw,logic", OFFENSE)
+@pytest.mark.parametrize("name,category,rollout,qb_run,logic", OFFENSE)
 def test_offensive_file_driven(
     request: pytest.FixtureRequest,
     pool_name: str,
     name: str,
     category: str,
     rollout: bool,
-    qb_draw: bool,
+    qb_run: bool,
     logic: PassLogic | None,
 ) -> None:
     pool: PlayPool = request.getfixturevalue(pool_name)
@@ -66,7 +76,7 @@ def test_offensive_file_driven(
     assert isinstance(play, OffensivePlay)
     assert play in pool.offensive_plays
     assert play.category.long == category
-    assert (play.rollout, play.qb_draw, play.pass_logic) == (rollout, qb_draw, logic)
+    assert (play.rollout, play.qb_run, play.pass_logic) == (rollout, qb_run, logic)
 
 
 @pytest.mark.parametrize("pool_name", ALL_POOLS)
@@ -79,21 +89,67 @@ def test_screen_only_from_screens_folder(
 
 
 @pytest.mark.parametrize("pool_name", ALL_POOLS)
-@pytest.mark.parametrize("name,category,league_front", DEFENSE)
+@pytest.mark.parametrize("name,category,front", DEFENSE)
 def test_defensive_file_driven(
     request: pytest.FixtureRequest,
     pool_name: str,
     name: str,
     category: str,
-    league_front: DefensiveFront | None,
+    front: DefensiveFront | None,
 ) -> None:
     pool: PlayPool = request.getfixturevalue(pool_name)
     play = pool.find_by_name(name)
     assert isinstance(play, DefensivePlay)
     assert play in pool.defensive_plays
     assert play.category.long == category
-    expected = league_front if pool_name == "league_pool" else None
-    assert play.defensive_front == expected
+    assert play.defensive_front is front
+
+
+# ── attributes from built plays: the rollout margin and the category gates ────
+
+TIMED = Command(COMMAND_TIMED_PASS, (0,))
+RUN = Command(COMMAND_RUN, (2,))
+
+
+def _write_play(
+    folder: Path, name: str, user_category: int, *qb_after_snap: LogicBox
+) -> None:
+    """An offensive play: tackles at -300 and 300, a QB doing `qb_after_snap`."""
+    tackles = [
+        build_record(POSITION_T, after_snap=[LogicBox(x, -140, ())])
+        for x in (-300, 300)
+    ]
+    qb = build_record(POSITION_QB, after_snap=qb_after_snap)
+    others = [build_record(0x80)] * 8  # WR
+    data = build_ply(
+        play_category=user_category,
+        user_category=user_category,
+        player_records=[qb, *tackles, *others],
+    )
+    (folder / f"{name}.ply").write_bytes(data)
+
+
+@pytest.mark.parametrize(("x", "rollout"), [(400, False), (401, True)])
+def test_rollout_is_beyond_100_units_outside_the_line(
+    tmp_path: Path, x: int, rollout: bool
+) -> None:
+    move = Command(COMMAND_MOVE_TO, (x, -300))
+    _write_play(tmp_path, "P", 0x03, LogicBox(0, -300, (move, TIMED)))
+    play = read_play_pool(tmp_path).find_by_name("P")
+    assert isinstance(play, OffensivePlay)
+    assert play.rollout is rollout
+
+
+def test_category_still_gates_the_attributes(tmp_path: Path) -> None:
+    """A pass play's QB run is no QB run; a run play's QB pass has no pass logic."""
+    move_out = Command(COMMAND_MOVE_TO, (1000, -300))
+    _write_play(tmp_path, "PASS", 0x03, LogicBox(0, -300, (RUN,)))  # Pass Short Right
+    _write_play(tmp_path, "RUN", 0x09, LogicBox(0, -300, (move_out, TIMED)))
+    pool = read_play_pool(tmp_path)
+    pass_play, run_play = pool.find_by_name("PASS"), pool.find_by_name("RUN")
+    assert isinstance(pass_play, OffensivePlay) and not pass_play.qb_run
+    assert isinstance(run_play, OffensivePlay)
+    assert (run_play.rollout, run_play.pass_logic) == (False, None)
 
 
 @pytest.mark.parametrize("pool_name", ALL_POOLS)
@@ -233,7 +289,7 @@ def test_invalid_file_is_an_issue(tmp_path: Path) -> None:
     issues = read_play_pool(tmp_path, labels=PNFL_LABELS).issues
     assert len(issues) == 1
     assert issues == [
-        f"{tmp_path / 'bad.ply'}: File too small to contain P95 header. Skipped."
+        f"{tmp_path / 'bad.ply'}: The play file is invalid or corrupted. Skipped."
     ]
 
 

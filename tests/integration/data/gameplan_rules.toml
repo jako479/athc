@@ -36,7 +36,7 @@ require_all_gameplan_categories_in_profile = true
 #
 # Attribute caps.
 # Offense:
-#   qb_draws
+#   qb_runs
 #   rollouts
 #   timed
 # Defense:
@@ -51,17 +51,17 @@ require_all_gameplan_categories_in_profile = true
 [offense.RM]
 required = true
 min_count = 10
-max_qb_draws_count = 2
+max_qb_runs_count = 2
 
 [offense.RL]
 required = false
 min_count = 4
-max_qb_draws_count = 2
+max_qb_runs_count = 2
 
 [offense.RR]
 required = false
 min_count = 4
-max_qb_draws_count = 2
+max_qb_runs_count = 2
 
 [offense.GLR]
 required = false

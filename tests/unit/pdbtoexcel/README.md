@@ -19,10 +19,9 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 ## config.py
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Defaults (league folder with labels + order only) | folder | play_path ""; options True; rules None; no deleted plays | `test_load_config_defaults` | ☑ |
-| From the league folder | `league.toml` + `playpool.toml` | play_path / playpool_rules resolved | `test_load_config_from_league_folder` | ☑ |
+| Defaults (league folder with labels + order only) | folder | play_path ""; options True; no deleted plays | `test_load_config_defaults` | ☑ |
+| From the league folder | `league.toml` | play_path resolved | `test_load_config_from_league_folder` | ☑ |
 | Needs a league | no league selected | `LeagueError` | `test_load_config_needs_a_league` | ☑ |
-| `playpool.toml` next to athc.ini ignored | `<config dir>/playpool.toml`, no league file | `None` | `test_playpool_toml_next_to_athc_ini_is_ignored` | ☑ |
 | Category order in file order | PNFL `pdbtoexcel.toml` | run/pass/defense enum members as listed | `test_category_order_in_file_order` | ☑ |
 | Unlabeled category by game name | `"Razzle Dazzle Run"` | resolves | `test_unlabeled_category_goes_by_its_game_name` | ☑ |
 | Labeled category by game name | `"Run Left"` with RL labeled | `ConfigFileError` "not a run category" | `test_labeled_category_by_game_name_is_unknown` | ☑ |
@@ -59,7 +58,7 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 | Unlisted category left out | order with RL only | RM play absent | `test_unlisted_category_is_left_out` | ☑ |
 | Deleted play skipped quietly | not in pool, 2 teams | no row; no warning; one info line | `test_deleted_play_is_skipped_quietly` | ☑ |
 | Deleted play still in the pool | in pool, listed in another case, 2 teams, totals | no row; one "stale" warning with the file's spelling | `test_deleted_play_still_in_the_pool_is_skipped_with_a_warning` | ☑ |
-| Run row: QB draw Type | synth + pool | "QB draw" | `test_qb_draw_type` | ☑ |
+| Run row: QB run Type | synth + pool | "QB run" | `test_qb_run_type` | ☑ |
 | `--skip-calcs` omits % columns | synth + pool | no "Fumble %" header | `test_skip_calcs_omits_percent_columns` | ☑ |
 | Totals add "Total Stats" team | synth + pool | summed team present | `test_totals_adds_total_stats_team` | ☑ |
 | Category worksheets when enabled | synth + pool | "Run Categories" sheet + row | `test_category_worksheets_when_enabled` | ☑ |

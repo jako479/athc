@@ -35,7 +35,7 @@ class OffenseCategoryRule:
     `min_count` plays; False is optional but still enforces the caps if used.
     `min_count` defaults to 0. `max_count` caps the play count when set.
 
-    Attribute caps apply only when set: `qb_draws` for run categories, `rollouts`
+    Attribute caps apply only when set: `qb_runs` for run categories, `rollouts`
     and `timed` for pass categories. Each comes in three forms and a rules file
     may set at most one per attribute — `_count` (>= 0 plays), `_ratio` (a
     `Fraction` in [0, 1]) or `_percent` (a whole number 0-100).
@@ -44,9 +44,9 @@ class OffenseCategoryRule:
     required: bool = False
     min_count: int = 0
     max_count: int | None = None
-    max_qb_draws_count: int | None = None
-    max_qb_draws_ratio: Fraction | None = None
-    max_qb_draws_percent: int | None = None
+    max_qb_runs_count: int | None = None
+    max_qb_runs_ratio: Fraction | None = None
+    max_qb_runs_percent: int | None = None
     max_rollouts_count: int | None = None
     max_rollouts_ratio: Fraction | None = None
     max_rollouts_percent: int | None = None
@@ -117,7 +117,7 @@ _SPECIAL_CATEGORY_BY_NAME: Final[Mapping[str, int]] = {
 # Each capped attribute takes exactly one of these three mutually exclusive forms.
 _CAP_FORMS: Final[tuple[str, ...]] = ("count", "ratio", "percent")
 
-_RUN_ATTRS: Final[tuple[str, ...]] = ("qb_draws",)
+_RUN_ATTRS: Final[tuple[str, ...]] = ("qb_runs",)
 _PASS_ATTRS: Final[tuple[str, ...]] = ("rollouts", "timed")
 _DEFENSE_ATTRS: Final[tuple[str, ...]] = ("two_dl",)
 

@@ -88,7 +88,7 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   subfolder.
 - Tests never name a real league: test leagues get neutral names, rules come
   from the tests' own files, and shipped-file tests run once per league folder.
-- The PCFL ships gameplan, playpool and profile rules, copied from the PNFL's.
+- The PCFL ships gameplan and profile rules, copied from the PNFL's.
 - One folder per league under `leagues\`; every league-aware tool reads its
   rules there. `athc.ini` keeps only app-wide settings.
 - The league in use is `[athc] league`, set by hand or with
@@ -97,8 +97,7 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   (`athc profile check OFF1.prf --league PCFL`, like `aws s3 ls --profile x`).
 - Rule layering stays: a `gameplan_rules` / `profile_rules` array in
   `league.toml` replaces the fixed file.
-- Rule files live only in league folders; there is no shared default
-  `playpool.toml` next to `athc.ini`.
+- Rule files live only in league folders, never next to `athc.ini`.
 - The installer seeds the tree below once; an upgrade never overwrites a file
   in it, only adds missing ones.
 - Unreadable config files, blank or unknown league names and a missing league
@@ -115,18 +114,16 @@ leagues\
     league.toml               [league] path, play_path (dev also db_path); [categories.*]
     gameplan.toml
     profile.toml
-    playpool.toml
     scheduler.toml            rules, solver settings, [renames.<season>]
   PCFL\
     league.toml               [league] path, play_path (dev also db_path); [categories.*]
     gameplan.toml
     profile.toml
-    playpool.toml
     scheduler.toml
 ```
 
-- League keys in `athc.ini` are lowercase (`play_path`, `playpool_rules`) like
-  every other key, so the parser no longer needs a subclass to keep key case.
+- League keys in `athc.ini` are lowercase (`play_path`) like every other key,
+  so the parser no longer needs a subclass to keep key case.
 - The shared exit scheme and message kinds are in architecture.md; each tool's
   README carries its own lines and what counts as a finding, where a coach
   will look.
@@ -256,6 +253,14 @@ far (`fbpro98_lge`, names and standings). Docs:
 
 Reads `.ply` play files. Docs: [spec](docs/fbpro98_play/specs/ply.md)
 
+- Reads every player's logic boxes and tells a play's attributes from them:
+  timed pass and QB run (the QB's commands), rollout (the QB gets beyond a given
+  margin outside the outermost offensive lineman, C, G or T, on that side
+  before he passes) and the defensive front from the down
+  linemen (3-4 / 4-3 on Run Left, Middle and Right plays, 2-DL on pass
+  plays). A player record too short for its logic boxes makes the file
+  invalid. A damaged play file gets one message, `The play file is invalid or
+  corrupted.`; only a wrong header and an unknown category say more.
 - The special-teams enum includes the two clock categories, Run Clock (`0x0B`)
   and Stop Clock (`0x0C`).
 - The `.ply` spec gained a whole-file map and its categories were split into
@@ -276,6 +281,8 @@ Reads and writes `.prf` coaching profiles. Docs:
 Working. Validates and edits `.pln` game plans. Docs:
 [README](docs/gameplan/README.md) · [rules](config/release/leagues/PNFL/gameplan.toml)
 
+- The attribute caps (QB runs, rollouts, timed passes, 2-DL) count what each
+  play file holds, not its name or folder.
 - Rules say which categories a gameplan may contain
   (`allowed_offensive_categories` / `allowed_defensive_categories`, by the
   league's labels); a play in any other category is a violation.
@@ -288,7 +295,7 @@ Working. Validates and edits `.pln` game plans. Docs:
 - A written play path starts with the play pool's folder name, so each league's
   gameplans point at its own plays.
 - Rules and the play pool come from the league folder (`gameplan.toml`,
-  `playpool.toml`, `play_path` in `league.toml`); `check` has no overrides.
+  `play_path` in `league.toml`); `check` has no overrides.
 - Attribute caps take a count, ratio or percent form — one form per attribute,
   so a league writes its rule the way the league states it. Naming two forms
   for one attribute is a rules-file error.
@@ -310,14 +317,13 @@ Working. Extracts a WinLogStats database into an Excel workbook. Docs:
 [README](docs/pdbtoexcel/README.md) ·
 [ARCHITECTURE](docs/pdbtoexcel/ARCHITECTURE.md)
 
-- Everything league-specific comes from the league folder: the play pool and
-  playpool rules, the category names (`league.toml`), and the category order
-  and deleted plays (`pdbtoexcel.toml`, required). The workbook names
-  categories the league's way and sorts them in the league's order. The
-  workbook always has the Total Stats team; the three other workbook options
-  stay in `[convert-pdb]`.
-- The playpool rules' include / exclude names are checked against the pool
-  when convert-pdb loads it; `playpool check` does not run that check yet.
+- The Type column's QB run and defensive front come from each play file, not
+  its folder.
+- Everything league-specific comes from the league folder: the play pool, the
+  category names (`league.toml`), and the category order and deleted plays
+  (`pdbtoexcel.toml`, required). The workbook names categories the league's
+  way and sorts them in the league's order. The workbook always has the Total
+  Stats team; the three other workbook options stay in `[convert-pdb]`.
 - The `.pdb` spec lives in `docs/pdbtoexcel/specs/`; the master VBA workbooks
   in `src/athc/pdbtoexcel/excel-template/` (not shipped) rebuild the `.bin`
   blocks. A golden workbook test pins the real `.pdb` output cell by cell.
@@ -332,6 +338,10 @@ Working. Backs `gameplan` and `convert-pdb`; `playpool check` checks the pool.
 Docs: [README](docs/playpool/README.md),
 [ARCHITECTURE](docs/playpool/ARCHITECTURE.md)
 
+- QB run, rollout, pass logic and the defensive front come from the play file
+  (`fbpro98_play`), by the rules in the playpool README. `playpool.toml` and
+  its filename filters are gone; only a `Screens` folder still adds an
+  attribute.
 - An unreadable play file is skipped with a warning; plays load in sorted path
   order, so a duplicate name resolves the same way every time.
 - `PlayPool` is a plain container (`add`, `find_by_name`, `issues`); it no
@@ -342,15 +352,15 @@ Docs: [README](docs/playpool/README.md),
   and `profile`.
 - `check` reads the league's `play_path`, or a folder given on the command
   line (a league is then optional; one that resolves still names the category
-  folders). `playpool.toml` is not used.
+  folders).
 - `check` prints the warnings pool loading already logs, word for word, as
   findings: plays in a folder that contradicts the file, duplicate names,
   invalid files.
 - The `PlayRecord` family renamed to `Play`.
 - Plays are classified from the play file, with the user category
-  authoritative; folder categories only add attributes.
+  authoritative; folder categories only warn.
 
-Open: maybe use `playpool.toml` for counts by file name type (TODO).
+Open: count plays by file name type (TODO).
 
 ## profile
 

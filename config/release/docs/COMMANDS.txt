@@ -12,7 +12,7 @@ Run tools from any terminal (Command Prompt or PowerShell):
 
 Settings live in athc.ini (the file documents every option inline). Each league
 is a folder under leagues\ next to it: league.toml (path, play_path, category names)
-and rule files (gameplan.toml, profile.toml, playpool.toml, scheduler.toml).
+and rule files (gameplan.toml, profile.toml, scheduler.toml).
 League-aware tools use the league named by [athc] league unless the command is
 given --league NAME.
 
@@ -21,10 +21,11 @@ given --league NAME.
    ------------------------------------------------------------------
 
    Rules come from the league's gameplan.toml. The play pool comes from
-   the league's play_path (plus playpool.toml). Each play's
-   side and category come from the play file, so any folder layout works; the
-   PNFL layout (Offense/Defense/Special with category subfolders) is optional and
-   only adds play attributes and misfiled-play warnings. With no gameplan rules
+   the league's play_path. Each play's side, category and attributes (QB run,
+   rollout, timed pass, defensive front) come from the play file, so any folder
+   layout works; the PNFL layout (Offense/Defense/Special with category
+   subfolders) is optional and only adds screen passes and misfiled-play
+   warnings. With no gameplan rules
    configured, check reports an error and stops. With no path, every .pln in
    the current folder is checked (the whole tree with -r).
 
@@ -275,9 +276,9 @@ given --league NAME.
    each play's position in the plan.
 
    Per league, in leagues\<NAME>\: league.toml names the categories (RL,
-   PSL, RunLeft, ...), pdbtoexcel.toml sets the order they sort in and lists
-   deleted plays to skip, and playpool.toml tags plays (QB draw, rollout,
-   timed pass). The workbook options (percentage columns, per-category
+   PSL, RunLeft, ...) and pdbtoexcel.toml sets the order they sort in and lists
+   deleted plays to skip. The Type column's QB run and defensive front come
+   from each play file. The workbook options (percentage columns, per-category
    worksheets, sacks excluded from pass attempts) live in athc.ini under
    [convert-pdb]; --skip-calcs drops the percentage columns for one run.
 

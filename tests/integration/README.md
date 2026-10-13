@@ -64,7 +64,7 @@ The "league" input is a selected league folder whose `profile.toml` is the test 
 
 # `athc gameplan check`
 
-In [test_gameplan_check.py](test_gameplan_check.py). Inputs: real `data/offense.pln` (O_64_06a) + `data/defense.pln` (D_50_09), the curated `data/plays/` pool both resolve against, and the test rules `data/gameplan_rules.toml` + `data/playpool_rules.toml`. Covers collect / check_file / exit codes, golden reports, pinned counts, pool build, and league/config resolution.
+In [test_gameplan_check.py](test_gameplan_check.py). Inputs: real `data/offense.pln` (O_64_06a) + `data/defense.pln` (D_50_09), the curated `data/plays/` pool both resolve against, and the test rules `data/gameplan_rules.toml`. Covers collect / check_file / exit codes, golden reports, pinned counts, pool build, and league/config resolution.
 
 ## `collect_files`
 Same eight cases as profile (single / top level / recursive / missing / non-`.pln` / empty / dedupes / glob), with `.pln`.
@@ -92,20 +92,19 @@ Same eight cases as profile (single / top level / recursive / missing / non-`.pl
 | Malformed `.pln` | tmp + league | exit 2; stderr: `FAIL <file>: ...` | `test_cli_malformed_pln` | ☑ |
 | Continues past bad file | tmp + league | exit 2; stderr: `FAIL` for the bad file; stdout: the good file's line and the tally | `test_cli_continues_past_bad` | ☑ |
 
-The "league" input is a selected league folder holding the test pool (`play_path`), `playpool.toml` and `gameplan.toml`.
+The "league" input is a selected league folder holding the test pool (`play_path`) and `gameplan.toml`.
 
 ## pool / rules / config resolution
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Missing play path | league `play_path` absent | exit 2; stderr: `FAIL <play path>: The system cannot find the path specified. Set play_path in <league.toml>.` | `test_cli_missing_play_path` | ☑ |
-| Bad playpool rules TOML | league `playpool.toml` bad | exit 2; stderr: `FAIL ...`; stdout empty | `test_cli_bad_playpool_rules` | ☑ |
 | League folder without rules | `--league` + folder | exit 2; stderr: `FAIL No rules configured ...` | `test_cli_no_rules_in_league_folder` | ☑ |
 | Bad rules TOML | league `gameplan.toml` bad | exit 2; stderr: `FAIL <file>: Not valid TOML: ...` | `test_cli_bad_rules_toml` | ☑ |
 | No league resolvable | no config | exit 2; stderr: `FAIL No league selected ...` | `test_cli_no_league` | ☑ |
 | Resolves from the league folder | `[athc] league` + `leagues/<NAME>/` | exit 1 | `test_cli_resolves_from_league_folder` | ☑ |
 | `gameplan_rules` list | base + overlay | exit 1 | `test_cli_gameplan_rules_list_layers_in_order` | ☑ |
 | Listed rules file missing | `gameplan_rules` → absent file | exit 2; stderr: `FAIL` naming the path | `test_cli_missing_listed_rules_file_is_reported` | ☑ |
-| League playpool rules apply | league | exit 1; stdout: "timed passes" | `test_cli_league_playpool_rules_apply` | ☑ |
+| Attribute caps apply (attributes from the play files) | league | exit 1; stdout: "timed passes" | `test_cli_attribute_caps_apply` | ☑ |
 
 ## Packaging check (real subprocess)
 | Case | Input | Expected | Test | Status |
@@ -202,7 +201,7 @@ In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find
 
 # `athc gameplan set-normals`
 
-In [test_gameplan_set_normals.py](test_gameplan_set_normals.py). Operates on a tmp copy of `data/offense.pln` with the curated pool (a selected league whose `play_path` is `data/plays`, with its `playpool.toml`). Edits in place, no backup; `check` validates. Exit 0 = updated, 2 = usage or error (nothing written).
+In [test_gameplan_set_normals.py](test_gameplan_set_normals.py). Operates on a tmp copy of `data/offense.pln` with the curated pool (a selected league whose `play_path` is `data/plays`). Edits in place, no backup; `check` validates. Exit 0 = updated, 2 = usage or error (nothing written).
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -222,7 +221,7 @@ In [test_gameplan_set_normals.py](test_gameplan_set_normals.py). Operates on a t
 
 # `athc gameplan set-specials`
 
-In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of `offense.pln` / `defense.pln`, with the curated pool from a selected league (`play_path` = `data/plays`, its `playpool.toml`). Merge semantics; bulk over file/dir/tree; wrong-side files skipped by size parity; no backup. Exit 0 = all updated, 2 = usage, setup error or a failed file.
+In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of `offense.pln` / `defense.pln`, with the curated pool from a selected league (`play_path` = `data/plays`). Merge semantics; bulk over file/dir/tree; wrong-side files skipped by size parity; no backup. Exit 0 = all updated, 2 = usage, setup error or a failed file.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -317,7 +316,7 @@ In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `split_args`,
 |---|---|---|---|---|
 | First already in the gameplan | constructed | `SKIP … already in the gameplan`, then `OK` with the second; exit 0 | `test_cli_backup_used_when_first_already_in_plan` | ☑ |
 | First breaks a `gameplan.toml` rule | constructed; `[offense.RM] max_count = 0` | `SKIP … fails check: [Run Middle] …`, then `OK`; exit 0 | `test_cli_backup_used_when_first_breaks_rule` | ☑ |
-| Rollout cap needs `playpool.toml` | constructed; test playpool rules; `[offense.PSL] max_rollouts_count = 0` | the rollout skipped, the other used | `test_cli_rollout_cap_uses_playpool_rules` | ☑ |
+| Rollout cap uses the play file | constructed; `[offense.PSL] max_rollouts_count = 0` | the rollout (AF1AwagR) skipped, the other used | `test_cli_rollout_cap_uses_the_play_file` | ☑ |
 | Swap across categories, both landing on their limits | constructed; `[offense.PSL] min_count = 1`, `[offense.PML] max_count = 2` | `OK … (PSL) replaced with … (PML)`; exit 0 | `test_cli_cross_category_swap_within_limits` | ☑ |
 | Swap across categories leaves the losing category short | constructed; `[offense.PSL] min_count = 2` | `SKIP … requires at least 2.`, not replaced; exit 1; unchanged | `test_cli_cross_category_swap_leaves_losing_category_short` | ☑ |
 | None fits, single file | constructed | `SKIP` lines, `<file>: 'OLDRUN' not replaced, no valid replacement`; exit 1; unchanged | `test_cli_no_valid_replacement_single_file` | ☑ |
@@ -473,7 +472,6 @@ Argument errors check nothing, since both files are required.
 | Config error stops before the files | no league; OFF1 + broken.pln | exit 2; stderr: `FAIL No league selected ...` only; stdout empty | `test_cli_config_error_stops_before_the_files` / `test_cli_first_config_error_stops_the_run` | ☑ |
 | No `play_path` / not a directory | league folder | exit 2; stderr: `FAIL`; no `--play-path` hint | `test_cli_no_play_path` / `test_cli_play_path_not_a_directory` | ☑ |
 | Bad rules TOML | profile / gameplan | exit 2; stderr: `FAIL <file>: Not valid TOML: ...`; neither file checked | `test_cli_bad_rules_toml` `[P]` | ☑ |
-| Bad playpool rules | league folder | exit 2; stderr: `FAIL ...` | `test_cli_bad_playpool_rules` | ☑ |
 | Rule lists in `league.toml` | `profile_rules` + `gameplan_rules` arrays | exit 1 | `test_cli_rule_lists_in_league_toml` | ☑ |
 | Listed rules file missing | `*_rules` → absent file | exit 2; stderr: `FAIL` naming the path | `test_cli_missing_listed_rules_file` `[P]` | ☑ |
 | Malformed `athc.ini` | bad ini | exit 2; stderr: `FAIL` naming athc.ini | `test_cli_malformed_ini` | ☑ |
@@ -606,7 +604,7 @@ In [test_autocontinue.py](test_autocontinue.py). Config-driven (`athc.ini [autoc
 
 # `athc convert-pdb`
 
-In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`. Most cases use a selected league with the PNFL labels and order (`league_toml()` + `write_pdbtoexcel_toml`) and no playpool rules, whose `play_path` is an empty `tmp_path` folder, so the workbook builds with populated Tendencies and empty play sheets. **Golden regression**: the real `.pdb` converted against the curated `data/plays/` pool with `data/playpool_rules.toml`, the PNFL labels and order, both game plans (`-o`/`-d`) and the category worksheets on; every sheet's cells (read back with openpyxl, floats rounded to 6 places) must equal `expected/2045-2047.workbook.json`, one row per line. Regenerate with `python -m tests.integration.test_convert_pdb --bless`. Per-row behavior on constructed data is in `tests/unit/pdbtoexcel/test_workbook_creation.py`. Exit 0 done (warnings keep 0) / 2 usage or error.
+In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`. Most cases use a selected league with the PNFL labels and order (`league_toml()` + `write_pdbtoexcel_toml`), whose `play_path` is an empty `tmp_path` folder, so the workbook builds with populated Tendencies and empty play sheets. **Golden regression**: the real `.pdb` converted against the curated `data/plays/` pool, the PNFL labels and order, both game plans (`-o`/`-d`) and the category worksheets on; every sheet's cells (read back with openpyxl, floats rounded to 6 places) must equal `expected/2045-2047.workbook.json`, one row per line. Regenerate with `python -m tests.integration.test_convert_pdb --bless`. Per-row behavior on constructed data is in `tests/unit/pdbtoexcel/test_workbook_creation.py`. Exit 0 done (warnings keep 0) / 2 usage or error.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -628,9 +626,9 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`.
 | Progress, warnings and the OK line | golden league + `-o`/`-d` | exit 0; stderr: `Creating '<file>'`, then only `WARN` lines; stdout: `OK   <file>: <n> play(s)`, n from the golden | `test_progress_on_stderr_warnings_and_ok_line` | ☑ |
 | Empty pool | league with no plays | exit 0; stderr: `WARN Play '...' has no play file in the play pool.` per play; stdout: `OK   <file>: 0 play(s)` | `test_empty_pool_warns_per_play_and_writes_no_play_rows` | ☑ |
 | No league selected | no athc.ini | exit 2; stderr: `FAIL No league selected ...`, one line; stdout empty | `test_cli_no_league_is_one_line_error` | ☑ |
-| Config from the league folder | `league.toml` | `play_path` and `playpool.toml` resolved; a missing `play_path` is a `ConfigFileError` naming `league.toml` | `test_config_play_path_from_league_folder` / `test_config_missing_play_path_is_an_error` | ☑ |
+| Config from the league folder | `league.toml` | `play_path` resolved; a missing `play_path` is a `ConfigFileError` naming `league.toml` | `test_config_play_path_from_league_folder` / `test_config_missing_play_path_is_an_error` | ☑ |
 | Real subprocess `athc convert-pdb` | data + dir | exit 0; stdout: `OK   <file>: 0 play(s)`; stderr: `Creating '<file>'`, then `WARN` lines | `test_entry_point_subprocess` | ☑ |
-| Workbook matches golden | `.pdb` + `data/plays/` + playpool rules + `-o`/`-d` + category sheets | every cell equal to `expected/2045-2047.workbook.json` | `test_workbook_matches_golden` | ☑ |
+| Workbook matches golden | `.pdb` + `data/plays/` + `-o`/`-d` + category sheets | every cell equal to `expected/2045-2047.workbook.json` | `test_workbook_matches_golden` | ☑ |
 
 ---
 
@@ -717,9 +715,9 @@ In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.i
 | `[athc] league` names a shipped league | config/release/ | loads | `test_release_selected_league_loads` | ☑ |
 | Every league | config/release/ | play_path and path set; category labels present | `test_release_league_loads` `[P]` | ☑ |
 | `[autocontinue]` | config/release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
-| gameplan, every league | config/release/ | loads; playpool rules and rule files exist | `test_release_gameplan_config_loads` `[P]` | ☑ |
+| gameplan, every league | config/release/ | loads; rule files exist | `test_release_gameplan_config_loads` `[P]` | ☑ |
 | profile, every league | config/release/ | loads; rule files exist | `test_release_profile_config_loads` `[P]` | ☑ |
-| convert-pdb, every league | config/release/ | loads; the league's `playpool.toml` exists | `test_release_convert_pdb_config_loads` `[P]` | ☑ |
+| convert-pdb, every league | config/release/ | loads; reads the league's `pdbtoexcel.toml` | `test_release_convert_pdb_config_loads` `[P]` | ☑ |
 | `[convert-pdb]` options | config/release/ | spelled out in `athc.ini`; sacks counted as attempts | `test_release_convert_pdb_defaults` | ☑ |
 | scheduler, every league | config/release/ | the rules path is the league folder's `scheduler.toml`; it loads | `test_release_scheduler_files_load` `[P]` | ☑ |
 | `config/dev/` mirrors `config/release/` | both | same `athc.ini`, `league.toml` and rules files | `test_dev_mirrors_release_layout` | ☑ |

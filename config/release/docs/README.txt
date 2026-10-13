@@ -96,7 +96,6 @@ That folder will contain:
                            folder (path) and the league's category names
       gameplan.toml        league rules, one file per tool
       profile.toml
-      playpool.toml
       pdbtoexcel.toml      convert-pdb's category order and deleted plays
       scheduler.toml       the scheduler's settings and renamed teams
    leagues\PCFL\        the PCFL league, same layout

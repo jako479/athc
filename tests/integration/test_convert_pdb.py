@@ -9,7 +9,6 @@ from __future__ import annotations
 import ctypes
 import json
 import os
-import shutil
 import subprocess
 import sys
 from collections.abc import Callable
@@ -45,7 +44,6 @@ from tests.integration.conftest import (
     GP_DEFENSE,
     GP_OFFENSE,
     PLAYS,
-    POOL_RULES,
 )
 
 PDB = DATA / "2045-2047.pdb"
@@ -57,8 +55,8 @@ MakeLeague = Callable[..., Path]
 def league(
     make_league: MakeLeague, write_config: Callable[..., Path], tmp_path: Path
 ) -> Path:
-    """The selected league, with the PNFL labels and order and no playpool
-    rules; its play_path is an empty folder."""
+    """The selected league, with the PNFL labels and order; its play_path is an
+    empty folder."""
     plays = tmp_path / "plays"
     plays.mkdir()
     write_config(f"[athc]\nleague = {LEAGUE}\n")
@@ -293,10 +291,8 @@ def test_entry_point_subprocess(
 def test_config_play_path_from_league_folder(make_league: MakeLeague) -> None:
     folder = make_league(LEAGUE, league_toml("plays"))
     write_pdbtoexcel_toml(folder)
-    (folder / "playpool.toml").write_text("", encoding="utf-8")
     cfg = pdbtoexcel_config.load_config(LEAGUE)
     assert cfg.play_path == str(folder / "plays")
-    assert cfg.playpool_rules == folder / "playpool.toml"
 
 
 def test_config_missing_play_path_is_an_error(make_league: MakeLeague) -> None:
@@ -340,16 +336,14 @@ def test_no_play_path_exit_2(
 
 
 # ── golden workbook ───────────────────────────────────────────────────────────
-# The real .pdb converted against the curated pool (with its playpool rules) and
-# both game plans, category worksheets on; every cell compared to the golden JSON.
+# The real .pdb converted against the curated pool and both game plans, category
+# worksheets on; every cell compared to the golden JSON.
 
 
 def _golden_league(config_dir: Path) -> None:
-    """Select a league under `config_dir` whose pool is `data/plays/` with its
-    playpool rules, the PNFL labels and order, and turn the category worksheets
-    on."""
+    """Select a league under `config_dir` whose pool is `data/plays/`, with the
+    PNFL labels and order, and turn the category worksheets on."""
     folder = make_league_dir(config_dir, LEAGUE, league_toml(PLAYS))
-    shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_pdbtoexcel_toml(folder)
     write_config_file(
         config_dir,

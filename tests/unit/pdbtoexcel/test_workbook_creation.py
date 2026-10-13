@@ -8,10 +8,10 @@ from pathlib import Path
 import openpyxl
 import pytest
 
+from athc.fbpro98_play import DefensiveFront
 from athc.fbpro98_play import OffensiveCategory as O
 from athc.pdbtoexcel import Config, PdbWorkbookCreator
 from athc.pdbtoexcel.pdb import PDB, PLAY_DATA
-from athc.playpool import DefensiveFront
 from tests.conftest import PNFL_LABELS
 from tests.unit.pdbtoexcel.conftest import (
     PNFL_ORDER,
@@ -33,7 +33,6 @@ RUN_LEFT, RUN_MIDDLE = 0x05, 0x09
 def _config(**over: object) -> Config:
     base: dict[str, object] = {
         "play_path": "",
-        "playpool_rules": None,
         "calculate_percentages": True,
         "include_category_worksheets": False,
         "exclude_sacks_from_pass_attempts": True,
@@ -87,7 +86,7 @@ def test_base_sheets_and_run_row(tmp_path: Path) -> None:
     header, data = _rows(wb["Run Plays"])[0], _rows(wb["Run Plays"])[1]
     assert header[:6] == ("Team", "Category", "Slot 1", "Slot 2", "Play", "Type")
     assert (data[0], data[1], data[4]) == ("Bears", "RM", "RUN1")
-    assert not data[5]  # empty Type (no qb_draw) — openpyxl reads "" as None
+    assert not data[5]  # empty Type (no qb_run) — openpyxl reads "" as None
     assert (data[6], data[7], data[8]) == (10, 46, 4.6)  # rushes, yards, avg
 
 
@@ -141,10 +140,10 @@ def test_unlabeled_category_shows_its_game_name(tmp_path: Path) -> None:
     assert _rows(wb["Run Plays"])[1][1] == "Razzle Dazzle Run"
 
 
-def test_qb_draw_type(tmp_path: Path) -> None:
+def test_qb_run_type(tmp_path: Path) -> None:
     play = _run_play("QBD", play_count=3, total_yards=9)
-    record = make_record("QBD", play_category=0x01, user_category=0x09, qb_draw=True)
-    assert _rows(_build(tmp_path, [play], [record])["Run Plays"])[1][5] == "QB draw"
+    record = make_record("QBD", play_category=0x01, user_category=0x09, qb_run=True)
+    assert _rows(_build(tmp_path, [play], [record])["Run Plays"])[1][5] == "QB run"
 
 
 def test_skip_calcs_omits_percent_columns(tmp_path: Path) -> None:

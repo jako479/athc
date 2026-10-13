@@ -508,7 +508,6 @@ def test_release_gameplan_config_loads(name: str) -> None:
     from athc.gameplan import config as gameplan_config
 
     cfg = gameplan_config.load_config(name)
-    assert cfg.playpool_rules is not None and cfg.playpool_rules.is_file()
     assert cfg.rule_files and all(p.is_file() for p in cfg.rule_files)
 
 
@@ -538,8 +537,7 @@ def test_release_convert_pdb_config_loads(name: str) -> None:
     from athc.pdbtoexcel import config as pdbtoexcel_config
 
     cfg = pdbtoexcel_config.load_config(name)
-    assert cfg.playpool_rules is not None and cfg.playpool_rules.is_file()
-    assert cfg.playpool_rules == RELEASE / "leagues" / name / "playpool.toml"
+    assert cfg.pdbtoexcel_file == RELEASE / "leagues" / name / "pdbtoexcel.toml"
 
 
 @pytest.mark.usefixtures("release_config_dir")

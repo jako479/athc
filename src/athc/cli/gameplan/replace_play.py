@@ -246,11 +246,9 @@ def replace_play(
         if config.rule_files
         else Rules()
     )
-    # The playpool rules add the attributes (rollout, QB draw, timed, 2-DL)
-    # the league rules cap, so the pool is built as `check` builds it.
-    pool = build_pool(
-        config.play_path, config.playpool_rules, config.categories, config.league_file
-    )
+    # The pool is built as `check` builds it, so the attributes the league rules
+    # cap (rollout, QB run, timed, 2-DL) are the ones `check` sees.
+    pool = build_pool(config.play_path, config.categories, config.league_file)
     entries = [_pool_entry(pool, name) for name in replacements]
 
     collected = collect_files([target], suffix=".pln", recursive=recursive)

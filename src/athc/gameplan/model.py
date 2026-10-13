@@ -15,7 +15,7 @@ class RuleName(StrEnum):
     CATEGORY_NOT_ALLOWED = "category_not_allowed"
     CATEGORY_MIN_COUNT = "category_min_count"
     CATEGORY_MAX_COUNT = "category_max_count"
-    CATEGORY_MAX_QB_DRAWS = "category_max_qb_draws"
+    CATEGORY_MAX_QB_RUNS = "category_max_qb_runs"
     CATEGORY_MAX_ROLLOUTS = "category_max_rollouts"
     CATEGORY_MAX_TIMED = "category_max_timed"
     CATEGORY_MAX_TWO_DL = "category_max_two_dl"

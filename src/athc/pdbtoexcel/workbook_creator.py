@@ -15,13 +15,7 @@ from athc.fbpro98_play import PlayCategory
 from athc.pdbtoexcel.config import Config
 from athc.pdbtoexcel.excel_workbook import ExcelPdbWorkbook
 from athc.pdbtoexcel.pdb import PDB, PLAY_DATA
-from athc.playpool import (
-    Play,
-    PlayPool,
-    load_rules,
-    read_play_pool,
-    rule_warnings,
-)
+from athc.playpool import Play, PlayPool, read_play_pool
 
 StrPath = str | PathLike[str]
 
@@ -66,20 +60,10 @@ class PdbWorkbookCreator:
     ) -> PdbWorkbookCreator:
         """Build all dependencies from file paths. Tests call `__init__` with fakes.
 
-        The playpool rules' include / exclude names are checked against the pool
-        once it is read; each problem, each play-pool issue and each PDB notice
-        lands in the creator's `warnings`."""
-        notices: list[str] = []
-        if config.playpool_rules:
-            rules = load_rules(config.playpool_rules)
-            play_pool = read_play_pool(
-                config.play_path, rules=rules, labels=config.categories
-            )
-            path = config.playpool_rules
-            notices.extend(f"{path}: {m}" for m in rule_warnings(play_pool, rules))
-        else:
-            play_pool = read_play_pool(config.play_path, labels=config.categories)
-        notices.extend(play_pool.issues)
+        Each play-pool issue and each PDB notice lands in the creator's
+        `warnings`."""
+        play_pool = read_play_pool(config.play_path, labels=config.categories)
+        notices = list(play_pool.issues)
         pdb = PDB(str(pdb_filename))
         notices.extend(pdb.warnings)
         pdb.convert_invalid_play_data(play_pool)

@@ -1,12 +1,12 @@
 """Build a PlayPool: walk a tree, classify each .ply from its file, index by name.
 
-Side and category come from the parsed play file, so any folder layout works —
-a league tree, an arbitrary tree, or a flat directory. Folders are optional: a
-recognized folder adds an attribute the bytes can't carry (offense `screen`,
-defense `defensive_front`) and lets the reader warn (with the play's path) when
-a play sits in a folder that contradicts its file. Category folders are named by
-the league's labels (`CategoryLabels`, from league.toml); the filename-derived
-flags (`rollout`, `qb_draw`, `pass_logic`) come from the league's `PlaypoolRules`.
+Side, category and the play attributes (rollout, QB run, pass logic, defensive
+front) come from the parsed play file, so any folder layout works — a league
+tree, an arbitrary tree, or a flat directory. Folders are optional: a recognized
+folder adds the one attribute the bytes can't carry (offense `screen`) and lets
+the reader warn (with the play's path) when a play sits in a folder that
+contradicts its file. Category folders are named by the league's labels
+(`CategoryLabels`, from league.toml).
 """
 
 from __future__ import annotations
@@ -25,28 +25,24 @@ from athc.fbpro98_play import (
     read_play,
 )
 from athc.playpool.model import (
-    DefensiveFront,
     DefensivePlay,
     OffensivePlay,
     PassLogic,
-    Play,
     PlayPool,
     SpecialTeamsPlay,
-)
-from athc.playpool.rules import (
-    SECTION_QB_RUN,
-    SECTION_ROLLOUT,
-    SECTION_TIMED,
-    FilenameFilter,
-    PlaypoolRules,
     StrPath,
 )
+
+# A pass is a rollout when its QB gets beyond this many units (90 = 1 yard) outside the
+# outermost offensive lineman on that side, at his spot at the snap, before he
+# throws.
+ROLLOUT_MARGIN = 100
 
 # ── League folder conventions (optional; only these names mean anything). The
 # side, screen and front folder names are fixed; category folders are named by
 # the league's labels. ────────────────────────────────────────────────────────
 SCREENS_FOLDER = "Screens"  # offense pass screen
-RNS_FOLDER = "R&SDefs"  # Run-and-Shoot defense → 2-DL front
+RNS_FOLDER = "R&SDefs"  # Run-and-Shoot defenses (a defense folder)
 SIDE_FOLDERS = ("Offense", "Defense", "Special")
 _SIDE_ADJECTIVE = {
     "Offense": "Offensive",
@@ -71,7 +67,6 @@ class _FolderInfo:
     side: str | None = None
     category: PlayCategory | None = None
     screen: bool = False
-    front: DefensiveFront | None = None
 
 
 def _category_folder(
@@ -99,21 +94,15 @@ def _folder_info(
     side = None
     category: PlayCategory | None = None
     screen = False
-    front: DefensiveFront | None = None
     for part in parts:
         if part in SIDE_FOLDERS:
             side = part
         elif part == SCREENS_FOLDER:
             side, screen = "Offense", True
         elif part == RNS_FOLDER:
-            side, front = "Defense", DefensiveFront.TWO_DL
-        elif part[:2] in ("34", "43"):
             side = "Defense"
-            front = (
-                DefensiveFront.THREE_FOUR
-                if part[:2] == "34"
-                else DefensiveFront.FOUR_THREE
-            )
+        elif part[:2] in ("34", "43"):  # a front, then a defense label
+            side = "Defense"
             member = labels.defense_by_label(part[2:])
             if member is not None:
                 category = member
@@ -122,7 +111,7 @@ def _folder_info(
             if member is not None:
                 side = "Offense" if isinstance(member, OffensiveCategory) else "Defense"
                 category = member
-    return _FolderInfo(side, category, screen, front)
+    return _FolderInfo(side, category, screen)
 
 
 def _warnings(info: _FolderInfo, play: PlayFile, path: str) -> list[str]:
@@ -164,32 +153,30 @@ def _add(
     pool.add(play)
 
 
-def _offensive(
-    rules: PlaypoolRules, name: str, play_file: PlayFile, *, screen: bool
-) -> OffensivePlay:
+def _offensive(name: str, play_file: PlayFile, *, screen: bool) -> OffensivePlay:
+    """An offensive record; the play's category keeps QB run to run plays and
+    rollout and pass logic to pass plays."""
     category = play_file.category
     is_run = category.is_run
     is_pass = category.is_pass
-    qb_draw = is_run and rules.qb_draw.matches(name)
-    rollout = is_pass and rules.rollout.matches(name)
+    qb_run = is_run and play_file.is_qb_run
+    rollout = is_pass and play_file.is_rollout(ROLLOUT_MARGIN)
     pass_logic: PassLogic | None = None
     if is_pass:
         pass_logic = (
-            PassLogic.TIMED if rules.timed.matches(name) else PassLogic.CHECK_RECEIVERS
+            PassLogic.TIMED if play_file.is_timed_pass else PassLogic.CHECK_RECEIVERS
         )
     return OffensivePlay(
         name=name,
         play_file=play_file,
         screen=screen,
         rollout=rollout,
-        qb_draw=qb_draw,
+        qb_run=qb_run,
         pass_logic=pass_logic,
     )
 
 
-def _read_play_file(
-    pool: PlayPool, file_path: Path, rules: PlaypoolRules, labels: CategoryLabels
-) -> None:
+def _read_play_file(pool: PlayPool, file_path: Path, labels: CategoryLabels) -> None:
     """Parse one .ply, classify it from its file and folders, and add it to
     `pool`; an invalid or unreadable file is skipped and noted as an issue."""
     try:
@@ -210,86 +197,34 @@ def _read_play_file(
     if play_file.is_special_teams:
         _add(pool, SpecialTeamsPlay(name=name, play_file=play_file))
     elif play_file.is_offensive:
-        _add(pool, _offensive(rules, name, play_file, screen=info.screen))
+        _add(pool, _offensive(name, play_file, screen=info.screen))
     else:
         _add(
             pool,
-            DefensivePlay(name=name, play_file=play_file, defensive_front=info.front),
+            DefensivePlay(
+                name=name,
+                play_file=play_file,
+                defensive_front=play_file.defensive_front,
+            ),
         )
 
 
 def read_play_pool(
-    root_dir: StrPath,
-    *,
-    rules: PlaypoolRules | None = None,
-    labels: CategoryLabels | None = None,
+    root_dir: StrPath, *, labels: CategoryLabels | None = None
 ) -> PlayPool:
     """Scan `root_dir` for .ply files, in sorted path order, and classify them;
     invalid and unreadable files are skipped with a warning. With duplicate
     names the last in that order wins.
 
-    Each play's side and category come from the file itself. With no `rules`,
-    filename-derived attributes stay off; with no `labels`, no folder name means
-    a category (the fixed side, screen and front folders still apply).
+    Each play's side, category and attributes come from the file itself. With
+    no `labels`, no folder name means a category (the fixed side and screen
+    folders still apply).
     """
     pool = PlayPool(root_dir)
-    rules = rules if rules is not None else PlaypoolRules()
     labels = labels if labels is not None else CategoryLabels()
     for file_path in sorted(pool.root_dir.glob("**/*.ply")):
-        _read_play_file(pool, file_path, rules, labels)
+        _read_play_file(pool, file_path, labels)
     return pool
 
 
-def rule_warnings(pool: PlayPool, rules: PlaypoolRules) -> list[str]:
-    """What is wrong with the exact play names a rules file lists under `include`
-    / `exclude`, checked against `pool`: a name not in the pool; a name whose
-    play the section cannot apply to (a run play under a pass attribute, a pass
-    play under [QBRun], a defensive or special-teams play anywhere); a name under
-    both `include` and `exclude` of one section (the veto wins). One line each,
-    in section order then by name. The reader applies the rules regardless; the
-    patterns (`suffix_*`, `regex_*`) are not checked."""
-    messages: list[str] = []
-    sections: tuple[tuple[str, FilenameFilter, bool], ...] = (
-        (SECTION_TIMED, rules.timed, False),
-        (SECTION_ROLLOUT, rules.rollout, False),
-        (SECTION_QB_RUN, rules.qb_draw, True),
-    )
-    for section, filter_, needs_run in sections:
-        both = filter_.include & filter_.exclude
-        for name in sorted(both):
-            messages.append(
-                f"[{section}] '{name}' is in both include and exclude. Exclude wins."
-            )
-        for key, names in (("include", filter_.include), ("exclude", filter_.exclude)):
-            for name in sorted(names - both):
-                play = pool.find_by_name(name)
-                if play is None:
-                    messages.append(
-                        f"[{section}] {key} '{name}' is not in the play pool."
-                    )
-                    continue
-                kind = _wrong_kind(play, needs_run)
-                if kind is not None:
-                    messages.append(
-                        f"[{section}] {key} '{name}' is a {kind} play. "
-                        "It has no effect."
-                    )
-    return messages
-
-
-def _wrong_kind(play: Play, needs_run: bool) -> str | None:
-    """What `play` is when a section needing a run (or pass) play cannot apply
-    to it; None when it can."""
-    if isinstance(play, SpecialTeamsPlay):
-        return "special-teams"
-    if isinstance(play, DefensivePlay):
-        return "defensive"
-    category = play.category
-    if needs_run and not category.is_run:
-        return "pass" if category.is_pass else category.long
-    if not needs_run and not category.is_pass:
-        return "run" if category.is_run else category.long
-    return None
-
-
-__all__ = ["folder_warnings", "read_play_pool", "rule_warnings"]
+__all__ = ["ROLLOUT_MARGIN", "folder_warnings", "read_play_pool"]

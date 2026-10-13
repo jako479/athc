@@ -5,12 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from athc.fbpro98_play import DefensiveCategory as D
+from athc.fbpro98_play import DefensiveFront, PlayFile
 from athc.fbpro98_play import OffensiveCategory as O
-from athc.fbpro98_play import PlayFile
 from athc.pdbtoexcel.config import CategoryOrder
 from athc.pdbtoexcel.pdb import PLAY_DATA, TENDENCY_DATA
 from athc.playpool import (
-    DefensiveFront,
     DefensivePlay,
     OffensivePlay,
     PassLogic,
@@ -87,7 +86,7 @@ def make_record(
     user_category: int = 0x03,
     special_category: int = 0,
     screen: bool = False,
-    qb_draw: bool = False,
+    qb_run: bool = False,
     rollout: bool = False,
     pass_logic: PassLogic | None = None,
     defensive_front: DefensiveFront | None = None,
@@ -102,7 +101,7 @@ def make_record(
             name,
             play_file,
             screen=screen,
-            qb_draw=qb_draw,
+            qb_run=qb_run,
             rollout=rollout,
             pass_logic=pass_logic,
         )

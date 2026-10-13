@@ -2,9 +2,9 @@
 each play's category and attributes.
 
 `validate_gameplan` is the entry point. Attribute caps read the typed fields the
-playpool sets on each record: offense `qb_draw` / `rollout` (bool) and
-`pass_logic` (`PassLogic.TIMED`); defense `defensive_front` (`DefensiveFront.TWO_DL`,
-the Run-and-Shoot front).
+playpool sets on each record from its play file: offense `qb_run` / `rollout`
+(bool) and `pass_logic` (`PassLogic.TIMED`); defense `defensive_front`
+(`DefensiveFront.TWO_DL`, the Run-and-Shoot front).
 """
 
 from __future__ import annotations
@@ -13,11 +13,10 @@ from collections.abc import Iterable, Mapping
 from fractions import Fraction
 
 from athc.fbpro98_gameplan import GamePlan
-from athc.fbpro98_play import UNKNOWN_CATEGORY, resolve_category
+from athc.fbpro98_play import UNKNOWN_CATEGORY, DefensiveFront, resolve_category
 from athc.gameplan.model import RuleName, RuleViolation
 from athc.gameplan.rules import DefenseCategoryRule, OffenseCategoryRule, Rules
 from athc.playpool import (
-    DefensiveFront,
     DefensivePlay,
     OffensivePlay,
     PassLogic,
@@ -140,20 +139,20 @@ def _validate_offense(
                 )
             )
 
-        qb_draws = sum(1 for p in plays if isinstance(p, OffensivePlay) and p.qb_draw)
+        qb_runs = sum(1 for p in plays if isinstance(p, OffensivePlay) and p.qb_run)
         cap = _cap_exceeded(
-            qb_draws,
+            qb_runs,
             len(plays),
-            rule.max_qb_draws_count,
-            rule.max_qb_draws_ratio,
-            rule.max_qb_draws_percent,
+            rule.max_qb_runs_count,
+            rule.max_qb_runs_ratio,
+            rule.max_qb_runs_percent,
         )
         if cap is not None:
             violations.append(
                 RuleViolation(
-                    RuleName.CATEGORY_MAX_QB_DRAWS,
-                    f"Offensive category '{category}' has {qb_draws} of "
-                    f"{len(plays)} QB draws; allows at most {cap}.",
+                    RuleName.CATEGORY_MAX_QB_RUNS,
+                    f"Offensive category '{category}' has {qb_runs} of "
+                    f"{len(plays)} QB runs; allows at most {cap}.",
                     category,
                 )
             )

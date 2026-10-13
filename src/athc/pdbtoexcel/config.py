@@ -1,9 +1,9 @@
 """convert-pdb config: the workbook options from `[convert-pdb]` in `athc.ini`
 (app-wide, not league data) and, from the league folder, `play_path`, the
-category labels, the optional `playpool.toml`, and `pdbtoexcel.toml`.
+category labels and `pdbtoexcel.toml`.
 
-`play_path` / `playpool_rules` locate the play pool used to classify and
-(optionally) tag plays. `pdbtoexcel.toml` is required: `[category_order]` lists,
+`play_path` locates the play pool used to classify and tag plays.
+`pdbtoexcel.toml` is required: `[category_order]` lists,
 per side, the categories the workbook shows and the order they sort in (the row
 order within each team and the Options sheet lists the sort macros use), named
 by the league's labels from `league.toml` (the game name where the league has
@@ -31,7 +31,6 @@ from athc.fbpro98_play import (
 from athc.pdbtoexcel.pdb import PLAY_DATA
 
 PACKAGE_DIR = Path(__file__).resolve().parent
-PLAYPOOL_RULES_FILE = "playpool.toml"  # in the league folder
 PDBTOEXCEL_FILE = "pdbtoexcel.toml"  # in the league folder
 SECTION = "convert-pdb"
 
@@ -62,7 +61,6 @@ class Config:
     play_path: str = ""
     league_file: Path = Path(LEAGUE_FILE)  # the league.toml that sets play_path
     pdbtoexcel_file: Path = Path(PDBTOEXCEL_FILE)  # for its warnings
-    playpool_rules: Path | None = None  # optional; tags plays
     calculate_percentages: bool = True
     include_category_worksheets: bool = False
     exclude_sacks_from_pass_attempts: bool = True
@@ -80,12 +78,11 @@ def get_runtime_path(filename: str) -> Path:
 def load_config(league: str | None = None) -> Config:
     """Locate the play pool and read the workbook options.
 
-    `play_path`, the category labels, the playpool rules and `pdbtoexcel.toml`
-    come from the league folder (LeagueError when no league can be resolved).
-    A league folder without `play_path` or without `pdbtoexcel.toml` is a
-    ConfigFileError; one without `playpool.toml` yields None. The workbook
-    options come from `[convert-pdb]` in `athc.ini`; a missing key keeps its
-    default, a non-boolean value is a ConfigFileError."""
+    `play_path`, the category labels and `pdbtoexcel.toml` come from the league
+    folder (LeagueError when no league can be resolved). A league folder
+    without `play_path` or without `pdbtoexcel.toml` is a ConfigFileError. The
+    workbook options come from `[convert-pdb]` in `athc.ini`; a missing key
+    keeps its default, a non-boolean value is a ConfigFileError."""
     cfg = load_league_config(league)
     play_path = cfg.path("play_path")
     if play_path is None:
@@ -102,7 +99,6 @@ def load_config(league: str | None = None) -> Config:
         play_path=str(play_path),
         league_file=cfg.dir / LEAGUE_FILE,
         pdbtoexcel_file=pdbtoexcel_file,
-        playpool_rules=cfg.rules_file(PLAYPOOL_RULES_FILE),
         calculate_percentages=_bool(raw, "calculate_percentages", True),
         include_category_worksheets=_bool(raw, "include_category_worksheets", False),
         exclude_sacks_from_pass_attempts=_bool(

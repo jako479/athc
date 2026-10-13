@@ -12,7 +12,7 @@ from athc.cli.gameplan.set_specials import set_specials
 from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_gameplan import PlayRef, read_gameplan
 from tests.conftest import LEAGUE, league_toml
-from tests.integration.conftest import GP_DEFENSE, GP_OFFENSE, PLAYS, POOL_RULES
+from tests.integration.conftest import GP_DEFENSE, GP_OFFENSE, PLAYS
 
 SPECIAL = "LIONKICK"  # offense Kickoff, special_category 2 -> custom slot index 1
 NORMAL = "OR45RL01"  # a normal offense play (not special teams)
@@ -22,9 +22,8 @@ WriteConfig = Callable[..., Path]
 
 @pytest.fixture(autouse=True)
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
-    """The selected league: the curated test pool and its playpool rules."""
+    """The selected league: the curated test pool."""
     folder = make_league(LEAGUE, league_toml(PLAYS))
-    shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     return folder
 

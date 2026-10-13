@@ -78,8 +78,7 @@ Every command prints through the shared console ([architecture](../design/archit
 ## Settings
 
 The same league files the two check commands read: `profile.toml`,
-`gameplan.toml`, `playpool.toml` and `play_path` in
-`league.toml`, plus `path` for a directory. See
+`gameplan.toml` and `play_path` in `league.toml`, plus `path` for a directory. See
 [profile](../profile/README.md) and [gameplan](../gameplan/README.md).
 
 ## Code

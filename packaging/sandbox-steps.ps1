@@ -103,7 +103,6 @@ New-Item -ItemType Directory -Force $testLeague | Out-Null
     Set-Content (Join-Path $testLeague 'league.toml')
 Copy-Item (Join-Path $data 'profile_rules.toml') (Join-Path $testLeague 'profile.toml')
 Copy-Item (Join-Path $data 'gameplan_rules.toml') (Join-Path $testLeague 'gameplan.toml')
-Copy-Item (Join-Path $data 'playpool_rules.toml') (Join-Path $testLeague 'playpool.toml')
 Copy-Item (Join-Path $leagues 'PNFL\pdbtoexcel.toml') (Join-Path $testLeague 'pdbtoexcel.toml')
 
 # Leagues divisions and conferences: the scheduler goldens' rules and the two

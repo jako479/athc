@@ -3,7 +3,7 @@
 - **Owner:** FBPro98 Play Library
 - **Encoding:** Integers little-endian; coordinates signed; block IDs ASCII. Not masked.
 
-A `.ply` holds one play: its categories and, for each of the 11 players, a position and the logic the coach set in the game's play editor. This spec covers the layout and the parts of the logic needed to tell a timed pass, a QB run, a rollout and a defense's personnel (section 5).
+A `.ply` holds one play: its categories and, for each of the 11 players, a position and the logic the coach set in the game's play editor. This spec covers the layout and the parts of the logic athc reads (section 5).
 
 ---
 
@@ -95,7 +95,7 @@ Size = 2 + 2 × n. Read n from every command: one code can take a different coun
 
 ### 2.5 Command Codes
 
-Only the codes section 5 needs are listed. Skip any other command by its argument count (section 2.4).
+Only the codes athc reads are listed. Skip any other command by its argument count (section 2.4).
 
 | Code | Name            | Arguments | Description               |
 | :--- | :-------------- | :-------- | :------------------------ |
@@ -132,7 +132,7 @@ Only the codes section 5 needs are listed. Skip any other command by its argumen
 0x004B  07 01 01 00           code 07, 1 argument: skipped
 ```
 
-The QB drops back from (-11, -210) to (-11, -380) and throws a timed pass. The tackles stand at x -322 and 311 at the snap, so the QB stays inside them: a timed pass, not a rollout. The next record (the C) starts at 0x004F.
+The QB drops back from (-11, -210) to (-11, -380) and throws a timed pass. The tackles stand at x -322 and 311 at the snap, so the QB stays inside them. The next record (the C) starts at 0x004F.
 
 ---
 
@@ -307,12 +307,12 @@ Typical values: QB `2`, C `1`, kickoff kicker `4`, punter `6` (takes the snap an
 
 ## 5. Play Attributes
 
-Play type and personnel are not stored as fields; they follow from the player records. The QB is the player with position `0x0020`.
+Play type and personnel are not stored as fields; they follow from the player records.
 
-- Timed pass: the QB has a Timed pass.
-- QB run: the QB has a Run.
-- Rollout: compare the QB's spots before the Timed pass or Check receivers (each box's spot and each Move to) with the tackles' spots at the snap (their first after-snap box). How far outside a tackle counts as a rollout is the caller's choice.
-- Personnel: count the 11 position codes (section 4.1). Offense: RB (HB + FB), TE, WR. Defense: DL (DE + DT), LB, DB (CB + S). On defense, the DL count gives the front: 2 DL is a 2-DL, 3 DL a 3-4 and 4 DL a 4-3.
+- Play type: the commands in the QB's logic boxes (position `0x0020`; section 2.5), such as a Timed pass, Check receivers or a Run, and the spots the QB moves to.
+- Personnel: count the 11 position codes (section 4.1). Offense: RB (HB + FB), TE, WR. Defense: DL (DE + DT), LB, DB (CB + S).
+
+How athc turns these into a timed pass, QB run, rollout or defensive front is a league rule, not part of the format: see the [playpool README](../../playpool/README.md#how-athc-reads-a-play).
 
 ---
 
@@ -324,6 +324,7 @@ A file is invalid when any of these holds:
 - A file length other than 8 + size
 - A file too short for the offsets and category bytes
 - A player record offset with no room for the record's first 4 bytes
+- A player record too short for its box lists (section 2)
 - Play category bytes that no category table recognizes (section 3)
 
 ---

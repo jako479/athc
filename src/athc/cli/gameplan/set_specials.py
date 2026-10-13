@@ -140,9 +140,7 @@ def set_specials(
             None if from_console else play_list_path,
         )
     config = load_config(league, rule_files=())  # no gameplan rules needed
-    pool = build_pool(
-        config.play_path, config.playpool_rules, config.categories, config.league_file
-    )
+    pool = build_pool(config.play_path, config.categories, config.league_file)
 
     invalid_plays = validate_special_play_list(plays, pool)
     if invalid_plays:

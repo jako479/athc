@@ -35,7 +35,6 @@ from tests.integration.conftest import (
     GP_DEFENSE,
     GP_OFFENSE,
     PLAYS,
-    POOL_RULES,
     build_gameplan,
     defense_normal,
     defense_special,
@@ -629,11 +628,10 @@ def test_cli_backup_used_when_first_breaks_rule(
     )
 
 
-def test_cli_rollout_cap_uses_playpool_rules(
+def test_cli_rollout_cap_uses_the_play_file(
     runner, league: Path, tmp_path: Path
 ) -> None:
-    """The rollout flag comes from playpool.toml, so the pool must load it."""
-    shutil.copy(POOL_RULES, league / "playpool.toml")
+    """The rollout flag comes from the play file: AF1AwagR's QB rolls out."""
     (league / "gameplan.toml").write_text(
         "[offense.PSL]\nmax_rollouts_count = 0\n", "utf-8"
     )

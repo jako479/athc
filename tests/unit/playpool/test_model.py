@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from athc.fbpro98_play import OffensiveCategory
+from athc.fbpro98_play import DefensiveFront, OffensiveCategory
 from athc.playpool import (
-    DefensiveFront,
     DefensivePlay,
     OffensivePlay,
     PassLogic,

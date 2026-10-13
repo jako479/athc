@@ -1,10 +1,12 @@
 """In-memory data model for FbPro98 .ply play files.
 
-Defines the types the reader produces (PlayerHeader, PlayFile) and the play
-categories: four per-side enums (offense, defense, special-offense,
-special-defense), each member carrying its on-disk code and the long game name
-(league labels live in `labels.py`). `resolve_category` names a category from
-raw bytes.
+Defines the types the reader produces (PlayerHeader, PlayerLogic with its
+LogicBox and Command, PlayFile) and the play categories: four per-side enums
+(offense, defense, special-offense, special-defense), each member carrying its
+on-disk code and the long game name (league labels live in `labels.py`).
+`resolve_category` names a category from raw bytes. `PlayFile` also tells the
+play attributes its players' logic implies: QB run, timed pass, rollout, and
+the defensive front (`DefensiveFront`).
 """
 
 from __future__ import annotations
@@ -12,6 +14,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+
+from athc.fbpro98_play.schema import (
+    COMMAND_CHECK_RECEIVERS,
+    COMMAND_MOVE_TO,
+    COMMAND_RUN,
+    COMMAND_TIMED_PASS,
+    POSITION_C,
+    POSITION_DE,
+    POSITION_DT,
+    POSITION_G,
+    POSITION_QB,
+    POSITION_T,
+)
 
 
 class PlayCategory:
@@ -114,6 +129,28 @@ UNKNOWN_CATEGORY = PlayCategory(-1, "Unknown")
 """Returned for a play whose category code isn't recognized."""
 
 
+class DefensiveFront(Enum):
+    """A defensive play's front, from its count of down linemen (DT + DE)."""
+
+    THREE_FOUR = "3-4"
+    FOUR_THREE = "4-3"
+    TWO_DL = "2-DL"  # two down linemen (the Run-and-Shoot front)
+
+
+# 3-4 and 4-3 name base run defenses; 2-DL names a pass defense.
+_RUN_FRONTS = {3: DefensiveFront.THREE_FOUR, 4: DefensiveFront.FOUR_THREE}
+_RUN_FRONT_CATEGORIES = frozenset(
+    {
+        DefensiveCategory.RUN_LEFT,
+        DefensiveCategory.RUN_MIDDLE,
+        DefensiveCategory.RUN_RIGHT,
+    }
+)
+_DOWN_LINEMEN = frozenset({POSITION_DT, POSITION_DE})
+_OFFENSIVE_LINEMEN = frozenset({POSITION_C, POSITION_G, POSITION_T})
+_PASSES = frozenset({COMMAND_TIMED_PASS, COMMAND_CHECK_RECEIVERS})
+
+
 def resolve_category(
     play_category: int, special_category: int, user_category: int
 ) -> PlayCategory:
@@ -161,6 +198,44 @@ class PlayerHeader:
 
 
 @dataclass(frozen=True, slots=True)
+class Command:
+    """One command in a logic box. See specs/ply.md section 2.4."""
+
+    code: int
+    """Command code (u8), e.g. 0x02 Move to, 0x06 Timed pass;
+    specs/ply.md section 2.5."""
+
+    arguments: tuple[int, ...]
+    """Arguments (i16 each), in order; a spot is x, y."""
+
+
+@dataclass(frozen=True, slots=True)
+class LogicBox:
+    """One logic box: where the player stands when its commands start, then the
+    commands in order. See specs/ply.md section 2.3."""
+
+    x: int
+    """Sideways spot, positive to the offense's right; 90 units = 1 yard."""
+
+    y: int
+    """Downfield spot, positive toward the defense."""
+
+    commands: tuple[Command, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PlayerLogic:
+    """One player's logic boxes, before the snap and from the snap on.
+    See specs/ply.md section 2.2."""
+
+    pre_snap: tuple[LogicBox, ...] = ()
+    """Starts with the player's starting spot."""
+
+    after_snap: tuple[LogicBox, ...] = ()
+    """Starts with the player's spot at the snap."""
+
+
+@dataclass(frozen=True, slots=True)
 class PlayFile:
     """Parsed FbPro98 .ply play file.
 
@@ -191,6 +266,9 @@ class PlayFile:
     player_headers: tuple[PlayerHeader, ...]
     """One PlayerHeader per slot, same order as player_offsets."""
 
+    player_logic: tuple[PlayerLogic, ...] = ()
+    """One PlayerLogic per slot, same order as player_headers."""
+
     @property
     def is_offensive(self) -> bool:
         """True if this is an offensive (or kicking-side) play."""
@@ -217,3 +295,85 @@ class PlayFile:
     def category_name(self) -> str:
         """The long game-category name ('Unknown' if the code is unrecognized)."""
         return self.category.long
+
+    @property
+    def is_timed_pass(self) -> bool:
+        """True for an offensive play whose QB throws a Timed pass after the snap."""
+        return self._qb_has(COMMAND_TIMED_PASS)
+
+    @property
+    def is_qb_run(self) -> bool:
+        """True for an offensive play whose QB runs the ball (a Run command) after
+        the snap."""
+        return self._qb_has(COMMAND_RUN)
+
+    def is_rollout(self, margin: int) -> bool:
+        """True for an offensive play whose QB, from the snap up to his Timed
+        pass or Check receivers, gets beyond `margin` units (90 = 1 yard)
+        outside the outermost offensive lineman (C, G or T) on either side, at
+        that lineman's spot at the snap: exactly `margin` outside is not a
+        rollout. How far counts is the caller's choice."""
+        if not self._is_normal_offense:
+            return False
+        line = [
+            logic.after_snap[0].x
+            for logic in self._logic_at(*_OFFENSIVE_LINEMEN)
+            if logic.after_snap
+        ]
+        if not line:
+            return False
+        left, right = min(line), max(line)
+        for qb in self._logic_at(POSITION_QB):
+            spots = _spots_before_pass(qb)
+            if spots and (min(spots) < left - margin or max(spots) > right + margin):
+                return True
+        return False
+
+    @property
+    def defensive_front(self) -> DefensiveFront | None:
+        """A defensive play's front from its down linemen (DT + DE): on a Run
+        Left, Run Middle or Run Right play 3 is a 3-4 and 4 a 4-3; on a pass
+        play 2 is a 2-DL. None for any other play or count."""
+        if not self.is_defensive or self.is_special_teams:
+            return None
+        count = sum(1 for h in self.player_headers if h.position in _DOWN_LINEMEN)
+        category = self.category
+        if category in _RUN_FRONT_CATEGORIES:
+            return _RUN_FRONTS.get(count)
+        if category.is_pass and count == 2:
+            return DefensiveFront.TWO_DL
+        return None
+
+    @property
+    def _is_normal_offense(self) -> bool:
+        return self.is_offensive and not self.is_special_teams
+
+    def _logic_at(self, *positions: int) -> list[PlayerLogic]:
+        """The logic of every player at one of `positions`, in slot order."""
+        # A PlayFile built without logic (player_logic=()) has none to give.
+        pairs = zip(self.player_headers, self.player_logic, strict=False)
+        return [logic for header, logic in pairs if header.position in positions]
+
+    def _qb_has(self, code: int) -> bool:
+        """True for an offensive play whose QB has a command with `code` from
+        the snap on."""
+        return self._is_normal_offense and any(
+            command.code == code
+            for logic in self._logic_at(POSITION_QB)
+            for box in logic.after_snap
+            for command in box.commands
+        )
+
+
+def _spots_before_pass(logic: PlayerLogic) -> list[int] | None:
+    """A QB's sideways spots from the snap up to his first Timed pass or Check
+    receivers: each box's spot and each Move to. None when he never passes."""
+    spots: list[int] = []
+    for box in logic.after_snap:
+        spots.append(box.x)
+        for command in box.commands:
+            if command.code in _PASSES:
+                return spots
+            if command.code == COMMAND_MOVE_TO and command.arguments:
+                spots.append(command.arguments[0])
+    return None

@@ -61,9 +61,7 @@ def set_normals(
             None if from_console else play_list_path,
         )
     config = load_config(league, rule_files=())  # no gameplan rules needed
-    pool = build_pool(
-        config.play_path, config.playpool_rules, config.categories, config.league_file
-    )
+    pool = build_pool(config.play_path, config.categories, config.league_file)
 
     specials = [
         InvalidPlay(

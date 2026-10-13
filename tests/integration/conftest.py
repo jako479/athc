@@ -24,7 +24,6 @@ DEF1 = DATA / "TST-DEF1.prf"
 
 # gameplan check: real gameplans + a curated pool and their rules.
 GP_RULES = DATA / "gameplan_rules.toml"
-POOL_RULES = DATA / "playpool_rules.toml"
 GP_OFFENSE = DATA / "offense.pln"
 GP_DEFENSE = DATA / "defense.pln"
 PLAYS = DATA / "plays"

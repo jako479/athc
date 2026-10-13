@@ -20,8 +20,7 @@ from athc.fbpro98_play import (
 )
 from athc.gameplan import Rules, RuleViolation, load_rules
 from athc.gameplan.writer import PlayLine
-from athc.playpool import PlayPool, read_play_pool, rule_warnings
-from athc.playpool import load_rules as load_pool_rules
+from athc.playpool import PlayPool, read_play_pool
 
 __all__ = [
     "COMMENT_TOKEN",
@@ -133,26 +132,15 @@ def load_rules_or_raise(rule_files: Iterable[Path], labels: CategoryLabels) -> R
     return load_rules(files, labels=labels)
 
 
-def build_pool(
-    play_path: Path,
-    playpool_rules: Path | None,
-    labels: CategoryLabels,
-    league_file: Path,
-) -> PlayPool:
+def build_pool(play_path: Path, labels: CategoryLabels, league_file: Path) -> PlayPool:
     """Build a PlayPool from `play_path` (each play classified from its file) with
-    the league's category `labels` naming its folders. Optional `playpool_rules`
-    is the playpool filename-filter TOML. Every pool issue and every notice
-    about the names the rules file lists is a `WARN` line. ConfigFileError,
-    naming `league_file`, when `play_path` is not a folder; an unreadable rules
-    file raises its own error."""
+    the league's category `labels` naming its folders. Every pool issue is a
+    `WARN` line. ConfigFileError, naming `league_file`, when `play_path` is not a
+    folder."""
     play_dir(play_path, league_file)
-    rules = load_pool_rules(playpool_rules) if playpool_rules else None
-    pool = read_play_pool(play_path, rules=rules, labels=labels)
+    pool = read_play_pool(play_path, labels=labels)
     for issue in pool.issues:
         console.warn(issue)
-    if rules is not None and playpool_rules is not None:
-        for notice in rule_warnings(pool, rules):
-            console.warn(f"{playpool_rules}: {notice}")
     return pool
 
 

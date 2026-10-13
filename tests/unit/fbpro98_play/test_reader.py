@@ -13,12 +13,17 @@ from pathlib import Path
 import pytest
 
 from athc.fbpro98_play import (
+    Command,
+    DefensiveFront,
     InvalidPlayFileError,
+    LogicBox,
     PlayerHeader,
+    PlayerLogic,
     parse_play,
     read_play,
 )
 from athc.fbpro98_play.schema import ID_P95, PLY_HEADER
+from tests.unit.fbpro98_play.conftest import build_ply, build_record
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "data"
 
@@ -284,21 +289,146 @@ def test_defensive_normal_category_name() -> None:
     assert play.category_name == "Run Middle"
 
 
+@pytest.mark.parametrize(
+    ("fixture_name", "timed", "rollout", "qb_run"),
+    [
+        ("SF1YemTy.ply", True, False, False),  # QB stays inside the tackles
+        ("JJ7XWagR.ply", False, True, False),  # QB 632 units outside a tackle
+        ("AFGZoutX.ply", False, False, False),  # Check receivers from the pocket
+        ("JJ10drw3.ply", False, False, True),  # QB run
+        ("NY26RM00.ply", False, False, False),  # handoff
+    ],
+)
+def test_offensive_attributes_of_real_plays(
+    fixture_name: str, timed: bool, rollout: bool, qb_run: bool
+) -> None:
+    play = read_play(FIXTURE_DIR / fixture_name)
+    assert (play.is_timed_pass, play.is_rollout(100), play.is_qb_run) == (
+        timed,
+        rollout,
+        qb_run,
+    )
+    assert play.defensive_front is None
+
+
+@pytest.mark.parametrize(
+    ("fixture_name", "front"),
+    [
+        ("MN22PLz.ply", DefensiveFront.TWO_DL),
+        ("KCC33rmA.ply", DefensiveFront.THREE_FOUR),
+        ("JJ43rlZB.ply", DefensiveFront.FOUR_THREE),
+        ("BCFGPATD.ply", None),  # FG/PAT defense: special teams have no front
+    ],
+)
+def test_defensive_front_of_real_plays(
+    fixture_name: str, front: DefensiveFront | None
+) -> None:
+    play = read_play(FIXTURE_DIR / fixture_name)
+    assert play.defensive_front is front
+    assert not (play.is_timed_pass or play.is_qb_run or play.is_rollout(100))
+
+
+INVALID_PLAY = r"The play file is invalid or corrupted\."
+
+
 def test_rejects_known_invalid_fixture() -> None:
-    with pytest.raises(
-        InvalidPlayFileError, match="File too small to contain P95 header"
-    ):
-        read_play(FIXTURE_DIR / "PS7Xmids.ply")
+    path = FIXTURE_DIR / "PS7Xmids.ply"
+    with pytest.raises(InvalidPlayFileError) as exc:
+        read_play(path)
+    assert str(exc.value) == f"{path}: The play file is invalid or corrupted."
 
 
 def test_parses_minimal_valid_buffer(make_ply) -> None:
+    # Each minimal record is its 4-byte header plus two empty box lists.
     play = parse_play(make_ply())
-    assert play.stream_length == 69
-    assert play.player_offsets == (25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 65)
+    assert play.stream_length == 113
+    assert play.player_offsets == (25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105)
     assert len(play.player_headers) == 11
     assert play.player_headers[0] == PlayerHeader(
         offset=25, rank=1, player_type=1, position=0x20
     )
+    assert play.player_logic == (PlayerLogic(),) * 11
+
+
+def test_decodes_player_logic() -> None:
+    """SF1YemTy's QB record (0x0021-0x0042), byte for byte: one pre-snap box at
+    his starting spot, then one box at the snap holding a Timed pass and two
+    other commands."""
+    qb = read_play(FIXTURE_DIR / "SF1YemTy.ply").player_logic[0]
+    assert qb == PlayerLogic(
+        pre_snap=(LogicBox(20, -500, ()),),
+        after_snap=(
+            LogicBox(
+                20,
+                -500,
+                (
+                    Command(0x06, (0,)),
+                    Command(0x05, (602, 830)),
+                    Command(0x07, (1,)),
+                ),
+            ),
+        ),
+    )
+
+
+@pytest.mark.parametrize("expected", VALID_FIXTURES, ids=lambda e: e.fixture_name)
+def test_every_fixture_player_has_logic(expected: FixtureExpectation) -> None:
+    """Every real player has a spot at the snap: an after-snap box."""
+    play = read_play(FIXTURE_DIR / expected.fixture_name)
+    assert len(play.player_logic) == 11
+    assert all(logic.after_snap for logic in play.player_logic)
+
+
+QB_LOGIC = PlayerLogic(
+    pre_snap=(LogicBox(-11, -210, ()),),
+    after_snap=(
+        LogicBox(-11, -210, (Command(0x02, (-11, -380)),)),
+        LogicBox(-11, -380, (Command(0x06, (5,)), Command(0x2D, ()))),
+    ),
+)
+
+
+QB_RECORD = build_record(
+    0x20, pre_snap=QB_LOGIC.pre_snap, after_snap=QB_LOGIC.after_snap
+)
+
+
+def _play_with_qb(qb_record: bytes) -> bytes:
+    return build_ply(player_records=[qb_record, *[build_record(0x12)] * 10])
+
+
+def test_decodes_built_logic() -> None:
+    """Boxes in order, each command with its own argument count (two, one, none)."""
+    play = parse_play(_play_with_qb(QB_RECORD))
+    assert play.player_logic[0] == QB_LOGIC
+    assert play.player_logic[1] == PlayerLogic()
+
+
+def test_bytes_after_the_logic_are_ignored() -> None:
+    play = parse_play(_play_with_qb(QB_RECORD + b"\x00\x00"))
+    assert play.player_logic[0] == QB_LOGIC
+
+
+@pytest.mark.parametrize(
+    "record",
+    [
+        QB_RECORD[:-1],  # the last command one byte short
+        build_record(0x20)[:-2],  # no after-snap list
+        build_record(0x20)[:4],  # header only
+    ],
+    ids=["one-byte-short", "no-after-snap-list", "header-only"],
+)
+def test_rejects_truncated_player_record(record: bytes) -> None:
+    with pytest.raises(InvalidPlayFileError, match=INVALID_PLAY):
+        parse_play(_play_with_qb(record))
+
+
+def test_rejects_box_count_past_the_record() -> None:
+    """A box count one higher than the record holds runs into the next record."""
+    data = bytearray((FIXTURE_DIR / "SF1YemTy.ply").read_bytes())
+    data[0x21 + 4] += 1  # the QB's pre-snap box count
+    with pytest.raises(InvalidPlayFileError, match=INVALID_PLAY):
+        parse_play(bytes(data))
 
 
 def test_default_path_sentinel(make_ply) -> None:
@@ -328,7 +458,7 @@ def test_read_play_rejects_unknown_category(make_ply, tmp_path) -> None:
 
 @pytest.mark.parametrize("buffer", [b"", b"P95", b"P95:abc"])
 def test_rejects_short_header(buffer: bytes) -> None:
-    with pytest.raises(InvalidPlayFileError, match="too small to contain P95 header"):
+    with pytest.raises(InvalidPlayFileError, match=INVALID_PLAY):
         parse_play(buffer)
 
 
@@ -344,24 +474,20 @@ def test_bad_block_id_non_ascii_decodes(make_ply) -> None:
 
 @pytest.mark.parametrize("declared", [999, 10])
 def test_rejects_size_mismatch(make_ply, declared: int) -> None:
-    with pytest.raises(InvalidPlayFileError, match="does not match P95 block size"):
+    with pytest.raises(InvalidPlayFileError, match=INVALID_PLAY):
         parse_play(make_ply(stream_length=declared))
 
 
 def test_rejects_missing_metadata() -> None:
     # valid id, size field matches the length, but too short to hold metadata
     buffer = PLY_HEADER.pack(ID_P95, 20) + b"\x00" * 20
-    with pytest.raises(
-        InvalidPlayFileError, match="too small to contain play metadata"
-    ):
+    with pytest.raises(InvalidPlayFileError, match=INVALID_PLAY):
         parse_play(buffer)
 
 
 def test_rejects_offset_past_eof(make_ply) -> None:
-    offsets = (25, 29, 33, 37, 41, 45, 49, 53, 57, 61, 9999)  # last points past EOF
-    with pytest.raises(
-        InvalidPlayFileError, match="too small to contain player header"
-    ):
+    offsets = (25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 9999)  # last points past EOF
+    with pytest.raises(InvalidPlayFileError, match=INVALID_PLAY):
         parse_play(make_ply(player_offsets=offsets))
 
 
@@ -370,7 +496,9 @@ def test_read_play_missing_file(tmp_path) -> None:
         read_play(tmp_path / "does-not-exist.ply")
 
 
-def test_zero_offset_parses(make_ply) -> None:
-    offsets = (0, *(25 + 4 * i for i in range(1, 11)))
-    play = parse_play(make_ply(player_offsets=offsets))
-    assert play.player_headers[0].offset == 0
+def test_zero_offset_is_rejected(make_ply) -> None:
+    """Offset 0 puts the first record on top of the offsets table: its header
+    reads, but the box counts it then reads run past the record."""
+    offsets = (0, *(25 + 8 * i for i in range(1, 11)))
+    with pytest.raises(InvalidPlayFileError, match=INVALID_PLAY):
+        parse_play(make_ply(player_offsets=offsets))

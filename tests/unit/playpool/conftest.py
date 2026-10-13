@@ -4,8 +4,8 @@ Three pools over the SAME plays exercise the file-driven classifier:
   league_pool    — data/plays/ in the league folder layout (folders add attributes)
   arbitrary_pool — the same files under arbitrary folder names
   flat_pool      — the same files in one flat directory
-Side, category, and filename attributes must match across all three; only the
-league folder layout adds `screen` / `defensive_front`.
+Side, category and the play attributes must match across all three; only the
+league folder layout adds `screen`.
 """
 
 from __future__ import annotations
@@ -17,12 +17,11 @@ from pathlib import Path
 import pytest
 
 from athc.fbpro98_play import PlayFile
-from athc.playpool import PlayPool, PlaypoolRules, load_rules, read_play_pool
+from athc.playpool import PlayPool, read_play_pool
 from tests.conftest import PNFL_LABELS
 
 DATA = Path(__file__).resolve().parent / "data"
 PLAYS = DATA / "plays"
-RULES_TOML = DATA / "rules.toml"
 
 # arbitrary folder names — none is a recognized league folder
 ARBITRARY_DIRS = ("alpha", "beta/inner", "gamma", "passes", "runs", "misc/deep")
@@ -54,11 +53,6 @@ def make_play() -> MakePlay:
     return _make
 
 
-@pytest.fixture(scope="session")
-def rules() -> PlaypoolRules:
-    return load_rules(RULES_TOML)
-
-
 def _ply_files() -> list[Path]:
     return sorted(PLAYS.glob("**/*.ply"))
 
@@ -84,15 +78,15 @@ def arbitrary_tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture(scope="session")
-def league_pool(rules: PlaypoolRules) -> PlayPool:
-    return read_play_pool(PLAYS, rules=rules, labels=PNFL_LABELS)
+def league_pool() -> PlayPool:
+    return read_play_pool(PLAYS, labels=PNFL_LABELS)
 
 
 @pytest.fixture(scope="session")
-def flat_pool(flat_tree: Path, rules: PlaypoolRules) -> PlayPool:
-    return read_play_pool(flat_tree, rules=rules)
+def flat_pool(flat_tree: Path) -> PlayPool:
+    return read_play_pool(flat_tree)
 
 
 @pytest.fixture(scope="session")
-def arbitrary_pool(arbitrary_tree: Path, rules: PlaypoolRules) -> PlayPool:
-    return read_play_pool(arbitrary_tree, rules=rules)
+def arbitrary_pool(arbitrary_tree: Path) -> PlayPool:
+    return read_play_pool(arbitrary_tree)

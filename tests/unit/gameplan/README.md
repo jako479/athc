@@ -45,7 +45,7 @@ One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `league
 | Pass caps parse | tmp | rollouts count + timed ratio | `test_pass_caps_parse` | ☑ |
 
 ### one form per attribute
-Each attribute (`qb_draws`, `rollouts`, `timed`, `two_dl`) takes exactly one of
+Each attribute (`qb_runs`, `rollouts`, `timed`, `two_dl`) takes exactly one of
 `_count` / `_ratio` / `_percent`.
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -125,8 +125,8 @@ Constructed gameplan + pool (records carry typed playpool attributes). Each side
 | Required category absent | make | `CATEGORY_REQUIRED` | `test_offense_required_fires` | ☑ |
 | `max_count` exceeded | make | `CATEGORY_MAX_COUNT` | `test_offense_max_count_fires` | ☑ |
 | Category outside the allowed list | make | `CATEGORY_NOT_ALLOWED` | `test_offense_not_allowed_fires` | ☑ |
-| `max_qb_draws_count` exceeded | make | `CATEGORY_MAX_QB_DRAWS` | `test_offense_max_qb_draws_count_fires` | ☑ |
-| `max_qb_draws_count` within limit | make | no violation | `test_offense_max_qb_draws_count_clean` | ☑ |
+| `max_qb_runs_count` exceeded | make | `CATEGORY_MAX_QB_RUNS` | `test_offense_max_qb_runs_count_fires` | ☑ |
+| `max_qb_runs_count` within limit | make | no violation | `test_offense_max_qb_runs_count_clean` | ☑ |
 | `max_rollouts_count` exceeded | make | `CATEGORY_MAX_ROLLOUTS` | `test_offense_max_rollouts_count_fires` | ☑ |
 | `max_rollouts_count` within limit | make | no violation | `test_offense_max_rollouts_count_clean` | ☑ |
 | `max_timed_ratio` exceeded | make | `CATEGORY_MAX_TIMED` | `test_offense_max_timed_ratio_fires` | ☑ |

@@ -16,7 +16,6 @@ from athc.cli.gameplan.check import check, check_file
 from athc.errors import ACCESS_DENIED, FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_gameplan import InvalidGamePlanError
 from athc.gameplan import load_rules
-from athc.playpool import load_rules as load_pool_rules
 from athc.playpool import read_play_pool
 from tests.conftest import (
     CATEGORIES_TOML,
@@ -33,23 +32,19 @@ from tests.integration.conftest import (
     GP_OFFENSE,
     GP_RULES,
     PLAYS,
-    POOL_RULES,
 )
 
 RULES = load_rules([str(GP_RULES)], labels=PNFL_LABELS)
-POOL = read_play_pool(
-    str(PLAYS), rules=load_pool_rules(str(POOL_RULES)), labels=PNFL_LABELS
-)
+POOL = read_play_pool(str(PLAYS), labels=PNFL_LABELS)
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
 
 
 @pytest.fixture
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
-    """The selected league: the test pool, its playpool rules and gameplan rules."""
+    """The selected league: the test pool and gameplan rules."""
     folder = make_league(LEAGUE, league_toml(PLAYS))
     shutil.copy(GP_RULES, folder / "gameplan.toml")
-    shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     return folder
 
@@ -382,16 +377,6 @@ def test_cli_missing_play_path(runner, league: Path, tmp_path: Path) -> None:
     )
 
 
-def test_cli_bad_playpool_rules(runner, league: Path) -> None:
-    (league / "playpool.toml").write_text("not = valid = toml", encoding="utf-8")
-    result = runner.invoke(check, [str(GP_OFFENSE)])
-    assert result.exit_code == 2
-    assert result.stderr == (
-        f"FAIL {league / 'playpool.toml'}: {toml_error('not = valid = toml')}\n"
-    )
-    assert result.stdout == ""
-
-
 def test_cli_no_rules_in_league_folder(runner, make_league: MakeLeague) -> None:
     make_league(LEAGUE, league_toml(PLAYS))
     result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])
@@ -438,7 +423,6 @@ def test_cli_resolves_from_league_folder(
     # No flags: league from athc.ini, everything else from its league folder.
     folder = make_league(LEAGUE, league_toml(PLAYS))
     shutil.copy(GP_RULES, folder / "gameplan.toml")
-    shutil.copy(POOL_RULES, folder / "playpool.toml")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 1
@@ -454,7 +438,6 @@ def test_cli_gameplan_rules_list_layers_in_order(
         f"[league]\nplay_path = '{PLAYS}'\n"
         f"gameplan_rules = ['{GP_RULES}', 'overlay.toml']\n" + CATEGORIES_TOML,
     )
-    shutil.copy(POOL_RULES, folder / "playpool.toml")
     (folder / "overlay.toml").write_text("", encoding="utf-8")
     result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])
     assert result.exit_code == 1
@@ -476,9 +459,9 @@ def test_cli_missing_listed_rules_file_is_reported(
 
 
 @pytest.mark.usefixtures("league")
-def test_cli_league_playpool_rules_apply(runner) -> None:
-    """The league's playpool rules are read, so the filename-derived caps (timed,
-    rollout, QB draw) are checked."""
+def test_cli_attribute_caps_apply(runner) -> None:
+    """The pool reads each play's attributes from its file, so the attribute
+    caps (timed, rollout, QB run) are checked."""
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 1
     assert "timed passes" in result.stdout

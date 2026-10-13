@@ -62,29 +62,19 @@ def _raises(message: str):
 def test_load_config_defaults(tmp_path: Path) -> None:
     cfg = load_config(LEAGUE)
     assert cfg.play_path == str(tmp_path)
-    assert cfg.playpool_rules is None
     assert cfg.calculate_percentages is True
     assert cfg.deleted_plays == frozenset()
 
 
 def test_load_config_from_league_folder(league: Path) -> None:
     (league / "league.toml").write_text(league_toml("D:\\plays"), encoding="utf-8")
-    (league / "playpool.toml").write_text("", encoding="utf-8")
     cfg = load_config(LEAGUE)
     assert cfg.play_path == "D:\\plays"
-    assert cfg.playpool_rules == league / "playpool.toml"
 
 
 def test_load_config_needs_a_league() -> None:
     with pytest.raises(LeagueError, match="No league selected"):
         load_config()
-
-
-def test_playpool_toml_next_to_athc_ini_is_ignored(
-    league: Path, config_dir: Path
-) -> None:
-    (config_dir / "playpool.toml").write_text("", encoding="utf-8")
-    assert load_config(LEAGUE).playpool_rules is None
 
 
 # ── category order from pdbtoexcel.toml ───────────────────────────────────────

@@ -4,6 +4,13 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-13 — **playpool**: play attributes from the play's own bytes. The
+  filename filters in `playpool.toml` guessed at what a play does and needed
+  a per-league exception list, so `fbpro98_play` now reads each player's
+  logic boxes and tells a timed pass, QB run, rollout and defensive front
+  from them; only `Screens` still comes from a folder. The review follow-ups
+  renamed `qb_draw` to `qb_run` (a QB sneak is a QB run, not a draw) and made
+  every offense attribute read from the snap on.
 - 2026-10-13 — **scheduler**: how a division whose members changed gets its
   finish order. The lge library's method that ranked an arbitrary team list
   was rejected as a kluge; the first replacement idea, rebuilding the previous

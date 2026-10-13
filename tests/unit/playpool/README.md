@@ -2,52 +2,7 @@
 
 Cases covered for the play-pool library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
 
-One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFile`/record/filter; `tree` = the curated plays in `data/plays/` in the league folder layout, plus the same files copied into a flat tree and a tree of arbitrary folder names (conftest fixtures `league_pool` / `flat_pool` / `arbitrary_pool`); `shipped` = every `leagues/<league>/playpool.toml` in `config/dev/` and `config/release/`; `rel` = a play's path relative to the pool root; `tmp`/`dict` = constructed input. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/playpool` passes.
-
-## rules.py — `load_rules` / `build_rules`
-
-| Case | Input | Expected | Test | Status |
-|---|---|---|---|---|
-| Test rules load | tree | filters populated; regex compiled | `test_load_test_rules` | ☑ |
-| Build from dict; absent section empty | dict | `FilenameFilter()` | `test_build_from_dict` | ☑ |
-| Empty file → all empty | tmp | `PlaypoolRules()` | `test_missing_section_is_empty` | ☑ |
-| Unknown sections | tmp, two | one line: `(top): Unknown key(s): Bogus, Zap. Valid: …` | `test_unknown_section` | ☑ |
-| `schema_version` is an unknown section | tmp | `(top): Unknown key(s): schema_version.` | `test_schema_version_is_an_unknown_section` | ☑ |
-| Unknown keys in section | tmp, two | one line: `[TimedPass]: Unknown key(s): bogus, zap. Valid: …` | `test_unknown_key` | ☑ |
-| Wrong value type | tmp | "must be a list of strings" | `test_bad_value_type` | ☑ |
-| Section not a table | tmp | "Must be a table." | `test_section_not_a_table` | ☑ |
-| Bad regex | tmp | "invalid regex" | `test_bad_regex` | ☑ |
-| Bad regex shows as written | `\d(` | `Invalid regex '\d(': …` (one backslash) | `test_a_bad_regex_shows_as_written` | ☑ |
-| Two bad regexes both reported | tmp | both in `.errors` | `test_two_bad_regexes_both_reported` | ☑ |
-| All problems collected at once | tmp | 5 errors, each kind present | `test_collects_multiple_errors` | ☑ |
-| TOML parse error | tmp | "Not valid TOML" | `test_toml_parse_error` | ☑ |
-| UTF-8 BOM skipped | tmp | loads | `test_bom_is_skipped` | ☑ |
-| Missing file | path | `RulesFileError` | `test_missing_file` | ☑ |
-| Every shipped league's rules load | shipped | loads | `test_shipped_rules_load` `[P]` | ☑ |
-
-## rules.py — `FilenameFilter.matches` (case-sensitive; vetoes win)
-
-| Case | Input | Expected | Test | Status |
-|---|---|---|---|---|
-| `suffix_any` match | make | hit / miss | `test_suffix_any_match` | ☑ |
-| `suffix_none` vetoes a suffix hit | make | not matched | `test_suffix_none_vetoes` | ☑ |
-| `include` forces on (no suffix) | make | matched | `test_include_forces_on` | ☑ |
-| `exclude` vetoes | make | excluded off; other on | `test_exclude_vetoes` | ☑ |
-| `regex_any` | make | by 2nd char | `test_regex_any` | ☑ |
-| Case-sensitive include + suffix | make | exact case only | `test_case_sensitive` | ☑ |
-| **Timed + rollout both** (TR suffix) | tree | both attrs | `test_rollout_and_timed_both` | ☑ |
-| **Timed-by-suffix but excluded → rollout only** | tree | timed off, rollout on | `test_timed_excluded_still_rollout` | ☑ |
-
-## reader.py — `rule_warnings` (include / exclude names against a pool)
-
-| Case | Input | Expected | Test | Status |
-|---|---|---|---|---|
-| Clean rules | make; names in the pool, right side | `[]` | `test_clean_rules_give_no_warnings` | ☑ |
-| Name not in the pool | include / exclude | "is not in the play pool" | `test_name_not_in_the_pool` `[P]` | ☑ |
-| Wrong side | run play under TimedPass / RolloutPass; pass play under QBRun; defensive; special-teams | "is a … play. It has no effect." | `test_wrong_side_is_reported` `[P]` | ☑ |
-| Wrong side under exclude | pass play under QBRun exclude | same message | `test_exclude_on_the_wrong_side_is_reported` | ☑ |
-| In both include and exclude | one section; in the pool or not | one "Exclude wins." line, nothing else | `test_name_in_both_include_and_exclude_reported_once` `[P]` | ☑ |
-| Sorted by section, then name | two sections | TimedPass first; names sorted | `test_warnings_are_sorted_by_section_then_name` | ☑ |
+One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFile`/record; `tree` = the curated plays in `data/plays/` in the league folder layout, plus the same files copied into a flat tree and a tree of arbitrary folder names (conftest fixtures `league_pool` / `flat_pool` / `arbitrary_pool`); `built` = a `.ply` built byte by byte (`build_ply` / `build_record` from the fbpro98_play tests); `rel` = a play's path relative to the pool root; `tmp` = constructed input. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/playpool` passes.
 
 ## model.py — record classes and `PlayPool`
 
@@ -66,9 +21,11 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Offensive: category + rollout/qb_draw/pass_logic | tree | same in all 3 layouts | `test_offensive_file_driven` `[P]` | ☑ |
+| Offensive: category + rollout/qb_run/pass_logic from the file | tree | same in all 3 layouts | `test_offensive_file_driven` `[P]` | ☑ |
 | `screen` only from a `Screens/` folder | tree | True in league layout, else False | `test_screen_only_from_screens_folder` `[P]` | ☑ |
-| Defensive: category; `defensive_front` league layout only | tree | front in league layout, else None | `test_defensive_file_driven` `[P]` | ☑ |
+| Defensive: category + `defensive_front` from the file | tree | same in all 3 layouts | `test_defensive_file_driven` `[P]` | ☑ |
+| Rollout margin | built; QB 100 / 101 units outside the line | not / rollout | `test_rollout_is_beyond_100_units_outside_the_line` `[P]` | ☑ |
+| Category gates the attributes | built; pass play whose QB runs, run play whose QB moves out and throws | no `qb_run`; no `rollout`, no `pass_logic` | `test_category_still_gates_the_attributes` | ☑ |
 | Special-teams play filed | tree | `SpecialTeamsPlay` | `test_special_file_driven` `[P]` | ☑ |
 | `find_by_name` across sides | tree | hits / miss | `test_find_across_sides` `[P]` | ☑ |
 | Consistent trees emit no warning | tree | no "play in" | `test_no_warnings_on_consistent_trees` `[P]` | ☑ |
