@@ -151,15 +151,15 @@ Starts 179 bytes after its team's T03 (team 1 at 0x0166 in `PNFL.lge`); the data
 
 Bytes 0-1 are the team number (u16), in clear. Bytes 2-324 are masked (section 8); offsets below are into the unmasked 323 bytes.
 
-| Offset | Size | Type    | Name    | Description                                                         |
-| -----: | ---: | :------ | :------ | :------------------------------------------------------------------ |
-|   0x00 |  126 | u16[63] | Players | Player ids (`.pyr`), `0` = empty slot; the slot sets status (below) |
-|   0x7E |   63 | u8[63]  | Numbers | Jersey number per slot, same order                                  |
-|   0xBD |    9 | u8[9]   | Unknown | Nine different digits; a permutation of 1-9 in `PNFL.lge` (below)   |
-|   0xC6 |   65 | u8[65]  | Zero    |                                                                     |
-|  0x107 |   60 | u8[60]  | Unknown | The same in every team and every season (below)                     |
+| Offset | Size | Type     | Name          | Description                                                         |
+| -----: | ---: | :------- | :------------ | :------------------------------------------------------------------ |
+|   0x00 |  126 | u16[63]  | Players       | Player ids (`.pyr`), `0` = empty slot; the slot sets status (below) |
+|   0x7E |   63 | u8[63]   | Numbers       | Jersey number per slot, same order                                  |
+|   0xBD |   10 | u8[10]   | Unknown       | A permutation of 0-9 (below)                                        |
+|   0xC7 |   64 | u8[8][8] | Training camp | Training percentages, one row per position group (below)            |
+|  0x107 |   60 | u8[60]   | Unknown       | The same in every team and every season (below)                     |
 
-`pnfl.rst` is these 18 chunks, byte for byte, in the sample; in the 2048 preseason copies its permutations differ (below).
+`pnfl.rst` is these 18 chunks, byte for byte, in the sample, except training camp (below); in the 2048 preseason copies its permutations differ (below).
 
 Slot status, the "A"/"O"/"I" column of the game's roster screen; no status byte exists:
 
@@ -192,9 +192,37 @@ Permutation (0xBD), checked against the stock leagues and the league's saved 204
 
 - Every team's is different in `PNFL.lge`.
 - The NFL stock leagues (`NFLPA92` to `NFLPI97R`, `_default`, `Sierra`, `Test`) reuse one fixed list; each 30-team file has two identical pairs.
-- The 8-18 team stock leagues (`08_TEAMS` to `18_TEAMS`) hold nine different digits from 0-9, not 1-9, and reuse each other's lists.
+- The 0 is last in `PNFL.lge`, its 2048 copies and the NFL stock leagues; the 8-18 team stock leagues (`08_TEAMS` to `18_TEAMS`) put it anywhere and reuse each other's lists.
 - It changes once a season, at the rollover (weeks played back to 0), and stays fixed from preseason to the last week. Each team gets its own new one: none is shifted, reversed or passed to another team; two teams kept theirs at the 2049 rollover.
 - In the 2048 preseason copies, the `pnfl.rst` permutations differ from the `.lge`'s; from week 1 on they match.
+
+Training camp (0xC7): the game's Training Camp screen, opened with the Camp Setup button and saved with Accept Settings. One 8-byte row per position group, in the screen's column order:
+
+| Offset | Position |
+| -----: | :------- |
+|   0xC7 | QB's     |
+|   0xCF | RB's     |
+|   0xD7 | REC's    |
+|   0xDF | OL's     |
+|   0xE7 | DL's     |
+|   0xEF | LB's     |
+|   0xF7 | DB's     |
+|   0xFF | P/K      |
+
+Each row holds one byte per attribute (the screen's rows), in the `.pyr` ratings order, not the screen's:
+
+| Byte | Attribute       | Activity        |
+| ---: | :-------------- | :-------------- |
+|    0 | AC acceleration | Wind Sprints    |
+|    1 | AG agility      | Footwork Drills |
+|    2 | DI discipline   | Scrimmages      |
+|    3 | EN endurance    | Daily Doubles   |
+|    4 | HA hands        | Ball Handling   |
+|    5 | IN intelligence | Game Films      |
+|    6 | SP speed        | Speed Drills    |
+|    7 | ST strength     | Weight Training |
+
+Each byte is a percentage, `0`-`100`, and a row totals at most 100. The game saves a row under 100, but the team is ready for camp only when every row totals 100. A team never set up is all zero. Setting camp rewrites the `.lge` only; `pnfl.rst` keeps its old bytes.
 
 60-byte table (0x107): identical in every team, in all 125 copies of the 2048 season and in the 2049 sample. Every hex digit is 1-7; the last two 4-byte groups are equal.
 
