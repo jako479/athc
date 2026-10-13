@@ -2,6 +2,7 @@
 
 ## 1.0.0
 
+- [ ] athc: reorganize the docs folders and set the rule for design docs and plans; see [docs/design/TODO/docs-layout.md](docs/design/TODO/docs-layout.md)
 - [ ] athc: go through the CLI and help text for each command; see [docs/design/TODO/cli-help.md](docs/design/TODO/cli-help.md)
 - [ ] athc: go through all messages, warnings and errors for each command — messages name the file and line number, then say the problem in plain words; see [docs/design/TODO/logging-updates.md](docs/design/TODO/logging-updates.md)
 - [ ] athc: look for gaps in test cases for each command and library
@@ -11,6 +12,8 @@
 - [ ] athc: recommend Markdown plugins for Chrome or Notepad++ in the release README
 - [ ] athc: create a fancy project README for GitHub
 - [ ] athc: go through and clean up the project README, TODO, STATUS, CHANGELOG and WORKLOG
+- [ ] athc: go through and reorganize the flood of design docs
+- [ ] athc: go through and reorganize the flood of file specs
 - [ ] athc: go through and update the release documentation (README, CHANGELOG, commands and errors/warnings, etc.)
 - [ ] gameplan: set-normals: decide whether to keep `-q/--quiet`, the only quiet option in athc: drop it, keep it, or give every file-writing command one; pdf-converter has none
 - [ ] gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run
