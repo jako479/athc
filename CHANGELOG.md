@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- tests: every CLI test checks stdout and stderr apart; console, `NO_COLOR` and run-log tests added
+- docs: the cross-cutting rules live in one `architecture.md`; each tool's README lists its status lines and exit codes
 - gameplan: `set-normals` / `set-specials` call their list argument `play_list`, and a console list's errors say `(play list line N)`
 - autocontinue: a missing or unreadable Continue button image stops the run with a reinstall hint; a locked screen warns with its likely causes
 - athc: an `athc.ini` or standings file that cannot be opened fails instead of reading as empty

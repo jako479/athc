@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-09. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-12. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -69,6 +69,10 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   `<path>: <reason>` itself, the readers and loaders pass the path instead of
   writing it into the message, and a batch `FAIL` line names the file once.
 
+- Python 3.13 is the floor: `pyproject.toml`, ruff and pyright all target it.
+- `league.toml`, the rule files and `scheduler.toml` may start with a UTF-8 BOM
+  (Notepad, Excel); it is skipped.
+- Every frozen dataclass, the Config ones included, uses `slots=True`.
 - The design docs are one `docs/design/architecture.md`: the architecture plus a
   Cross-cutting conventions section (CLI; console, run log and errors; output
   files; config); `cli.md`, `config.md` and `logging.md` are gone, their rules
@@ -413,6 +417,10 @@ construction, never pruned · then the quirk budget in
 
 ## Decisions
 
+- **Wildcards stay, expanded by athc.** `gameplan check`, `set-specials`,
+  `replace-play`, `profile check` and `profile copy` take one; `find-play`
+  refuses one. Turning off Click's own Windows expansion is in the cli-help
+  plan (rule 15).
 - **check-ppp checks pairs only; `profile check` and `gameplan check` stay.**
   check-ppp always takes a profile with its gameplan and replaced
   `profile check --gameplan`, now removed; the two check commands stay for
