@@ -133,7 +133,10 @@ The League Standings screen sorts tied teams two ways:
   file after week 16 shows Miami above Buffalo (298 points to 395), the
   order the playoff bracket used.
 
-The `fbpro98_lge` library gives the season-end order.
+The `fbpro98_lge` library and the standings library's `game` method
+([fbpro98_standings](../fbpro98_standings/ARCHITECTURE.md)) give the
+season-end order; the game's list beside the NFL's, pnfl.biz's and the
+scheduler's: [standings-tie-breakers.md](research/standings-tie-breakers.md).
 
 ## Positions
 

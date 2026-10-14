@@ -4,6 +4,14 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-14 — **docs**: the tie-breaking docs were scattered: the methods'
+  steps lived only in a spec, three specs and three plans for merged work
+  sat under `docs/superpowers/`, the tie-breakers research note was untracked,
+  and the lge-standings spec described a point-differential order the code
+  had dropped. The standings library's ARCHITECTURE is now the design doc
+  (engine, steps, each method); the research note (the manual, the NFL,
+  pnfl.biz and the scheduler side by side) is tracked under
+  `docs/design/research/`; the six specs and plans went.
 - 2026-10-13 — **standings**: a new `athc standings` command, the first user
   of the standings library. It shows the league's standings as played so far,
   as the game's standings screen or ESPN's League, Conference and Division

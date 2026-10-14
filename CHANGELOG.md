@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- docs: tie-breaking has one design doc, the standings library's ARCHITECTURE, and one research note; the standings specs and plans are gone
 - standings: `athc standings` takes the shared help style
 - generate-schedule: an unfinished season is a warning, not an error; ties in the standings go to the previous season's division finish, then a coin toss from the run's seed, never a file's order; Ctrl+C stops the run and writes nothing
 - generate-schedule: `--previous` and `--upcoming` take the `.lge` file itself and `--previous` is optional; a hint when the League files folder is not set; `--seed`, `--time-limit` and the solver budgets in `scheduler.toml` are bounded

@@ -2,17 +2,17 @@
 
 **Goal:** fewer folders under `docs/`: one folder per kind of doc, flat inside, the file name says the subject; and one rule for what happens to a design and its plan when the work is done.
 
-**Status:** proposal, 2026-10-13; nothing moved yet. Every choice is decided below; the reasons sit next to each one.
+**Status:** proposal, 2026-10-13, counts updated 2026-10-14; nothing moved yet. Every choice is decided below; the reasons sit next to each one.
 
 ## 1. Today
 
-- 91 files in 33 folders; outside `superpowers/`, 65 files in 30 folders.
+- 120 files in 36 folders; outside `superpowers/`, 93 files in 33 folders.
 - One folder per module mirrors `src/athc/`, so most folders hold two or three files, and `fbpro98_cities`, `fbpro98_pyr` and `fbpro98_stats` exist for modules that do not (a spec only).
 - 13 files are named `README.md` and 12 `ARCHITECTURE.md`; a search hit or an editor tab cannot tell them apart.
 - A module's README and ARCHITECTURE overlap: gameplan's share the intro and the whole Config section.
 - Links between specs climb two levels (`../../fbpro98_lge/specs/lge.md`).
 - `2048 Schedule.txt` is an example, not a spec, and has a space in its name (`generate-schedule` writes `schedule_<season>_<timestamp>.txt`).
-- `superpowers/` holds 12 specs and 14 plans, every one for a feature already merged, and nothing marks them done.
+- `superpowers/` holds 12 specs and 15 plans, every one for a feature already merged, and nothing marks them done.
 
 ## 2. What other projects do
 
@@ -108,7 +108,7 @@ Naming rules:
 | `scheduler/specs/2048 Schedule.txt` | `formats/schedule-import-example.txt` |
 | `design/TODO/*` | `proposals/*` |
 | `design/research/*` | `research/*` |
-| `superpowers/specs/*`, `superpowers/plans/*` (26 files) | deleted (section 8) |
+| `superpowers/specs/*`, `superpowers/plans/*` (27 files) | deleted (section 8) |
 | new | `docs/README.md` |
 
 Order: formats first (a pure move), then the module docs (a move plus a merge), then research, proposals and the superpowers deletions, then the links and meta below. Every move is a `git mv`; every edit keeps CRLF; one branch, one squash-merge.
@@ -131,7 +131,7 @@ Checked against the skill texts (superpowers 6.4.1):
 - brainstorming writes the design to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commits it on the current branch; writing-plans writes `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`; the worktree comes later, "at execution time". Both skills say a project preference for the location overrides the default.
 - After the plan is executed no skill needs either file, and none deletes them: finishing-a-development-branch cleans up the worktree only, and "delete this plan's workspace" in executing-plans means the git-ignored ledger folder, not the plan.
 - Superpowers' own repository keeps every spec and plan in main; the plugin ships its own under `docs/superpowers/`. That is the record model of PEPs and ADRs: keep the document forever, with a status line.
-- Here, each of the 26 files in main arrived with the squash-merge of its own feature, so all of them are done:
+- Here, each of the 27 files in main arrived with the squash-merge of its own feature, so all of them are done:
 
 | Topic (spec and plan) | Merged as |
 |---|---|
@@ -145,11 +145,13 @@ Checked against the skill texts (superpowers 6.4.1):
 | console-run-log-exit-codes (plan only) | `7b5bdab` athc: console, run log, errors and exit codes |
 | installer-exe (plan only) | `95ab1f3` install: athc ships as a setup.exe |
 | error-wording | `2f4b2a8` athc: messaging and error handling |
-| fbpro98-lge, fbpro98-lge-standings | `be93529` fbpro98_lge: league names and standings library |
+| fbpro98-lge | `be93529` fbpro98_lge: league names and standings library |
 | lg2-stock-leagues | `76d12e5` fbpro98_lg2: read stock leagues |
 | replace-play-backups | `c1de47c` gameplan: replace-play takes backup replacements |
+| play-attributes-from-data (plan only) | `ddae7a1` playpool: play attributes from the play file; playpool.toml gone |
+| scheduler-league-files | `dade898` generate-schedule: standings and structure from the league's .lge files |
 
-- The one plan merged before its work (cli-help-style, 2026-10-11) was moved to `design/TODO/cli-help.md` by hand. The two unmerged branches carry their own: `worktree-play-attributes` a plan, `worktree-scheduler-league-files` a design and a plan.
+- The one plan merged before its work (cli-help-style, 2026-10-11) was moved to `design/TODO/cli-help.md` by hand. The standings specs and plans (fbpro98-lge-standings, fbpro98-standings, standings-command) were folded into the standings docs and deleted on 2026-10-14.
 
 ## 8. Superpowers specs and plans: the rule
 
@@ -161,7 +163,7 @@ athc does not use the record model: the design docs describe the code as it is, 
 4. A branch that stops keeps its design and plan on the branch. A dropped branch whose idea stays moves its design to main's `proposals/`, with a `TODO.md` line, as cli-help was.
 5. So everything in `docs/proposals/` is pending, and nothing needs a status line.
 
-Cleanup now: delete the 26 files in the table; after the two unmerged branches land, delete their three files in main.
+Cleanup now: delete the 27 files in the table.
 
 `AGENTS.md` changes: in "Working agreement", "a skill's own files (spec, plan) go where that skill says, no question" becomes rule 1 and 2; in "Commits and hand-off", rule 3 and 4 are added.
 

@@ -1,6 +1,6 @@
 # fbpro98-standings
 
-Library that ranks a Front Page Sports Football Pro '98 league's teams from its `.lge` files: division, conference and league standings, by the game's, the scheduler's or the NFL's tie-breakers.
+Library that ranks a Front Page Sports Football Pro '98 league's teams from its `.lge` files: division, conference and league standings, by the game's, the scheduler's or the NFL's tie-breakers. Each method's steps: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Features
 

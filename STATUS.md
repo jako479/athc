@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-13. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-14. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -310,7 +310,10 @@ Reads and writes `.prf` coaching profiles. Docs:
 
 Ranks a league's teams from its `.lge` files: division, conference and league
 standings by the game's, the scheduler's or the NFL's tie-breakers. Docs:
-[README](docs/fbpro98_standings/README.md)
+[README](docs/fbpro98_standings/README.md),
+[ARCHITECTURE](docs/fbpro98_standings/ARCHITECTURE.md) (the design doc:
+each method's steps),
+[tie-breakers research](docs/design/research/standings-tie-breakers.md).
 
 - One season, or last season's results for this season's divisions and
   teams, with team moves for teams whose name changed; a seeded coin toss.
