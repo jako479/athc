@@ -127,23 +127,23 @@ The command plans decide each command's arguments, options and lines; where a pl
 
 ### check-ppp
 
-- Usage becomes `[OPTIONS] PATH [PATH]`; PATH help: "A .prf, a .pln, or a folder."
+- Usage becomes `[OPTIONS] [PATH]...`; PATH help: "A .prf, a .pln, or a folder."
 - Summary becomes "Check profiles against their game plans."
 - The description is two dense paragraphs of rule logic; cut it to a few lines and move the rules to the tool's docs.
 - "gameplan" and "directory" in text become "game plan" and "folder".
 
 ### config
 
-- Summary becomes "Show or change athc settings (athc.ini)."
-- `config reveal`: "file manager" becomes "File Explorer"; summary becomes "Show athc.ini in File Explorer."
-- `config set`: usage becomes `[OPTIONS] KEY VALUE`; KEY help: "Setting to change: league."; VALUE help: "New value."
-- `config set`: "Set key to value" becomes "Set a value in athc.ini."; "a folder under leagues\ in the config dir" becomes plain words.
+- Summary becomes "Show or change athc settings (athc.ini, league.toml)."
+- `config reveal`: "file manager" becomes "File Explorer"; summary becomes "Show athc.ini or league.toml in File Explorer."
+- `config set`: usage becomes `[OPTIONS] KEY VALUE`; KEY help: "Setting to change: league, path, play_path, team or ppp_path."; VALUE help: "New value."
+- `config set`: "Set key to value" becomes "Set a value in athc.ini or league.toml."; "a folder under leagues\ in the config dir" becomes plain words.
 
 ### convert-pdb
 
 - `-o`, `-o2`, `-d` and `-d2` (`--pln-off`, `--pln-off-2`, `--pln-def`, `--pln-def-2`) stay as they are.
 - `--skip-calcs` becomes `--percentages/--no-percentages` (an on/off pair over an `athc.ini` boolean; convert-pdb-cli.md).
-- Usage becomes `[OPTIONS] PDB_FILE OUTPUT_FILE`; PDB_FILE help: "WinLogStats .pdb file."; OUTPUT_FILE help: ".xlsx, or .xlsm to include sorting macros."
+- Usage becomes `[OPTIONS] PDB_FILE [OUTPUT_FILE]`; PDB_FILE help: "WinLogStats .pdb file."; OUTPUT_FILE help: ".xlsx, or .xlsm to include sorting macros (default: PDB_FILE with .xlsm, beside it)."
 - Summary becomes "Convert a WinLogStats PDB to an Excel workbook."
 - The description drops the game title.
 
@@ -154,14 +154,14 @@ The command plans decide each command's arguments, options and lines; where a pl
 
 ### gameplan check
 
-- Usage becomes `[OPTIONS] [PATH]...`; PATH help: ".pln files, folders or wildcards (default: current folder)."
+- Usage becomes `[OPTIONS] [PATH]...`; PATH help: ".pln files, folders, wildcards or game plan keys (default: current folder)."
 - Summary becomes "Check game plans against the league's rules."
 - "glob" and "directory" become "wildcard" and "folder".
 
 ### gameplan find-play
 
-- What the last argument means depends on how many arguments there are (one is a play, two or more makes the last a path); make the location an option, `--path PATH` (default: current folder), so every argument is a play.
-- `--path` refuses wildcards, as PATH does today; with Click's expansion off, the refusal works.
+- What the last argument means depends on how many arguments there are (one is a play, two or more makes the last a path); make the location an option, `--path PATH` (default: your team's game plans), so every argument is a play.
+- `--path` takes a .pln file, a folder, a wildcard or a game plan key; athc expands the wildcard itself.
 - Summary becomes "Find plays by name in game plans."
 - "(normal + custom-special slots)" becomes "Searches normal and special-teams slots."
 
@@ -179,7 +179,7 @@ The command plans decide each command's arguments, options and lines; where a pl
 
 ### gameplan replace-play
 
-- Usage becomes `[OPTIONS] PLAY REPLACEMENT PATH`; each gets a help line (see the sample help screen).
+- Usage becomes `[OPTIONS] PLAY REPLACEMENT...` with `--path PATH`; each argument gets a help line (see the sample help screen).
 - Summary becomes "Replace one play with another in game plans."
 - "(unlike find-play, only one play)" is dropped; PLAY's help says it is one play.
 
@@ -191,7 +191,7 @@ The command plans decide each command's arguments, options and lines; where a pl
 
 ### gameplan set-specials
 
-- Usage becomes `[OPTIONS] PATH INPUT_FILE`; both get help lines; PATH help: "A .pln file, a folder or a wildcard."
+- Usage becomes `[OPTIONS] INPUT_FILE` with `--path PATH`; `--path` help: "Game plans to edit: a .pln file, a folder, a wildcard or a game plan key (default: your team's game plans)."
 - Summary becomes "Set the special-teams plays from a play list."
 - "Merge semantics: unlisted special categories are preserved." becomes "Categories not in the list keep their plays."
 - "(offense .pln are even-sized, defense odd)" is dropped.
@@ -212,8 +212,8 @@ The command plans decide each command's arguments, options and lines; where a pl
 ### profile
 
 - Group summary becomes "Check and edit coaching profiles (.prf)."
-- `profile check`: same fixes as `gameplan check`; summary becomes "Check profiles against the league's rules."
-- `profile copy`: usage becomes `[OPTIONS] SOURCE TARGET`; SOURCE help: "Profile to copy from."; TARGET help: "Profile, folder or wildcard to copy into."
+- `profile check`: same fixes as `gameplan check`, PATH help ".prf files, folders, wildcards or profile keys (default: current folder)."; summary becomes "Check profiles against the league's rules."
+- `profile copy`: usage becomes `[OPTIONS] SOURCE TARGET...`; SOURCE help: "Profile to copy from: a .prf file or a profile key."; TARGET help: "Profiles to copy into: .prf files, folders, wildcards or profile keys."
 - `profile copy`: summary becomes "Copy settings from one profile to others."
 - `profile copy`: `--sub-percent` becomes `--substitutions`.
 - `profile diff`: usage becomes `[OPTIONS] PROFILE1 PROFILE2`; both get help lines.

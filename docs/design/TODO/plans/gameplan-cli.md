@@ -57,7 +57,7 @@ Depends on cli-help.md landing first.
 - A stock league is `Stock league not supported.`, as in check-ppp.
 - The order stays today's for every run that names paths, except that a wrong `--league` now fails before the operands; only a name adds the league reads in front of the file check.
 - Lines are check-ppp-cli.md's where they say the same thing (team resolution, `path` and `ppp_path` problems, the league files, a missing file, a team with no files), with "game plans" where check-ppp says "files".
-- The "Team is not set" and "League files folder is not set" lines keep check-ppp's shape and end with the command's own way out: `or pass --team or --path.` when the run used the default scope, `or pass --team or a .pln file.` when it used a name.
+- The "Team is not set" and "League files folder is not set" lines keep check-ppp's shape and end with the command's own way out: for team, `or pass --team or --path.` when the run used the default scope, `or pass --team or a .pln file.` when it used a name; for path, `or pass --path.` and `or pass a .pln file.`.
 - The no-league line is the shared one from `src/athc/config.py`, reworded by config-cli.md to `League is not set. ...`; the help names `--path`.
 - Keys: `team`, `ppp_path`, `path` under `[league]`, nothing new; set with `athc config set`, which writes them into the league's `league.toml`, like `play_path`.
 - Help text is in cli-help.md's form: `[OPTIONS]`, UPPERCASE placeholders derived from the parameter names, a Positional arguments section, an Examples epilog, the shared `-r` and `--league` texts.
@@ -87,7 +87,7 @@ Depends on cli-help.md landing first.
 | none, `ppp_path` set | `team`, or `--team` naming it | that folder, each of the four by its `.lg2` name without case; with `-r`, each folder of its tree on its own | a game plan: `WARN`, not counted; all four, in the whole scope: one `WARN` naming the team and the names |
 | none | `team`, or `--team` naming it, with `ppp_path` unset; `--team` naming another team, or with `team` unset, always | the league locations: `path` joined with each game plan's `.lg2` folder and name | a game plan: `FAIL`, counted as failed; all four: one `FAIL` per folder, absent or empty, counted as one failed item, with the `ppp_path` hint when the team is yours and none for another team |
 | `off1`, `def1`, `off2` or `def2` | as the two rows above | that one file, from `ppp_path` when it applies, else its league location | `FAIL`, exit 2 (one file was named) |
-| a `.pln`, a folder, a wildcard, `.` | none (`--team` is a usage error; `--league` must name an existing league and is otherwise not read) | as today | as today |
+| a `.pln`, a folder, a wildcard, `.` | none (`--team` is a usage error; `--league` must name an existing league; `replace-play` and `set-specials` read it for the pool, `find-play` reads nothing from it) | as today | as today |
 
 - A folder named `off1` in the current folder is a folder, so `--path off1` searches it; a file named `off1` is `FAIL off1: Not a .pln file.`; the four names mean your team's file only when no such path exists.
 

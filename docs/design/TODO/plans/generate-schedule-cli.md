@@ -158,7 +158,8 @@ Baltimore = "Los Angeles"
 | broken install | `Missing ortools. Reinstall athc.` | 2 |
 | a folder that refuses writes, when the files are written | `FAIL <file>: Access is denied.` | 2 |
 | Ctrl+C during phase 1 or phase 2 | `FAIL Interrupted.`, the search stopped at the press, nothing written | 130 |
-| Ctrl+C before phase 1's solve, between the phases, while phase 2's model is built, or while the files are written | `FAIL Interrupted.` | 130 |
+| Ctrl+C before phase 1's solve, between the phases, or while phase 2's model is built | `FAIL Interrupted.`, nothing written | 130 |
+| Ctrl+C while the three files are written | the three files written, then `FAIL Interrupted.` | 130 |
 | written | stderr: `Generating the <season> schedule`, `Phase 1: selecting matchups`, `Phase 2: placing games into weeks. This usually takes several minutes and can take 30 minutes or more.`; stdout: `OK   <file>` per file, then `Generated <n> games (seed <s>)` | 0 |
 
 - Order of output: nothing until the two files and `scheduler.toml` are read, then the `Season not finished` `WARN`, if any; then the progress lines on stderr in the order the solve runs, then the three `OK   <file>` lines on stdout in the order written (`.txt`, `.html`, `_report.html`), then `Generated <n> games (seed <s>)`.

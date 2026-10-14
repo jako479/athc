@@ -20,6 +20,7 @@ Depends on cli-help.md landing first.
 - `edit` opens the file with `os.startfile` directly, so a failure reaches `main`, which prints `FAIL <file>: <Windows' text>` and exits 2.
 - A file with no associated app: `FAIL <athc.ini>: No application is associated with the specified file for this operation.` (any other Windows text the same way). Exit 2.
 - `EDITOR` and `VISUAL` stay ignored.
+- `edit league.toml` with the file missing is `set`'s error, `FAIL <league.toml>: The system cannot find the file specified.`, exit 2, and nothing is created.
 - `reveal` keeps `click.launch`.
 
 ## Files to change

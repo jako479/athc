@@ -16,7 +16,7 @@
 - With `--team`, `team` is read only to decide that; when it is unset or does not resolve, the named team uses the league locations.
 - `--all-teams` and another team always use the league locations.
 - Team names are the `.lge`'s: the team name, the nickname or both (`Denver`, `Broncos`, `Denver Broncos`), matched without case; exactly one team must match.
-- No match, or two (two teams in one city), is an error that lists the league's teams by both names.
+- No match is an error that lists the league's teams by both names; two matches (two teams in one city) is an error that names the two teams by both names.
 - A blank `team` is unset; an array is the `Expected a string, got an array.` error `path()` gives.
 - Whether a file is there is decided before it is read; a file that is there but cannot be read is handled as today.
 - League locations: a team none of whose files exist gets one `FAIL` per `.lg2` folder (Windows' path phrase when the folder is absent, `No Denver files.` when it holds none of them), with the `ppp_path` hint when the run checks your team alone.

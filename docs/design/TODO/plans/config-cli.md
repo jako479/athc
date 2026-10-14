@@ -58,7 +58,7 @@ Depends on cli-help.md landing first.
 - `set`: `league` writes `athc.ini`; the other keys write the `league.toml` of the league in use, or of `--league NAME`.
 - The settings folder is `config_dir()`: `%LOCALAPPDATA%\athc`, or `ATHC_CONFIG_DIR` (dev and tests).
 - The league folder must exist; the file need not: `--league NAME`, and the league in use for `league.toml`, go through `resolve_league()` and `league_dir()`, and a wrong name is `FAIL League 'NOPE' not found. ...`, 2.
-- A missing `league.toml` is printed by `path`, created empty by `edit` and stood in for by its folder in `reveal`, as for `athc.ini`.
+- A missing `league.toml` is printed by `path` and stood in for by its folder in `reveal`, as for `athc.ini`; `edit` fails on it with `set`'s line, `FAIL <league.toml>: The system cannot find the file specified.`, exit 2, and creates nothing.
 
 ## Help
 
@@ -121,7 +121,7 @@ Usage: athc config edit [OPTIONS] [FILE]
   Open athc.ini or league.toml in its default app.
 
   league.toml holds the league's path, play_path, team and ppp_path. A missing
-  file is created empty first. Windows picks the app: Notepad, unless you
+  athc.ini is created empty first. Windows picks the app: Notepad, unless you
   changed it.
 
 Positional arguments:
@@ -263,6 +263,7 @@ Click's usage errors print the `Usage:` line, `Try 'athc config <verb> --help' f
 | `set league PCFL` written | `OK   <athc.ini>: league = PCFL` (stdout, logged) | 0 |
 | `set play_path C:\SIERRA\FBPRO98\PNFL` written | `OK   <league.toml>: play_path = C:\SIERRA\FBPRO98\PNFL` (stdout, logged); `path`, `team` and `ppp_path` the same way | 0 |
 | `set` of a `league.toml` key, the file missing or with no `[league]` | `FAIL <league.toml>: The system cannot find the file specified.`, nothing written | 2 |
+| `edit league.toml`, the file missing | `FAIL <league.toml>: The system cannot find the file specified.`, nothing created | 2 |
 | `set` of a `league.toml` key, the file malformed | its parse error line, as every reader prints it; nothing written | 2 |
 | `set league X --league Y` | `Error: --league cannot be used with set league.` | 2 |
 | `set league` with no folder of that name | `Error: Invalid value for 'VALUE': league 'PCLF' not found. No folder <leagues>\PCLF. Available: PCFL, PNFL.` | 2 |
@@ -299,7 +300,7 @@ Click's usage errors print the `Usage:` line, `Try 'athc config <verb> --help' f
 
 - `src/athc/cli/config/__init__.py`: register `get`; `KEYS = ("league", "path", "play_path", "team", "ppp_path")`, shared by `get` and `set`; `key_callback` for the `key` argument (casefold match returns the canonical spelling, else `click.BadParameter` with Click's `Choice` wording; Click attaches `'KEY'`); `FILE_NAMES = ("athc.ini", "league.toml")` and `file_callback` for the optional `file` argument (`None` passes through; a casefold match returns the canonical name; else `click.BadParameter("'<word>' is not one of 'athc.ini', 'league.toml'.", param_hint="'FILE'")`); no metavar on either argument, so Click renders `KEY` and `[FILE]`; `settings_file(file: str | None, league: str | None) -> Path` for `path`, `edit` and `reveal`: `config_file()` for `athc.ini`, `league_file(league)` (config-behavior.md) for `league.toml`, the FILE default above, and `resolve_league(league)` for a named league with `athc.ini`.
 - `src/athc/config.py`: `LeagueConfig.string(key)` as check-ppp-cli.md describes it (whichever plan lands first adds it).
-- `src/athc/cli/config/path.py`, `edit.py`, `reveal.py`: the optional `file` argument with `file_callback` and the shared `league_option` from `athc.cli`; `path` prints `settings_file(...)`; `edit` creates the parent folder and the empty file when missing; `reveal` creates the parent folder when missing (`config_dir()`; a league folder already exists), then `click.launch(locate=True)` on the file or `click.launch` on the folder.
+- `src/athc/cli/config/path.py`, `edit.py`, `reveal.py`: the optional `file` argument with `file_callback` and the shared `league_option` from `athc.cli`; `path` prints `settings_file(...)`; `edit` creates the parent folder and the empty file when `athc.ini` is missing, and raises the `FAIL <league.toml>: The system cannot find the file specified.` error, creating nothing, when `league.toml` is missing; `reveal` creates the parent folder when missing (`config_dir()`; a league folder already exists), then `click.launch(locate=True)` on the file or `click.launch` on the folder.
 - `src/athc/cli/config/get.py` (new): the `key` argument with `key_callback` and `league_option`; `league` prints `resolve_league(league)`; the other keys load `load_league_config(league)` and print `path(key)` or `string(key)`; a `None` value raises a `ConfigFileError` with `cfg.dir / LEAGUE_FILE` and the key's not-set line for `path`, `play_path` and `team`, and for `ppp_path` goes through `console.warn` with the `Game plan and profile folder is not set` line and returns normally.
 - `src/athc/cli/config/set.py`: the `key` argument with `key_callback` and `league_option`; for `league`, the folder check with `param_hint="'VALUE'"`, then `set_config_value`; `console.ok(f"{written}: {key} = {value}")` with the path either write returns.
 - Every config verb: the help texts above.
@@ -346,7 +347,7 @@ Click's usage errors print the `Usage:` line, `Try 'athc config <verb> --help' f
 - `--league` with no name: `requires an argument`, 2.
 - `league.toml` with a malformed `athc.ini`.
 - `path league.toml` with the file missing: the path, 0.
-- `edit league.toml` with the file missing: created empty, opened.
+- `edit league.toml` with the file missing: `FAIL <league.toml>: The system cannot find the file specified.`, 2, no file created, nothing opened.
 - `edit league.toml` with the file present: opened, content kept.
 - `reveal league.toml` with the file present: `locate=True` on it.
 - `reveal league.toml` with the file missing: the league folder.
