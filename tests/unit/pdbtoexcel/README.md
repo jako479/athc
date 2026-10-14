@@ -1,6 +1,6 @@
 # pdbtoexcel — Test Matrix
 
-Tool-logic unit cases. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). CLI cases: [../../integration/README.md](../../integration/README.md).
+Tool-logic unit cases. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). CLI cases: [../../integration/README.md](../../integration/README.md).
 
 One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.plays.json` snapshot; `synth` = constructed PDB bytes (`write_pdb`); `pool` = injected fake `PlayPool` (`make_record`/`make_pool`); `pln` = real `offense.pln`. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/pdbtoexcel` passes.
 

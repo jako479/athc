@@ -1,7 +1,7 @@
 """Binary block schema for the FbPro98 .prf file format.
 
 Defines the `struct.Struct` layouts and block identifiers (F95, I95) shared
-by the reader and writer. See specs/prf.md for full .prf format documentation.
+by the reader and writer. See docs/formats/prf.md for full .prf format documentation.
 """
 
 from struct import Struct

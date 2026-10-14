@@ -1,6 +1,6 @@
 # profile — Test Matrix
 
-Tool-logic unit cases (rules loader + validators). Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). CLI cases live in [../../integration/README.md](../../integration/README.md).
+Tool-logic unit cases (rules loader + validators). Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). CLI cases live in [../../integration/README.md](../../integration/README.md).
 
 One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profile_rules.toml`; `tmp` = constructed TOML; `make` = `ProfileRules` built in-test; `built` = synthetic `Profile` from `conftest.make_profile`. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/profile` passes.
 

@@ -1,6 +1,6 @@
 # scheduler — Test Matrix: Phase 2 (Schedule Placement)
 
-Cases for `schedule_builder.py`. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). Design: [phase-2-schedule.md](../../../docs/scheduler/phase-2-schedule.md).
+Cases for `schedule_builder.py`. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). Design: [scheduler-phase-2-schedule.md](../../../docs/scheduler-phase-2-schedule.md).
 
 Two layers. Model wiring in `test_schedule_builder.py` (fast, no solve). Every rule on a solved schedule in `test_schedule_rules.py`, through the one validator (`tests/integration/schedule_validation.py`), for every league case: two divisional standings variants, the conference league in an even season, an odd season, and with rotation off. Solved cases are `slow` (`pytest -m slow`). Status: ☑ covered · ☐ no test yet.
 

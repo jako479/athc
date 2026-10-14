@@ -2,7 +2,7 @@
 
 ctypes structures for parsing .pdb files: per-team per-play stats (PLAY_DATA),
 down-and-distance tendencies (TENDENCY_DATA / DOWN_DATA), and the wrapper class
-(PDB) that loads and normalizes the file. See specs/pdb.md for the byte layout.
+(PDB) that loads and normalizes the file. See docs/formats/pdb.md for the byte layout.
 """
 
 from __future__ import annotations

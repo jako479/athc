@@ -120,7 +120,7 @@ class Phase2Config:
     # Soft objective: penalize each metric outside its NFL-typical band [lo, hi],
     # weighted by rarity (1/scaled-SD). Bands are the NFL per-season spread scaled
     # to an 18-team league (teams x18/32, rematches x26/48). The hard caps above stay as
-    # backstops. See docs/design/research/cpsat-rule-patterns.md.
+    # backstops. See docs/research/cpsat-rule-patterns.md.
     soft_home_streak_lo: int = 5
     soft_home_streak_hi: int = 7
     soft_home_streak_weight: int = 155

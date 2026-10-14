@@ -177,7 +177,7 @@ def resolve_category(
 class PlayerHeader:
     """One player's header within a .ply play file.
 
-    Parsed from the leading bytes of each player record. See specs/ply.md
+    Parsed from the leading bytes of each player record. See docs/formats/ply.md
     section 2.1 for the on-disk layout.
     """
 
@@ -190,20 +190,20 @@ class PlayerHeader:
     player_type: int
     """Role bits (u8 at +0x01): 0x01 snaps (defense: Preferred Player), 0x02
     takes the snap, 0x04 kicks;
-    specs/ply.md section 4.2."""
+    docs/formats/ply.md section 4.2."""
 
     position: int
     """Position code (u16 at +0x02), e.g. 0x20 QB, 0x42 HB, 0x0200 LB;
-    specs/ply.md section 4.1."""
+    docs/formats/ply.md section 4.1."""
 
 
 @dataclass(frozen=True, slots=True)
 class Command:
-    """One command in a logic box. See specs/ply.md section 2.4."""
+    """One command in a logic box. See docs/formats/ply.md section 2.4."""
 
     code: int
     """Command code (u8), e.g. 0x02 Move to, 0x06 Timed pass;
-    specs/ply.md section 2.5."""
+    docs/formats/ply.md section 2.5."""
 
     arguments: tuple[int, ...]
     """Arguments (i16 each), in order; a spot is x, y."""
@@ -212,7 +212,7 @@ class Command:
 @dataclass(frozen=True, slots=True)
 class LogicBox:
     """One logic box: where the player stands when its commands start, then the
-    commands in order. See specs/ply.md section 2.3."""
+    commands in order. See docs/formats/ply.md section 2.3."""
 
     x: int
     """Sideways spot, positive to the offense's right; 90 units = 1 yard."""
@@ -226,7 +226,7 @@ class LogicBox:
 @dataclass(frozen=True, slots=True)
 class PlayerLogic:
     """One player's logic boxes, before the snap and from the snap on.
-    See specs/ply.md section 2.2."""
+    See docs/formats/ply.md section 2.2."""
 
     pre_snap: tuple[LogicBox, ...] = ()
     """Starts with the player's starting spot."""
@@ -239,7 +239,8 @@ class PlayerLogic:
 class PlayFile:
     """Parsed FbPro98 .ply play file.
 
-    See specs/ply.md for the on-disk binary format these attributes correspond to.
+    See docs/formats/ply.md for the on-disk binary format these attributes
+    correspond to.
     """
 
     file_path: Path

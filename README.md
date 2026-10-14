@@ -8,7 +8,7 @@ Current state and what's next: [STATUS.md](STATUS.md) · task list: [TODO.md](TO
 
 End-user: run `athc-<ver>-setup.exe`. It needs no Python, uv or internet, installs per user, and puts `athc` on PATH.
 
-Build it with `packaging/release-build.ps1` and test it in Windows Sandbox with `packaging/release-test.ps1`; see [docs/design/installer.md](docs/design/installer.md).
+Build it with `packaging/release-build.ps1` and test it in Windows Sandbox with `packaging/release-test.ps1`; see [docs/installer.md](docs/installer.md).
 
 ## Commands
 
@@ -36,7 +36,7 @@ mytool = "mypkg.cli:mytool"
 
 The umbrella discovers them at runtime — no changes to `athc` needed.
 
-See [docs/design/architecture.md](docs/design/architecture.md) for the full architecture and the conventions every command follows.
+See [docs/architecture.md](docs/architecture.md) for the full architecture and the conventions every command follows.
 
 ## Development
 

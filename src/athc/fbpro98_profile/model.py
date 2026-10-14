@@ -83,7 +83,7 @@ class ProfileType(IntEnum):
 class SubstitutionPair:
     """One position group's `out`/`in` substitution thresholds (each 0-100, out <= in).
 
-    See specs/prf.md section 2.2 for the on-disk layout.
+    See docs/formats/prf.md section 2.2 for the on-disk layout.
     """
 
     out_percent: int
@@ -449,7 +449,7 @@ class PatSituation:
         return minutes_remaining.value * 15 + point_spread.value + 1
 
 
-# Display-name lookup sets per specs/prf.md section 2.3.2. These describe which
+# Display-name lookup sets per docs/formats/prf.md section 2.3.2. These describe which
 # play_category values the in-game UI labels under each side; they are NOT a
 # wire-format constraint, so neither the model nor the reader rejects bytes
 # from outside the side's set. Defense covers 0x00-0x15 (the directional pass
@@ -510,7 +510,7 @@ class CategoryWeights:
 class Profile:
     """Full in-memory representation of a `.prf` coaching profile file.
 
-    See specs/prf.md for the on-disk binary format. Construction validates
+    See docs/formats/prf.md for the on-disk binary format. Construction validates
     structural invariants (record counts and field-goal range) via
     __post_init__; ValueError is raised for any violation.
     """

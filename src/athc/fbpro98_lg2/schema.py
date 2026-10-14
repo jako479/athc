@@ -1,6 +1,6 @@
 """Binary layout constants for the FbPro98 .lg2 league file format.
 
-Shared by the reader and its tests. See specs/lg2.md for the full format.
+Shared by the reader and its tests. See docs/formats/lg2.md for the full format.
 """
 
 FOLDER_SIZE = 0x105
@@ -10,6 +10,6 @@ FILES_PER_TEAM = 8
 TEAM_TRAILER_SIZE = 0x9  # not reverse engineered; ignored
 TEAM_RECORD_SIZE = FILE_ENTRY_SIZE * FILES_PER_TEAM + TEAM_TRAILER_SIZE  # 0x1061
 
-# How a stock league's first folder field starts; see specs/lg2.md 3.3 and 4.3.
+# How a stock league's first folder field starts; see docs/formats/lg2.md 3.3 and 4.3.
 MODERN_STOCK_FOLDER = b"STOCK\x00A\\FBPRO97\\STOCK\x00"
 OLD_STOCK_FOLDER = b"\x00"

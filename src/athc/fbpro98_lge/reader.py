@@ -1,4 +1,4 @@
-"""Parse FbPro98 .lge league files into LgeFile objects. See specs/lge.md."""
+"""Parse FbPro98 .lge league files into LgeFile objects. See docs/formats/lge.md."""
 
 from __future__ import annotations
 

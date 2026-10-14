@@ -1,6 +1,6 @@
 # playpool — Test Matrix
 
-Cases covered for the play-pool library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
+Cases covered for the play-pool library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md).
 
 One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFile`/record; `tree` = the curated plays in `data/plays/` in the league folder layout, plus the same files copied into a flat tree and a tree of arbitrary folder names (conftest fixtures `league_pool` / `flat_pool` / `arbitrary_pool`); `built` = a `.ply` built byte by byte (`build_ply` / `build_record` from the fbpro98_play tests); `rel` = a play's path relative to the pool root; `tmp` = constructed input. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/playpool` passes.
 

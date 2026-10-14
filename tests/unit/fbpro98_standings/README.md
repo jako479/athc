@@ -1,6 +1,6 @@
 # fbpro98_standings — Test Matrix
 
-Cases covered for the standings library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
+Cases covered for the standings library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md).
 
 One row per behavior. `[P]` = parametrized. Input: `built` = a league built in code (`leagues.py`); `golden` = a real `.lge` from `tests/unit/fbpro98_lge/data/` or `tests/integration/data/`. Status: ☑ done. **Implemented** — `pytest tests/unit/fbpro98_standings` → 105 passing.
 

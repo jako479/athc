@@ -31,7 +31,7 @@ class TxtScheduleWriter:
     path: StrPath
 
     def write(self, schedule: Schedule) -> None:
-        # newline="\n": the import format is LF (see specs/schedule_format.md);
+        # newline="\n": the import format is LF (see docs/formats/schedule-import.md);
         # without this, write_text emits CRLF on Windows.
         Path(self.path).write_text(
             self.render(schedule), encoding="utf-8", newline="\n"

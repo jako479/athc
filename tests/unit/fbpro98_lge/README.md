@@ -1,6 +1,6 @@
 # fbpro98_lge — Test Matrix
 
-Cases covered for the `.lge` league file library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
+Cases covered for the `.lge` league file library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md).
 
 One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()` = constructed bytes (one team unless a shape is given), `golden` = real `.lge` in `data/` (`08_TEAMS.lge`, `10_TEAMS.LGE`, `12_TEAMS.LGE` one conference; `PNFL.lge` 18 teams, custom, 2049 after week 6; `NFLPA94.lge` 28; `NFLPI97R.LGE` 30; grouped by chunk kind: `NFLPA93E.LGE` 28, `_default.lge` 30; the PNFL's 2047 season: `PNFL-before-week1.lge`, `PNFL-after-week16.lge`, `PNFL-after-super-bowl.lge`; seasons' ends for the tie-breakers: `PNFL-2043-after-super-bowl.lge`, `PNFL-2046-after-super-bowl.lge`, `PNFL-2048-after-week16.lge`). Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_lge` → 135 passing.
 

@@ -4,7 +4,7 @@ usage: python pnfl_decode.py <game folder> <what> [arg]
   what: league | teams | roster <team#> | player <id> | freeagents | schedule |
         champions | draft | tmn | stats <id|team#> | dump
 
-Findings this is based on: docs/design/research/pnfl-formats.md.
+Findings this is based on: docs/research/pnfl-formats.md.
 """
 
 from __future__ import annotations

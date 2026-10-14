@@ -34,7 +34,7 @@ SchedulerFunc = Callable[..., SchedulerResult]
 # There is one scheduler: two-phase CP-SAT. Phase 1 fixes the same-place pairs
 # and any cross-conference rivalry, then one CP-SAT solve picks the rest along
 # the difficulty line (spread); phase 2 (week placement) follows. Algorithm:
-# docs/scheduler/phase-1-matchups.md.
+# docs/scheduler-phase-1-matchups.md.
 SCHEDULER_DESCRIPTION = "two-phase CP-SAT"
 
 

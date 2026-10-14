@@ -25,7 +25,7 @@ class ProfileType(IntEnum):
 class CustomPlayRef:
     """A user-authored play stored as a filename reference (`stock_flag = 0`).
 
-    See specs/pln.md section 2.3 for the on-disk layout.
+    See docs/formats/pln.md section 2.3 for the on-disk layout.
     """
 
     filename: str
@@ -53,7 +53,7 @@ class CustomPlayRef:
 class StockPlayRef:
     """A built-in play referenced from `STOCK98.MAP` (`stock_flag = 1`).
 
-    See specs/pln.md section 2.3 for the on-disk layout.
+    See docs/formats/pln.md section 2.3 for the on-disk layout.
     """
 
     play_name: str
@@ -100,7 +100,7 @@ class SpecialSlot:
 class GamePlan:
     """Full in-memory representation of a `.pln` gameplan file.
 
-    See specs/pln.md for the on-disk binary format. Construction validates
+    See docs/formats/pln.md for the on-disk binary format. Construction validates
     structural invariants (slot counts, side-of-ball consistency, special-
     category alignment, stock-only clock categories) via __post_init__;
     ValueError is raised for any violation.

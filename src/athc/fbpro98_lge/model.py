@@ -121,7 +121,7 @@ class LgeFile:
 
     conferences: tuple[Conference, ...]
     """In file order. Walking conferences, divisions and teams in order gives
-    team numbers 1..N, which key the other league files (see specs/lge.md)."""
+    team numbers 1..N, which key the other league files (see docs/formats/lge.md)."""
 
     weeks: tuple[tuple[Game, ...], ...] = ()
     """The regular season: each week's played games, in file order."""

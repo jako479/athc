@@ -1,6 +1,6 @@
 # fbpro98_gameplan — Test Matrix
 
-Covers reader / model / writer / schema for the `.pln` gameplan library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). **Implemented** — `pytest tests/unit/fbpro98_gameplan` → 96 passing. Status: ☑ done.
+Covers reader / model / writer / schema for the `.pln` gameplan library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). **Implemented** — `pytest tests/unit/fbpro98_gameplan` → 96 passing. Status: ☑ done.
 
 Inputs: real `offense.pln` / `defense.pln` in `data/` (+ `data/expected/*.txt` slot/name dumps); error cases mutate the real bytes (no hand-built `.pln`).
 

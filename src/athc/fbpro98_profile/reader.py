@@ -1,4 +1,4 @@
-"""Parse FbPro98 .prf files into Profile objects. See specs/prf.md."""
+"""Parse FbPro98 .prf files into Profile objects. See docs/formats/prf.md."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ class UnsupportedProfileError(FileFormatError):
     """Raised on a structurally valid `.prf` in an unsupported variant.
 
     Unsupported variants are the stock layout and profiles with embedded game
-    plans. See specs/prf.md section 4.
+    plans. See docs/formats/prf.md section 4.
     """
 
 
@@ -67,7 +67,7 @@ def read_profile(path: StrPath) -> Profile:
             invalid trailer, or wrong file-size parity for the profile type).
         UnsupportedProfileError: If the file is structurally valid but uses an
             unsupported variant (stock layout, or has embedded game-plan
-            blocks). See specs/prf.md section 4.
+            blocks). See docs/formats/prf.md section 4.
         OSError: If the file cannot be opened or read (subclasses include
             FileNotFoundError, PermissionError, IsADirectoryError).
     """

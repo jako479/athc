@@ -1,6 +1,6 @@
 # scheduler — Test Matrix: Config Loading and League Files
 
-Cases for `config.py` (`load_scheduler_config`, the rules path), `league_files.py` (the League from the previous and upcoming `.lge` files) and the `generate-schedule` CLI. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
+Cases for `config.py` (`load_scheduler_config`, the rules path), `league_files.py` (the League from the previous and upcoming `.lge` files) and the `generate-schedule` CLI. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md).
 
 In `test_config.py`, `test_league_files.py` and `test_cli.py`. The test league is named `divisions`; the real league files are the PNFL's 2046-2048 season files in `tests/integration/data/`. Status: ☑ covered · ☐ no test yet.
 

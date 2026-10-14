@@ -7,7 +7,7 @@ cross-conference rivalry, then one CP-SAT solve picks the rest, tilting each
 team's average opponent conference rank by the configurable `spread`.
 
 Phase 2 uses CP-SAT to place that full inventory into the league's weeks under
-the rules in docs/scheduler/phase-2-schedule.md (`schedule_builder.py`); the
+the rules in docs/scheduler-phase-2-schedule.md (`schedule_builder.py`); the
 season decides rivalry hosting when it rotates.
 """
 

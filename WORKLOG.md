@@ -4,6 +4,15 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-14 — **docs**: `docs/` had 120 files in 36 folders: a folder per
+  module with same-named READMEs and ARCHITECTUREs that overlapped, specs two
+  levels down, and 27 superpowers specs and plans for merged work. Now one
+  folder per kind of doc, flat inside: one doc per module at the top (README
+  and ARCHITECTURE merged), `formats/` for every file spec with its patterns,
+  `research/`, and `proposals/` for pending designs and plans. The
+  superpowers files and the 1.0.0 CLI designs and plans went, and AGENTS.md
+  holds the rule that a finished design and plan fold into the docs and go,
+  so proposals is for pending work.
 - 2026-10-14 — **docs**: the tie-breaking docs were scattered: the methods'
   steps lived only in a spec, three specs and three plans for merged work
   sat under `docs/superpowers/`, the tie-breakers research note was untracked,

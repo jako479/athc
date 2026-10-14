@@ -1,7 +1,7 @@
 """Binary block schema for the FbPro98 .pln file format.
 
 Defines the `struct.Struct` layouts and block identifiers (G95, J95, S98) shared
-by the reader and writer. See specs/pln.md for full .pln format documentation.
+by the reader and writer. See docs/formats/pln.md for full .pln format documentation.
 """
 
 from struct import Struct

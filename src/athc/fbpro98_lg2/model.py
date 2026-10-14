@@ -12,7 +12,7 @@ from enum import Enum
 
 
 class LeagueType(Enum):
-    """Which of the three .lg2 layouts a file has; see specs/lg2.md."""
+    """Which of the three .lg2 layouts a file has; see docs/formats/lg2.md."""
 
     CUSTOM = "custom"
     MODERN_STOCK = "modern stock"
@@ -56,4 +56,4 @@ class Lg2File:
 
     teams: tuple[TeamFiles, ...]
     """One entry per team, in file order: the league's `.lge` team order (see
-    specs/lg2.md)."""
+    docs/formats/lg2.md)."""

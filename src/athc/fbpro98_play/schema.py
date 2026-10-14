@@ -1,7 +1,7 @@
 """Binary block schema for the FbPro98 .ply file format.
 
 Defines the `struct.Struct` layouts, block identifier (P95) and the command and
-position codes shared by the reader and model. See specs/ply.md for full .ply
+position codes shared by the reader and model. See docs/formats/ply.md for full .ply
 format documentation.
 """
 
@@ -22,13 +22,13 @@ PLY_PLAYER_DATA_BASE = PLY_HEADER.size
 
 ID_P95 = b"P95:"
 
-# Command codes the play attributes read; specs/ply.md section 2.5.
+# Command codes the play attributes read; docs/formats/ply.md section 2.5.
 COMMAND_MOVE_TO = 0x02
 COMMAND_TIMED_PASS = 0x06
 COMMAND_CHECK_RECEIVERS = 0x08
 COMMAND_RUN = 0x0C
 
-# Position codes the play attributes read; specs/ply.md section 4.1.
+# Position codes the play attributes read; docs/formats/ply.md section 4.1.
 POSITION_G = 0x0010
 POSITION_T = 0x0011
 POSITION_C = 0x0012

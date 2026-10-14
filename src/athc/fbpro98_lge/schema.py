@@ -1,6 +1,6 @@
 """Binary layout constants for the FbPro98 .lge league file format.
 
-Shared by the reader and its tests. See specs/lge.md for the full format.
+Shared by the reader and its tests. See docs/formats/lge.md for the full format.
 """
 
 from struct import Struct
