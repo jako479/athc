@@ -2,15 +2,15 @@
 
 ## 1.0.0
 
-- [ ] profile: CLI plan (profile keys `off1 def1 off2 def2` on check, diff and copy, `--team`, `copy SOURCE TARGET...`, `--substitutions`); see [docs/design/TODO/plans/profile-cli.md](docs/design/TODO/plans/profile-cli.md)
-- [ ] playpool: CLI plan (`check [FOLDER]`, `athc config set play_path` in its not-set lines); see [docs/design/TODO/plans/playpool-cli.md](docs/design/TODO/plans/playpool-cli.md)
-- [ ] generate-schedule: CLI plan (`--previous FILE` optional and `--upcoming FILE`, an unfinished season warns, coin-toss and division-finish tiebreaks, seed and time-limit bounds, Ctrl+C handling); see [docs/design/TODO/plans/generate-schedule-cli.md](docs/design/TODO/plans/generate-schedule-cli.md) and [docs/design/TODO/plans/generate-schedule-behavior.md](docs/design/TODO/plans/generate-schedule-behavior.md)
-- [ ] gameplan: CLI plan (game plan keys `off1 def1 off2 def2`, `--team`, `--path` on find-play, replace-play and set-specials with the team's game plans as default, `-q` dropped); see [docs/design/TODO/plans/gameplan-cli.md](docs/design/TODO/plans/gameplan-cli.md)
-- [ ] convert-pdb: CLI plan (optional `OUTPUT_FILE` beside the PDB, Slot columns from the team's game plans or from `-o/-o2/-d/-d2` instead, `--path FOLDER`, `--team`, `--percentages/--no-percentages`); see [docs/design/TODO/plans/convert-pdb-cli.md](docs/design/TODO/plans/convert-pdb-cli.md) and [docs/design/TODO/plans/convert-pdb-behavior.md](docs/design/TODO/plans/convert-pdb-behavior.md)
-- [ ] config: CLI plan (`get KEY` for athc.ini and league.toml keys; `set` also writes `path`, `play_path`, `team` and `ppp_path`; `path`, `edit` and `reveal` take FILE `athc.ini` or `league.toml` with `--league`; `edit` via `os.startfile`); see [docs/design/TODO/plans/config-cli.md](docs/design/TODO/plans/config-cli.md) and [docs/design/TODO/plans/config-behavior.md](docs/design/TODO/plans/config-behavior.md)
-- [ ] check-ppp: team and league modes (`team` and `ppp_path` in league.toml, `--team`, `--all-teams`); `gameplan check` and `profile check` stay; see [docs/design/TODO/plans/check-ppp-cli.md](docs/design/TODO/plans/check-ppp-cli.md)
+- [x] profile: CLI plan (profile keys `off1 def1 off2 def2` on check, diff and copy, `--team`, `copy SOURCE TARGET...`, `--substitutions`); see [docs/design/TODO/plans/profile-cli.md](docs/design/TODO/plans/profile-cli.md)
+- [x] playpool: CLI plan (`check [FOLDER]`, `athc config set play_path` in its not-set lines); see [docs/design/TODO/plans/playpool-cli.md](docs/design/TODO/plans/playpool-cli.md)
+- [x] generate-schedule: CLI plan (`--previous FILE` optional and `--upcoming FILE`, an unfinished season warns, coin-toss and division-finish tiebreaks, seed and time-limit bounds, Ctrl+C handling); see [docs/design/TODO/plans/generate-schedule-cli.md](docs/design/TODO/plans/generate-schedule-cli.md) and [docs/design/TODO/plans/generate-schedule-behavior.md](docs/design/TODO/plans/generate-schedule-behavior.md)
+- [x] gameplan: CLI plan (game plan keys `off1 def1 off2 def2`, `--team`, `--path` on find-play, replace-play and set-specials with the team's game plans as default, `-q` dropped); see [docs/design/TODO/plans/gameplan-cli.md](docs/design/TODO/plans/gameplan-cli.md)
+- [x] convert-pdb: CLI plan (optional `OUTPUT_FILE` beside the PDB, Slot columns from the team's game plans or from `-o/-o2/-d/-d2` instead, `--path FOLDER`, `--team`, `--percentages/--no-percentages`); see [docs/design/TODO/plans/convert-pdb-cli.md](docs/design/TODO/plans/convert-pdb-cli.md) and [docs/design/TODO/plans/convert-pdb-behavior.md](docs/design/TODO/plans/convert-pdb-behavior.md)
+- [x] config: CLI plan (`get KEY` for athc.ini and league.toml keys; `set` also writes `path`, `play_path`, `team` and `ppp_path`; `path`, `edit` and `reveal` take FILE `athc.ini` or `league.toml` with `--league`; `edit` via `os.startfile`); see [docs/design/TODO/plans/config-cli.md](docs/design/TODO/plans/config-cli.md) and [docs/design/TODO/plans/config-behavior.md](docs/design/TODO/plans/config-behavior.md)
+- [x] check-ppp: team and league modes (`team` and `ppp_path` in league.toml, `--team`, `--all-teams`); `gameplan check` and `profile check` stay; see [docs/design/TODO/plans/check-ppp-cli.md](docs/design/TODO/plans/check-ppp-cli.md)
 - [ ] athc: reorganize the docs folders and set the rule for design docs and plans; see [docs/design/TODO/docs-layout.md](docs/design/TODO/docs-layout.md)
-- [ ] athc: go through the CLI and help text for each command; see [docs/design/TODO/plans/cli-help.md](docs/design/TODO/plans/cli-help.md)
+- [x] athc: go through the CLI and help text for each command; see [docs/design/TODO/plans/cli-help.md](docs/design/TODO/plans/cli-help.md)
 - [ ] athc: go through all messages, warnings and errors for each command — messages name the file and line number, then say the problem in plain words; see [docs/design/TODO/logging-updates.md](docs/design/TODO/logging-updates.md)
 - [ ] athc: look for gaps in test cases for each command and library
 - [ ] athc: update the release README with each command's warnings and errors, from the per-tool READMEs ([gameplan](docs/gameplan/README.md), [profile](docs/profile/README.md), [check-ppp](docs/check_ppp/README.md), [playpool](docs/playpool/README.md), [convert-pdb](docs/pdbtoexcel/README.md), [generate-schedule](docs/scheduler/README.md), [autocontinue](docs/autocontinue/README.md), [config](docs/config/README.md))
@@ -22,12 +22,12 @@
 - [ ] athc: go through and reorganize the flood of design docs
 - [ ] athc: go through and reorganize the flood of file specs
 - [ ] athc: go through and update the release documentation (README, CHANGELOG, commands and errors/warnings, etc.)
-- [ ] gameplan: set-normals: decide whether to keep `-q/--quiet`, the only quiet option in athc: drop it, keep it, or give every file-writing command one; pdf-converter has none
-- [ ] gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run
+- [x] gameplan: set-normals: decide whether to keep `-q/--quiet`, the only quiet option in athc: drop it, keep it, or give every file-writing command one; pdf-converter has none
+- [ ] gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run, through an option that reads a file (`-` for the console), which makes both positionals optional
 - [ ] check-ppp: league plan and profile names
 - [ ] convert-pdb: add a problems section to the release docs
 - [ ] convert-pdb: add clear sort instructions on Options page
-- [ ] convert-pdb: remove hidden setting `include_category_worksheets = false` from athc.ini
+- [x] convert-pdb: remove hidden setting `include_category_worksheets = false` from athc.ini
 - [ ] athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
 - [ ] install: exclude autocontinue; design in [installer](docs/design/installer.md)
 - [ ] RELEASE!!!

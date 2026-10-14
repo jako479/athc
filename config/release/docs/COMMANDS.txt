@@ -10,139 +10,149 @@ Run tools from any terminal (Command Prompt or PowerShell):
    athc <group> --help                list subcommands in a group
    athc <group> <subcommand> --help   show help for one subcommand
 
-USAGE_ORIGINAL.txt in this same folder lists every command's help text.
+USAGE_ORIGINAL.txt in this same folder keeps each command's help as it was
+before 1.0, for reference; run --help for the current help.
 
 Settings live in athc.ini (the file documents every option inline). Each league
-is a folder under leagues\ next to it: league.toml (path, play_path, category names)
-and rule files (gameplan.toml, profile.toml, pdbtoexcel.toml, scheduler.toml).
-League-aware tools use the league named by [athc] league unless the command is
-given --league NAME.
+is a folder under leagues\ next to it: league.toml (path, play_path, team,
+ppp_path, category names) and rule files (gameplan.toml, profile.toml,
+pdbtoexcel.toml, scheduler.toml). League-aware tools use the league named by
+[athc] league unless the command is given --league NAME.
+
+Game plan and profile keys: off1, def1, off2 and def2 name your team's
+1st-half offense, 1st-half defense, 2nd-half offense and 2nd-half defense
+file, found in ppp_path in league.toml, else where the league file puts them.
+team in league.toml is your team; --team NAME picks another team for one run.
+A file or folder that exists by that name wins over the key.
 
 
-1) gameplan check  --  validate a .pln game plan against league rules
-   ------------------------------------------------------------------
+1) gameplan check  --  check game plans against the league's rules
+   ---------------------------------------------------------------
 
    Rules come from the league's gameplan.toml. The play pool comes from
    the league's play_path. Each play's side, category and attributes (QB run,
    rollout, timed pass, defensive front) come from the play file, so any folder
    layout works; the PNFL layout (Offense/Defense/Special with category
    subfolders) is optional and only adds screen passes and misfiled-play
-   warnings. With no gameplan rules
-   configured, check reports an error and stops. With no path, every .pln in
-   the current folder is checked (the whole tree with -r).
+   warnings. With no gameplan rules configured, check reports an error and
+   stops. With no path, every .pln in the current folder is checked (the
+   whole tree with -r). A game plan key checks one of your team's game
+   plans. To check your team's game plans with their profiles, run
+   athc check-ppp.
 
    Show help:
       athc gameplan check --help
 
    Example terminal calls:
-      athc gameplan check offense.pln
       athc gameplan check
-      athc gameplan check plans\ -r
+      athc gameplan check off1
+      athc gameplan check plans -r
       athc gameplan check offense.pln --league PCFL
 
 
-2) gameplan list-normals  --  list the 64 normal plays from a .pln
-   ----------------------------------------------------------------
+2) gameplan list-normals  --  list the 64 normal plays in a game plan
+   ------------------------------------------------------------------
 
    Default writes <name>.normals.txt next to the .pln, replacing any existing
    copy; pass an output file to write elsewhere, or - to print to the screen.
-   A file's first line is a `::` comment with the absolute path of the source
-   .pln. --sort name lists alphabetically (default keeps slot order).
-   --sort category groups the plays by category, each group under a `::`
-   comment with the league's category name from league.toml (RL, RM, ... for
-   offense; RunLeft, RunMiddle, ... for defense; the game's name where the
-   league has none); a category with no plays gets no header. The league is
-   the configured one unless the command is given --league NAME.
+   The game plan is a .pln file or a game plan key. A file's first line is a
+   `::` comment with the absolute path of the source .pln. --sort name lists
+   alphabetically (default keeps slot order). --sort category groups the
+   plays by category, each group under a `::` comment with the league's
+   category name from league.toml (RL, RM, ... for offense; RunLeft,
+   RunMiddle, ... for defense; the game's name where the league has none); a
+   category with no plays gets no header.
 
    Show help:
       athc gameplan list-normals -h
 
    Example terminal calls:
-      athc gameplan list-normals offense.pln
-      athc gameplan list-normals offense.pln plays.txt --sort name
-      athc gameplan list-normals offense.pln --sort category
+      athc gameplan list-normals off1
+      athc gameplan list-normals DEN-OGP1.pln plays.txt --sort category
       athc gameplan list-normals offense.pln -
 
 
-3) gameplan list-specials  --  list the custom special-teams plays
-   ----------------------------------------------------------------
+3) gameplan list-specials  --  list the special-teams plays in a game plan
+   -----------------------------------------------------------------------
 
-   Lists them in source-file order. Default writes <name>.specials.txt next to
+   Lists them in game plan order. Default writes <name>.specials.txt next to
    the .pln, replacing any existing copy; pass an output file to write
-   elsewhere, or - to print to the screen. A file's first line is a `::`
-   comment with the absolute source path.
+   elsewhere, or - to print to the screen. The game plan is a .pln file or a
+   game plan key. A file's first line is a `::` comment with the absolute
+   source path.
 
    Show help:
       athc gameplan list-specials -h
 
    Example terminal calls:
-      athc gameplan list-specials offense.pln
-      athc gameplan list-specials offense.pln spec.txt
-      athc gameplan list-specials offense.pln -
+      athc gameplan list-specials def1 -
+      athc gameplan list-specials DEN-DGP1.pln spec.txt
 
 
-4) gameplan find-play  --  find plays by name across .pln files
-   ------------------------------------------------------------
+4) gameplan find-play  --  find plays by name in game plans
+   --------------------------------------------------------
 
-   Searches a single .pln, every .pln in a directory, or a tree (-r).
-   Case-insensitive; only the normal and custom-special slots are searched
-   (stock/clock slots skipped). Hits show the slot(s), e.g.
-   'OR45RL01' found in slots 1-3, 16-2; special-teams hits add the category,
-   e.g. 'BCFGPAT' found in special slot 1 (Field Goal/PAT). No pool setup
-   needed -- the category is read from the .pln. A file without the play
-   prints `not found`; a directory/tree ends with a per-play summary. With
-   just a play name, every .pln in the current folder is searched; with two
-   or more arguments the last is always the file or folder.
+   Searches your team's game plans, or the ones --path names: a .pln file,
+   a folder, a wildcard or a game plan key (-r includes subfolders). Every
+   argument is a play. Case-insensitive; only the normal and special-teams
+   slots are searched (stock/clock slots skipped). Hits show the slot(s),
+   e.g. 'OR45RL01' found in slots 1-3, 16-2; special-teams hits add the
+   category, e.g. 'BCFGPAT' found in special slot 1 (Field Goal/PAT). No pool
+   setup needed -- the category is read from the .pln. A file without the
+   play prints `not found`; several files end with a per-play summary.
 
    Show help:
       athc gameplan find-play -h
 
    Example terminal calls:
       athc gameplan find-play OR45RL01
-      athc gameplan find-play OR45RL01 offense.pln
-      athc gameplan find-play OR45RL01 BCFGPAT plans\ -r
+      athc gameplan find-play OR45RL01 BCFGPAT --path plans -r
+      athc gameplan find-play OR45RL01 --path .
 
 
-5) gameplan set-normals  --  set the 64 normal plays in a .pln
-   -----------------------------------------------------------
+5) gameplan set-normals  --  set the 64 normal plays from a play list
+   ------------------------------------------------------------------
 
-   Replaces the normal slots of one .pln from a play list file; - reads the
-   list from the screen instead. No backup is made. Input lines starting
-   with `::` are comments; ` ::` after a name (with a space) is inline. The
-   league's play pool resolves names; run `check` to validate.
+   Replaces the normal slots of one game plan (a .pln file or a game plan
+   key) from a play list file; - reads the list from the screen instead. No
+   backup is made. Lines starting with `::`, and text after ` ::`, are
+   ignored. The league's play pool resolves names; run `check` afterward.
+   To hide the OK lines, redirect them:  > nul  (FAIL lines still show).
 
    Show help:
       athc gameplan set-normals -h
 
    Example terminal calls:
-      athc gameplan set-normals offense.pln plays.txt
-      athc gameplan set-normals offense.pln plays.txt -q
+      athc gameplan set-normals off1 plays.txt
+      athc gameplan set-normals DEN-OGP1.pln -
+      athc gameplan set-normals offense.pln plays.txt > nul
 
 
-6) gameplan set-specials  --  set the custom special-teams plays
-   -------------------------------------------------------------
+6) gameplan set-specials  --  set the special-teams plays from a play list
+   -----------------------------------------------------------------------
 
-   Updates one .pln, every .pln in a directory, or a tree (-r), from a play
-   list file; - reads the list from the screen instead. Wrong-side files are
-   skipped with a SKIP line (offense .pln are even-sized, defense odd). Merge
-   semantics: unlisted special categories are kept. No backup is made.
-   Comment syntax: same as set-normals.
+   Updates your team's game plans, or the ones --path names: a .pln file, a
+   folder, a wildcard or a game plan key (-r includes subfolders), from a
+   play list file; - reads the list from the screen instead. Game plans of
+   the other side are skipped with a SKIP line. Categories not in the list
+   keep their plays. No backup is made. Comment syntax: same as set-normals.
 
    Show help:
       athc gameplan set-specials -h
 
    Example terminal calls:
-      athc gameplan set-specials offense.pln spec.txt
-      athc gameplan set-specials plans\ spec.txt -r
+      athc gameplan set-specials spec.txt
+      athc gameplan set-specials spec.txt --path plans -r
 
 
-7) gameplan replace-play  --  swap one play for another across .pln files
+7) gameplan replace-play  --  replace one play with another in game plans
    ----------------------------------------------------------------------
 
-   Replaces every instance of one play in a single .pln, every .pln in a
-   directory, or a tree (-r); with no path, every .pln in the current folder.
-   Searches the normal and custom-special slots, case-insensitive (same as
-   find-play); only matching slots change, the rest are left alone.
+   Replaces every instance of one play in your team's game plans, or the
+   ones --path names: a .pln file, a folder, a wildcard or a game plan key
+   (-r includes subfolders). Searches the normal and special-teams slots,
+   case-insensitive (same as find-play); only matching slots change, the
+   rest are left alone.
 
    List one or more replacement plays: each gameplan gets the first one that
    is not already in it and with which it passes `gameplan check`; the
@@ -161,136 +171,174 @@ given --league NAME.
       athc gameplan replace-play -h
 
    Example terminal calls:
-      athc gameplan replace-play OLDRUN NEWRUN offense.pln
-      athc gameplan replace-play OLDRUN NEWRUN plans\ -r
-      athc gameplan replace-play OLDRUN NEWRUN BACKUP1 BACKUP2
+      athc gameplan replace-play OLDRUN NEWRUN
+      athc gameplan replace-play OLDRUN NEWRUN BACKUP --path plans -r
+      athc gameplan replace-play OLDRUN NEWRUN --path off1
 
 
-8) profile check  --  validate a .prf coaching profile against league rules
-   ------------------------------------------------------------------------
+8) profile check  --  check profiles against the league's rules
+   ------------------------------------------------------------
 
    Rules come from the league's profile.toml. With no rules configured,
    check reports an error and stops. With no path, every .prf in the current
-   folder is checked (the whole tree with -r). To check a profile together
-   with its gameplan, use check-ppp.
+   folder is checked (the whole tree with -r). A profile key checks one of
+   your team's profiles. To check a profile together with its game plan, run
+   athc check-ppp.
 
    Show help:
       athc profile check -h
 
    Example terminal calls:
-      athc profile check OFF1.prf
       athc profile check
-      athc profile check profiles\ -r --league PCFL
+      athc profile check off2
+      athc profile check drafts\*OFF*.prf
+      athc profile check profiles -r --league PCFL
 
 
-9) profile copy  --  copy fields from a source .prf into targets
-   --------------------------------------------------------------
+9) profile copy  --  copy settings from one profile to others
+   ----------------------------------------------------------
 
-   Updates a single .prf, every .prf in a directory, or a tree (-r).
-   Wrong-side files, and the source itself, are skipped with a SKIP line. No
-   backup is made. Copy does not validate -- use `profile check` for that.
+   Copies the settings you pick (--stop-clock, --substitutions,
+   --field-goal-range, --fourth-down, --goal-line, --pat-logic) from SOURCE
+   into each TARGET. SOURCE is a .prf file or a profile key; each TARGET is
+   a .prf file, a folder (-r includes subfolders), a wildcard or a profile
+   key. Targets of the other side, and the source itself, are skipped with a
+   SKIP line. No backup is made. Copy does not check the rules -- run
+   athc profile check afterward.
 
    Show help:
       athc profile copy -h
 
    Example terminal calls:
-      athc profile copy SRC.prf DST.prf --stop-clock --goal-line
-      athc profile copy SRC.prf DST.prf --pat-logic
-      athc profile copy SRC.prf profiles\ --stop-clock -r
+      athc profile copy off1 off2 --stop-clock --substitutions
+      athc profile copy new.prf off1 off2 --substitutions
+      athc profile copy SRC.prf profiles --stop-clock -r
 
 
-10) profile diff  --  show differences between two coaching profiles
-    ----------------------------------------------------------------
+10) profile diff  --  show differences between two profiles
+    -------------------------------------------------------
 
    Compares situations, PAT situations, substitutions, field-goal range,
-   and audibles; only changed records are shown. Both files must be the
-   same side. Prints to the screen, or with --output file writes a report
-   (.txt report, .csv one row per changed record for Excel).
+   and audibles; only changed records are shown. Both profiles must be the
+   same side; each is a .prf file or a profile key. Prints to the screen, or
+   with --output FILE writes a report (.txt report, .csv one row per changed
+   record for Excel).
 
    Show help:
       athc profile diff -h
 
    Example terminal calls:
-      athc profile diff OFF1.prf OFF2.prf
-      athc profile diff OFF1.prf OFF2.prf --output changes.csv
+      athc profile diff off1 off2
+      athc profile diff off1 try.prf -o changes.csv
 
 
-11) check-ppp  --  check profiles with their game plans, and how they fit
-    ---------------------------------------------------------------------
+11) check-ppp  --  check profiles against their game plans
+    -------------------------------------------------------
 
-   Checks a .prf coaching profile with its .pln game plan: one of each, in
-   either order (the extension tells them apart), or every pair in a folder
-   (a whole tree with -r). For a folder, the league's FbPro98 .lg2 file, in
-   the folder that path in league.toml names, says which files go together:
-   1st-half offense profile with 1st-half offense game plan, and so on. Each
-   pair whose two files are in the same folder is checked; other files are
-   ignored. A game plan used for both halves is reported once.
+   Checks your team's .prf coaching profiles with their .pln game plans, as
+   the league's FbPro98 files pair them: 1st-half offense profile with
+   1st-half offense game plan, and so on. The .lg2 and .lge files are read
+   from the folder that path in league.toml names; team in league.toml is
+   your team (its name or nickname), --team NAME picks another team for one
+   run, and --all-teams checks every team.
+
+   With no path, the files are where the league file puts them, or in
+   ppp_path in league.toml for your team. Give a folder (. is the current
+   one) to check the files there instead, found by their league file names
+   (a whole tree with -r, each folder on its own). One .prf and one .pln, in
+   either order, are checked as a pair.
 
    Each file gets the same check as profile check and gameplan check, with
    the rules from the current league; --league picks another league. A pair
    must be the same side. The league's profile.toml decides whether profile
    categories with no custom play in the game plan fail the check, and its
    gameplan.toml whether game plan categories the profile never uses do.
-   Unused game plan categories that don't fail are listed as info only.
-   Every bad or missing file is reported, not just the first; a config or
-   rules problem stops the run at once.
+   Unused game plan categories that don't fail are listed as info only. A
+   game plan used for both halves is reported once.
+
+   Missing files: where the league file puts them, a missing file is a FAIL
+   and its partner is checked alone. In a folder nothing has to be there:
+   a missing partner is a WARN, counted as missing in the tally (a whole
+   pair absent prints nothing and counts nowhere), and a team with no file
+   is one WARN.
 
    Show help:
       athc check-ppp -h
 
    Example terminal calls:
-      athc check-ppp OFF1.prf OFF.pln
-      athc check-ppp plans\Denver
-      athc check-ppp plans\ -r
+      athc check-ppp
+      athc check-ppp .
+      athc check-ppp --all-teams handed-in -r
+      athc check-ppp --team "Las Vegas" handed-in
+      athc check-ppp DEN-OFF1.prf DEN-OGP1.pln
 
 
 12) playpool check  --  check the play pool for misfiled and duplicate plays
     ------------------------------------------------------------------------
 
-   Checks every play under the league's play_path, or under a folder you
-   give instead (then no league is needed, though a configured league still
-   names the category folders); --league picks another league.
-   Reports plays in a folder that doesn't match the play file, duplicate play
-   names, and invalid play files -- the same warnings other commands show
-   when they load the play pool. Ends with a count of plays
-   checked and issues found.
+   With no folder, checks every play under the league's play_path; when
+   play_path is not set, missing or not a folder, the line says to run
+   athc config set play_path FOLDER or pass the folder. Give a folder (. is
+   the current one) to check it instead; then play_path is not read, and no
+   league is needed, though a configured league still names the category
+   folders. --league picks another league. Reports plays in a folder that
+   doesn't match the play file, duplicate play names, and invalid play files
+   -- the same warnings other commands show when they load the play pool.
+   Ends with a count of plays checked and issues found.
 
    Show help:
       athc playpool check -h
 
    Example terminal calls:
       athc playpool check
-      athc playpool check E:\SIERRA\FbPro98\PNFL
+      athc playpool check .
+      athc playpool check newplays
       athc playpool check --league PCFL
 
 
-13) convert-pdb  --  WinLogStats stats (.pdb) into Excel
-    ----------------------------------------------------
+13) convert-pdb  --  convert a WinLogStats PDB to an Excel workbook
+    ---------------------------------------------------------------
 
    Builds an Excel workbook from a WinLogStats .pdb: Run Plays, Pass Plays
    and Def Plays sheets (one row per team and play, plus a Total Stats team
    summing every team), a Tendencies sheet (run/pass counts by down and
-   distance) and an Options sheet. Save as .xlsm for the built-in sorting:
+   distance) and an Options sheet. With no output file it writes
+   <name>.xlsm beside the PDB, replacing any existing copy; name an .xlsx or
+   .xlsm output file to write elsewhere. An .xlsm has the built-in sorting:
    double-click a column to sort by it (stat columns toggle between
    descending and ascending; Team, Category, Slot, Play and Type sort
-   ascending only). Cross-reference up to two offensive (-o/-o2) and two
-   defensive (-d/-d2) game plans to fill the Slot 1 / Slot 2 columns with
-   each play's position in the plan.
+   ascending only). Excel opens an .xlsm with its macros disabled until you
+   click Enable Content, and a copy sent by email opens with them blocked
+   (unblock it in the file's Properties, or make an .xlsx to share).
+
+   Slot 1 and Slot 2 show where each play sits in your team's 1st- and
+   2nd-half game plans, per side. With no game plan option, they come from
+   the league file: --path FOLDER, else ppp_path in league.toml for your
+   team, else where the league file puts them; team in league.toml is your
+   team and --team NAME picks another. A missing plan is a WARN and hides its
+   column. With -o, -o2, -d or -d2, only the game plans given are used, each
+   must be the right side, and the league file is not read. Without a team
+   and with no game plan option, the Slot columns are hidden.
 
    Per league, in leagues\<NAME>\: league.toml names the categories (RL,
    PSL, RunLeft, ...) and pdbtoexcel.toml sets the order they sort in and lists
    deleted plays to skip. The Type column's QB run and defensive front come
-   from each play file. The workbook options (percentage columns, per-category
-   worksheets, sacks excluded from pass attempts) live in athc.ini under
-   [convert-pdb]; --skip-calcs drops the percentage columns for one run.
+   from each play file. The workbook options (percentage columns, sacks
+   excluded from pass attempts) live in athc.ini under [convert-pdb];
+   --percentages / --no-percentages override the percentage columns for one
+   run.
 
    Show help:
       athc convert-pdb --help
 
    Example terminal calls:
-      athc convert-pdb stats.pdb output.xlsm
-      athc convert-pdb stats.pdb output.xlsm -d defense.pln -o offense.pln
-      athc convert-pdb stats.pdb output.xlsm -o OFF1.pln -o2 OFF2.pln -d DEF1.pln -d2 DEF2.pln
+      athc convert-pdb 49W6.pdb
+      athc convert-pdb 49W6.pdb reports\week6.xlsx
+      athc convert-pdb 49W6.pdb --team Broncos
+      athc convert-pdb 49W6.pdb -o try3.pln -o2 plans\DEN-OGP1.pln
+      athc convert-pdb 49W5.pdb --path plans\wk5
+      athc convert-pdb 2045-2047.pdb --no-percentages --league PCFL
+      for %f in (*.pdb) do athc convert-pdb "%f"
 
 
 14) autocontinue  --  auto-click the FbPro '98 'Continue' button between plays
@@ -315,26 +363,35 @@ given --league NAME.
       athc autocontinue --no-hot-corner
 
 
-15) config  --  locate, edit, reveal, or set your athc settings
-    ----------------------------------------------------------
+15) config  --  show or change athc settings (athc.ini, league.toml)
+    ---------------------------------------------------------------
 
-   Helpers for the settings file (athc.ini) and its folder. `path` prints
-   the file's full path; `edit` opens it in your default app for .ini files,
-   created if missing; `reveal` shows athc.ini in File Explorer (selected),
-   or its folder if it doesn't exist yet.
+   Helpers for the settings files: athc.ini, and a league's league.toml.
+   `path`, `edit` and `reveal` take FILE, athc.ini (the default) or
+   league.toml, and --league NAME (which makes league.toml the default).
+   `path` prints the file's full path; `edit` opens it in its default app
+   (a missing athc.ini is created empty; a missing league.toml is a FAIL);
+   `reveal` shows the file in File Explorer (selected), or its folder if it
+   doesn't exist yet.
 
-   `set KEY VALUE` writes one key under [athc], keeping your comments. Today
-   the only key is league: the league used when --league is not given. The
-   value must be a folder under leagues\.
+   `get KEY` prints a setting: league from athc.ini; path, play_path, team
+   and ppp_path from the league's league.toml (--league NAME picks another
+   league). `set KEY VALUE` writes one: league to athc.ini (the value must be
+   a folder under leagues\), the other four to the league's league.toml. It
+   keeps your comments in both files and prints an OK line naming the file
+   it wrote, e.g. OK   <league.toml>: team = Denver.
 
    Show help:
       athc config --help
 
    Example terminal calls:
       athc config path
-      athc config edit
+      athc config edit league.toml
       athc config reveal
+      athc config get play_path
       athc config set league PNFL
+      athc config set play_path C:\SIERRA\FBPRO98\PNFL
+      athc config set team Denver
 
 
 16) standings  --  show the league's standings as played so far

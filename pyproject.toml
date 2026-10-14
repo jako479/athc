@@ -14,7 +14,7 @@ requires-python = ">=3.13"
 # All deps are required (no opt-in extras): the installer must deliver every tool
 # working; extras suit pip/dev users, not a bundled installer.
 dependencies = [
-    "click>=8.1",
+    "click>=8.5",
     "platformdirs>=4.0",
     "xlsxwriter>=3.0",  # convert-pdb writes Excel
     # autocontinue: pyautogui pulls pyscreeze, but pyscreeze 1.0.1 imports Pillow
@@ -25,6 +25,7 @@ dependencies = [
     "ortools>=9.10",  # generate-schedule solver
     "configupdater>=3.2",
     "rich>=15.0.0",
+    "tomlkit>=0.15.1",
 ]
 
 # Dev tooling is a dependency group, not an extra: extras ship to whoever

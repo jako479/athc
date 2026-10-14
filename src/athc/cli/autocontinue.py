@@ -14,13 +14,16 @@ from athc.errors import AthcError
 @click.option(
     "--hot-corner/--no-hot-corner",
     default=None,
-    help="Stop when the mouse hits the top-left corner (overrides config; default on).",
+    help=(
+        "Stop when the mouse hits the top-left corner. "
+        "Overrides hot_corner in athc.ini (on by default)."
+    ),
 )
 def autocontinue(hot_corner: bool | None) -> None:
     """Watch for the 'Continue' button between plays and click it.
 
     Clicks the 'Continue' button in Front Page Sports Football Pro '98. Stop with
-    CTRL-C, or by moving the mouse to the top-left screen corner (the "hot corner",
+    Ctrl+C, or by moving the mouse to the top-left screen corner (the "hot corner",
     on by default; disable with --no-hot-corner or the config). Reads
     `[autocontinue]` (mouse_move_duration, delay_before_continue, hot_corner) from
     athc.ini, re-reading whenever the file changes so edits apply while it runs.

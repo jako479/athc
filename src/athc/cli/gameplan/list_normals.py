@@ -6,53 +6,73 @@ from pathlib import Path
 
 import click
 
-from athc.cli import CONTEXT_SETTINGS, league_option
+from athc.cli import CONTEXT_SETTINGS, league_option, team_option
 from athc.cli.gameplan import gameplan
-from athc.cli.gameplan._common import emit_play_list, named_file, normal_play_lines
-from athc.config import load_league_config
+from athc.cli.gameplan._common import (
+    TEAM_HELP,
+    emit_play_list,
+    epilog,
+    normal_play_lines,
+    one_game_plan,
+    require_a_key,
+)
+from athc.config import load_league_config, resolve_league
 from athc.fbpro98_gameplan import read_gameplan
 
 
-@gameplan.command(name="list-normals", context_settings=CONTEXT_SETTINGS)
-@click.argument("gameplan_path", metavar="gameplan", type=click.Path(path_type=Path))
+@gameplan.command(
+    name="list-normals",
+    context_settings=CONTEXT_SETTINGS,
+    epilog=epilog(
+        "athc gameplan list-normals off1",
+        "athc gameplan list-normals DEN-OGP1.pln plays.txt --sort category",
+    ),
+)
+@click.argument("game_plan", help="A .pln file or a game plan key.")
 @click.argument(
-    "output_path",
-    metavar="[output_file]",
+    "output_file",
     required=False,
     type=click.Path(path_type=Path, allow_dash=True),
+    help=(
+        "Where to write the list (default: GAME_PLAN with .normals.txt, beside "
+        "it; - prints it)."
+    ),
 )
 @click.option(
     "--sort",
     type=click.Choice(["slot", "name", "category"]),
     default="slot",
     show_default=True,
-    help="Order of the listed plays.",
+    help=(
+        "slot keeps slot order (empty slots blank); name sorts by name; category "
+        "groups by category under :: headers with the league's names."
+    ),
 )
+@team_option(TEAM_HELP)
 @league_option
 def list_normals(
-    gameplan_path: Path,
-    output_path: Path | None,
+    game_plan: str,
+    output_file: Path | None,
     sort: str,
+    team: str | None,
     league: str | None,
 ) -> None:
-    """List the 64 normal plays from gameplan.
+    """List the 64 normal plays in a game plan.
 
-    Writes them, under a `:: <source>` header line, to output_file, or by default
-    to <name>.normals.txt next to gameplan; an existing file is replaced. An
-    output_file of `-` prints them instead. `--sort slot` keeps slot positions
-    (empty slots blank); `name` drops blanks; `category` drops blanks and groups
-    the plays by category, each group under a `::` header with the league's
-    category name (RL, RunLeft, ...; the game's name where the league has none).
+    An existing output file is replaced.
     """
-    gameplan_path = named_file(gameplan_path)
+    require_a_key(team, [game_plan])
+    if league is not None:
+        resolve_league(league)  # a league that does not exist fails first
+    source = one_game_plan(game_plan, team, league)
     labels = load_league_config(league).categories
-    gp = read_gameplan(gameplan_path)
+    gp = read_gameplan(source)
     lines = normal_play_lines(gp, sort=sort, labels=labels)
-    if output_path is None:
-        output_path = gameplan_path.with_name(f"{gameplan_path.stem}.normals.txt")
+    if output_file is None:
+        output_file = source.with_name(f"{source.stem}.normals.txt")
     emit_play_list(
         lines,
-        None if str(output_path) == "-" else output_path,
-        gameplan_path,
+        None if str(output_file) == "-" else output_file,
+        source,
         noun="normal",
     )

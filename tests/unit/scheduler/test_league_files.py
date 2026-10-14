@@ -1,6 +1,7 @@
 """The scheduler's League from two league files: conferences, divisions and
 names from the upcoming season's `.lge`, standings from the previous season's,
-teams matched by name with the season's renames.
+teams matched by name with the season's renames, the last tiebreak a coin toss
+drawn from the run's seed.
 
 Real PNFL files (2046 to 2048) cover the standings rules against the league's
 own published order; built `LgeFile` objects cover the shapes and errors no
@@ -9,8 +10,9 @@ real file holds.
 
 from __future__ import annotations
 
+import random
 import shutil
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 import pytest
@@ -35,6 +37,7 @@ RENAMES_2047 = {
     "New York N": "New York",
 }
 RULES = Path("scheduler.toml")
+SEED = 0  # the run's seed: draws the coin toss
 
 # The 2048 standings as the league published them (the former shipped
 # 2048.league.ini): playoff finish, record, strength of schedule.
@@ -66,24 +69,43 @@ REAL_2048_FINISH = {
 }
 
 
-def _folders(tmp_path: Path, previous: str, upcoming: str) -> tuple[Path, Path]:
-    """Two folders, each holding a fixture copied to `<LEAGUE>.lge`."""
-    folders: list[Path] = []
+def _files(tmp_path: Path, previous: str, upcoming: str) -> tuple[Path, Path]:
+    """The two fixtures copied to `previous\\<LEAGUE>.lge` and
+    `upcoming\\<LEAGUE>.lge`; returns the two files."""
+    files: list[Path] = []
     for kind, fixture in (("previous", previous), ("upcoming", upcoming)):
         folder = tmp_path / kind
         folder.mkdir()
-        shutil.copy(DATA / f"{fixture}.lge", folder / f"{LEAGUE}.lge")
-        folders.append(folder)
-    return folders[0], folders[1]
+        files.append(
+            Path(shutil.copy(DATA / f"{fixture}.lge", folder / f"{LEAGUE}.lge"))
+        )
+    return files[0], files[1]
+
+
+def _no_warning(line: str) -> None:
+    raise AssertionError(f"unexpected warning: {line}")
 
 
 def _load(
     tmp_path: Path, previous: str, upcoming: str, renames: dict[str, str], season: int
 ) -> League:
-    previous_dir, upcoming_dir = _folders(tmp_path, previous, upcoming)
+    previous_file, upcoming_file = _files(tmp_path, previous, upcoming)
     return load_league(
-        LEAGUE, previous_dir, upcoming_dir, renames, season=season, rules_path=RULES
+        previous_file,
+        upcoming_file,
+        renames,
+        season=season,
+        seed=SEED,
+        rules_path=RULES,
+        warn=_no_warning,
     )
+
+
+def _coin_toss(names: Sequence[str], seed: int = SEED) -> list[str]:
+    """The previous teams, in previous-file order, shuffled from `seed`."""
+    tossed = list(names)
+    random.Random(seed).shuffle(tossed)
+    return tossed
 
 
 def _finish(league: League) -> dict[str, list[str]]:
@@ -143,25 +165,36 @@ def test_2047_league_follows_realignment_and_renames(tmp_path: Path) -> None:
     ]
 
 
-def test_previous_season_must_be_finished(tmp_path: Path) -> None:
-    previous_dir, upcoming_dir = _folders(tmp_path, UPCOMING_2048, UPCOMING_2048)
-    with pytest.raises(SchedulerError) as exc:
-        load_league(
-            LEAGUE, previous_dir, upcoming_dir, {}, season=2048, rules_path=RULES
-        )
-    assert str(exc.value) == (
-        f"{previous_dir / f'{LEAGUE}.lge'}: Season not finished: "
-        "142 game(s) not played."
+def test_unfinished_season_is_a_warning(tmp_path: Path) -> None:
+    # The 2048 opening-week file gives the standings: the warning names it,
+    # and the League is built from the games played.
+    previous, upcoming = _files(tmp_path, UPCOMING_2048, UPCOMING_2048)
+    said: list[str] = []
+    league = load_league(
+        previous,
+        upcoming,
+        {},
+        season=2048,
+        seed=SEED,
+        rules_path=RULES,
+        warn=said.append,
     )
+    assert said == [f"{previous}: Season not finished: 142 game(s) not played."]
+    assert len(league.teams) == 18
 
 
 def test_unmatched_previous_team_names_the_renames_table(tmp_path: Path) -> None:
-    previous_dir, upcoming_dir = _folders(tmp_path, PREVIOUS_2047, UPCOMING_2048)
+    previous, upcoming = _files(tmp_path, PREVIOUS_2047, UPCOMING_2048)
     with pytest.raises(SchedulerError) as exc:
         load_league(
-            LEAGUE, previous_dir, upcoming_dir, {}, season=2048, rules_path=RULES
+            previous,
+            upcoming,
+            {},
+            season=2048,
+            seed=SEED,
+            rules_path=RULES,
+            warn=_no_warning,
         )
-    previous, upcoming = previous_dir / f"{LEAGUE}.lge", upcoming_dir / f"{LEAGUE}.lge"
     assert str(exc.value) == (
         f"{previous}: Team(s) not in {upcoming}: Baltimore. "
         f"List renamed teams under [renames.2048] in {RULES}."
@@ -182,12 +215,17 @@ def test_unmatched_previous_team_names_the_renames_table(tmp_path: Path) -> None
 def test_rename_naming_an_unknown_or_taken_team(
     tmp_path: Path, renames: dict[str, str], reason: str
 ) -> None:
-    previous_dir, upcoming_dir = _folders(tmp_path, PREVIOUS_2047, UPCOMING_2048)
+    previous, upcoming = _files(tmp_path, PREVIOUS_2047, UPCOMING_2048)
     with pytest.raises(ConfigFileError) as exc:
         load_league(
-            LEAGUE, previous_dir, upcoming_dir, renames, season=2048, rules_path=RULES
+            previous,
+            upcoming,
+            renames,
+            season=2048,
+            seed=SEED,
+            rules_path=RULES,
+            warn=_no_warning,
         )
-    previous, upcoming = previous_dir / f"{LEAGUE}.lge", upcoming_dir / f"{LEAGUE}.lge"
     assert str(exc.value) == f"{RULES}: [renames.2048] " + reason.format(
         previous=previous, upcoming=upcoming
     )
@@ -263,16 +301,40 @@ def _two_conferences(
     )
 
 
-def _build(previous: LgeFile, upcoming: LgeFile | None = None) -> League:
+def _build(
+    previous: LgeFile, upcoming: LgeFile | None = None, *, seed: int = SEED
+) -> League:
     return league_from_files(
         previous,
         upcoming or _two_conferences(),
         {},
         season=2048,
+        seed=seed,
         previous_path=PREVIOUS,
         upcoming_path=UPCOMING,
         rules_path=RULES,
+        warn=_no_warning,
     )
+
+
+# Every team of `_two_conferences`, in previous-file order, and its two
+# one-division conferences.
+EIGHTEEN = [f"A{i}" for i in range(1, 10)] + [f"B{i}" for i in range(1, 10)]
+ONLY_DIVISIONS = (EIGHTEEN[:9], EIGHTEEN[9:])
+
+
+def _no_game_order(names: Iterable[str]) -> list[str]:
+    """`names` of `_two_conferences` as the overall order puts them when no
+    game decides: previous-season division finish, which the coin toss sets,
+    then the coin toss."""
+    tossed = _coin_toss(EIGHTEEN)
+    place = {
+        name: index
+        for members in ONLY_DIVISIONS
+        for index, name in enumerate((n for n in tossed if n in members), 1)
+    }
+    wanted = set(names)
+    return sorted((name for name in tossed if name in wanted), key=place.__getitem__)
 
 
 def _by_name(lge: LgeFile) -> dict[str, Team]:
@@ -293,10 +355,9 @@ def test_one_division_per_conference_is_a_league_without_divisions() -> None:
     assert not league.has_divisions
     assert league.division_standings == {}
     assert [c.name for c in league.conferences] == ["A", "B"]
-    # No game played: the previous file's order stands.
-    assert _overall(league) == [f"A{i}" for i in range(1, 10)] + [
-        f"B{i}" for i in range(1, 10)
-    ]
+    # No game played: the coin toss orders each conference's one division,
+    # and the overall order goes by that finish, then the coin toss.
+    assert _overall(league) == _no_game_order(EIGHTEEN)
 
 
 def test_three_conferences_rejected() -> None:
@@ -351,7 +412,9 @@ def test_playoff_finish_outranks_record() -> None:
     previous = _two_conferences(records)
     teams = _by_name(previous)
     previous = _two_conferences(records, playoffs=[[_game(teams["B9"], teams["A1"])]])
-    assert _overall(_build(previous))[:3] == ["B9", "A1", "A2"]
+    # Third: the first of the level rest, by the coin toss's division finish.
+    third = _no_game_order(set(EIGHTEEN) - {"B9", "A1"})[0]
+    assert _overall(_build(previous))[:3] == ["B9", "A1", third]
 
 
 def test_champion_then_runner_up_then_losers_by_round_and_record() -> None:
@@ -394,35 +457,156 @@ def test_same_record_and_finish_ranked_by_strength_of_schedule() -> None:
         "A5": Record(0, 2, 0, 0, 0),
         "A6": Record(0, 2, 0, 0, 0),
     }
-    teams = _by_name(_two_conferences(records))
+    # The games name the file's own teams, as a real file's do.
+    base = _two_conferences(records)
+    teams = _by_name(base)
     weeks = [
         [_game(teams["A1"], teams["A3"]), _game(teams["A2"], teams["A5"])],
         [_game(teams["A4"], teams["A1"]), _game(teams["A6"], teams["A2"])],
     ]
-    overall = _overall(_build(_two_conferences(records, weeks=weeks)))
+    overall = _overall(_build(_lge(*base.conferences, weeks=weeks)))
     assert overall.index("A1") < overall.index("A2")
-    # The ordering is in the previous file's order otherwise: swap the roles.
+    # Not the coin toss deciding: swap the roles.
     weeks = [
         [_game(teams["A2"], teams["A3"]), _game(teams["A1"], teams["A5"])],
         [_game(teams["A4"], teams["A2"]), _game(teams["A6"], teams["A1"])],
     ]
-    overall = _overall(_build(_two_conferences(records, weeks=weeks)))
+    overall = _overall(_build(_lge(*base.conferences, weeks=weeks)))
     assert overall.index("A2") < overall.index("A1")
 
 
 def test_same_strength_ranked_by_point_differential() -> None:
+    # A1 and B1 each won their division's one game against a team that went
+    # 0-1: level on record, strength of schedule and division finish (first),
+    # so point differential puts A1 ahead, where the coin toss would not.
     records = {
-        "A1": Record(1, 1, 0, 20, 30),
-        "A2": Record(1, 1, 0, 30, 20),
+        "A1": Record(1, 0, 0, 30, 10),
+        "A2": Record(0, 1, 0, 10, 30),
+        "B1": Record(1, 0, 0, 20, 10),
+        "B2": Record(0, 1, 0, 10, 20),
     }
-    overall = _overall(_build(_two_conferences(records)))
-    assert overall[:2] == ["A2", "A1"]
+    base = _two_conferences(records)
+    teams = _by_name(base)
+    weeks = [[_game(teams["A1"], teams["A2"]), _game(teams["B1"], teams["B2"])]]
+    tossed = _coin_toss(EIGHTEEN)
+    assert tossed.index("B1") < tossed.index("A1")
+    overall = _overall(_build(_lge(*base.conferences, weeks=weeks)))
+    assert overall[:2] == ["A1", "B1"]
 
 
-def test_level_teams_keep_the_previous_file_order() -> None:
-    records = {name: Record(1, 1, 0, 20, 20) for name in ("A1", "A2", "B1")}
+def test_level_teams_go_by_the_coin_toss() -> None:
+    # Level up to division finish, which the coin toss sets with no game played.
+    level = {"A1", "A2", "B1"}
+    records = {name: Record(1, 1, 0, 20, 20) for name in level}
     overall = _overall(_build(_two_conferences(records)))
-    assert overall[:3] == ["A1", "A2", "B1"]
+    assert overall[:3] == _no_game_order(level)
+
+
+def _two_divisions(records: dict[str, Record] | None = None) -> LgeFile:
+    """Two conferences of an East (4 teams) and a West (5): a league with
+    divisions."""
+    a, b = _nine("A", records), _nine("B", records)
+    return _lge(
+        _conference("A", ("East", a[:4]), ("West", a[4:])),
+        _conference("B", ("East", b[:4]), ("West", b[4:])),
+    )
+
+
+DIVISION_MEMBERS = {
+    "East1": EIGHTEEN[:4],
+    "West1": EIGHTEEN[4:9],
+    "East2": EIGHTEEN[9:13],
+    "West2": EIGHTEEN[13:],
+}
+
+
+def test_coin_toss_orders_a_season_with_no_game_played() -> None:
+    # Every team is level on every step of the standings, so the shuffle drawn
+    # from the seed orders each division's finish, and the overall order goes
+    # by division finish (the same divisions both seasons), then the shuffle.
+    previous = upcoming = _two_divisions()
+    league = _build(previous, upcoming)
+    tossed = _coin_toss(EIGHTEEN)
+    finish = _finish(league)
+    assert finish == {
+        key: [name for name in tossed if name in members]
+        for key, members in DIVISION_MEMBERS.items()
+    }
+    place = {
+        name: index for order in finish.values() for index, name in enumerate(order)
+    }
+    assert _overall(league) == sorted(tossed, key=lambda name: place[name])
+    # The same seed gives the same order.
+    assert _overall(_build(previous, upcoming)) == _overall(league)
+    assert _finish(_build(previous, upcoming)) == finish
+
+
+def test_division_finish_ranks_ahead_of_point_differential() -> None:
+    # A1 (first in the previous season's East) and A5 (second in its West,
+    # behind A7) are both 1-1 against opponents with the same combined record,
+    # and A5 has the better point differential; division finish decides first.
+    records = {
+        "A1": Record(1, 1, 0, 30, 40),
+        "A5": Record(1, 1, 0, 40, 30),
+        "A6": Record(0, 1, 0, 10, 20),
+        "A7": Record(2, 0, 0, 40, 20),
+        "A8": Record(0, 1, 0, 10, 20),
+    }
+    base = _two_divisions(records)
+    teams = _by_name(base)
+    weeks = [
+        [_game(teams["A1"], teams["A6"]), _game(teams["A5"], teams["A8"])],
+        [_game(teams["A7"], teams["A1"])],
+        [_game(teams["A7"], teams["A5"])],
+    ]
+    league = _build(_lge(*base.conferences, weeks=weeks), _two_divisions())
+    assert _finish(league)["East1"][0] == "A1"
+    assert _finish(league)["West1"][:2] == ["A7", "A5"]
+    assert _overall(league)[:3] == ["A7", "A1", "A5"]
+
+
+def _record(wins: int, losses: int) -> Record:
+    return Record(wins, losses, 0, 20 * wins + 10 * losses, 10 * wins + 20 * losses)
+
+
+def test_a_team_that_moved_ranks_by_its_previous_division() -> None:
+    # A5 and A6 are both 1-1 against opponents with the same combined record
+    # (A5: A6 and A1; A6: A5 and A7), and A6 has the better point
+    # differential. In the previous West A5 finished second (it beat A6) and
+    # A6 third, behind A7. A5 then moves to the East, behind A3 and A1 there,
+    # and A6 is second in the new West: the previous divisions decide.
+    records = {
+        "A1": _record(2, 1),
+        "A2": _record(0, 1),
+        "A3": _record(1, 0),
+        "A5": Record(1, 1, 0, 30, 40),
+        "A6": Record(1, 1, 0, 40, 30),
+        "A7": _record(2, 1),
+        "A8": _record(0, 1),
+        "A9": _record(0, 1),
+    }
+    base = _two_divisions(records)
+    teams = _by_name(base)
+    weeks = [
+        [
+            _game(teams["A5"], teams["A6"]),
+            _game(teams["A3"], teams["A1"]),
+            _game(teams["A7"], teams["A8"]),
+        ],
+        [_game(teams["A1"], teams["A5"]), _game(teams["A6"], teams["A7"])],
+        [_game(teams["A1"], teams["A2"]), _game(teams["A7"], teams["A9"])],
+    ]
+    a_new, b_new = _nine("A"), _nine("B")
+    upcoming = _lge(
+        _conference(
+            "A", ("East", [*a_new[:3], a_new[4]]), ("West", [a_new[3], *a_new[5:]])
+        ),
+        _conference("B", ("East", b_new[:4]), ("West", b_new[4:])),
+    )
+    league = _build(_lge(*base.conferences, weeks=weeks), upcoming)
+    assert _finish(league)["East1"][:3] == ["A3", "A1", "A5"]
+    assert _finish(league)["West1"][:2] == ["A7", "A6"]
+    assert _overall(league)[:5] == ["A3", "A1", "A7", "A5", "A6"]
 
 
 def test_tied_playoff_game_rejected() -> None:
@@ -472,9 +656,10 @@ def test_division_finish_ranks_the_upcoming_members_by_previous_season() -> None
     assert _finish(league)["West1"] == ["A9", "A4", "A6", "A7", "A8"]
 
 
-def test_level_division_members_keep_the_previous_file_order() -> None:
+def test_level_division_members_go_by_the_coin_toss() -> None:
     # No game played, so every team is level; the upcoming file lists each
-    # division's members in reverse, and the finish follows the previous file.
+    # division's members in reverse, and the finish follows the coin toss,
+    # neither file's order.
     a, b = _nine("A"), _nine("B")
     previous = _lge(
         _conference("A", ("East", a[:4]), ("West", a[4:])),
@@ -486,17 +671,22 @@ def test_level_division_members_keep_the_previous_file_order() -> None:
         _conference("B", ("East", b_new[3::-1]), ("West", b_new[:3:-1])),
     )
     finish = _finish(_build(previous, upcoming))
-    assert finish["East1"] == ["A1", "A2", "A3", "A4"]
-    assert finish["West1"] == ["A5", "A6", "A7", "A8", "A9"]
+    tossed = _coin_toss(EIGHTEEN)
+    assert finish["East1"] == [
+        name for name in tossed if name in ("A1", "A2", "A3", "A4")
+    ]
+    assert finish["West1"] == [
+        name for name in tossed if name in ("A5", "A6", "A7", "A8", "A9")
+    ]
 
 
 def test_moved_teams_tie_broken_by_the_previous_seasons_divisions() -> None:
     # A1 (East) and A5 (West) are both 1-1 and never met, so division record
     # decides: A5 went 1-0 in the West (beat A6) and A1 0-1 in the East (lost
-    # to A2), so A5 finishes ahead of A1 despite A1's earlier file position.
-    # A5 then moves to the East, where its loss to A2 would make it 0-1, level
-    # with A1 on every step and behind it on file order, if the upcoming
-    # divisions counted; they do not.
+    # to A2), so A5 finishes ahead of A1 despite A1's earlier place in the coin
+    # toss. A5 then moves to the East, where its loss to A2 would make it 0-1,
+    # level with A1 on every step and behind it on the coin toss, if the
+    # upcoming divisions counted; they do not.
     records = {
         "A1": Record(1, 1, 0, 30, 30),
         "A2": Record(2, 0, 0, 40, 20),

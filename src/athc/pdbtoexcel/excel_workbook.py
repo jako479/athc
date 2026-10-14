@@ -50,26 +50,27 @@ class ExcelPdbWorkbook:
         config: Config,
         filename,
         perform_calculations,
-        offense_slot_count: int = 0,
-        defense_slot_count: int = 0,
+        offense_slots: tuple[bool, bool] = (False, False),
+        defense_slots: tuple[bool, bool] = (False, False),
     ):
+        """`perform_calculations` shows the percentage columns (the caller has
+        already weighed `calculate_percentages`); `offense_slots` and
+        `defense_slots` say, per side, whether Slot 1 and Slot 2 have a game
+        plan."""
         self.config = config
         self.category_order = config.category_order
         self._label = config.categories.label  # a category's league label
         self.filename = Path(filename)
         self.macros_are_enabled = self.filename.suffix.lower() == ".xlsm"
-        self.show_percentages = perform_calculations and config.calculate_percentages
-        self.offense_slot_count = offense_slot_count
-        self.defense_slot_count = defense_slot_count
+        self.show_percentages = perform_calculations
+        self.offense_slots = offense_slots
+        self.defense_slots = defense_slots
 
     @staticmethod
-    def _slot_options(slot_count: int, slot_index: int) -> dict | None:
-        """xlsxwriter column options to hide slots not backed by a gameplan.
-
-        slot_index is 1 or 2 (1-based). 0 gameplans hides both; 1 hides only
-        Slot-2; 2 keeps both visible.
-        """
-        if slot_count < slot_index:
+    def _slot_options(slots: tuple[bool, bool], slot_index: int) -> dict | None:
+        """xlsxwriter column options for Slot `slot_index` (1 or 2): hidden
+        when that slot has no game plan, whichever other slot has one."""
+        if not slots[slot_index - 1]:
             return {"hidden": True}
         return None
 
@@ -270,10 +271,10 @@ class ExcelPdbWorkbook:
         ws.set_column_pixels(0, 0, 115)
         ws.set_column_pixels(1, 1, 80)
         ws.set_column_pixels(
-            2, 2, 57, self.fmt.text, self._slot_options(self.offense_slot_count, 1)
+            2, 2, 57, self.fmt.text, self._slot_options(self.offense_slots, 1)
         )
         ws.set_column_pixels(
-            3, 3, 57, self.fmt.text, self._slot_options(self.offense_slot_count, 2)
+            3, 3, 57, self.fmt.text, self._slot_options(self.offense_slots, 2)
         )
         ws.set_column_pixels(4, 4, 100)
         ws.set_column_pixels(5, 5, 59)
@@ -312,10 +313,10 @@ class ExcelPdbWorkbook:
         ws.set_column_pixels(0, 0, 115)
         ws.set_column_pixels(1, 1, 80)
         ws.set_column_pixels(
-            2, 2, 57, self.fmt.text, self._slot_options(self.offense_slot_count, 1)
+            2, 2, 57, self.fmt.text, self._slot_options(self.offense_slots, 1)
         )
         ws.set_column_pixels(
-            3, 3, 57, self.fmt.text, self._slot_options(self.offense_slot_count, 2)
+            3, 3, 57, self.fmt.text, self._slot_options(self.offense_slots, 2)
         )
         ws.set_column_pixels(4, 4, 100)
         ws.set_column_pixels(5, 5, 49)
@@ -362,10 +363,10 @@ class ExcelPdbWorkbook:
         ws.set_column_pixels(0, 0, 115)
         ws.set_column_pixels(1, 1, 100)
         ws.set_column_pixels(
-            2, 2, 57, self.fmt.text, self._slot_options(self.defense_slot_count, 1)
+            2, 2, 57, self.fmt.text, self._slot_options(self.defense_slots, 1)
         )
         ws.set_column_pixels(
-            3, 3, 57, self.fmt.text, self._slot_options(self.defense_slot_count, 2)
+            3, 3, 57, self.fmt.text, self._slot_options(self.defense_slots, 2)
         )
         ws.set_column_pixels(4, 4, 100)
         ws.set_column_pixels(5, 5, 37)

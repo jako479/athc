@@ -6,8 +6,8 @@ so per testing-integration.md these live in the integration tier (unit tests nev
 read config). Covered once here rather than per command. A league is a folder under
 `leagues/`; `[athc] league` in athc.ini names the one used when no flag is given.
 
-Also covers the `athc config` command group (path / edit / reveal), with the
-editor and Explorer launches mocked.
+Also covers the `athc config` command group (path / edit / reveal / get), with
+the editor and Explorer launches mocked.
 """
 
 from __future__ import annotations
@@ -15,11 +15,15 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
+import click
 import pytest
 
+from athc.cli import cli
 from athc.cli.config import config as config_group
 from athc.cli.config.edit import edit
+from athc.cli.config.get import get
 from athc.cli.config.path import path
 from athc.cli.config.reveal import reveal
 from athc.config import (
@@ -36,7 +40,14 @@ from athc.config import (
 )
 from athc.errors import ACCESS_DENIED, DIRECTORY_INVALID, PATH_NOT_FOUND
 from athc.fbpro98_play import CategoryLabels
-from tests.conftest import CATEGORIES_TOML, LEAGUE, OTHER_LEAGUE, PNFL_LABELS
+from tests.conftest import (
+    CATEGORIES_TOML,
+    LEAGUE,
+    OTHER_LEAGUE,
+    PNFL_LABELS,
+    league_not_found,
+    no_league_selected,
+)
 
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
@@ -76,7 +87,7 @@ def test_resolve_league_falls_back_to_configured(
 
 def test_resolve_league_errors_when_none_resolvable(make_league: MakeLeague) -> None:
     make_league()
-    with pytest.raises(LeagueError, match="No league selected"):
+    with pytest.raises(LeagueError, match="League is not set"):
         resolve_league()
 
 
@@ -158,7 +169,7 @@ def test_no_league_resolvable_lists_available(make_league: MakeLeague) -> None:
     with pytest.raises(LeagueError) as exc:
         load_league()
     msg = str(exc.value)
-    assert "No league selected" in msg
+    assert "League is not set" in msg
     assert "athc config set league" in msg
     assert f"Available: {OTHER_LEAGUE}, {LEAGUE}" in msg
 
@@ -180,7 +191,7 @@ def test_unknown_league_errors(make_league: MakeLeague) -> None:
 
 def test_empty_league_key_is_no_league(write_config: WriteConfig) -> None:
     write_config("[athc]\nleague =\n")
-    with pytest.raises(LeagueError, match="No league selected"):
+    with pytest.raises(LeagueError, match="League is not set"):
         load_league()
 
 
@@ -327,6 +338,31 @@ def test_path_rejects_an_array_value(make_league: MakeLeague) -> None:
     assert exc.value.path == folder / "league.toml"
 
 
+@pytest.mark.parametrize(
+    ("line", "value"),
+    [
+        ("team = 'Denver'\n", "Denver"),
+        ("team = ' Denver '\n", "Denver"),
+        ("team = '  '\n", None),
+        ("", None),
+    ],
+    ids=["value", "spaces around", "blank", "absent"],
+)
+def test_string_value(make_league: MakeLeague, line: str, value: str | None) -> None:
+    make_league(LEAGUE, f"[league]\n{line}")
+    assert load_league_config(LEAGUE).string("team") == value
+
+
+def test_string_rejects_an_array_value(make_league: MakeLeague) -> None:
+    folder = make_league(LEAGUE, "[league]\nteam = ['Denver']\n")
+    cfg = load_league_config(LEAGUE)
+    with pytest.raises(ConfigFileError) as exc:
+        cfg.string("team")
+    assert str(exc.value) == (
+        f"{folder / 'league.toml'}: [league] team: Expected a string, got an array."
+    )
+
+
 def test_rule_files_rejects_a_string_value(make_league: MakeLeague) -> None:
     folder = make_league(LEAGUE, "[league]\ngameplan_rules = 'house.toml'\n")
     cfg = load_league_config(LEAGUE)
@@ -388,7 +424,9 @@ def test_categories_errors_name_the_file(
     assert exc.value.path == folder / "league.toml"
 
 
-# ── athc config command group: path / edit / reveal ──
+# ── athc config command group: path / edit / reveal / get ──
+
+Launches = list[tuple[tuple[object, ...], dict[str, object]]]
 
 
 def test_group_lists_subcommands(runner) -> None:
@@ -397,6 +435,7 @@ def test_group_lists_subcommands(runner) -> None:
     assert "path" in result.stdout
     assert "edit" in result.stdout
     assert "reveal" in result.stdout
+    assert "get" in result.stdout
 
 
 def test_path_prints_config_file(runner, config_dir: Path) -> None:
@@ -430,7 +469,7 @@ def test_edit_opens_associated_app(
     runner, config_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     launched: list[tuple[object, ...]] = []
-    monkeypatch.setattr("click.launch", lambda *a, **k: launched.append(a))
+    monkeypatch.setattr("os.startfile", lambda *a, **k: launched.append(a))
     result = runner.invoke(edit, [])
     assert result.exit_code == 0
     ini = config_dir / "athc.ini"
@@ -446,7 +485,7 @@ def test_edit_ignores_editor_env(
     edited: list[dict[str, object]] = []
     launched: list[tuple[object, ...]] = []
     monkeypatch.setattr("click.edit", lambda **k: edited.append(k))
-    monkeypatch.setattr("click.launch", lambda *a, **k: launched.append(a))
+    monkeypatch.setattr("os.startfile", lambda *a, **k: launched.append(a))
     result = runner.invoke(edit, [])
     assert result.exit_code == 0
     assert edited == []
@@ -457,10 +496,562 @@ def test_edit_preserves_existing_file(
     runner, write_config: WriteConfig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ini = write_config(f"[athc]\nleague = {LEAGUE}\n")
-    monkeypatch.setattr("click.launch", lambda *a, **k: None)
+    monkeypatch.setattr("os.startfile", lambda *a, **k: None)
     result = runner.invoke(edit, [])
     assert result.exit_code == 0
     assert ini.read_text(encoding="utf-8") == f"[athc]\nleague = {LEAGUE}\n"
+
+
+# Windows' text for error 1155, as Python gives it (without the period).
+NO_APP = "No application is associated with the specified file for this operation"
+
+
+def test_edit_reports_a_file_windows_cannot_open(
+    runner, config_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def no_app(path: str) -> None:
+        raise OSError(0, NO_APP, path, 1155)  # errno, text, file name, winerror
+
+    monkeypatch.setattr("os.startfile", no_app)
+    result = runner.invoke(edit, [])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {config_dir / 'athc.ini'}: {NO_APP}.\n"
+    assert result.stdout == ""
+
+
+def test_edit_league_toml_missing_fails(
+    runner,
+    make_league: MakeLeague,
+    write_config: WriteConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    folder = make_league()  # no league.toml
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    launched: list[tuple[object, ...]] = []
+    monkeypatch.setattr("os.startfile", lambda *a, **k: launched.append(a))
+    result = runner.invoke(edit, ["league.toml"])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {folder / 'league.toml'}: The system cannot find the file specified.\n"
+    )
+    assert not (folder / "league.toml").exists()  # nothing created
+    assert launched == []  # nothing opened
+
+
+def test_edit_league_toml_opens_it(
+    runner,
+    make_league: MakeLeague,
+    write_config: WriteConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    folder = make_league(LEAGUE, "[league]\nteam = 'Denver'\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    launched: list[tuple[object, ...]] = []
+    monkeypatch.setattr("os.startfile", lambda *a, **k: launched.append(a))
+    result = runner.invoke(edit, ["league.toml"])
+    assert result.exit_code == 0
+    assert result.stdout == ""
+    assert launched == [(str(folder / "league.toml"),)]
+    toml = folder / "league.toml"
+    assert toml.read_text(encoding="utf-8") == "[league]\nteam = 'Denver'\n"
+
+
+def test_reveal_league_toml_selects_it(
+    runner,
+    make_league: MakeLeague,
+    write_config: WriteConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    folder = make_league(LEAGUE, "[league]\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    launched: Launches = []
+    monkeypatch.setattr("click.launch", lambda *a, **k: launched.append((a, k)))
+    result = runner.invoke(reveal, ["league.toml"])
+    assert result.exit_code == 0
+    assert launched == [((str(folder / "league.toml"),), {"locate": True})]
+
+
+def test_reveal_league_toml_missing_opens_the_league_folder(
+    runner,
+    make_league: MakeLeague,
+    write_config: WriteConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    folder = make_league()  # no league.toml
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    launched: Launches = []
+    monkeypatch.setattr("click.launch", lambda *a, **k: launched.append((a, k)))
+    result = runner.invoke(reveal, ["league.toml"])
+    assert result.exit_code == 0
+    assert launched == [((str(folder),), {})]
+
+
+# ── FILE and --league on path, edit and reveal ──
+
+
+@pytest.mark.parametrize("file", ["league.toml", "League.TOML"])
+def test_league_toml_is_the_league_in_use(
+    runner, make_league: MakeLeague, write_config: WriteConfig, file: str
+) -> None:
+    folder = make_league(LEAGUE, "[league]\n")
+    make_league(OTHER_LEAGUE, "[league]\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = runner.invoke(path, [file])
+    assert result.exit_code == 0
+    assert result.stdout == f"{folder / 'league.toml'}\n"
+
+
+def test_path_league_toml_missing_prints_the_path(
+    runner, make_league: MakeLeague, write_config: WriteConfig
+) -> None:
+    folder = make_league()  # no league.toml
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = runner.invoke(path, ["league.toml"])
+    assert result.exit_code == 0
+    assert result.stdout == f"{folder / 'league.toml'}\n"
+    assert not (folder / "league.toml").exists()
+
+
+def test_file_rejects_another_word(runner, make_league: MakeLeague) -> None:
+    """FILE's two names are accepted above; a league name typed there is not.
+    path, edit and reveal share the one FILE check."""
+    make_league("PCFL")
+    result = runner.invoke(path, ["PCFL"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith(
+        "Error: Invalid value for 'FILE': 'PCFL' is not one of 'athc.ini', "
+        "'league.toml'.\n"
+    )
+
+
+@pytest.mark.parametrize(
+    ("command", "args"),
+    [
+        (path, ["athc.ini", "x"]),
+        (edit, ["athc.ini", "x"]),
+        (reveal, ["athc.ini", "x"]),
+        (get, ["league", "x"]),
+    ],
+    ids=["path", "edit", "reveal", "get"],
+)
+def test_a_word_too_many(
+    runner, monkeypatch: pytest.MonkeyPatch, command: click.Command, args: list[str]
+) -> None:
+    launched: list[tuple[object, ...]] = []
+    monkeypatch.setattr("os.startfile", lambda *a, **k: launched.append(a))
+    monkeypatch.setattr("click.launch", lambda *a, **k: launched.append(a))
+    result = runner.invoke(command, args)
+    assert result.exit_code == 2
+    assert result.stderr.endswith("Error: Got unexpected extra argument (x).\n")
+    assert launched == []
+
+
+@pytest.mark.parametrize(
+    "args",
+    [["--league", OTHER_LEAGUE], ["league.toml", "--league", OTHER_LEAGUE]],
+    ids=["league alone", "league.toml and league"],
+)
+def test_named_league_is_its_league_toml(
+    runner, make_league: MakeLeague, write_config: WriteConfig, args: list[str]
+) -> None:
+    make_league(LEAGUE, "[league]\n")
+    other = make_league(OTHER_LEAGUE, "[league]\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = runner.invoke(path, args)
+    assert result.exit_code == 0
+    assert result.stdout == f"{other / 'league.toml'}\n"
+
+
+def test_athc_ini_with_a_named_league_is_athc_ini(
+    runner, make_league: MakeLeague, config_dir: Path
+) -> None:
+    make_league(OTHER_LEAGUE)
+    result = runner.invoke(path, ["athc.ini", "--league", OTHER_LEAGUE])
+    assert result.exit_code == 0
+    assert result.stdout == f"{config_dir / 'athc.ini'}\n"
+
+
+def test_athc_ini_with_an_unknown_league_fails(
+    runner, make_league: MakeLeague, config_dir: Path
+) -> None:
+    make_league()
+    result = runner.invoke(path, ["athc.ini", "--league", "NOPE"])
+    assert result.exit_code == 2
+    assert result.stderr == league_not_found(config_dir, "NOPE", LEAGUE)
+    assert result.stdout == ""
+
+
+def test_league_toml_with_no_league_set(
+    runner, make_league: MakeLeague, config_dir: Path
+) -> None:
+    make_league()
+    result = runner.invoke(path, ["league.toml"])
+    assert result.exit_code == 2
+    assert result.stderr == no_league_selected(config_dir, LEAGUE)
+    assert result.stdout == ""
+
+
+def test_unknown_named_league(
+    runner, make_league: MakeLeague, config_dir: Path
+) -> None:
+    make_league()
+    result = runner.invoke(path, ["--league", "NOPE"])
+    assert result.exit_code == 2
+    assert result.stderr == league_not_found(config_dir, "NOPE", LEAGUE)
+
+
+def test_league_without_a_name(runner) -> None:
+    result = runner.invoke(path, ["--league"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith("Error: Option '--league' requires an argument.\n")
+
+
+def test_league_toml_with_a_malformed_athc_ini(
+    runner, make_league: MakeLeague, write_config: WriteConfig
+) -> None:
+    make_league()
+    ini = write_config("[athc\nbroken\n")
+    result = runner.invoke(path, ["league.toml"])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {ini}: Not valid INI: No [section] header above it (at line 1).\n"
+    )
+
+
+# ── athc config get ──
+
+# Written as a coach writes it; printed the same way.
+FOLDER = "C:\\SIERRA\\FBPRO98"
+NOT_SET_LINES = {
+    "path": "League files folder is not set. Run 'athc config set path FOLDER'.",
+    "play_path": "Play pool folder is not set. Run 'athc config set play_path FOLDER'.",
+    "team": "Team is not set. Run 'athc config set team NAME'.",
+}
+PPP_PATH_NOT_SET = (
+    "Game plan and profile folder is not set; using the folders the league file names."
+)
+
+
+@pytest.mark.parametrize("key", ["league", "League", "LEAGUE"])
+def test_get_league_prints_the_league_in_use(
+    runner, make_league: MakeLeague, write_config: WriteConfig, key: str
+) -> None:
+    make_league()
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = runner.invoke(get, [key])
+    assert result.exit_code == 0
+    assert result.stdout == f"{LEAGUE}\n"
+    assert result.stderr == ""
+
+
+def test_get_league_named(
+    runner, make_league: MakeLeague, write_config: WriteConfig
+) -> None:
+    make_league()
+    make_league(OTHER_LEAGUE)
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = runner.invoke(get, ["league", "--league", OTHER_LEAGUE])
+    assert result.exit_code == 0
+    assert result.stdout == f"{OTHER_LEAGUE}\n"
+
+
+@pytest.mark.parametrize("body", ["", "[athc]\nleague =\n"], ids=["unset", "blank"])
+def test_get_league_not_set(
+    runner,
+    make_league: MakeLeague,
+    write_config: WriteConfig,
+    config_dir: Path,
+    body: str,
+) -> None:
+    make_league()
+    make_league(OTHER_LEAGUE)
+    write_config(body)
+    result = runner.invoke(get, ["league"])
+    assert result.exit_code == 2
+    assert result.stderr == no_league_selected(config_dir, OTHER_LEAGUE, LEAGUE)
+    assert result.stdout == ""
+
+
+def test_get_league_folder_gone(
+    runner, make_league: MakeLeague, write_config: WriteConfig, config_dir: Path
+) -> None:
+    make_league()
+    write_config(f"[athc]\nleague = {OTHER_LEAGUE}\n")
+    result = runner.invoke(get, ["league"])
+    assert result.exit_code == 2
+    assert result.stderr == league_not_found(config_dir, OTHER_LEAGUE, LEAGUE)
+    assert result.stdout == ""
+
+
+def test_get_league_named_unknown(
+    runner, make_league: MakeLeague, config_dir: Path
+) -> None:
+    make_league()
+    result = runner.invoke(get, ["league", "--league", "NOPE"])
+    assert result.exit_code == 2
+    assert result.stderr == league_not_found(config_dir, "NOPE", LEAGUE)
+
+
+def test_get_league_malformed_athc_ini(
+    runner, make_league: MakeLeague, write_config: WriteConfig
+) -> None:
+    make_league()
+    ini = write_config("[athc\nbroken\n")
+    result = runner.invoke(get, ["league"])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {ini}: Not valid INI: No [section] header above it (at line 1).\n"
+    )
+
+
+def test_get_rejects_an_unknown_key(runner) -> None:
+    """The five keys are accepted in the tests around this one; one past them
+    is not."""
+    result = runner.invoke(get, ["colour"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith(
+        "Error: Invalid value for 'KEY': 'colour' is not one of 'league', 'path', "
+        "'play_path', 'team', 'ppp_path'.\n"
+    )
+
+
+def test_get_needs_a_key(runner) -> None:
+    result = runner.invoke(get, [])
+    assert result.exit_code == 2
+    assert result.stderr.endswith("Error: Missing argument 'KEY'.\n")
+
+
+@pytest.mark.parametrize("key", ["path", "play_path"])
+def test_get_absolute_folder_as_written(
+    runner, make_league: MakeLeague, write_config: WriteConfig, key: str
+) -> None:
+    make_league(LEAGUE, f"[league]\n{key} = '{FOLDER}'\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = runner.invoke(get, [key])
+    assert result.exit_code == 0
+    assert result.stdout == f"{FOLDER}\n"
+    assert result.stderr == ""
+
+
+def test_get_relative_ppp_path_is_under_the_league_folder(
+    runner, make_league: MakeLeague, write_config: WriteConfig
+) -> None:
+    folder = make_league(LEAGUE, "[league]\nppp_path = 'Denver'\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = runner.invoke(get, ["ppp_path"])
+    assert result.exit_code == 0
+    assert result.stdout == f"{folder / 'Denver'}\n"
+
+
+def test_get_team_as_written(
+    runner, make_league: MakeLeague, write_config: WriteConfig
+) -> None:
+    make_league(LEAGUE, "[league]\nteam = 'Las Vegas'\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = runner.invoke(get, ["team"])
+    assert result.exit_code == 0
+    assert result.stdout == "Las Vegas\n"
+
+
+@pytest.mark.parametrize("body", ["[league]\n", None], ids=["no value", "no file"])
+@pytest.mark.parametrize(("key", "line"), NOT_SET_LINES.items())
+def test_get_required_key_not_set(
+    runner,
+    make_league: MakeLeague,
+    write_config: WriteConfig,
+    key: str,
+    line: str,
+    body: str | None,
+) -> None:
+    folder = make_league(LEAGUE, body)
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = runner.invoke(get, [key])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {folder / 'league.toml'}: {line}\n"
+    assert result.stdout == ""
+
+
+@pytest.mark.parametrize("body", ["[league]\n", None], ids=["no value", "no file"])
+def test_get_ppp_path_not_set_is_a_warning(
+    runner, make_league: MakeLeague, write_config: WriteConfig, body: str | None
+) -> None:
+    folder = make_league(LEAGUE, body)
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = runner.invoke(get, ["ppp_path"])
+    assert result.exit_code == 0
+    assert result.stdout == ""
+    assert result.stderr == f"WARN {folder / 'league.toml'}: {PPP_PATH_NOT_SET}\n"
+
+
+@pytest.mark.parametrize("key", ["play_path", "team"])
+def test_get_array_value_fails(
+    runner, make_league: MakeLeague, write_config: WriteConfig, key: str
+) -> None:
+    folder = make_league(LEAGUE, f"[league]\n{key} = ['x']\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = runner.invoke(get, [key])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {folder / 'league.toml'}: [league] {key}: "
+        "Expected a string, got an array.\n"
+    )
+
+
+def test_get_reads_the_named_league(
+    runner, make_league: MakeLeague, write_config: WriteConfig
+) -> None:
+    make_league(LEAGUE, "[league]\nteam = 'Denver'\n")
+    make_league(OTHER_LEAGUE, "[league]\nteam = 'Miami'\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = runner.invoke(get, ["team", "--league", OTHER_LEAGUE])
+    assert result.exit_code == 0
+    assert result.stdout == "Miami\n"
+
+
+def test_get_league_key_with_no_league_set(
+    runner, make_league: MakeLeague, config_dir: Path
+) -> None:
+    make_league(LEAGUE, "[league]\nteam = 'Denver'\n")
+    result = runner.invoke(get, ["team"])
+    assert result.exit_code == 2
+    assert result.stderr == no_league_selected(config_dir, LEAGUE)
+    assert result.stdout == ""
+
+
+# ── help screens, as an 80-column console shows them ──
+
+# Click wraps help 78 wide in an 80-column console; CliRunner would force 80.
+IN_80_COLUMNS: dict[str, Any] = {"prog_name": "athc", "terminal_width": 78}
+
+CONFIG_HELP = """\
+Usage: athc config [OPTIONS] COMMAND [ARGS]...
+
+  Show or change athc settings (athc.ini, league.toml).
+
+  Both live in your settings folder, %LOCALAPPDATA%\\athc.
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  edit    Open athc.ini or league.toml in its default app.
+  get     Print a setting.
+  path    Print the path of athc.ini or league.toml.
+  reveal  Show athc.ini or league.toml in File Explorer.
+  set     Set a value in athc.ini or league.toml.
+
+  Examples:
+
+    athc config set league PCFL
+    athc config edit league.toml
+"""
+
+PATH_HELP = """\
+Usage: athc config path [OPTIONS] [FILE]
+
+  Print the path of athc.ini or league.toml.
+
+  The file need not exist yet.
+
+Positional arguments:
+  FILE  athc.ini or league.toml (default: athc.ini, or league.toml when
+        --league is given).
+
+Options:
+  --league NAME  League to use (default: the one set with athc config set
+                 league).
+  -h, --help     Show this message and exit.
+
+  Examples:
+
+    athc config path
+    athc config path league.toml
+"""
+
+EDIT_HELP = """\
+Usage: athc config edit [OPTIONS] [FILE]
+
+  Open athc.ini or league.toml in its default app.
+
+  A missing athc.ini is created empty first.
+
+Positional arguments:
+  FILE  athc.ini or league.toml (default: athc.ini, or league.toml when
+        --league is given).
+
+Options:
+  --league NAME  League to use (default: the one set with athc config set
+                 league).
+  -h, --help     Show this message and exit.
+
+  Examples:
+
+    athc config edit
+    athc config edit league.toml
+    athc config edit --league PCFL
+"""
+
+REVEAL_HELP = """\
+Usage: athc config reveal [OPTIONS] [FILE]
+
+  Show athc.ini or league.toml in File Explorer.
+
+  Selects the file, or opens its folder when the file is missing.
+
+Positional arguments:
+  FILE  athc.ini or league.toml (default: athc.ini, or league.toml when
+        --league is given).
+
+Options:
+  --league NAME  League to use (default: the one set with athc config set
+                 league).
+  -h, --help     Show this message and exit.
+
+  Examples:
+
+    athc config reveal
+    athc config reveal league.toml
+"""
+
+GET_HELP = """\
+Usage: athc config get [OPTIONS] KEY
+
+  Print a setting.
+
+  league comes from athc.ini, the other keys from the league's league.toml.
+
+Positional arguments:
+  KEY  Setting to print: league, path, play_path, team or ppp_path.
+
+Options:
+  --league NAME  League to use (default: the one set with athc config set
+                 league).
+  -h, --help     Show this message and exit.
+
+  Examples:
+
+    athc config get league
+    athc config get play_path
+"""
+
+HELP_SCREENS = [
+    (("config",), CONFIG_HELP),
+    (("config", "path"), PATH_HELP),
+    (("config", "edit"), EDIT_HELP),
+    (("config", "reveal"), REVEAL_HELP),
+    (("config", "get"), GET_HELP),
+]
+
+
+@pytest.mark.parametrize(
+    ("words", "screen"), HELP_SCREENS, ids=[" ".join(w) for w, _ in HELP_SCREENS]
+)
+def test_help_screen(runner, words: tuple[str, ...], screen: str) -> None:
+    """The group lists get; --league NAME shows on every verb and FILE on path,
+    edit and reveal."""
+    result = runner.invoke(cli, [*words, "--help"], **IN_80_COLUMNS)
+    assert result.exit_code == 0
+    assert result.stdout == screen
 
 
 # ── shipped config/release/: every loader reads it as installed ──
@@ -579,24 +1170,22 @@ def test_dev_mirrors_release_layout() -> None:
 
 
 def test_play_dir_is_the_folder(tmp_path: Path) -> None:
-    assert play_dir(tmp_path, tmp_path / "league.toml") == tmp_path
+    assert play_dir(tmp_path) == tmp_path
 
 
 def test_play_dir_missing(tmp_path: Path) -> None:
-    league_file = tmp_path / "league.toml"
     with pytest.raises(ConfigFileError) as exc:
-        play_dir(tmp_path / "gone", league_file)
+        play_dir(tmp_path / "gone")
     assert str(exc.value) == (
-        f"{tmp_path / 'gone'}: {PATH_NOT_FOUND} Set play_path in {league_file}."
+        f"{tmp_path / 'gone'}: {PATH_NOT_FOUND} Run 'athc config set play_path FOLDER'."
     )
 
 
 def test_play_dir_is_a_file(tmp_path: Path) -> None:
     a_file = tmp_path / "plays.txt"
     a_file.write_text("x", encoding="utf-8")
-    league_file = tmp_path / "league.toml"
     with pytest.raises(ConfigFileError) as exc:
-        play_dir(a_file, league_file)
+        play_dir(a_file)
     assert str(exc.value) == (
-        f"{a_file}: {DIRECTORY_INVALID} Set play_path in {league_file}."
+        f"{a_file}: {DIRECTORY_INVALID} Run 'athc config set play_path FOLDER'."
     )

@@ -203,10 +203,10 @@ def load_scheduler_config(path: StrPath, *, required: bool = True) -> SchedulerC
             ),
         ),
         solver=SolverConfig(
-            time_limit=_number(
+            time_limit=_positive_number(
                 solver, "solver", "time_limit", DEFAULT_TIME_LIMIT, resolved
             ),
-            phase1_time_limit=_number(
+            phase1_time_limit=_positive_number(
                 solver,
                 "solver",
                 "phase1_time_limit",
@@ -231,6 +231,16 @@ def _number(
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ConfigFileError(f"[{name}] {key}: Must be a number.", path)
     return float(value)
+
+
+def _positive_number(
+    section: Mapping[str, Any], name: str, key: str, default: float, path: Path
+) -> float:
+    # A solver budget of 0 or less finds nothing; say so before any solve.
+    value = _number(section, name, key, default, path)
+    if value <= 0:
+        raise ConfigFileError(f"[{name}] {key}: Must be a positive number.", path)
+    return value
 
 
 def _bool(

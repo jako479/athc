@@ -9,7 +9,7 @@ from athc.cli import CONTEXT_SETTINGS, CommandGroup
 
 @click.group(cls=CommandGroup, context_settings=CONTEXT_SETTINGS)
 def profile() -> None:
-    """Validate and edit Front Page Sports Football Pro '98 coaching profiles (.prf)."""
+    """Check and edit coaching profiles (.prf)."""
 
 
 from athc.cli.profile import check as check  # noqa: E402  (registers the leaf command)

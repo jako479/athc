@@ -3,18 +3,21 @@
 The upcoming season's `.lge` gives the conferences, divisions and team names;
 the previous season's gives the standings: each team's regular-season record,
 its opponents (for strength of schedule) and the playoff results. Teams are
-matched by name, with the season's `[renames]` for the ones that moved.
+matched by name, with the season's `[renames]` for the ones that moved. One
+file can give both. The last tiebreak everywhere is a coin toss drawn from the
+run's seed, never a file's team order.
 """
 
 from __future__ import annotations
 
+import random
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from os import PathLike
 from pathlib import Path
 
 from athc.errors import ConfigFileError, sentence
-from athc.fbpro98_lge import LgeFile, Record, ranked, read_lge
+from athc.fbpro98_lge import LgeFile, Record, parse_lge, ranked
 from athc.fbpro98_lge import Team as LgeTeam
 from athc.scheduler.domain.league import (
     Conference,
@@ -26,46 +29,56 @@ from athc.scheduler.domain.league import (
 from athc.scheduler.schedulers.errors import SchedulerError
 
 StrPath = str | PathLike[str]
+Say = Callable[[str], None]
 
 
 def load_league(
-    league: str,
-    previous_dir: StrPath,
-    upcoming_dir: StrPath,
+    previous_file: StrPath,
+    upcoming_file: StrPath,
     renames: Mapping[str, str],
     *,
     season: int,
+    seed: int,
     rules_path: Path,
+    warn: Say,
 ) -> League:
-    """Read `<league>.lge` from both folders and build the League for `season`.
+    """Read both `.lge` files, the previous first, and build the League for
+    `season`.
 
     Args:
-        league: League name; each folder's `<league>.lge` is read.
-        previous_dir: Folder holding the previous season's league files.
-        upcoming_dir: Folder holding the upcoming season's league files.
+        previous_file: The previous season's `.lge`: the standings.
+        upcoming_file: The upcoming season's `.lge`: the conferences,
+            divisions and team names. It may be `previous_file` itself.
         renames: Each renamed team's previous name -> its new name.
         season: The season being scheduled; names the `[renames]` table.
+        seed: The run's seed; draws the coin toss.
         rules_path: The `scheduler.toml` the renames came from, for errors.
+        warn: Hears `<previous_file>: Season not finished: ...` when the
+            previous season has games not played; the League is built from
+            the games played.
 
     Raises:
         OSError: A file cannot be opened or read.
         InvalidLgeError: A file is not a valid `.lge`.
-        SchedulerError: The previous season is not finished; a team name
-            repeats in a file; a team of one file has no match in the other; a
-            playoff game is tied; or the league is not two conferences of nine.
+        SchedulerError: A team name repeats in a file; a team of one file has
+            no match in the other; a playoff game is tied; or the league is
+            not two conferences of nine.
         ConfigFileError: A rename names a team neither file has, or a name
             another previous-season team keeps.
     """
-    previous_path = Path(previous_dir) / f"{league}.lge"
-    upcoming_path = Path(upcoming_dir) / f"{league}.lge"
+    previous_path, upcoming_path = Path(previous_file), Path(upcoming_file)
+    previous = parse_lge(previous_path.read_bytes(), previous_path)
+    upcoming = parse_lge(upcoming_path.read_bytes(), upcoming_path)
     return league_from_files(
-        read_lge(league, previous_dir),
-        read_lge(league, upcoming_dir),
+        previous,
+        upcoming,
         renames,
         season=season,
+        seed=seed,
         previous_path=previous_path,
         upcoming_path=upcoming_path,
         rules_path=rules_path,
+        warn=warn,
     )
 
 
@@ -75,16 +88,18 @@ def league_from_files(
     renames: Mapping[str, str],
     *,
     season: int,
+    seed: int,
     previous_path: Path,
     upcoming_path: Path,
     rules_path: Path,
+    warn: Say,
 ) -> League:
     """`load_league` on files already read; the paths only name them in
-    errors."""
+    messages."""
     if previous.unplayed_games:
-        raise SchedulerError(
-            f"Season not finished: {previous.unplayed_games} game(s) not played.",
-            previous_path,
+        warn(
+            f"{previous_path}: Season not finished: "
+            f"{previous.unplayed_games} game(s) not played."
         )
     previous_teams = _teams(previous)
     previous_by_name = _by_name(previous_teams, previous_path)
@@ -121,8 +136,11 @@ def league_from_files(
             f"Team(s) not in {previous_path}: {', '.join(extra)}.", upcoming_path
         )
     previous_of = {new: previous_by_name[old] for old, new in new_names.items()}
-    # Previous-file order, the last tiebreak everywhere.
-    position = {team.name: index for index, team in enumerate(previous_teams)}
+    # The coin toss, the last tiebreak everywhere: one shuffle of the previous
+    # teams drawn from the run's seed, so no file's order breaks a tie.
+    tossed = list(previous_teams)
+    random.Random(seed).shuffle(tossed)
+    coin = {team.name: index for index, team in enumerate(tossed)}
 
     # The upcoming file's structure. One division per conference is the
     # scheduler's league without divisions.
@@ -144,15 +162,25 @@ def league_from_files(
             if division is not None:
                 # Its members ranked by the previous season as it stood (the
                 # game's tie-breakers under the previous divisions), with the
-                # previous-file order last.
+                # coin toss last.
                 previous_members = sorted(
                     (previous_of[m.metro] for m in members),
-                    key=lambda t: position[t.name],
+                    key=lambda t: coin[t.name],
                 )
                 finish[division] = [
                     teams[new_names[t.name]] for t in ranked(previous, previous_members)
                 ]
 
+    # Each team's previous-season division finish: its place in the division
+    # it played in, ranked the same way, with the coin toss last.
+    place: dict[str, int] = {}
+    for lge_conference in previous.conferences:
+        for lge_division in lge_conference.divisions:
+            tossed_members = sorted(lge_division.teams, key=lambda t: coin[t.name])
+            place.update(
+                (team.name, index)
+                for index, team in enumerate(ranked(previous, tossed_members), 1)
+            )
     tiers = _playoff_finish(previous, previous_path)
     strength = _strength_of_schedule(previous, previous_teams)
     order = sorted(
@@ -161,8 +189,9 @@ def league_from_files(
             -tiers.get(t.name, 0),
             -t.record.win_percentage,
             -strength[t.name],
+            place[t.name],
             -t.record.point_differential,
-            position[t.name],
+            coin[t.name],
         ),
     )
     overall = [teams[new_names[t.name]] for t in order]

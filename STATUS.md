@@ -19,6 +19,7 @@ for it are not when the work happened.
 athc autocontinue               DONE
 athc check-ppp                  DONE
 athc config edit                DONE
+athc config get                 DONE
 athc config path                DONE
 athc config reveal              DONE
 athc config set                 DONE
@@ -50,6 +51,20 @@ athc standings                  DONE
 ## athc
 
 Umbrella concerns: CLI, config, logging, docs, project tooling, install.
+
+### CLI and help (1.0.0)
+
+- Every command's help is in one style, Click's own (8.5): `[OPTIONS]` then
+  UPPERCASE placeholders, a line per argument, a summary of 55 characters or
+  fewer, a description of one to four lines, one to six examples. Rules:
+  [docs/design/architecture.md](docs/design/architecture.md#cli).
+- athc expands wildcards itself (Click's Windows expansion is off), and a name
+  that exists is never a wildcard.
+- Your team: `team` and `ppp_path` in `league.toml`, `--team NAME` for one
+  run, and the keys `off1`, `def1`, `off2`, `def2` for its four game plans or
+  profiles, shared by check-ppp, gameplan, profile and convert-pdb
+  (`athc/cli/_team.py`).
+- Usage errors end with a period, added in the one place.
 
 ### Console, run log and errors
 
@@ -103,7 +118,10 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   rules there. `athc.ini` keeps only app-wide settings.
 - The league in use is `[athc] league`, set by hand or with
   `athc config set league NAME`, which rewrites `athc.ini` and keeps its
-  comments. `--league NAME` on a league-aware command overrides it for one run
+  comments; `athc config get league` prints it. `config get` and `config set`
+  also read and write the league file's `path`, `play_path`, `team` and
+  `ppp_path` (tomlkit keeps `league.toml`'s comments), and `path`, `edit` and
+  `reveal` take `league.toml` as well as `athc.ini`. `--league NAME` on a league-aware command overrides it for one run
   (`athc profile check OFF1.prf --league PCFL`, like `aws s3 ls --profile x`).
 - Rule layering stays: a `gameplan_rules` / `profile_rules` array in
   `league.toml` replaces the fixed file.
@@ -185,13 +203,15 @@ Open: halftime handling itself.
 Working. Checks profiles with their gameplans, and how they fit. Docs:
 [README](docs/check_ppp/README.md)
 
-- Takes one `.prf` and one `.pln`, in either order (the extension tells them
-  apart), or a directory (`-r` for a tree). Both files are required.
-- In a directory, the league's `.lg2` (in the `path` folder) names each
-  team's four pairs; every pair with both files in one folder is checked,
-  matched by file name, ignoring case. Each folder of a tree stands alone. A
-  gameplan used for both halves reports once. A stock league's `.lg2` is an
-  error.
+- With no path, checks your team's files (`team` in `league.toml`) where the
+  league file puts them, or in `ppp_path`; `--team NAME` picks another team,
+  `-a/--all-teams` every team. A folder (`.` the current one, `-r` for a
+  tree) is searched for the team's files by their `.lg2` names; one `.prf`
+  and one `.pln` are checked as a pair.
+- The league's `.lg2` and `.lge` (in the `path` folder) name each team's four
+  pairs. Where the league file puts them a missing file is a `FAIL`; in a
+  folder a missing partner is a `WARN`, counted as missing. A gameplan used
+  for both halves reports once. A stock league's `.lg2` is an error.
 - Each file is checked and printed exactly as `profile check` and
   `gameplan check` do, with its own code. A pair must be the same side, and
   each side's rules decide what fails: the profile rules'
@@ -307,9 +327,12 @@ Working. Validates and edits `.pln` game plans. Docs:
 - Rules say which categories a gameplan may contain
   (`allowed_offensive_categories` / `allowed_defensive_categories`, by the
   league's labels); a play in any other category is a violation.
-- `check` and `find-play` default to the current directory when no path is
-  given, like `grep -r` and `find`; `find-play` only does so with a single
-  argument, since with two or more the last is always the path.
+- Scope: no path means the default, `.` the current folder, a path overrides
+  both. `check` defaults to the current folder; `find-play`, `replace-play`
+  and `set-specials` default to your team's four game plans, and `--path`
+  points them at a file, a folder, a wildcard or one game plan key.
+- The game plan keys `off1`, `def1`, `off2`, `def2` name your team's game
+  plans on every subcommand; `--team NAME` picks another team.
 - Rules can name every category: the five without a league abbreviation use
   their quoted game name (`[offense."Pass Long Left"]`), and Run Clock / Stop
   Clock may be required specials.
@@ -329,6 +352,7 @@ Working. Validates and edits `.pln` game plans. Docs:
   files for the first of its replacements that is not already in the
   gameplan and leaves it passing `check`.
 - `set-normals`, `set-specials` and `replace-play` write in place with no backup.
+- `set-normals` has no `-q`; `> nul` hides the `OK` lines.
 
 Open: `replace-play` should take a list of plays for bulk swaps.
 
@@ -344,7 +368,16 @@ Working. Extracts a WinLogStats database into an Excel workbook. Docs:
   category names (`league.toml`), and the category order and deleted plays
   (`pdbtoexcel.toml`, required). The workbook names categories the league's
   way and sorts them in the league's order. The workbook always has the Total
-  Stats team; the three other workbook options stay in `[convert-pdb]`.
+  Stats team; the workbook options stay in `[convert-pdb]`
+  (`include_category_worksheets` is no longer shipped in `athc.ini`).
+- The output is optional: `<name>.xlsm` beside the PDB by default.
+- The Slot columns come from your team's four game plans (`--path FOLDER`,
+  else `ppp_path`, else where the league file puts them; `--team NAME` for
+  another team), or from `-o`, `-o2`, `-d`, `-d2` alone; a missing defaulted
+  plan is a `WARN` that hides its column, and a plan on the wrong side is
+  refused.
+- `--percentages/--no-percentages` override `calculate_percentages` both ways
+  for one run (it replaced `--skip-calcs`).
 - The `.pdb` spec lives in `docs/pdbtoexcel/specs/`; the master VBA workbooks
   in `src/athc/pdbtoexcel/excel-template/` (not shipped) rebuild the `.bin`
   blocks. A golden workbook test pins the real `.pdb` output cell by cell.
@@ -373,7 +406,8 @@ Docs: [README](docs/playpool/README.md),
   and `profile`.
 - `check` reads the league's `play_path`, or a folder given on the command
   line (a league is then optional; one that resolves still names the category
-  folders).
+  folders). A `play_path` that is not set, missing or not a folder gets the
+  `athc config set play_path FOLDER` hint.
 - `check` prints the warnings pool loading already logs, word for word, as
   findings: plays in a folder that contradicts the file, duplicate names,
   invalid files.
@@ -405,8 +439,12 @@ Working. Validates and compares `.prf` coaching profiles. Docs:
 - `diff` reports one line per differing situation and infers CSV from the
   `--output` extension.
 - `copy` writes each target in place with no backup.
+- The profile keys `off1`, `def1`, `off2`, `def2` name your team's profiles in
+  `check`, `diff` and `copy`; `--team NAME` picks another team. `copy` takes
+  `SOURCE TARGET...`, and `--substitutions` replaced `--sub-percent`.
 
-Open: revisit `edit`/`copy` options.
+Open: revisit `edit`/`copy` options (a copy across sides is still one `SKIP`
+per target).
 
 ## scheduler — `generate-schedule`
 
@@ -414,22 +452,36 @@ Working. Docs: [README](docs/scheduler/README.md) ·
 [phase 1](docs/scheduler/phase-1-matchups.md) ·
 [phase 2](docs/scheduler/phase-2-schedule.md)
 
+- Ctrl+C stops the run with `FAIL Interrupted.` (exit 130) and nothing
+  written: CP-SAT's own handler is off and a console handler stops the
+  search at the press; a press while the three files are written takes
+  effect once all three are written.
+- CLI fits the shared help style: `--previous FILE` (optional, default the
+  upcoming file) and `--upcoming FILE` (default `<league>.lge` in `path`)
+  take the `.lge` file itself; `--seed` is 0 to 2147483647 and `--time-limit`
+  1 or more, usage errors outside; `[solver] time_limit` and
+  `phase1_time_limit` must be positive; with no `path` and no `--upcoming`,
+  the "League files folder is not set" hint.
 - `solver_workers = "auto"` is the default: the CPU's fast threads (P-cores
   on Intel hybrid CPUs) minus 2. A benchmark on an i5-14600KF found 8-12
   threads fastest and 18-24 slower. The report shows the CPU, thread count and
   seed, so a schedule can be reproduced on another machine.
-- League data from the game's files: `--previous folder` holds the previous
-  season's `<league>.lge` (standings: records, opponents, playoff results),
-  `--upcoming folder` the upcoming season's (conferences, divisions, names;
-  default the league's `path`). Teams match by name; `[renames.<season>]` in
-  `scheduler.toml` lists the ones that changed (a realignment moves team
-  numbers, so numbers never match). Overall order: playoff finish, record,
-  strength of schedule, point differential, which reproduces the PNFL's
-  published 2048 order. Division finish: each upcoming division's members in
-  the lge library's order for the previous season as it stood, so a team that
+- League data from the game's files: `--previous FILE` is the previous
+  season's `.lge` (standings: records, opponents, playoff results), else the
+  upcoming file gives them too and `[renames.<season>]` is ignored;
+  `--upcoming FILE` is the upcoming season's (conferences, divisions, names;
+  default `<league>.lge` in the league's `path`). An unfinished season is a
+  `WARN`, and the run goes on with the games played. Teams match by name;
+  `[renames.<season>]` in `scheduler.toml` lists the ones that changed (a
+  realignment moves team numbers, so numbers never match). Overall order:
+  playoff finish, record, strength of schedule, the previous season's
+  division finish, point differential, then a coin toss drawn from the
+  run's seed, which reproduces the PNFL's published 2048 order. Division
+  finish: each upcoming division's members in the lge library's order for
+  the previous season as it stood, with the coin toss last, so a team that
   moved keeps its record and the others shift around it (the 2002 NFL
-  realignment ranked its new divisions the same way). The
-  `standings\<season>.league.ini` files are gone.
+  realignment ranked its new divisions the same way). No file's team order
+  breaks a tie. The `standings\<season>.league.ini` files are gone.
 - League-agnostic: `--league NAME` picks the league; its rules are
   `scheduler.toml` in the league folder. Conferences and divisions come from
   the league file by position, the same-place games from the divisions, and
@@ -452,8 +504,8 @@ Working. Docs: [README](docs/scheduler/README.md) ·
 - Past PNFL seasons were re-ranked from real results using SOS tiebreaks, which
   gave a real-schedule baseline to measure generated seasons against and the
   ranking rule the loader now applies.
-- Every run writes to a new timestamped folder, so nothing is overwritten and
-  there is no backup to make.
+- Every run writes three files named to the minute in the current folder; a
+  rerun in the same minute replaces them.
 
 Open: simplify the ruleset — 50 `[phase2]` keys, some redundant by
 construction, never pruned · then the quirk budget in
@@ -467,10 +519,15 @@ construction, never pruned · then the quirk budget in
   trees; check-ppp pairs files only as the league file names them, plus one
   pair given by hand. The split is helm lint beside yamllint and cargo check
   beside rustc. Plan: [check-ppp-cli.md](docs/design/TODO/check-ppp-cli.md).
-- **Wildcards stay, expanded by athc.** `gameplan check`, `set-specials`,
-  `replace-play`, `profile check` and `profile copy` take one; `find-play`
-  refuses one. Turning off Click's own Windows expansion is in the cli-help
-  plan (rule 15).
+- **No athc command has a quiet flag.** `> nul` hides the `OK` lines and keeps
+  every `FAIL` on standard error.
+- **The team's game plans are the default scope of the gameplan batch
+  commands; check keeps the current folder.** `find-play`, `replace-play` and
+  `set-specials` work on your team's game plans; `gameplan check` stays the
+  any-name checker of the current folder.
+- **Wildcards stay, expanded by athc.** `gameplan check`, `profile check`,
+  `profile copy` and `--path` on `find-play`, `replace-play` and
+  `set-specials` take one; Click's own Windows expansion is off.
 - **check-ppp checks pairs only; `profile check` and `gameplan check` stay.**
   check-ppp always takes a profile with its gameplan and replaced
   `profile check --gameplan`, now removed; the two check commands stay for

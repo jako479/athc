@@ -168,8 +168,8 @@ def test_no_path(runner, config_dir: Path) -> None:
     result = runner.invoke(standings, [])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {folder / 'league.toml'}: No path for the league. "
-        "Set path in this file.\n"
+        f"FAIL {folder / 'league.toml'}: League files folder is not set. "
+        "Run 'athc config set path FOLDER'.\n"
     )
     assert result.stdout == ""
 

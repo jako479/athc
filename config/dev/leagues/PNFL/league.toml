@@ -1,6 +1,9 @@
+# Open this file with: athc config edit league.toml
+
 [league]
 path = 'E:\SIERRA\FbPro98'
 play_path = 'E:\SIERRA\FbPro98\PNFL'
+team = 'Denver'
 db_path = 'E:\PNFL\Game Log Database\49W4\pnfl_athc.db'
 
 [categories.offense]

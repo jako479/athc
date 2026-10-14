@@ -129,7 +129,7 @@ $missing = @('autocontinue', 'check-ppp', 'config', 'convert-pdb', 'gameplan', '
     Where-Object { $r.Out -notmatch "(?m)^\s+$([regex]::Escape($_))\s" })
 Check "athc --help lists every command (missing: $($missing -join ', '))" (($r.Code -eq 0) -and ($missing.Count -eq 0))
 $commands = @(
-    'config', 'config edit', 'config path', 'config reveal', 'config set',
+    'config', 'config edit', 'config get', 'config path', 'config reveal', 'config set',
     'gameplan', 'gameplan check', 'gameplan find-play', 'gameplan list-normals',
     'gameplan list-specials', 'gameplan replace-play', 'gameplan set-normals',
     'gameplan set-specials', 'playpool', 'playpool check',
@@ -143,7 +143,9 @@ foreach ($command in $commands) {
 
 # --- config --------------------------------------------------------------
 $r = Athc @('config', 'set', 'league', 'TEST')
-Check 'config set league TEST' (($r.Code -eq 0) -and ($r.All -match 'Set league = TEST'))
+Check 'config set league TEST' (($r.Code -eq 0) -and ($r.Out -match '^OK ') -and ($r.Out -match 'league = TEST'))
+$r = Athc @('config', 'get', 'league')
+Check 'config get league prints TEST' (($r.Code -eq 0) -and ($r.Out.Trim() -eq 'TEST'))
 $r = Athc @('config', 'path')
 Check 'config path prints athc.ini' (($r.Code -eq 0) -and ($r.Out.Trim() -eq (Join-Path $cfgDir 'athc.ini')))
 $r = Athc @('config', 'edit')
@@ -189,27 +191,27 @@ foreach ($sort in $sorts) {
         ($r.Code -eq 0) -and ((Lines $r.Out) -ceq (Golden "$($sort[0])_normals_$($sort[1]).txt")))
 }
 $target = Join-Path $work 'offense.pln'
-$r = Athc @('gameplan', 'find-play', 'OR45RL01', $target)
+$r = Athc @('gameplan', 'find-play', 'OR45RL01', '--path', $target)
 Check 'gameplan find-play: found in slot 1-1' (($r.Code -eq 0) -and ($r.Out -match "'OR45RL01' found in slot 1-1"))
-$r = Athc @('gameplan', 'replace-play', 'OR45RL01', 'DN28RM01', $target)
+$r = Athc @('gameplan', 'replace-play', 'OR45RL01', 'DN28RM01', '--path', $target)
 Check 'gameplan replace-play: DN28RM01 already in the gameplan, not replaced' (
     ($r.Code -eq 1) -and ($r.All -match "'DN28RM01' already in the gameplan") -and ($r.All -match "'OR45RL01' not replaced, no valid replacement"))
-$r = Athc @('gameplan', 'find-play', 'OR45RL01', $target)
+$r = Athc @('gameplan', 'find-play', 'OR45RL01', '--path', $target)
 Check 'gameplan find-play after replace-play: still in slot 1-1' (($r.Code -eq 0) -and ($r.Out -match "'OR45RL01' found in slot 1-1"))
 $r = Athc @('gameplan', 'set-normals', (Join-Path $work 'offense2.pln'), (Join-Path $work 'normals.txt'))
-Check 'gameplan set-normals: updated' (($r.Code -eq 0) -and ($r.All -match 'Updated .*: 1 normal play'))
-$r = Athc @('gameplan', 'set-specials', (Join-Path $work 'offense3.pln'), (Join-Path $work 'specials.txt'))
-Check 'gameplan set-specials: updated' (($r.Code -eq 0) -and ($r.All -match '1 updated, 0 failed'))
+Check 'gameplan set-normals: updated' (($r.Code -eq 0) -and ($r.All -match 'OK +.*: 1 normal play\(s\)'))
+$r = Athc @('gameplan', 'set-specials', (Join-Path $work 'specials.txt'), '--path', (Join-Path $work 'offense3.pln'))
+Check 'gameplan set-specials: updated' (($r.Code -eq 0) -and ($r.All -match '1 updated, 0 skipped, 0 failed'))
 
 # --- playpool, check-ppp, convert-pdb ----------------------------------------
 $r = Athc @('playpool', 'check')
 Check "playpool check (league play_path): 128 plays, 0 issues" (
-    ($r.Code -eq 0) -and ($r.Out -match "128 play\(s\) checked in '.*', 0 issue\(s\)\."))
+    ($r.Code -eq 0) -and ($r.Out -match "128 play\(s\) checked in '.*', 0 issue\(s\)"))
 $prf = Join-Path $data 'TST-OFF1.prf'
 $pln = Join-Path $data 'offense.pln'
 $r = Athc @('check-ppp', $prf, $pln)
 $want = Lines ((Raw 'compat_offense.report.txt') + (Raw 'offense.report.txt') +
-               "`n2 file(s) checked, 22 violation(s) across 2 file(s).`n")
+               "`n2 file(s) checked, 2 with violations, 0 failed`n")
 Check 'check-ppp profile + gameplan: exit 1, reports match goldens' (
     ($r.Code -eq 1) -and ((Short $r.Out @($prf, $pln)) -ceq $want))
 $xlsx = Join-Path $work 'pdb.xlsx'
@@ -242,8 +244,8 @@ function Report([string]$html) {
 foreach ($case in $schedules) {
     $dir = Join-Path $work "schedule-$($case.League)"
     New-Item -ItemType Directory -Force $dir | Out-Null
-    $previous = Join-Path $work "$($case.League)-previous"
-    $upcoming = Join-Path $work "$($case.League)-upcoming"
+    $previous = Join-Path $work "$($case.League)-previous\$($case.League).lge"
+    $upcoming = Join-Path $work "$($case.League)-upcoming\$($case.League).lge"
     $r = Athc @('generate-schedule', '--league', $case.League, '--season', $case.Season,
                 '--previous', $previous, '--upcoming', $upcoming, '--seed', '0') $dir
     $files = @(Get-ChildItem $dir -Filter "schedule_$($case.Season)_*")

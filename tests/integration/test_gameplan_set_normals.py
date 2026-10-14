@@ -12,7 +12,7 @@ from athc.cli.gameplan.set_normals import set_normals
 from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_gameplan import CustomPlayRef, PlayRef, read_gameplan
 from tests.conftest import LEAGUE, league_toml
-from tests.integration.conftest import GP_OFFENSE, PLAYS
+from tests.integration.conftest import GP_OFFENSE, PLAYS, TEAM_NAMES, lge, team
 
 NORMAL = "OR45RL01"  # a real normal offense play in the pool
 SPECIAL = "SFFGXPAT"  # a real special-teams offense play in the pool
@@ -52,8 +52,49 @@ def test_requires_gameplan(runner) -> None:
     assert runner.invoke(set_normals, []).exit_code == 2
 
 
+def test_bare_is_missing_game_plan(runner) -> None:
+    result = runner.invoke(set_normals, [])
+    assert result.stderr.endswith("Error: Missing argument 'GAME_PLAN'.\n")
+
+
 def test_requires_play_list(runner, tmp_path: Path) -> None:
     assert runner.invoke(set_normals, [str(_copy(tmp_path))]).exit_code == 2
+
+
+def test_key_alone_is_missing_input_file(runner) -> None:
+    result = runner.invoke(set_normals, ["off1"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith("Error: Missing argument 'INPUT_FILE'.\n")
+
+
+def test_extra_argument_rejected(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    result = runner.invoke(
+        set_normals, [str(p), str(_input(tmp_path, NORMAL + "\n")), "extra"]
+    )
+    assert result.exit_code == 2
+    assert result.stderr.endswith("Error: Got unexpected extra argument (extra).\n")
+
+
+def test_play_list_not_text(runner, tmp_path: Path) -> None:
+    """A game plan given as the list: one FAIL line naming the list, the game
+    plan untouched."""
+    p = _copy(tmp_path)
+    original = p.read_bytes()
+    result = runner.invoke(set_normals, [str(p), str(GP_OFFENSE)])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {GP_OFFENSE}: Not a valid play list.\n"
+    assert p.read_bytes() == original
+
+
+def test_team_with_a_path_is_a_usage_error(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    inp = _input(tmp_path, NORMAL + "\n")
+    result = runner.invoke(set_normals, [str(p), str(inp), "--team", "Denver"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith(
+        "Error: --team requires a game plan key (off1, def1, off2 or def2).\n"
+    )
 
 
 @pytest.mark.parametrize(
@@ -140,14 +181,16 @@ def test_inline_comment_requires_space(runner, tmp_path: Path) -> None:
 # ── quiet / console input ─────────────────────────────────────────────────────
 
 
-def test_quiet_still_updates(runner, tmp_path: Path) -> None:
+def test_quiet_is_rejected(runner, tmp_path: Path) -> None:
+    """No athc command has a quiet flag; `> nul` hides the OK line."""
     p = _copy(tmp_path)
+    original = p.read_bytes()
     result = runner.invoke(
         set_normals, [str(p), str(_input(tmp_path, NORMAL + "\n")), "-q"]
     )
-    assert result.exit_code == 0
-    assert result.stdout == ""  # -q suppresses the success line
-    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
+    assert result.exit_code == 2
+    assert result.stderr.endswith("Error: No such option '-q'.\n")
+    assert p.read_bytes() == original
 
 
 def test_dash_reads_from_console(runner, tmp_path: Path) -> None:
@@ -267,5 +310,83 @@ def test_invalid_play_path(runner, league: Path, tmp_path: Path) -> None:
     assert result.exit_code == 2
     assert result.stderr == (
         f"FAIL {tmp_path / 'missing'}: {PATH_NOT_FOUND} "
-        f"Set play_path in {league / 'league.toml'}.\n"
+        "Run 'athc config set play_path FOLDER'.\n"
+    )
+
+
+# ── a game plan key ───────────────────────────────────────────────────────────
+
+
+def set_league(folder: Path, **settings: str | Path) -> None:
+    """Add `[league]` settings to the league folder's league.toml."""
+    toml = folder / "league.toml"
+    lines = "".join(f"{key} = '{value}'\n" for key, value in settings.items())
+    text = toml.read_text(encoding="utf-8").replace("[league]\n", "[league]\n" + lines)
+    toml.write_text(text, encoding="utf-8")
+
+
+def team_league(league: Path, tmp_path: Path, **settings: str | Path) -> Path:
+    """The league's .lg2 and .lge in `tmp_path/lg2`, Denver's four game plans
+    named after their keys (off1 there, an offense copy), `path` and
+    `settings` set; returns Denver's league folder."""
+    lg2_dir = tmp_path / "lg2"
+    lg2_dir.mkdir()
+    record = team(
+        ("o1.prf", "OFF1.pln"),
+        ("d1.prf", "DEF1.pln"),
+        ("o2.prf", "OFF2.pln"),
+        ("d2.prf", "DEF2.pln"),
+    )
+    (lg2_dir / f"{LEAGUE}.lg2").write_bytes(record)
+    (lg2_dir / f"{LEAGUE}.lge").write_bytes(lge(TEAM_NAMES[0]))
+    set_league(league, path=lg2_dir, **settings)
+    folder = lg2_dir / "PNFL" / "2049" / "Plans" / "Team"
+    folder.mkdir(parents=True)
+    shutil.copy2(GP_OFFENSE, folder / "OFF1.pln")
+    return folder
+
+
+def test_key_sets_your_game_plan(runner, league: Path, tmp_path: Path) -> None:
+    folder = team_league(league, tmp_path, team="Denver")
+    inp = _input(tmp_path, NORMAL + "\n")
+    result = runner.invoke(set_normals, ["off1", str(inp)])
+    assert result.exit_code == 0
+    assert result.stdout == f"OK   {folder / 'OFF1.pln'}: 1 normal play(s)\n"
+    assert _name(read_gameplan(folder / "OFF1.pln").normal_plays[0]) == NORMAL
+
+
+def test_key_missing_names_the_game_plan(runner, league: Path, tmp_path: Path) -> None:
+    folder = team_league(league, tmp_path, team="Denver")
+    inp = _input(tmp_path, NORMAL + "\n")
+    result = runner.invoke(set_normals, ["off2", str(inp)])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {folder / 'OFF2.pln'}: {FILE_NOT_FOUND} Run 'athc config set "
+        "ppp_path FOLDER' or pass a .pln file.\n"
+    )
+
+
+def test_too_many_plays_with_a_path_fail_before_the_league(
+    runner, write_config: WriteConfig, tmp_path: Path
+) -> None:
+    """A path reads no league before the list: here no league is selected."""
+    write_config("[athc]\n")
+    p = _copy(tmp_path)
+    inp = _input(tmp_path, (NORMAL + "\n") * 65)
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {inp}: Too many plays (65). The most is 64.\n"
+
+
+def test_key_reads_the_league_before_the_list(
+    runner, league: Path, tmp_path: Path
+) -> None:
+    """A key comes first on the usage line, so the team is read before the
+    list is: no `team` fails before the list is counted."""
+    inp = _input(tmp_path, (NORMAL + "\n") * 65)
+    result = runner.invoke(set_normals, ["off1", str(inp)])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {league / 'league.toml'}: Team is not set. Run 'athc config set "
+        "team NAME' or pass --team or a .pln file.\n"
     )

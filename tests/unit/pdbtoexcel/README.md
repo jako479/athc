@@ -59,11 +59,14 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 | Deleted play skipped quietly | not in pool, 2 teams | no row; no warning; one info line | `test_deleted_play_is_skipped_quietly` | ☑ |
 | Deleted play still in the pool | in pool, listed in another case, 2 teams, totals | no row; one "stale" warning with the file's spelling | `test_deleted_play_still_in_the_pool_is_skipped_with_a_warning` | ☑ |
 | Run row: QB run Type | synth + pool | "QB run" | `test_qb_run_type` | ☑ |
-| `--skip-calcs` omits % columns | synth + pool | no "Fumble %" header | `test_skip_calcs_omits_percent_columns` | ☑ |
+| Percentages off for the run (`--no-percentages`) omits % columns | synth + pool | no "Fumble %" header | `test_skip_calcs_omits_percent_columns` | ☑ |
+| % columns follow the run, not the setting | `calculate_percentages` false, run on | "Fumble %" header | `test_percent_columns_follow_the_run_not_the_setting` | ☑ |
 | Totals add "Total Stats" team | synth + pool | summed team present | `test_totals_adds_total_stats_team` | ☑ |
 | Category worksheets when enabled | synth + pool | "Run Categories" sheet + row | `test_category_worksheets_when_enabled` | ☑ |
 | Special-teams / unknown skipped | synth + pool | absent from sheets; "has no play file" warning | `test_special_teams_and_unknown_plays_skipped` | ☑ |
 | Tendencies written | synth | 16 rows per team | `test_tendencies_written` | ☑ |
 | Slot column from gameplan | synth + pool + pln | slot 0 → "1-1" | `test_slot_column_from_gameplan` | ☑ |
+| Slot column hidden by its own plan | neither, plan 1 only, plan 2 only, both | hidden where absent | `test_slot_options_by_presence` `[P]` | ☑ |
+| Slot 2 shows with plan 2 alone | synth + pool + pln as Slot 2 | Slot 1 hidden; Slot 2 "1-1" | `test_second_plan_alone_shows_slot_2` | ☑ |
 
 Notes: grouping is by the play file's category, shown under the league's label (`PNFL_LABELS`) and sorted by the league's order (`PNFL_ORDER` in the conftest). Exact percentage-cell values aren't asserted (column presence + the underlying counts are).

@@ -56,19 +56,27 @@ A pass can be both a rollout and a timed pass.
 
 ## CLI
 
-`athc playpool check` checks the play pool for problems: plays in the wrong
-folder, duplicate play names, and invalid play files.
+`athc playpool check [OPTIONS] [FOLDER]` checks the play pool for problems:
+plays in the wrong folder, duplicate play names, and invalid play files.
 
 ```bash
 athc playpool check
-athc playpool check E:\SIERRA\FbPro98\PNFL
+athc playpool check .
+athc playpool check newplays
 athc playpool check --league PCFL
 ```
 
-With no folder, it checks the league's `play_path` (from `--league`, or
-`[athc] league` in `athc.ini`). A given folder needs no league; a league that
+With no FOLDER, it checks the league's `play_path` (from `--league`, or
+`[athc] league` in `athc.ini`). A `play_path` that is missing on disk ends its
+line with `Run 'athc config set play_path FOLDER'.`; no `play_path` at all says
+`Play pool folder is not set. Run 'athc config set play_path FOLDER' or pass the
+folder.`
+
+With a FOLDER (`.` for the current one), it checks that folder's whole tree
+instead and never reads `play_path`. A FOLDER needs no league; a league that
 resolves still lends its category names to the folders, and without one no
-folder name means a category.
+folder name means a category. A FOLDER that is missing gets Windows' plain
+line, with no hint.
 
 It checks the same things pool loading checks for every other command, with
 the same messages:
@@ -79,14 +87,15 @@ the same messages:
 - A `.ply` file that isn't a valid play file.
 
 Each issue prints on its own line (a result, on stdout, never a `WARN`), then a
-blank line and `<n> play(s) checked in '<dir>', <n> issue(s)`. Shared console
-and codes: [architecture](../design/architecture.md#console-run-log-and-errors).
+blank line and `<n> play(s) checked in '<folder>', <n> issue(s)`, the folder
+as typed. Shared console and codes:
+[architecture](../design/architecture.md#console-run-log-and-errors).
 
 | Exit | Meaning |
 |---|---|
 | `0` | Done: no issues. |
 | `1` | Findings: one or more issues. |
-| `2` | Error: no league, no `play_path`, a missing folder (`FAIL <folder>: The system cannot find the path specified.`), a file in its place (`FAIL <path>: The directory name is invalid.`), or a file or folder the system can't read (`FAIL <why>`). |
+| `2` | Error: no league; no `play_path` (`FAIL <league.toml>: Play pool folder is not set. Run 'athc config set play_path FOLDER' or pass the folder.`); a `play_path` that is not a folder, with the hint (`FAIL <play_path>: The system cannot find the path specified. Run 'athc config set play_path FOLDER'.`); a missing FOLDER (`FAIL <folder>: The system cannot find the path specified.`) or a file in its place (`FAIL <folder>: The directory name is invalid.`); a second FOLDER (Click's usage error); or a file or folder the system can't read (`FAIL <why>`). |
 
 `src/athc/cli/playpool/check.py` is the leaf command of the
 `src/athc/cli/playpool/` group. It loads the pool with `read_play_pool`, and

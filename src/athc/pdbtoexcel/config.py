@@ -59,7 +59,6 @@ def empty_category_order() -> CategoryOrder:
 @dataclass(frozen=True, slots=True)
 class Config:
     play_path: str = ""
-    league_file: Path = Path(LEAGUE_FILE)  # the league.toml that sets play_path
     pdbtoexcel_file: Path = Path(PDBTOEXCEL_FILE)  # for its warnings
     calculate_percentages: bool = True
     include_category_worksheets: bool = False
@@ -87,7 +86,7 @@ def load_config(league: str | None = None) -> Config:
     play_path = cfg.path("play_path")
     if play_path is None:
         raise ConfigFileError(
-            "No play_path for the league. Set play_path in this file.",
+            "Play pool folder is not set. Run 'athc config set play_path FOLDER'.",
             cfg.dir / LEAGUE_FILE,
         )
     raw = load_athc_config().get(SECTION, {})
@@ -97,7 +96,6 @@ def load_config(league: str | None = None) -> Config:
     )
     return Config(
         play_path=str(play_path),
-        league_file=cfg.dir / LEAGUE_FILE,
         pdbtoexcel_file=pdbtoexcel_file,
         calculate_percentages=_bool(raw, "calculate_percentages", True),
         include_category_worksheets=_bool(raw, "include_category_worksheets", False),

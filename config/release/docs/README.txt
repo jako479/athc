@@ -46,18 +46,22 @@ FIRST-TIME SETUP
 ----------------
 
 athc ships configured for PNFL out of the box. The one thing you must
-set is your plays folder: open leagues\PNFL\league.toml in your settings
-folder (see below) and set play_path to your FbPro98 league plays
-folder, for example:
+set is your play pool folder: run athc config edit league.toml and set
+play_path to your FbPro98 league play pool folder, for example:
 
    [league]
    play_path = 'D:\SIERRA\FBPRO98\PNFL\plays'
 
-To check every profile and game plan in a folder with check-ppp, to
-generate a schedule, or to show the standings, also set path to the folder
-that holds the league's files (like PNFL.lg2 and PNFL.lge), for example:
+To work on your team's profiles and game plans (check-ppp, gameplan,
+profile, convert-pdb), to generate a schedule, or to show the standings,
+also set path to the folder that holds the league's files (like PNFL.lg2
+and PNFL.lge), and team to your team's name or nickname, for example:
 
    path = 'D:\SIERRA\FBPRO98'
+   team = 'Denver'
+
+athc config set does the same from the command line, for example
+athc config set team Denver.
 
 Each league is a folder under leagues\ with its league.toml and rule files
 (*.toml). athc ships two: PNFL and PCFL. To switch league, run:
@@ -92,8 +96,12 @@ That folder will contain:
    athc.ini             your settings (edit to customize; the file
                         documents every setting inline)
    leagues\PNFL\        the PNFL league:
-      league.toml          your plays folder (play_path), league files
-                           folder (path) and the league's category names
+      league.toml          your play pool folder (play_path), league files
+                           folder (path), your team (team, for
+                           check-ppp, gameplan, profile and
+                           convert-pdb), your profiles and game plans
+                           folder (ppp_path, optional) and the
+                           league's category names
       gameplan.toml        league rules, one file per tool
       profile.toml
       pdbtoexcel.toml      convert-pdb's category order and deleted plays
@@ -140,7 +148,9 @@ An error with no detail (or filing a bug report):
 
 convert-pdb says "has no play file in the play pool" for every play, and
 the play sheets are empty:
-    play_path in leagues\<NAME>\league.toml is not your plays folder.
+    play_path in leagues\<NAME>\league.toml is not your play pool folder.
+    Run athc config get play_path to see it, and athc config edit
+    league.toml to fix it.
 
 convert-pdb says "pdbtoexcel.toml: The system cannot find the file
 specified.":
@@ -151,3 +161,5 @@ specified.":
 convert-pdb says "The system cannot find the file specified." for a game
 plan:
     Fix the path after -o / -o2 / -d / -d2, or leave that option out.
+    With no -o / -o2 / -d / -d2, the game plans are your team's: fix path,
+    team or ppp_path in league.toml.

@@ -8,16 +8,21 @@ from pathlib import Path
 
 import click
 
-from athc.cli import CONTEXT_SETTINGS, league_option
+from athc.cli import CONTEXT_SETTINGS, league_option, team_option
 from athc.cli.gameplan import gameplan
 from athc.cli.gameplan._common import (
+    TEAM_HELP,
     build_pool,
     category_of,
-    collect_files,
+    epilog,
     find_in_gameplan,
     format_violation,
-    is_glob,
+    is_one_file,
+    path_option,
+    require_key_path,
+    scope,
 )
+from athc.config import resolve_league
 from athc.console import console
 from athc.errors import AthcError, error_line, sentence
 from athc.fbpro98_gameplan import (
@@ -34,39 +39,6 @@ from athc.gameplan.writer import build_custom_play
 from athc.playpool import PlayPool
 
 Hits = list[tuple[int, PlayRef]]
-
-
-def _is_path(arg: str) -> bool:
-    """Whether the last argument names the files, not a play: an existing file
-    or folder (first, so a folder named like a play is the folder), a name
-    with a folder separator, a `.pln` name, or a wildcard. Play names are
-    plain file stems with none of these."""
-    return (
-        Path(arg).exists()
-        or "/" in arg
-        or "\\" in arg
-        or arg.casefold().endswith(".pln")
-        or is_glob(arg)
-    )
-
-
-def split_args(args: Sequence[str]) -> tuple[str, list[str], str | None]:
-    """`play replacement... [path]` -> `(play, replacements, path)`, path None
-    when the last argument is a play; a replacement listed again, in any case,
-    is dropped. UsageError without a replacement."""
-    if not args:
-        raise click.UsageError("Missing argument 'play'.")
-    play, *rest = args
-    path = rest.pop() if rest and _is_path(rest[-1]) else None
-    if not rest:
-        raise click.UsageError("Missing argument 'replacement'.")
-    seen: set[str] = set()
-    replacements: list[str] = []
-    for name in rest:
-        if name.casefold() not in seen:
-            seen.add(name.casefold())
-            replacements.append(name)
-    return play, replacements, path
 
 
 def _label(play: PlayRef, labels: CategoryLabels) -> str:
@@ -210,36 +182,52 @@ def _pool_entry(pool: PlayPool, name: str) -> CustomPlayRef:
     return build_custom_play(record, pool.root_dir)
 
 
-@gameplan.command(name="replace-play", context_settings=CONTEXT_SETTINGS)
-@click.argument("args", nargs=-1, required=True, metavar="play replacement... [path]")
-@click.option(
-    "-r",
-    "--recursive",
-    is_flag=True,
-    help="Recurse into subdirectories when path is a directory.",
+@gameplan.command(
+    name="replace-play",
+    context_settings=CONTEXT_SETTINGS,
+    epilog=epilog(
+        "athc gameplan replace-play OLDRUN NEWRUN",
+        "athc gameplan replace-play OLDRUN NEWRUN BACKUP --path plans -r",
+    ),
 )
+@click.argument("play", help="Play to replace (any case).")
+@click.argument(
+    "replacement",
+    nargs=-1,
+    required=True,
+    help="Plays to put in its place, in order; each must be in the play pool.",
+)
+@path_option("Game plans to edit")
+@click.option("-r", "--recursive", is_flag=True, help="Include subfolders.")
+@team_option(TEAM_HELP)
 @league_option
 @click.pass_context
 def replace_play(
     ctx: click.Context,
-    args: tuple[str, ...],
+    play: str,
+    replacement: tuple[str, ...],
+    path: str | None,
     recursive: bool,
+    team: str | None,
     league: str | None,
 ) -> None:
-    """Replace every instance of play with the first replacement that fits.
+    """Replace one play with another in game plans.
 
-    play and each replacement are single, case-insensitive names; the
-    replacements are tried in order, each a backup for the one before it.
-    path is a .pln file, a directory (top level, or the whole tree with -r) or
-    a wildcard, the current directory when left out; the last name counts as
-    the path when it is an existing file or folder, or has a \\ or /, a .pln
-    ending or a wildcard. In each gameplan the first replacement not already
-    in it, with which the gameplan passes `check`, is used.
-    Every replacement must exist in the league's play pool; play need not (it
-    may already be gone). Normal and custom-special slots are searched.
+    Each game plan gets the first REPLACEMENT not already in it with which it
+    still passes athc gameplan check; the others are backups, tried in order.
     """
-    play, replacements, path = split_args(args)
-    target = path or "."
+    require_key_path(team, path)
+    if league is not None:
+        resolve_league(league)  # a league that does not exist fails first
+    # A replacement listed again, in any case, is tried once, where it first
+    # stands.
+    first: dict[str, str] = {}
+    for name in replacement:
+        first.setdefault(name.casefold(), name)
+    replacements = list(first.values())
+    one_file = is_one_file(path)  # found or not: no tally
+    # The team and the league files are read before the rules and the pool.
+    collected = scope(path, team, league, recursive=recursive)
     config = load_config(league)
     rules = (
         load_rules(config.rule_files, labels=config.categories)
@@ -248,18 +236,14 @@ def replace_play(
     )
     # The pool is built as `check` builds it, so the attributes the league rules
     # cap (rollout, QB run, timed, 2-DL) are the ones `check` sees.
-    pool = build_pool(config.play_path, config.categories, config.league_file)
+    pool = build_pool(config.play_path, config.categories)
     entries = [_pool_entry(pool, name) for name in replacements]
 
-    collected = collect_files([target], suffix=".pln", recursive=recursive)
     for line in collected.errors:
         console.fail(line)
     for line in collected.warnings:
         console.warn(line)
 
-    # One file, found or not: no tally. A wildcard can match many files, so it
-    # counts as a folder.
-    single_path = not (Path(target).is_dir() or is_glob(target))
     updated = replaced_total = not_replaced = 0
     failed = len(collected.errors)
     for file in collected.files:
@@ -284,7 +268,7 @@ def replace_play(
             failed += 1
             continue
         if not picked.normal_hits and not picked.special_hits:
-            if single_path:  # a find-play-style miss; silent in a directory
+            if one_file:  # a find-play-style miss; silent in a set
                 console.result(f"{file}: '{play}' not found")
             continue
         if picked.entry is None:
@@ -302,7 +286,7 @@ def replace_play(
         ):
             console.ok(line)
 
-    if not single_path:
+    if not one_file:
         console.print()
         names = ", ".join(f"'{name}'" for name in replacements)
         console.result(

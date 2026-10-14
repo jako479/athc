@@ -9,7 +9,7 @@ from athc.cli import CONTEXT_SETTINGS, CommandGroup
 
 @click.group(cls=CommandGroup, context_settings=CONTEXT_SETTINGS)
 def gameplan() -> None:
-    """Validate and edit Front Page Sports Football Pro '98 gameplans (.pln)."""
+    """Check and edit game plans (.pln)."""
 
 
 from athc.cli.gameplan import check as check  # noqa: E402  (registers the leaf command)

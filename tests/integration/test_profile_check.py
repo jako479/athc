@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from athc.cli import cli
 from athc.cli.profile._common import collect_files
 from athc.cli.profile.check import check, check_file
 from athc.errors import FILE_NOT_FOUND
@@ -26,15 +27,54 @@ from tests.conftest import (
 from tests.integration.conftest import (
     DATA,
     DEF1,
+    DENVER,
     EXPECTED,
     GP_OFFENSE,
+    HINT,
+    LAS_VEGAS,
     OFF1,
     RULES_TOML,
+    TEAM_REQUIRES_KEY,
+    build_teams,
+    heads,
+    location,
+    profile_file,
 )
 
 RULES = load_rules([RULES_TOML])
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
+Lg2League = Callable[..., Path]
+
+HELP = """\
+Usage: athc profile check [OPTIONS] [PATH]...
+
+  Check profiles against the league's rules.
+
+  To check a profile with its game plan, run athc check-ppp.
+
+Positional arguments:
+  PATH  .prf files, folders, wildcards or profile keys (default: current
+        folder).
+
+Options:
+  -r, --recursive  Include subfolders.
+  --team NAME      Team the profile keys refer to (default: team in
+                   league.toml).
+  --league NAME    League to use (default: the one set with athc config set
+                   league).
+  -h, --help       Show this message and exit.
+
+  Profile keys, for your team's profiles:
+    off1  1st-half offense    def1  1st-half defense
+    off2  2nd-half offense    def2  2nd-half defense
+
+  Examples:
+
+    athc profile check
+    athc profile check off2
+    athc profile check drafts\\*OFF*.prf
+"""
 
 
 @pytest.fixture
@@ -269,6 +309,24 @@ def test_cli_recursive(runner, tmp_path: Path) -> None:
 
 
 @pytest.mark.usefixtures("league")
+def test_cli_wildcard_path(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """athc expands the wildcard itself: the two matching profiles only."""
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    shutil.copy2(OFF1, profiles / "Off1.prf")
+    shutil.copy2(OFF1, profiles / "Off2.prf")
+    shutil.copy2(DEF1, profiles / "def.prf")
+    monkeypatch.chdir(profiles)
+    result = runner.invoke(check, ["Off*.prf"])
+    assert result.exit_code == 1
+    assert f"{Path('Off1.prf')}: " in result.stdout
+    assert f"{Path('Off2.prf')}: " in result.stdout
+    assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
+
+
+@pytest.mark.usefixtures("league")
 def test_cli_clean_exit_0(runner, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "athc.cli.profile.check.validate_profile", lambda prof, rules: ()
@@ -308,6 +366,126 @@ def test_cli_continues_past_bad(runner, tmp_path: Path) -> None:
     assert result.stderr == f"FAIL {bad}: File too small to contain F95 block.\n"
     assert f"{good}:" in result.stdout
     assert "2 file(s) checked, 1 with violations, 1 failed" in result.stdout
+
+
+# ── help ──────────────────────────────────────────────────────────────────────
+
+
+def test_help_screen(runner) -> None:
+    result = runner.invoke(
+        cli, ["profile", "check", "--help"], prog_name="athc", terminal_width=78
+    )
+    assert result.exit_code == 0
+    assert result.stdout == HELP
+
+
+GROUP_HELP = """\
+Usage: athc profile [OPTIONS] COMMAND [ARGS]...
+
+  Check and edit coaching profiles (.prf).
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  check  Check profiles against the league's rules.
+  copy   Copy settings from one profile to others.
+  diff   Show differences between two profiles.
+"""
+
+
+def test_group_help_screen(runner) -> None:
+    result = runner.invoke(
+        cli, ["profile", "--help"], prog_name="athc", terminal_width=78
+    )
+    assert result.exit_code == 0
+    assert result.stdout == GROUP_HELP
+
+
+def test_bare_group_shows_its_help_on_stderr(runner) -> None:
+    result = runner.invoke(cli, ["profile"], prog_name="athc", terminal_width=78)
+    assert result.exit_code == 2
+    assert result.stderr == GROUP_HELP
+    assert result.stdout == ""
+
+
+# ── profile keys ──────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def work(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Run from an empty folder, so no key is a file there."""
+    folder = tmp_path / "work"
+    folder.mkdir()
+    monkeypatch.chdir(folder)
+    return folder
+
+
+@pytest.mark.usefixtures("work")
+def test_cli_key_checks_that_file(runner, lg2_league: Lg2League) -> None:
+    folder = location(build_teams(lg2_league, team="Denver"), DENVER)
+    result = runner.invoke(check, ["off2"])
+    assert heads(result) == [str(profile_file(folder, DENVER, "off2"))]
+    assert "\n1 file(s) checked, " in result.stdout
+
+
+@pytest.mark.usefixtures("work")
+def test_cli_two_keys(runner, lg2_league: Lg2League) -> None:
+    folder = location(build_teams(lg2_league, team="Denver"), DENVER)
+    result = runner.invoke(check, ["off1", "def1"])
+    assert result.exit_code == 1
+    assert heads(result) == [
+        str(profile_file(folder, DENVER, "off1")),
+        str(profile_file(folder, DENVER, "def1")),
+    ]
+    assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
+
+
+@pytest.mark.usefixtures("work")
+def test_cli_key_keeps_path_order(runner, lg2_league: Lg2League) -> None:
+    folder = location(build_teams(lg2_league, team="Denver"), DENVER)
+    result = runner.invoke(check, [str(DEF1), "off1", str(OFF1)])
+    assert heads(result) == [
+        str(DEF1),
+        str(profile_file(folder, DENVER, "off1")),
+        str(OFF1),
+    ]
+
+
+@pytest.mark.usefixtures("work")
+def test_cli_missing_key_file_counts_failed(runner, lg2_league: Lg2League) -> None:
+    """The run goes on past it, and ends with 2."""
+    folder = location(build_teams(lg2_league, team="Denver"), DENVER)
+    missing = profile_file(folder, DENVER, "off2")
+    missing.unlink()
+    result = runner.invoke(check, ["off2", "off1"])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {missing}: {FILE_NOT_FOUND} {HINT}\n"
+    assert heads(result) == [str(profile_file(folder, DENVER, "off1"))]
+    assert "1 file(s) checked, 1 with violations, 1 failed" in result.stdout
+
+
+def test_cli_no_path_with_team_set(runner, lg2_league: Lg2League, work: Path) -> None:
+    """No PATH is still the current folder, `team` or not."""
+    build_teams(lg2_league, team="Denver")
+    shutil.copy2(OFF1, work / "mine.prf")
+    result = runner.invoke(check, [])
+    assert heads(result) == ["mine.prf"]
+
+
+@pytest.mark.usefixtures("work")
+def test_cli_team_option_with_a_key(runner, lg2_league: Lg2League) -> None:
+    lg2_dir = build_teams(lg2_league, team="Denver")
+    result = runner.invoke(check, ["def1", "--team", "Raiders"])
+    assert heads(result) == [
+        str(profile_file(location(lg2_dir, LAS_VEGAS), LAS_VEGAS, "def1"))
+    ]
+
+
+def test_cli_team_option_without_path(runner) -> None:
+    result = runner.invoke(check, ["--team", "Denver"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith(TEAM_REQUIRES_KEY)
 
 
 # ── rules / config resolution ─────────────────────────────────────────────────

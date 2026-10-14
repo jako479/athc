@@ -2,13 +2,14 @@
 
 check-ppp prints exactly what `profile check --gameplan` printed and what
 `gameplan check` prints, so its reports are compared to their committed goldens.
-Every rule, and the league file that pairs a directory's files, comes from the
-league folder.
+Every rule, the league files that name each team's files, and your team come
+from the league folder.
 """
 
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -27,7 +28,7 @@ from athc.errors import (
     PATH_NOT_FOUND,
     AthcError,
 )
-from athc.fbpro98_lg2.schema import FILENAME_SIZE, FOLDER_SIZE, TEAM_TRAILER_SIZE
+from athc.fbpro98_lge import read_lge
 from tests.conftest import (
     CATEGORIES_TOML,
     LEAGUE,
@@ -40,101 +41,46 @@ from tests.conftest import (
 from tests.integration.conftest import (
     COMPAT_OFF_CLEAN,
     DEF1,
+    DENVER_PAIRS,
     EXPECTED,
     GP_DEFENSE,
     GP_OFFENSE,
     GP_RULES,
     OFF1,
     PLAYS,
-    PNFL_LG2,
+    PNFL_LGE,
     PPP_TREE,
     RULES_TOML,
+    TEAM_NAMES,
+    BuildLeague,
+    lge,
+    team,
 )
+from tests.integration.conftest import DENVER_2049 as DENVER
+from tests.integration.conftest import LAS_VEGAS_2049 as LAS_VEGAS
 
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
-BuildLeague = Callable[..., Path]
 PROFILE_FLAG_OFF_TOML = """[gameplan_compatibility]
 require_all_profile_categories_in_gameplan = false
 """
+TEAM_NOT_SET = (
+    "Team is not set. Run 'athc config set team NAME' or pass --team or --all-teams."
+)
+LEAGUE_LOCATION_HINT = "Run 'athc config set ppp_path FOLDER' or pass the folder."
 
 
 @pytest.fixture
-def league(make_league: MakeLeague) -> BuildLeague:
-    """Build a league folder holding check-ppp's rules; None leaves one out."""
-
-    def _build(
-        name: str = LEAGUE,
-        *,
-        profile_rules: Path | None = RULES_TOML,
-        gameplan_rules: Path | None = GP_RULES,
-        play_path: Path | None = PLAYS,
-        path: Path | str | None = None,
-    ) -> Path:
-        settings = [("play_path", play_path), ("path", path)]
-        lines = [f"{key} = '{value}'\n" for key, value in settings if value]
-        body = "[league]\n" + "".join(lines) + CATEGORIES_TOML if lines else None
-        folder = make_league(name, body)
-        for source, target in (
-            (profile_rules, "profile.toml"),
-            (gameplan_rules, "gameplan.toml"),
-        ):
-            if source is not None:
-                shutil.copy(source, folder / target)
-        return folder
-
-    return _build
-
-
-@pytest.fixture
-def full_league(league: BuildLeague, write_config: WriteConfig) -> Path:
+def full_league(build_league: BuildLeague, write_config: WriteConfig) -> Path:
     """A league with every rule file, selected by `[athc] league` in athc.ini."""
-    folder = league()
+    folder = build_league()
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     return folder
-
-
-@pytest.fixture
-def lg2_league(
-    league: BuildLeague, write_config: WriteConfig, tmp_path: Path
-) -> Callable[..., Path]:
-    """A league selected in athc.ini whose `path` folder holds its .lg2
-    (named after the league), built from `teams`; keyword arguments go to
-    `league`. Returns the .lg2 path."""
-
-    def _build(*teams: bytes, **kwargs) -> Path:
-        lg2_dir = tmp_path / "lg2"
-        lg2_dir.mkdir()
-        lg2 = lg2_dir / f"{LEAGUE}.lg2"
-        lg2.write_bytes(b"".join(teams))
-        league(path=lg2_dir, **kwargs)
-        write_config(f"[athc]\nleague = {LEAGUE}\n")
-        return lg2
-
-    return _build
 
 
 # The TST files under their own names, so the goldens apply.
 OFF = ("TST-OFF1.prf", "offense.pln")
 DEF = ("TST-DEF1.prf", "defense.pln")
-
-
-def team(
-    off1: tuple[str, str] = ("none-o1.prf", "none-o1.pln"),
-    def1: tuple[str, str] = ("none-d1.prf", "none-d1.pln"),
-    off2: tuple[str, str] = ("none-o2.prf", "none-o2.pln"),
-    def2: tuple[str, str] = ("none-d2.prf", "none-d2.pln"),
-    folder: str = "PNFL\\2049\\Plans\\Team",
-) -> bytes:
-    """One .lg2 team record from its (profile, gameplan) name pairs; a pair not
-    given names files that are never on disk."""
-    names = (*off1, *def1, *off2, *def2)
-    entries = b"".join(
-        folder.encode("ascii").ljust(FOLDER_SIZE, b"\x00")
-        + name.encode("ascii").ljust(FILENAME_SIZE, b"\x00")
-        for name in names
-    )
-    return entries + bytes(TEAM_TRAILER_SIZE)
 
 
 def put(folder: Path, *files: Path | tuple[Path, str]) -> Path:
@@ -187,13 +133,37 @@ def write_bytes(tmp_path: Path, name: str, data: bytes = b"\x00\x01\x02") -> Pat
     return path
 
 
-# ── arguments: a pair of files or one directory ───────────────────────────────
+def set_league(folder: Path, **settings: str | Path) -> None:
+    """Add `[league]` settings to the league folder's league.toml."""
+    toml = folder / "league.toml"
+    lines = "".join(f"{key} = '{value}'\n" for key, value in settings.items())
+    text = toml.read_text(encoding="utf-8").replace("[league]\n", "[league]\n" + lines)
+    toml.write_text(text, encoding="utf-8")
 
 
-def test_cli_requires_a_path(runner) -> None:
+def heads(result: Result) -> list[str]:
+    """The path of each report's first line, in order."""
+    return [
+        line.split(": ")[0]
+        for line in result.stdout.splitlines()
+        if line and not line.startswith(" ") and "file(s) checked" not in line
+    ]
+
+
+def tally(result: Result) -> str:
+    """The tally, the last line on stdout."""
+    return result.stdout.splitlines()[-1]
+
+
+# ── arguments: a pair of files, one folder, or none ───────────────────────────
+
+
+def test_cli_requires_a_path(runner, full_league: Path) -> None:
+    """With no path, the run needs a team: no `team`, no team flag."""
     result = run(runner)
     assert result.exit_code == 2
-    assert "Missing argument" in result.stderr
+    assert result.stderr == f"FAIL {full_league / 'league.toml'}: {TEAM_NOT_SET}\n"
+    assert result.stdout == ""
 
 
 def test_cli_rejects_a_third_path(runner, full_league: Path) -> None:
@@ -202,15 +172,50 @@ def test_cli_rejects_a_third_path(runner, full_league: Path) -> None:
     assert "unexpected extra argument" in result.stderr
 
 
-@pytest.mark.parametrize("path", [OFF1, GP_OFFENSE])
-def test_cli_one_file_is_an_error(runner, full_league: Path, path: Path) -> None:
-    """A profile or a gameplan alone is never checked: both are required."""
+@pytest.mark.parametrize(
+    ("extra", "line"),
+    [
+        ((), None),
+        ((DEF1,), f"Got unexpected extra argument ({DEF1})."),
+        ((DEF1, GP_DEFENSE), f"Got unexpected extra arguments ({DEF1} {GP_DEFENSE})."),
+    ],
+    ids=["two", "three", "four"],
+)
+def test_cli_path_count(
+    runner, full_league: Path, extra: tuple[Path, ...], line: str | None
+) -> None:
+    """Two paths are a pair; a third is Click's own line, with the period."""
+    result = run(runner, OFF1, GP_OFFENSE, *extra)
+    if line is None:
+        assert result.exit_code == 1
+        assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
+    else:
+        assert result.exit_code == 2
+        assert result.stderr.endswith(f"Error: {line}\n")
+
+
+@pytest.mark.parametrize(
+    ("path", "line"),
+    [
+        (
+            OFF1,
+            "No game plan given. To check a profile alone, run athc profile check.",
+        ),
+        (
+            GP_OFFENSE,
+            "No profile given. To check a game plan alone, run athc gameplan check.",
+        ),
+    ],
+    ids=["profile", "game plan"],
+)
+def test_cli_one_file_is_an_error(
+    runner, full_league: Path, path: Path, line: str
+) -> None:
+    """A profile or a gameplan alone is never checked: the line names the
+    command that checks it alone."""
     result = run(runner, path)
     assert result.exit_code == 2
-    assert result.stderr == (
-        f"FAIL {path}: {DIRECTORY_INVALID} Pass one profile and one gameplan, "
-        "or a folder.\n"
-    )
+    assert result.stderr == f"FAIL {path}: {line}\n"
     assert result.stdout == ""
 
 
@@ -221,6 +226,37 @@ def test_cli_one_missing_path(runner, full_league: Path, tmp_path: Path) -> None
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {missing}: {PATH_NOT_FOUND}\n"
     assert result.stdout == ""
+
+
+def test_cli_team_and_all_teams_together(runner, full_league: Path) -> None:
+    result = run(runner, "--team", "Denver", "--all-teams")
+    assert result.exit_code == 2
+    assert result.stderr.endswith(
+        "Error: --team and --all-teams cannot be used together.\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "flag", [("--team", "Denver"), ("--all-teams",)], ids=["--team", "--all-teams"]
+)
+def test_cli_team_flag_with_two_files(
+    runner, full_league: Path, flag: tuple[str, ...]
+) -> None:
+    result = run(runner, *flag, OFF1, GP_OFFENSE)
+    assert result.exit_code == 2
+    assert result.stderr.endswith(
+        "Error: --team and --all-teams cannot be used with files.\n"
+    )
+    assert result.stdout == ""
+
+
+def test_help_shows_the_team_options(runner) -> None:
+    result = run(runner, "--help")
+    assert result.exit_code == 0
+    output = " ".join(result.stdout.split())  # the help text wraps
+    assert "Usage: check-ppp [OPTIONS] [PATH]..." in output
+    assert "--team NAME Team to check (default: team in league.toml)." in output
+    assert "-a, --all-teams Every team in the league." in output
 
 
 # ── both files ────────────────────────────────────────────────────────────────
@@ -253,12 +289,12 @@ def test_cli_both_matches_existing_reports(
 
 
 def test_cli_unused_gameplan_categories_are_info(
-    runner, league: BuildLeague, write_config: WriteConfig, tmp_path: Path
+    runner, build_league: BuildLeague, write_config: WriteConfig, tmp_path: Path
 ) -> None:
     """With the gameplan rules' `require_all_gameplan_categories_in_profile`
     off, a gameplan category the profile never uses is only an info line and
     does not count; a profile category the gameplan lacks still fails."""
-    league(gameplan_rules=gameplan_rules(tmp_path, reverse=False))
+    build_league(gameplan_rules=gameplan_rules(tmp_path, reverse=False))
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, DEF1, GP_DEFENSE)
     assert result.exit_code == 1
@@ -285,12 +321,12 @@ def test_cli_file_order_does_not_matter(runner, full_league: Path) -> None:
 
 def test_cli_both_clean_exit_0(
     runner,
-    league: BuildLeague,
+    build_league: BuildLeague,
     write_config: WriteConfig,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    league(
+    build_league(
         profile_rules=write_toml(tmp_path, PROFILE_FLAG_OFF_TOML),
         gameplan_rules=gameplan_rules(tmp_path, reverse=False),
     )
@@ -312,7 +348,7 @@ def test_cli_both_clean_exit_0(
 
 def test_cli_unused_gameplan_categories_alone_exit_0(
     runner,
-    league: BuildLeague,
+    build_league: BuildLeague,
     write_config: WriteConfig,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -320,7 +356,7 @@ def test_cli_unused_gameplan_categories_alone_exit_0(
     """Both files pass their own rules and the gameplan backs every profile
     category; the 10 gameplan categories the profile never uses are only info,
     reported even with the league's flags off."""
-    league(
+    build_league(
         profile_rules=write_toml(tmp_path, PROFILE_FLAG_OFF_TOML),
         gameplan_rules=gameplan_rules(tmp_path, reverse=False),
     )
@@ -353,7 +389,7 @@ def test_cli_unused_gameplan_categories_alone_exit_0(
 )
 def test_cli_cross_check_follows_league_settings(
     runner,
-    league: BuildLeague,
+    build_league: BuildLeague,
     write_config: WriteConfig,
     tmp_path: Path,
     forward: bool,
@@ -372,7 +408,7 @@ def test_cli_cross_check_follows_league_settings(
         "[gameplan_compatibility]\n"
         f"require_all_profile_categories_in_gameplan = {str(forward).lower()}\n"
     )
-    league(
+    build_league(
         profile_rules=write_toml(tmp_path, settings),
         gameplan_rules=gameplan_rules(tmp_path, reverse=reverse),
     )
@@ -582,11 +618,11 @@ def test_cli_rules_from_league_set_in_athc_ini(runner, full_league: Path) -> Non
 
 def test_cli_no_profile_rules_in_league(
     runner,
-    league: BuildLeague,
+    build_league: BuildLeague,
     write_config: WriteConfig,
 ) -> None:
     """A rules error stops the rule checks for both files, not just its own."""
-    league(profile_rules=None)
+    build_league(profile_rules=None)
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
@@ -596,11 +632,11 @@ def test_cli_no_profile_rules_in_league(
 
 def test_cli_no_gameplan_rules_in_league(
     runner,
-    league: BuildLeague,
+    build_league: BuildLeague,
     write_config: WriteConfig,
 ) -> None:
     """A rules error stops the rule checks for both files, not just its own."""
-    league(gameplan_rules=None)
+    build_league(gameplan_rules=None)
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
@@ -609,11 +645,11 @@ def test_cli_no_gameplan_rules_in_league(
 
 
 def test_cli_rules_error_stops_before_the_files(
-    runner, league: BuildLeague, write_config: WriteConfig
+    runner, build_league: BuildLeague, write_config: WriteConfig
 ) -> None:
     """A setup problem stops the run before any file is read: no side-mismatch
     line, no report, no summary."""
-    league(profile_rules=None)
+    build_league(profile_rules=None)
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, OFF1, GP_DEFENSE)
     assert result.exit_code == 2
@@ -632,11 +668,11 @@ def test_cli_config_error_stops_before_the_files(
 
 
 def test_cli_first_config_error_stops_the_run(
-    runner, league: BuildLeague, write_config: WriteConfig, tmp_path: Path
+    runner, build_league: BuildLeague, write_config: WriteConfig, tmp_path: Path
 ) -> None:
     """No rules for either side and no play pool: the first problem found is
     the one reported."""
-    league(profile_rules=None, gameplan_rules=None, play_path=tmp_path / "nope")
+    build_league(profile_rules=None, gameplan_rules=None, play_path=tmp_path / "nope")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
@@ -646,46 +682,46 @@ def test_cli_first_config_error_stops_the_run(
 
 def test_cli_no_play_path(
     runner,
-    league: BuildLeague,
+    build_league: BuildLeague,
     write_config: WriteConfig,
 ) -> None:
-    folder = league(play_path=None)
+    folder = build_league(play_path=None)
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {folder / 'league.toml'}: No play_path for the league. "
-        "Set play_path in this file.\n"
+        f"FAIL {folder / 'league.toml'}: Play pool folder is not set. "
+        "Run 'athc config set play_path FOLDER'.\n"
     )
 
 
 def test_cli_play_path_not_a_directory(
     runner,
-    league: BuildLeague,
+    build_league: BuildLeague,
     write_config: WriteConfig,
     tmp_path: Path,
 ) -> None:
-    folder = league(play_path=tmp_path / "nope")
+    build_league(play_path=tmp_path / "nope")
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert result.stderr == (
         f"FAIL {tmp_path / 'nope'}: {PATH_NOT_FOUND} "
-        f"Set play_path in {folder / 'league.toml'}.\n"
+        "Run 'athc config set play_path FOLDER'.\n"
     )
 
 
 @pytest.mark.parametrize("side", ["profile", "gameplan"])
 def test_cli_bad_rules_toml(
     runner,
-    league: BuildLeague,
+    build_league: BuildLeague,
     write_config: WriteConfig,
     tmp_path: Path,
     side: str,
 ) -> None:
     """Bad rules for one side; neither file is checked."""
     bad = write_toml(tmp_path, "not = valid = toml")
-    folder = league(**{f"{side}_rules": bad})  # copied in as <side>.toml
+    folder = build_league(**{f"{side}_rules": bad})  # copied in as <side>.toml
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
@@ -716,11 +752,11 @@ def test_cli_rule_lists_in_league_toml(
 @pytest.mark.parametrize("key", ["profile_rules", "gameplan_rules"])
 def test_cli_missing_listed_rules_file(
     runner,
-    league: BuildLeague,
+    build_league: BuildLeague,
     write_config: WriteConfig,
     key: str,
 ) -> None:
-    folder = league()
+    folder = build_league()
     (folder / "league.toml").write_text(
         f"[league]\nplay_path = '{PLAYS}'\n{key} = ['gone.toml']\n" + CATEGORIES_TOML,
         encoding="utf-8",
@@ -756,12 +792,13 @@ def test_dir_checks_each_pair_in_league_file_order(
     each pair reads exactly as two-file mode prints it."""
     lg2_league(team(off1=OFF, def1=DEF))
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE, DEF1, GP_DEFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 1
     files = [folder / p.name for p in (OFF1, GP_OFFENSE, DEF1, GP_DEFENSE)]
     assert normalized(result, *files) == (
         golden("compat_offense", "offense", "compat_defense", "defense")
-        + "\n4 file(s) checked, 4 with violations, 0 failed\n"
+        + "\n4 file(s) checked, 4 with violations, 0 failed, 0 missing, "
+        "0 team(s) with no files\n"
     )
 
 
@@ -777,31 +814,33 @@ def test_dir_clean_exit_0(
         "athc.cli.check_ppp.gameplan_extra_categories", lambda prof, gp: ()
     )
     folder = put(tmp_path / "plans", COMPAT_OFF_CLEAN, GP_OFFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 0
     assert result.stdout == (
         f"OK   {folder / 'compat_off_clean.prf'}: offense, FG range 20; "
         "gameplan compatible\n"
         f"OK   {folder / 'offense.pln'}: offense, 64 normal\n"
-        "\n2 file(s) checked, 0 with violations, 0 failed\n"
+        "\n2 file(s) checked, 0 with violations, 0 failed, 0 missing, "
+        "0 team(s) with no files\n"
     )
 
 
 def test_dir_teams_in_league_file_order(runner, lg2_league, tmp_path: Path) -> None:
     lg2_league(team(def1=DEF), team(off1=OFF))
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE, DEF1, GP_DEFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     files = [folder / p.name for p in (OFF1, GP_OFFENSE, DEF1, GP_DEFENSE)]
     assert normalized(result, *files) == (
         golden("compat_defense", "defense", "compat_offense", "offense")
-        + "\n4 file(s) checked, 4 with violations, 0 failed\n"
+        + "\n4 file(s) checked, 4 with violations, 0 failed, 0 missing, "
+        "0 team(s) with no files\n"
     )
 
 
 def test_dir_second_half_pairs(runner, lg2_league, tmp_path: Path) -> None:
     lg2_league(team(off2=OFF, def2=DEF))
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE, DEF1, GP_DEFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 1
     assert "4 file(s) checked, 4 with violations, 0 failed" in result.stdout
 
@@ -809,33 +848,37 @@ def test_dir_second_half_pairs(runner, lg2_league, tmp_path: Path) -> None:
 def test_dir_names_ignore_case(runner, lg2_league, tmp_path: Path) -> None:
     lg2_league(team(off1=("TST-OFF1.PRF", "OFFENSE.PLN")))
     folder = put(tmp_path / "plans", (OFF1, "tst-off1.prf"), GP_OFFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 1
     assert result.stdout.startswith(f"{folder / 'tst-off1.prf'}: ")
     assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
 
 
 def test_dir_half_a_pair_is_skipped(runner, lg2_league, tmp_path: Path) -> None:
-    """TST-OFF1.prf's gameplan is not there, so only the defense pair runs."""
+    """TST-OFF1.prf's gameplan is not there: the profile is checked alone, its
+    gameplan a `WARN` where its report would be, counted as missing."""
     lg2_league(team(off1=OFF, def1=DEF))
     folder = put(tmp_path / "plans", OFF1, DEF1, GP_DEFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 1
-    files = [folder / p.name for p in (DEF1, GP_DEFENSE)]
+    assert f"WARN {folder / 'offense.pln'}: {FILE_NOT_FOUND}\n" in result.stderr
+    files = [folder / p.name for p in (OFF1, DEF1, GP_DEFENSE)]
     assert normalized(result, *files) == (
-        golden("compat_defense", "defense")
-        + "\n2 file(s) checked, 2 with violations, 0 failed\n"
+        golden("TST-OFF1", "compat_defense", "defense")
+        + "\n3 file(s) checked, 3 with violations, 0 failed, 1 missing, "
+        "0 team(s) with no files\n"
     )
 
 
 def test_dir_unlisted_files_are_ignored(runner, lg2_league, tmp_path: Path) -> None:
     lg2_league(team(off1=OFF))
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE, DEF1, (GP_DEFENSE, "spare.pln"))
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     files = [folder / p.name for p in (OFF1, GP_OFFENSE)]
     assert normalized(result, *files) == (
         golden("compat_offense", "offense")
-        + "\n2 file(s) checked, 2 with violations, 0 failed\n"
+        + "\n2 file(s) checked, 2 with violations, 0 failed, 0 missing, "
+        "0 team(s) with no files\n"
     )
 
 
@@ -846,7 +889,7 @@ def test_dir_shared_gameplan_is_reported_once(
     profile gets its own cross-check against it."""
     lg2_league(team(off1=OFF, off2=("compat_off_clean.prf", "offense.pln")))
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE, COMPAT_OFF_CLEAN)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     files = [folder / p.name for p in (OFF1, GP_OFFENSE, COMPAT_OFF_CLEAN)]
     pair = normalized(
         run(runner, COMPAT_OFF_CLEAN, GP_OFFENSE), COMPAT_OFF_CLEAN, GP_OFFENSE
@@ -864,7 +907,7 @@ def test_dir_profile_in_two_pairs_is_reported_twice(
     gameplans is reported with each."""
     lg2_league(team(off1=OFF, off2=("TST-OFF1.prf", "other.pln")))
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE, (GP_OFFENSE, "other.pln"))
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 1
     assert result.stdout.count(f"{folder / 'TST-OFF1.prf'}: ") == 2
     assert "4 file(s) checked, 4 with violations, 0 failed" in result.stdout
@@ -875,7 +918,7 @@ def test_dir_same_pair_twice_is_checked_once(
 ) -> None:
     lg2_league(team(off1=OFF), team(off1=OFF))
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
 
 
@@ -885,35 +928,34 @@ def test_dir_league_file_folders_are_ignored(
     """Only the file names count; the folder in each .lg2 entry doesn't."""
     lg2_league(team(off1=OFF, folder="Somewhere\\Else"))
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
-    assert run(runner, folder).exit_code == 1
+    assert run(runner, "--all-teams", folder).exit_code == 1
 
 
 def test_dir_subfolders_are_not_searched(runner, lg2_league, tmp_path: Path) -> None:
-    """No pairs is not an error, since no file has to be there: a warning,
-    exit 0."""
+    """No file has to be there, so a team with none is a warning, exit 0."""
     lg2_league(team(off1=OFF))
     folder = tmp_path / "plans"
     put(folder / "week1", OFF1, GP_OFFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 0
-    assert result.stdout == "\n0 file(s) checked, 0 with violations, 0 failed\n"
-    assert result.stderr.endswith(
-        f"WARN {folder}: No profile and gameplan pairs from the league file in "
-        "directory.\n"
+    assert result.stdout == (
+        "\n0 file(s) checked, 0 with violations, 0 failed, 0 missing, "
+        "1 team(s) with no files\n"
     )
+    assert result.stderr.endswith(f"WARN {folder}: No files for 1 team(s): Denver.\n")
 
 
 def test_dir_empty(runner, lg2_league, tmp_path: Path) -> None:
     lg2_league(team(off1=OFF))
     folder = tmp_path / "plans"
     folder.mkdir()
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 0
-    assert result.stdout == "\n0 file(s) checked, 0 with violations, 0 failed\n"
-    assert result.stderr.endswith(
-        f"WARN {folder}: No profile and gameplan pairs from the league file in "
-        "directory.\n"
+    assert result.stdout == (
+        "\n0 file(s) checked, 0 with violations, 0 failed, 0 missing, "
+        "1 team(s) with no files\n"
     )
+    assert result.stderr.endswith(f"WARN {folder}: No files for 1 team(s): Denver.\n")
 
 
 def test_dir_locked_gameplan_is_access_denied(
@@ -927,7 +969,7 @@ def test_dir_locked_gameplan_is_access_denied(
         raise PermissionError(13, "Permission denied", path)
 
     monkeypatch.setattr("athc.cli.check_ppp.read_gameplan", locked)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
     assert f"FAIL {folder / GP_OFFENSE.name}: {ACCESS_DENIED}\n" in result.stderr
 
@@ -944,12 +986,15 @@ def test_dir_expected_error_in_a_pair_is_its_fail_line(
         raise AthcError("Rules exploded.")
 
     monkeypatch.setattr("athc.cli.check_ppp.validate_profile", boom)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
     pair = f"{folder / OFF1.name} + {folder / GP_OFFENSE.name}"
     assert result.stderr.splitlines()[-1] == f"FAIL {pair}: Rules exploded."
     assert "unexpected error" not in result.stderr
-    assert result.stdout.endswith("0 file(s) checked, 0 with violations, 1 failed\n")
+    assert result.stdout.endswith(
+        "0 file(s) checked, 0 with violations, 1 failed, 0 missing, "
+        "0 team(s) with no files\n"
+    )
 
 
 def test_dir_setup_error_stops_before_the_pairs(
@@ -959,7 +1004,7 @@ def test_dir_setup_error_stops_before_the_pairs(
     lg2_league(team(off1=OFF), profile_rules=None)
     folder = tmp_path / "plans"
     folder.mkdir()
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
     assert result.stderr == no_rules_configured("profile.toml")
     assert result.stdout == ""
@@ -993,15 +1038,18 @@ def test_dir_unreadable_directory_has_no_pairs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Skipped like `os.walk` does, so it reads as a folder with no pairs."""
+    """Skipped like `os.walk` does, so it reads as a folder with no files."""
     lg2_league(team(off1=OFF))
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
     message = deny(monkeypatch, folder)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 0
-    assert result.stdout == "\n0 file(s) checked, 0 with violations, 0 failed\n"
+    assert result.stdout == (
+        "\n0 file(s) checked, 0 with violations, 0 failed, 0 missing, "
+        "1 team(s) with no files\n"
+    )
     assert message not in result.stderr
-    assert "No profile and gameplan pairs from the league file" in result.stderr
+    assert f"WARN {folder}: No files for 1 team(s): Denver.\n" in result.stderr
 
 
 def test_dir_side_mismatch_is_that_pairs_error(
@@ -1011,7 +1059,7 @@ def test_dir_side_mismatch_is_that_pairs_error(
     gameplan it shares with a later pair is reported there."""
     lg2_league(team(off1=("TST-OFF1.prf", "defense.pln"), def1=DEF))
     folder = put(tmp_path / "plans", OFF1, DEF1, GP_DEFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
     files = [folder / p.name for p in (OFF1, DEF1, GP_DEFENSE)]
     assert (
@@ -1020,7 +1068,8 @@ def test_dir_side_mismatch_is_that_pairs_error(
     )
     assert normalized(result, *files) == (
         golden("compat_defense", "defense")
-        + "\n3 file(s) checked, 2 with violations, 1 failed\n"
+        + "\n3 file(s) checked, 2 with violations, 1 failed, 0 missing, "
+        "0 team(s) with no files\n"
     )
 
 
@@ -1028,11 +1077,13 @@ def test_dir_unreadable_file(runner, lg2_league, tmp_path: Path) -> None:
     lg2_league(team(off1=("broken.prf", "offense.pln")))
     folder = put(tmp_path / "plans", GP_OFFENSE)
     bad = write_bytes(folder, "broken.prf")
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
     assert f"FAIL {bad}: " in result.stderr
     assert normalized(result, folder / "offense.pln") == (
-        golden("offense") + "\n2 file(s) checked, 1 with violations, 1 failed\n"
+        golden("offense")
+        + "\n2 file(s) checked, 1 with violations, 1 failed, 0 missing, "
+        "0 team(s) with no files\n"
     )
 
 
@@ -1043,7 +1094,7 @@ def test_dir_unreadable_shared_gameplan_is_reported_once(
     lg2_league(team(off1=("TST-OFF1.prf", "broken.pln"), off2=("x.prf", "broken.pln")))
     folder = put(tmp_path / "plans", OFF1, (OFF1, "x.prf"))
     bad = write_bytes(folder, "broken.pln")
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
     assert result.stderr.count(f"FAIL {bad}: ") == 1
     assert heads(result) == [str(folder / "TST-OFF1.prf"), str(folder / "x.prf")]
@@ -1061,7 +1112,7 @@ def test_dir_setup_error_stops_before_the_files(
     )
     folder = put(tmp_path / "plans", OFF1, GP_DEFENSE)
     write_bytes(folder, "broken.prf")
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
     assert result.stderr == no_rules_configured("profile.toml")
     assert result.stdout == ""
@@ -1070,7 +1121,7 @@ def test_dir_setup_error_stops_before_the_files(
 def test_dir_no_league(runner, config_dir: Path, tmp_path: Path) -> None:
     """Every setup piece needs the league; the error is logged once."""
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
     assert result.stderr == no_league_selected(config_dir)
     assert result.stdout == ""
@@ -1078,30 +1129,31 @@ def test_dir_no_league(runner, config_dir: Path, tmp_path: Path) -> None:
 
 def test_dir_no_path(runner, full_league: Path, tmp_path: Path) -> None:
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
     assert (
-        f"FAIL {full_league / 'league.toml'}: No path for the league. "
-        "Set path in this file." in result.stderr
+        f"FAIL {full_league / 'league.toml'}: League files folder is not set. "
+        "Run 'athc config set path FOLDER' or pass the folder." in result.stderr
     )
     assert result.stdout == ""
 
 
 def test_dir_first_setup_error_stops_the_run(
-    runner, league: BuildLeague, write_config: WriteConfig, tmp_path: Path
+    runner, build_league: BuildLeague, write_config: WriteConfig, tmp_path: Path
 ) -> None:
-    league(profile_rules=None)  # and no `path` either
+    """No team, no `path` and no profile rules: `team` is read first."""
+    folder = build_league(profile_rules=None)  # and no `path` or `team` either
     write_config(f"[athc]\nleague = {LEAGUE}\n")
-    folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
-    result = run(runner, folder)
+    plans = put(tmp_path / "plans", OFF1, GP_OFFENSE)
+    result = run(runner, plans)
     assert result.exit_code == 2
-    assert result.stderr == no_rules_configured("profile.toml")
+    assert result.stderr == f"FAIL {folder / 'league.toml'}: {TEAM_NOT_SET}\n"
 
 
 def test_dir_bad_league_file(runner, lg2_league, tmp_path: Path) -> None:
     lg2 = lg2_league(b"\x00\x01\x02")
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
     assert "not a whole number" in result.stderr and str(lg2) in result.stderr
     assert result.stdout == ""
@@ -1116,7 +1168,7 @@ def test_dir_stock_league_file(
     """Every kind of stock league gets the same one line."""
     lg2 = lg2_league(team(off1=OFF, folder=lg2_folder))
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
     assert f"FAIL {lg2}: Stock league not supported.\n" in result.stderr
     assert result.stdout == ""
@@ -1124,52 +1176,185 @@ def test_dir_stock_league_file(
 
 def test_dir_league_file_missing(
     runner,
-    league: BuildLeague,
+    build_league: BuildLeague,
     write_config: WriteConfig,
     tmp_path: Path,
 ) -> None:
     """`path` is set, but the league's .lg2 isn't in that folder."""
     lg2_dir = tmp_path / "lg2"
     lg2_dir.mkdir()
-    league(path=lg2_dir)
+    build_league(path=lg2_dir)
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
-    result = run(runner, folder)
+    result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
     assert f"{LEAGUE}.lg2" in result.stderr
     assert result.stdout == ""
 
 
 def test_dir_relative_path_is_in_the_league_folder(
-    runner, league: BuildLeague, write_config: WriteConfig, tmp_path: Path
+    runner, build_league: BuildLeague, write_config: WriteConfig, tmp_path: Path
 ) -> None:
-    folder = league(path="lg2")
+    folder = build_league(path="lg2")
     (folder / "lg2").mkdir()
     (folder / "lg2" / f"{LEAGUE}.lg2").write_bytes(team(off1=OFF))
+    (folder / "lg2" / f"{LEAGUE}.lge").write_bytes(lge(TEAM_NAMES[0]))
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     plans = put(tmp_path / "plans", OFF1, GP_OFFENSE)
-    result = run(runner, plans)
+    result = run(runner, "--all-teams", plans)
     assert result.exit_code == 1
     assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
 
 
+# ── a folder: missing files and teams with none ───────────────────────────────
+
+
+def test_dir_missing_partner_keeps_the_code(
+    runner, lg2_league, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A `WARN` never changes the exit code: the game plan alone is clean."""
+    lg2_league(team(off1=("compat_off_clean.prf", "offense.pln")))
+    monkeypatch.setattr(
+        "athc.cli.check_ppp.validate_gameplan", lambda gp, rules, pool: ()
+    )
+    folder = put(tmp_path / "plans", GP_OFFENSE)
+    result = run(runner, "--all-teams", folder)
+    assert result.exit_code == 0
+    assert (
+        f"WARN {folder / 'compat_off_clean.prf'}: {FILE_NOT_FOUND}\n" in result.stderr
+    )
+    assert result.stdout == (
+        f"OK   {folder / 'offense.pln'}: offense, 64 normal\n"
+        "\n1 file(s) checked, 0 with violations, 0 failed, 1 missing, "
+        "0 team(s) with no files\n"
+    )
+
+
+def test_dir_shared_gameplan_missing_once(runner, lg2_league, tmp_path: Path) -> None:
+    """A game plan two pairs share is noted missing once; each profile is
+    checked alone."""
+    lg2_league(team(off1=OFF, off2=("x.prf", "offense.pln")))
+    folder = put(tmp_path / "plans", OFF1, (OFF1, "x.prf"))
+    result = run(runner, "--all-teams", folder)
+    assert result.exit_code == 1
+    assert result.stderr.count(f"WARN {folder / 'offense.pln'}: ") == 1
+    assert heads(result) == [str(folder / "TST-OFF1.prf"), str(folder / "x.prf")]
+    assert tally(result) == (
+        "2 file(s) checked, 2 with violations, 0 failed, 1 missing, "
+        "0 team(s) with no files"
+    )
+
+
+def test_dir_whole_pair_missing_prints_nothing(
+    runner, lg2_league, tmp_path: Path
+) -> None:
+    lg2_league(team(off1=OFF, def1=DEF))
+    folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
+    result = run(runner, "--all-teams", folder)
+    assert "TST-DEF1.prf" not in result.stderr + result.stdout
+    assert "defense.pln" not in result.stderr + result.stdout
+    assert tally(result) == (
+        "2 file(s) checked, 2 with violations, 0 failed, 0 missing, "
+        "0 team(s) with no files"
+    )
+
+
+def test_dir_missing_file_in_league_file_spelling(
+    runner, lg2_league, tmp_path: Path
+) -> None:
+    """A found file prints its on-disk name; a missing one the league file's."""
+    lg2_league(team(off1=("TST-OFF1.PRF", "OFFENSE.PLN")))
+    folder = put(tmp_path / "plans", GP_OFFENSE)
+    result = run(runner, "--all-teams", folder)
+    assert f"WARN {folder / 'TST-OFF1.PRF'}: {FILE_NOT_FOUND}\n" in result.stderr
+    assert heads(result) == [str(folder / "offense.pln")]
+
+
+@pytest.mark.parametrize("others", [True, False], ids=["others' files", "empty"])
+def test_dir_your_team_with_no_files(
+    runner, lg2_league, tmp_path: Path, others: bool
+) -> None:
+    """One team with no file in the folder: one `WARN` with the names the
+    league file gives its files, whether other teams' files are there or not."""
+    lg2_league(team(off1=OFF), team(def1=DEF), team="Las Vegas")
+    folder = tmp_path / "plans"
+    folder.mkdir()
+    if others:
+        put(folder, OFF1, GP_OFFENSE)
+    result = run(runner, folder)
+    assert result.exit_code == 0
+    assert result.stderr.endswith(
+        f"WARN {folder}: No Las Vegas files. The league file names none-o1.prf, "
+        "none-o1.pln, TST-DEF1.prf, defense.pln, none-o2.prf, none-o2.pln, "
+        "none-d2.prf, none-d2.pln.\n"
+    )
+    assert (
+        result.stdout == "\n0 file(s) checked, 0 with violations, 0 failed, 0 missing\n"
+    )
+
+
+def test_dir_no_files_names_each_file_once(
+    runner, pnfl_league: Path, tmp_path: Path
+) -> None:
+    """Las Vegas uses one game plan per side for both halves."""
+    folder = tmp_path / "plans"
+    folder.mkdir()
+    result = run(runner, "--team", "Las Vegas", folder)
+    assert result.stderr.endswith(
+        f"WARN {folder}: No Las Vegas files. The league file names LVOFF1.prf, "
+        "RAIDEROFF.pln, LVDEF1.prf, RAIDERDEF.pln, LVOFF2.prf, LVDEF2.prf.\n"
+    )
+
+
+def test_dir_all_teams_with_no_files_on_one_line(
+    runner, lg2_league, tmp_path: Path
+) -> None:
+    """Every team with no file, in `.lge` order, on one line."""
+    lg2_league(team(), team(def1=DEF), team())
+    folder = put(tmp_path / "plans", DEF1, GP_DEFENSE)
+    result = run(runner, "--all-teams", folder)
+    assert result.exit_code == 1
+    assert result.stderr.endswith(
+        f"WARN {folder}: No files for 2 team(s): Denver, Jacksonville.\n"
+    )
+    assert tally(result) == (
+        "2 file(s) checked, 2 with violations, 0 failed, 0 missing, "
+        "2 team(s) with no files"
+    )
+
+
+def test_dir_all_teams_real_league(runner, pnfl_league: Path) -> None:
+    lge_teams = read_lge("PNFL", PNFL_LGE.parent).teams
+    others = ", ".join(t.name for t in lge_teams if t.name != "Denver")
+    result = run(runner, "--all-teams", DENVER)
+    assert result.stderr.endswith(
+        f"WARN {DENVER}: No files for 17 team(s): {others}.\n"
+    )
+    assert tally(result).endswith(", 0 missing, 17 team(s) with no files")
+
+
+def test_tree_is_the_scope_for_no_files(runner, lg2_league, tmp_path: Path) -> None:
+    """With `-r` the team's files anywhere in the tree count; with none in it,
+    the one `WARN` names the top folder."""
+    lg2_league(team(off1=OFF), team(), team="Denver")
+    folder = tmp_path / "plans"
+    week1 = put(folder / "week1", OFF1, GP_OFFENSE)
+    found = run(runner, "-r", folder)
+    assert "No Denver files" not in found.stderr
+    assert heads(found) == [str(week1 / "TST-OFF1.prf"), str(week1 / "offense.pln")]
+    other = run(runner, "-r", "--team", "Las Vegas", folder)
+    assert other.stderr.count("No Las Vegas files.") == 1
+    assert f"WARN {folder}: No Las Vegas files." in other.stderr
+
+
 # ── a tree (-r): each folder on its own ───────────────────────────────────────
-
-
-def heads(result: Result) -> list[str]:
-    """The path of each report's first line, in order."""
-    return [
-        line.split(": ")[0]
-        for line in result.stdout.splitlines()
-        if line and not line.startswith(" ") and "file(s) checked" not in line
-    ]
 
 
 def test_tree_finds_pairs_in_subfolders(runner, lg2_league, tmp_path: Path) -> None:
     lg2_league(team(off1=OFF))
     folder = tmp_path / "plans"
     put(folder / "week1", OFF1, GP_OFFENSE)
-    result = run(runner, "-r", folder)
+    result = run(runner, "--all-teams", "-r", folder)
     assert result.exit_code == 1
     assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
 
@@ -1184,7 +1369,7 @@ def test_tree_folder_order(runner, lg2_league, tmp_path: Path) -> None:
     lower = put(top / "a week", OFF1, GP_OFFENSE)
     nested = put(lower / "z", DEF1, GP_DEFENSE)
     underscore = put(top / "_x", DEF1, GP_DEFENSE)
-    result = run(runner, top, "-r")
+    result = run(runner, "--all-teams", top, "-r")
     assert heads(result) == [
         str(top / "TST-OFF1.prf"),
         str(top / "offense.pln"),
@@ -1204,15 +1389,19 @@ def test_tree_pair_split_across_folders_is_not_found(
     runner, lg2_league, tmp_path: Path
 ) -> None:
     """Weeks and seasons reuse the same names, so a pair is never matched
-    across folders."""
+    across folders: each half is checked alone in its own folder, its partner
+    a `WARN`."""
     lg2_league(team(off1=OFF))
     folder = put(tmp_path / "plans", OFF1)
-    put(folder / "week1", GP_OFFENSE)
-    result = run(runner, "-r", folder)
-    assert result.exit_code == 0
-    assert result.stdout == "\n0 file(s) checked, 0 with violations, 0 failed\n"
-    assert result.stderr.endswith(
-        f"WARN {folder}: No profile and gameplan pairs from the league file in tree.\n"
+    week1 = put(folder / "week1", GP_OFFENSE)
+    result = run(runner, "--all-teams", "-r", folder)
+    assert result.exit_code == 1
+    assert f"WARN {folder / 'offense.pln'}: {FILE_NOT_FOUND}\n" in result.stderr
+    assert f"WARN {week1 / 'TST-OFF1.prf'}: {FILE_NOT_FOUND}\n" in result.stderr
+    assert normalized(result, folder / OFF1.name, week1 / GP_OFFENSE.name) == (
+        golden("TST-OFF1", "offense")
+        + "\n2 file(s) checked, 2 with violations, 0 failed, 2 missing, "
+        "0 team(s) with no files\n"
     )
 
 
@@ -1227,7 +1416,7 @@ def test_tree_unreadable_folder_is_skipped(
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
     locked = put(folder / "locked", OFF1, GP_OFFENSE)
     message = deny(monkeypatch, locked)
-    result = run(runner, "-r", folder)
+    result = run(runner, "--all-teams", "-r", folder)
     assert result.exit_code == 1
     assert message not in result.stderr
     assert heads(result) == [str(folder / "TST-OFF1.prf"), str(folder / "offense.pln")]
@@ -1240,17 +1429,68 @@ def test_tree_flag_with_two_files_is_ignored(runner, full_league: Path) -> None:
     assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
 
 
-# ── real league data: PNFL.lg2 and a copy of its 2049 plans ───────────────────
+# ── league files: the .lg2 and the .lge ───────────────────────────────────────
 
-DENVER = PPP_TREE / "2049" / "Plans" / "Denver (Brian)"
-LAS_VEGAS = PPP_TREE / "2049" / "Plans" / "Las Vegas (Neil)"
-# Each .lg2 pair in file order: 1st-half offense and defense, then 2nd half.
-DENVER_PAIRS = [
-    ("DEN-OFF1.prf", "DEN-OGP1.pln"),
-    ("DEN-DEF1.prf", "DEN-DGP1.pln"),
-    ("DEN-OFF2.prf", "DEN-OGP2.pln"),
-    ("DEN-DEF2.prf", "DEN-DGP2.pln"),
-]
+
+def test_league_lge_missing(runner, lg2_league, tmp_path: Path) -> None:
+    lg2 = lg2_league(team(off1=OFF))
+    lg2.with_suffix(".lge").unlink()
+    result = run(runner, "--all-teams", tmp_path)
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {lg2.with_suffix('.lge')}: {FILE_NOT_FOUND}\n"
+    assert result.stdout == ""
+
+
+@pytest.mark.parametrize(
+    ("record", "line"),
+    [
+        (b"\x00\x01\x02", "is not a whole number"),
+        (team(folder=""), "Stock league not supported."),
+    ],
+    ids=["bad", "stock"],
+)
+def test_league_lg2_errors_come_first(
+    runner, lg2_league, tmp_path: Path, record: bytes, line: str
+) -> None:
+    """The .lg2 is read, and judged, before the .lge."""
+    lg2 = lg2_league(record)
+    lg2.with_suffix(".lge").unlink()
+    result = run(runner, "--all-teams", tmp_path)
+    assert result.exit_code == 2
+    assert result.stderr.startswith(f"FAIL {lg2}: ")
+    assert line in result.stderr
+    assert ".lge" not in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("lg2_teams", "line"),
+    [
+        (2, None),
+        (1, f"Lists 1 team(s), but {LEAGUE}.lge has 2."),
+        (3, f"Lists 3 team(s), but {LEAGUE}.lge has 2."),
+    ],
+    ids=["equal", "one fewer", "one more"],
+)
+def test_league_team_counts(
+    runner, lg2_league, tmp_path: Path, lg2_teams: int, line: str | None
+) -> None:
+    """The two league files must list the same teams."""
+    lg2 = lg2_league(*(team() for _ in range(lg2_teams)), names=TEAM_NAMES[:2])
+    folder = tmp_path / "plans"
+    folder.mkdir()
+    result = run(runner, "--all-teams", folder)
+    if line is None:
+        assert result.exit_code == 0
+        assert tally(result).endswith(", 2 team(s) with no files")
+    else:
+        assert result.exit_code == 2
+        assert result.stderr == f"FAIL {lg2}: {line}\n"
+
+
+# ── the team: `team`, --team, --all-teams ─────────────────────────────────────
+
+# Denver's files in .lg2 order (DENVER_PAIRS, in conftest.py), pair by pair.
+DENVER_FILES = [name for pair in DENVER_PAIRS for name in pair]
 # Las Vegas uses one gameplan per side for both halves.
 LAS_VEGAS_PAIRS = [
     ("LVOFF1.prf", "RAIDEROFF.pln"),
@@ -1258,17 +1498,317 @@ LAS_VEGAS_PAIRS = [
     ("LVOFF2.prf", "RAIDEROFF.pln"),
     ("LVDEF2.prf", "RAIDERDEF.pln"),
 ]
+LAS_VEGAS_HEADS = [
+    "LVOFF1.prf",
+    "RAIDEROFF.pln",
+    "LVDEF1.prf",
+    "RAIDERDEF.pln",
+    "LVOFF2.prf",
+    "LVDEF2.prf",
+]
 
 
-@pytest.fixture
-def pnfl_league(league: BuildLeague, write_config: WriteConfig, tmp_path: Path) -> Path:
-    """The test league, with PNFL.lg2 copied in as its league file."""
-    lg2_dir = tmp_path / "lg2"
-    lg2_dir.mkdir()
-    shutil.copy2(PNFL_LG2, lg2_dir / f"{LEAGUE}.lg2")
-    folder = league(path=lg2_dir)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
-    return folder
+def at_league(tmp_path: Path, team_folder: str) -> Path:
+    """A team's league location in `pnfl_league`: where PNFL.lg2 puts its files."""
+    return tmp_path / "lg2" / "PNFL" / "2049" / "Plans" / team_folder
+
+
+def denver_heads(folder: Path) -> list[str]:
+    return [str(folder / name) for name in DENVER_FILES]
+
+
+def lge_names() -> str:
+    """Every team of PNFL.lge by both names, as the no-match lines list them."""
+    teams = read_lge("PNFL", PNFL_LGE.parent).teams
+    return ", ".join(t.official_name for t in teams)
+
+
+@pytest.mark.parametrize("source", ["team", "--team"])
+@pytest.mark.parametrize(
+    "name", ["Denver", "Broncos", "Denver Broncos", "dENVER bRONCOS"]
+)
+def test_team_by_name_nickname_or_both(
+    runner, pnfl_league: Path, tmp_path: Path, source: str, name: str
+) -> None:
+    """The team name, the nickname or both, without case."""
+    if source == "team":
+        set_league(pnfl_league, team=name)
+        result = run(runner)
+    else:
+        result = run(runner, "--team", name)
+    assert heads(result) == denver_heads(at_league(tmp_path, "Denver (Brian)"))
+
+
+def test_team_matches_no_team(runner, pnfl_league: Path) -> None:
+    set_league(pnfl_league, team="Denvr")
+    result = run(runner)
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {pnfl_league / 'league.toml'}: [league] team: No team named "
+        f"'Denvr'. Teams: {lge_names()}.\n"
+    )
+    assert result.stdout == ""
+
+
+def test_team_option_matches_no_team(runner, pnfl_league: Path) -> None:
+    result = run(runner, "--team", "Denvr")
+    assert result.exit_code == 2
+    assert result.stderr.endswith(
+        "Error: Invalid value for '--team': no team named 'Denvr'. Teams: "
+        f"{lge_names()}.\n"
+    )
+    assert result.stdout == ""
+
+
+NEW_YORK = [("New York", "Giants"), ("New York", "Jets")]
+
+
+def test_team_matches_two_teams(runner, lg2_league, config_dir: Path) -> None:
+    lg2_league(team(), team(), names=NEW_YORK, team="New York")
+    result = run(runner)
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {config_dir / 'leagues' / LEAGUE / 'league.toml'}: [league] team: "
+        "'New York' matches New York Giants and New York Jets. Use the nickname, "
+        "or both names in quotes.\n"
+    )
+
+
+@pytest.mark.parametrize(
+    ("name", "error"),
+    [
+        ("Giants", None),
+        ("Raiders", "no team named 'Raiders'. Teams: New York Giants, New York Jets."),
+        (
+            "New York",
+            "'New York' matches New York Giants and New York Jets. Use the "
+            "nickname, or both names in quotes.",
+        ),
+    ],
+    ids=["one", "none", "two"],
+)
+def test_team_option_match_count(
+    runner, lg2_league, tmp_path: Path, name: str, error: str | None
+) -> None:
+    """Exactly one team must match: one is accepted, none or two rejected."""
+    lg2_league(team(), team(), names=NEW_YORK)
+    folder = tmp_path / "plans"
+    folder.mkdir()
+    result = run(runner, "--team", name, folder)
+    if error is None:
+        assert result.exit_code == 0
+        assert f"WARN {folder}: No New York files." in result.stderr
+    else:
+        assert result.exit_code == 2
+        assert result.stderr.endswith(f"Error: Invalid value for '--team': {error}\n")
+
+
+def test_team_blank_is_not_set(runner, lg2_league, config_dir: Path) -> None:
+    lg2_league(team(), team="  ")
+    result = run(runner)
+    assert result.exit_code == 2
+    toml = config_dir / "leagues" / LEAGUE / "league.toml"
+    assert result.stderr == f"FAIL {toml}: {TEAM_NOT_SET}\n"
+
+
+def test_team_array(runner, pnfl_league: Path) -> None:
+    toml = pnfl_league / "league.toml"
+    text = toml.read_text(encoding="utf-8")
+    text = text.replace("[league]\n", "[league]\nteam = ['Denver']\n")
+    toml.write_text(text, encoding="utf-8")
+    result = run(runner)
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {toml}: [league] team: Expected a string, got an array.\n"
+    )
+
+
+def test_team_option_beats_team(runner, pnfl_league: Path, tmp_path: Path) -> None:
+    set_league(pnfl_league, team="Denver")
+    result = run(runner, "--team", "Las Vegas")
+    folder = at_league(tmp_path, "Las Vegas (Neil)")
+    assert heads(result) == [str(folder / name) for name in LAS_VEGAS_HEADS]
+
+
+@pytest.mark.parametrize("setting", [None, "Denvr"], ids=["unset", "no match"])
+def test_team_option_without_your_team(
+    runner, pnfl_league: Path, tmp_path: Path, setting: str | None
+) -> None:
+    """`team` unset or naming no team: `--team` still works, at the league
+    locations."""
+    if setting is not None:
+        set_league(pnfl_league, team=setting)
+    result = run(runner, "--team", "Denver")
+    assert "FAIL " not in result.stderr
+    assert heads(result) == denver_heads(at_league(tmp_path, "Denver (Brian)"))
+
+
+# ── where the files come from: PATH, ppp_path, the league locations ──────────
+
+
+def test_source_ppp_path(runner, pnfl_league: Path) -> None:
+    set_league(pnfl_league, team="Denver", ppp_path=DENVER)
+    result = run(runner)
+    assert heads(result) == denver_heads(DENVER)
+    assert tally(result).endswith(", 0 missing")
+
+
+def test_source_league_locations_without_ppp_path(
+    runner, pnfl_league: Path, tmp_path: Path
+) -> None:
+    set_league(pnfl_league, team="Denver")
+    result = run(runner)
+    assert heads(result) == denver_heads(at_league(tmp_path, "Denver (Brian)"))
+    assert re.fullmatch(
+        r"8 file\(s\) checked, \d+ with violations, 0 failed", tally(result)
+    )
+
+
+def test_source_current_folder(
+    runner, pnfl_league: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`.` is the current folder, even with `ppp_path` set."""
+    set_league(pnfl_league, team="Denver", ppp_path=LAS_VEGAS)
+    monkeypatch.chdir(DENVER)
+    result = run(runner, ".")
+    assert heads(result) == DENVER_FILES
+
+
+def test_source_folder(runner, pnfl_league: Path) -> None:
+    set_league(pnfl_league, team="Denver", ppp_path=LAS_VEGAS)
+    result = run(runner, DENVER)
+    assert heads(result) == denver_heads(DENVER)
+
+
+@pytest.mark.parametrize(
+    ("flags", "heads_in"),
+    [
+        (("--team", "Broncos"), "ppp_path"),
+        (("--team", "Las Vegas"), "league"),
+        (("--all-teams",), "league"),
+    ],
+    ids=["your team", "another team", "all teams"],
+)
+def test_source_ppp_path_is_for_your_team(
+    runner,
+    pnfl_league: Path,
+    tmp_path: Path,
+    flags: tuple[str, ...],
+    heads_in: str,
+) -> None:
+    set_league(pnfl_league, team="Denver", ppp_path=DENVER)
+    result = run(runner, *flags)
+    shown = heads(result)
+    if heads_in == "ppp_path":
+        assert shown == denver_heads(DENVER)
+    else:
+        assert all(head.startswith(str(tmp_path / "lg2")) for head in shown)
+        assert shown
+
+
+def test_source_relative_ppp_path(runner, pnfl_league: Path) -> None:
+    mine = put(pnfl_league / "mine", *(DENVER / name for name in DENVER_FILES))
+    set_league(pnfl_league, team="Denver", ppp_path="mine")
+    result = run(runner)
+    assert heads(result) == denver_heads(mine)
+
+
+@pytest.mark.parametrize("exists", [False, True], ids=["missing", "a file"])
+def test_source_ppp_path_not_a_folder(
+    runner, pnfl_league: Path, tmp_path: Path, exists: bool
+) -> None:
+    ppp_path = tmp_path / "mine"
+    if exists:
+        ppp_path.write_text("x", encoding="utf-8")
+    set_league(pnfl_league, team="Denver", ppp_path=ppp_path)
+    result = run(runner)
+    reason = DIRECTORY_INVALID if exists else PATH_NOT_FOUND
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {ppp_path}: {reason} Run 'athc config set ppp_path FOLDER'.\n"
+    )
+    assert result.stdout == ""
+
+
+# ── the league locations: where the league file puts each file ───────────────
+
+
+def test_league_one_file_missing(runner, pnfl_league: Path, tmp_path: Path) -> None:
+    """A `FAIL`, counted as failed; its partner is checked alone."""
+    set_league(pnfl_league, team="Denver")
+    folder = at_league(tmp_path, "Denver (Brian)")
+    (folder / "DEN-OGP2.pln").unlink()
+    result = run(runner)
+    assert result.exit_code == 2
+    assert f"FAIL {folder / 'DEN-OGP2.pln'}: {FILE_NOT_FOUND}\n" in result.stderr
+    assert heads(result) == [
+        h for h in denver_heads(folder) if not h.endswith("DEN-OGP2.pln")
+    ]
+    alone = next(
+        line for line in result.stdout.splitlines() if "DEN-OFF2.prf: " in line
+    )
+    assert "gameplan" not in alone
+    assert re.fullmatch(
+        r"8 file\(s\) checked, \d+ with violations, 1 failed", tally(result)
+    )
+
+
+def test_league_shared_gameplan_missing_once(
+    runner, pnfl_league: Path, tmp_path: Path
+) -> None:
+    folder = at_league(tmp_path, "Las Vegas (Neil)")
+    (folder / "RAIDEROFF.pln").unlink()
+    result = run(runner, "--team", "Las Vegas")
+    assert result.exit_code == 2
+    assert result.stderr.count(f"FAIL {folder / 'RAIDEROFF.pln'}: ") == 1
+    assert re.fullmatch(
+        r"6 file\(s\) checked, \d+ with violations, 1 failed", tally(result)
+    )
+
+
+def test_league_recursive_is_ignored(runner, pnfl_league: Path) -> None:
+    set_league(pnfl_league, team="Denver")
+    assert heads(run(runner, "-r")) == heads(run(runner))
+
+
+@pytest.mark.parametrize("present", [False, True], ids=["absent", "empty"])
+def test_league_no_files_for_your_team(runner, lg2_league, present: bool) -> None:
+    """One line for the team's folder, with the `ppp_path` hint: the run
+    checks your team alone."""
+    lg2 = lg2_league(team(off1=OFF), team="Denver")
+    folder = lg2.parent / "PNFL" / "2049" / "Plans" / "Team"
+    if present:
+        folder.mkdir(parents=True)
+    reason = "No Denver files." if present else PATH_NOT_FOUND
+    result = run(runner)
+    assert result.exit_code == 2
+    assert result.stderr.endswith(f"FAIL {folder}: {reason} {LEAGUE_LOCATION_HINT}\n")
+    assert result.stdout == "\n0 file(s) checked, 0 with violations, 1 failed\n"
+
+
+@pytest.mark.parametrize(
+    ("teams", "flags", "label", "tail"),
+    [
+        (1, ("--all-teams",), "Denver", ", 1 team(s) with no files"),
+        (2, ("--team", "Las Vegas"), "Las Vegas", ""),
+    ],
+    ids=["all teams", "another team"],
+)
+def test_league_no_files_without_the_hint(
+    runner, lg2_league, teams: int, flags: tuple[str, ...], label: str, tail: str
+) -> None:
+    """The hint is for your team alone: not with `--all-teams` or another
+    team."""
+    lg2 = lg2_league(*(team() for _ in range(teams)), team="Denver")
+    folder = lg2.parent / "PNFL" / "2049" / "Plans" / "Team"
+    folder.mkdir(parents=True)
+    result = run(runner, *flags)
+    assert result.exit_code == 2
+    assert result.stderr.endswith(f"FAIL {folder}: No {label} files.\n")
+    assert tally(result) == f"0 file(s) checked, 0 with violations, 1 failed{tail}"
+
+
+# ── real league data: PNFL.lg2 and a copy of its 2049 plans ───────────────────
 
 
 def pair_reports(runner, folder: Path, profile: str, gameplan: str) -> list[str]:
@@ -1278,10 +1818,10 @@ def pair_reports(runner, folder: Path, profile: str, gameplan: str) -> list[str]
 
 
 def test_real_tree_checks_every_team_folder(runner, pnfl_league: Path) -> None:
-    result = run(runner, "-r", PPP_TREE)
+    result = run(runner, "--all-teams", "-r", PPP_TREE)
     assert "FAIL " not in result.stderr
     assert heads(result) == [
-        *(str(DENVER / name) for pair in DENVER_PAIRS for name in pair),
+        *denver_heads(DENVER),
         str(LAS_VEGAS / "LVOFF1.prf"),
         str(LAS_VEGAS / "RAIDEROFF.pln"),
         str(LAS_VEGAS / "LVDEF1.prf"),
@@ -1295,7 +1835,7 @@ def test_real_tree_checks_every_team_folder(runner, pnfl_league: Path) -> None:
 def test_real_tree_reads_as_two_file_mode(runner, pnfl_league: Path) -> None:
     """Each pair reads exactly as two-file mode prints it; a shared gameplan's
     own report only the first time."""
-    result = run(runner, "-r", PPP_TREE)
+    result = run(runner, "--all-teams", "-r", PPP_TREE)
     expected: list[str] = []
     for folder, pairs in ((DENVER, DENVER_PAIRS), (LAS_VEGAS, LAS_VEGAS_PAIRS)):
         seen: set[str] = set()
@@ -1312,20 +1852,18 @@ def test_real_tree_reads_as_two_file_mode(runner, pnfl_league: Path) -> None:
 
 
 def test_real_team_folder_alone(runner, pnfl_league: Path) -> None:
-    result = run(runner, DENVER)
-    assert heads(result) == [
-        str(DENVER / name) for pair in DENVER_PAIRS for name in pair
-    ]
+    result = run(runner, "--team", "Denver", DENVER)
+    assert heads(result) == denver_heads(DENVER)
 
 
 # ── --league, ATHC_LEAGUE, registration ───────────────────────────────────────
 
 
 def test_league_flag_beats_athc_ini(
-    runner, league: BuildLeague, write_config: WriteConfig
+    runner, build_league: BuildLeague, write_config: WriteConfig
 ) -> None:
-    league(LEAGUE, profile_rules=None, gameplan_rules=None)  # would fail
-    league(OTHER_LEAGUE)
+    build_league(LEAGUE, profile_rules=None, gameplan_rules=None)  # would fail
+    build_league(OTHER_LEAGUE)
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = runner.invoke(
         cli, ["check-ppp", str(OFF1), str(GP_OFFENSE), "--league", OTHER_LEAGUE]
@@ -1334,29 +1872,33 @@ def test_league_flag_beats_athc_ini(
 
 
 def test_league_flag_picks_the_league_file(
-    runner, league: BuildLeague, write_config: WriteConfig, tmp_path: Path
+    runner, build_league: BuildLeague, write_config: WriteConfig, tmp_path: Path
 ) -> None:
-    """In a directory, `--league` also picks whose `.lg2` pairs the files: both
-    leagues share one folder, each file named after its league."""
+    """In a folder, `--league` also picks whose league files pair the files:
+    both leagues share one folder, each file named after its league."""
     lg2_dir = tmp_path / "lg2"
     lg2_dir.mkdir()
     (lg2_dir / f"{LEAGUE}.lg2").write_bytes(team(def1=DEF))
     (lg2_dir / f"{OTHER_LEAGUE}.lg2").write_bytes(team(off1=OFF))
-    league(LEAGUE, path=lg2_dir)
-    league(OTHER_LEAGUE, path=lg2_dir)
+    for name in (LEAGUE, OTHER_LEAGUE):
+        (lg2_dir / f"{name}.lge").write_bytes(lge(TEAM_NAMES[0]))
+    build_league(LEAGUE, path=lg2_dir)
+    build_league(OTHER_LEAGUE, path=lg2_dir)
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE, DEF1, GP_DEFENSE)
-    result = runner.invoke(cli, ["check-ppp", str(folder), "--league", OTHER_LEAGUE])
+    result = runner.invoke(
+        cli, ["check-ppp", str(folder), "--all-teams", "--league", OTHER_LEAGUE]
+    )
     assert heads(result) == [str(folder / "TST-OFF1.prf"), str(folder / "offense.pln")]
 
 
 def test_athc_league_env_is_ignored(
     runner,
-    league: BuildLeague,
+    build_league: BuildLeague,
     config_dir: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    league(OTHER_LEAGUE)
+    build_league(OTHER_LEAGUE)
     monkeypatch.setenv("ATHC_LEAGUE", OTHER_LEAGUE)
     result = runner.invoke(cli, ["check-ppp", str(OFF1), str(GP_OFFENSE)])
     assert result.exit_code == 2

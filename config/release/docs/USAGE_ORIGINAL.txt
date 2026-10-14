@@ -1,8 +1,9 @@
 athc - USAGE
 ============
 
-The help text of every athc command, exactly as --help prints it. For what
-each tool does, with examples, see COMMANDS.txt in this same folder.
+Each athc command's help as it was before 1.0, kept for reference; run
+--help for the current help. For what each tool does, with examples, see
+COMMANDS.txt in this same folder.
 
 
 athc --help

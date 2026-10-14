@@ -98,7 +98,7 @@ def _available(config_dir: Path, leagues: tuple[str, ...]) -> str:
 def no_league_selected(config_dir: Path, *leagues: str) -> str:
     """The whole `FAIL` line of a run with no league selected."""
     return (
-        "FAIL No league selected. Run 'athc config set league NAME' or pass "
+        "FAIL League is not set. Run 'athc config set league NAME' or pass "
         f"--league. {_available(config_dir, leagues)}\n"
     )
 

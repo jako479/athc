@@ -78,8 +78,9 @@ feature with its `wsb` command line for the test.
   the whole `%LOCALAPPDATA%\athc` folder, user edits included.
 
 The seeded `athc.ini` selects PNFL; the only value a user must edit is
-`play_path` in `leagues\PNFL\league.toml`, plus `path` to run `check-ppp` on a
-folder. Layout: [architecture.md](architecture.md#config).
+`play_path` in `leagues\PNFL\league.toml` (`athc config edit league.toml`
+opens it), plus `path` and `team` to work on your team's files (check-ppp,
+gameplan, profile, convert-pdb). Layout: [architecture.md](architecture.md#config).
 
 ## Install, upgrade, reinstall, uninstall
 
@@ -121,7 +122,8 @@ network, which also proves it installs offline:
 
 1. Silent install: program, docs, seeded config, shortcut and PATH entry.
 2. Every command and subcommand runs on the integration-test fixtures; reports,
-   lists, diffs and schedules match the goldens.
+   lists, diffs and schedules match the goldens; `config get league` prints the
+   league `config set league` wrote.
 3. Upgrade over the install: a stale `_internal` file is gone, the docs are
    refreshed, an edited `athc.ini` and rule TOML are kept, a deleted seeded
    file comes back.

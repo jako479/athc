@@ -32,7 +32,7 @@ from athc.scheduler.domain.league import (
 from athc.scheduler.domain.schedule import GAMES_PER_WEEK
 from athc.scheduler.schedulers.errors import SchedulerError
 from athc.scheduler.schedulers.types import Matchup, MatchupPlan, make_matchup
-from athc.scheduler.schedulers.utils import make_solver
+from athc.scheduler.schedulers.utils import make_solver, run_solver
 
 TOP_HALF_MAX_RANK = 5
 BOTTOM_HALF_MIN_RANK = 5
@@ -198,7 +198,7 @@ class _NonConferenceModel:
     ) -> set[Matchup]:
         # The seed picks among equally-optimal matchup sets.
         solver = make_solver(seed=seed, time_limit=time_limit, workers=workers)
-        status = solver.solve(self.model)
+        status = run_solver(solver, self.model)
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             raise SchedulerError(
                 f"Two-phase CP-SAT non-conference model returned status "

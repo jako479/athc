@@ -1,9 +1,10 @@
 # pdbtoexcel — Architecture
 
-`athc convert-pdb` — converts a WinLogStats `.pdb` (and optional FbPro '98 game
-plans) into an Excel workbook. Plays are grouped by their category (from the
-play file) and shown under the league's name for it; the category names, their
-order and the deleted plays are league data in the league folder.
+`athc convert-pdb` — converts a WinLogStats `.pdb` (with your team's FbPro '98
+game plans, or the ones named) into an Excel workbook. Plays are grouped by
+their category (from the play file) and shown under the league's name for it;
+the category names, their order and the deleted plays are league data in the
+league folder.
 
 ## Layout
 
@@ -18,7 +19,8 @@ src/athc/pdbtoexcel/       # tool logic (no Click)
 ├── resources/           # vbaProject*.bin — XLSM macro blocks (package data)
 └── excel-template/      # master .xlsm workbooks the .bin blocks are extracted from (not shipped)
 
-src/athc/cli/convert_pdb.py   # Click leaf command
+src/athc/cli/convert_pdb.py   # Click leaf command: config, team, game plans
+src/athc/cli/_team.py         # shared team layer: league files, team, file locations
 ```
 
 `specs/pdb.md` documents the on-disk byte layout; `specs/pdb.hexpat` (ImHex) and
@@ -37,8 +39,15 @@ src/athc/cli/convert_pdb.py   # Click leaf command
 - Skips a play named in `[deleted_plays]` quietly instead of the
   "has no play file in the play pool" warning; one still in the pool is also
   skipped, with a warning, naming `pdbtoexcel.toml`, that the entry is stale.
-- Optionally cross-references up to two offensive + two defensive `.pln` game plans
-  for the Slot columns.
+- Fills the Slot columns from game plans: with no game plan option, your
+  team's four from the league file (Slot 1 the 1st-half plan, Slot 2 the
+  2nd-half plan, per side); with any of `-o`, `-o2`, `-d`, `-d2`, only the
+  files given, and the league file is not read.
+- Hides each Slot column whose own plan is absent; both halves of a side on
+  one file fill Slot 1 alone.
+- Checks each plan's side: a named plan on the wrong side fails the run; one
+  from the league file is a warning and its column is hidden, as is one that
+  is missing or can't be read.
 - Always adds a Total Stats team summing every team.
 - Writes `.xlsx` (plain) or `.xlsm` (with the VBA sort macros from `resources/`).
 
@@ -94,18 +103,28 @@ settings in `[convert-pdb]` in `athc.ini`, read through
 `athc.config.load_config()`; a missing key takes the `Config` default, a
 non-boolean value is a `ConfigFileError`.
 
+The command loads the config: `load_config(league)` and `play_dir` run before
+the team, so a bad `play_path` or `pdbtoexcel.toml` shows first; `convert_pdb()`
+takes the loaded `Config`, the four game plans already read (`GamePlan | None`)
+and `percentages` (None takes `calculate_percentages`). The `[league]` keys
+`team`, `path` and `ppp_path` come from `load_league_config(league)`, read by
+the command through the shared team layer (`src/athc/cli/_team.py`), as
+check-ppp does.
+
 ## CLI
 
-`athc convert-pdb pdb_file output_file [-o/-o2 pln_file] [-d/-d2 pln_file] [--skip-calcs] [--league name]`. `--league` picks the league.
-Extensions are validated (`.pdb` / `.xlsx`,`.xlsm` / `.pln`).
+`athc convert-pdb [OPTIONS] PDB_FILE [OUTPUT_FILE]` with `-o`, `-o2`, `-d`,
+`-d2 GAME_PLAN`, `--path FOLDER`, `--team NAME`,
+`--percentages/--no-percentages` and `--league NAME`. Extensions are validated
+(`.pdb` / `.xlsx`,`.xlsm` / `.pln`); `--team` or `--path` with a game plan
+option is a usage error.
 
 ## Exit codes
 
 | Exit | Meaning |
 |---|---|
-| `0` | **OK** — workbook written. |
-| `1` | **Error** — input or I/O error (missing/invalid PDB, bad play path, an output folder that can't be created, a bad or missing `pdbtoexcel.toml`). |
-| `2` | **Usage** — bad arguments or extensions. |
+| `0` | **OK** — workbook written (warnings included). |
+| `2` | **Error or usage** — a missing or invalid PDB or named game plan, a named plan on the wrong side, bad play path, a bad or missing `pdbtoexcel.toml`, a bad `team`, `path` or `ppp_path` or league file, an output that can't be written; bad arguments or extensions. |
 
 ## Out of scope
 
@@ -118,8 +137,9 @@ Extensions are validated (`.pdb` / `.xlsx`,`.xlsm` / `.pln`).
 - `tests/unit/pdbtoexcel/` — PDB parsing (real fixture + snapshot), config
   (`pdbtoexcel.toml` on both sides of every rule, the shipped files), workbook
   creation (synthetic PDB + injected pool, read back with openpyxl: labels,
-  order, unlisted and deleted plays).
-- `tests/integration/test_convert_pdb.py` — CLI end-to-end, plus a golden
-  workbook: the real `.pdb` converted against the curated pool, the PNFL labels
-  and order and both game plans, every cell compared to
-  `expected/2045-2047.workbook.json`.
+  order, unlisted and deleted plays, Slot columns by presence).
+- `tests/integration/test_convert_pdb.py` — CLI end-to-end (the default
+  output, the options, the team's game plans from each source, the setting
+  errors), plus a golden workbook: the real `.pdb` converted against the
+  curated pool, the PNFL labels and order and both game plans, every cell
+  compared to `expected/2045-2047.workbook.json`.

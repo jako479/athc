@@ -18,9 +18,11 @@ from athc.scheduler.config import (
     resolve_rivalries,
 )
 from athc.scheduler.domain.league import Team
+from athc.scheduler.schedulers import schedule_builder
 from athc.scheduler.schedulers.errors import SchedulerError
 from athc.scheduler.schedulers.schedule_builder import ScheduleBuilder
 from athc.scheduler.schedulers.types import make_matchup
+from athc.scheduler.schedulers.utils import run_solver
 
 from .conftest import (
     CONFERENCES_LEAGUE,
@@ -71,6 +73,21 @@ def test_empty_inventory_is_infeasible() -> None:
     builder = ScheduleBuilder(ONE_PLAYOFF_TEAM_FROM_4_TEAM_DIVISION, SchedulerError)
     with pytest.raises(SchedulerError):
         builder.build_schedule([], seed=0, time_limit=30)
+
+
+def test_solve_goes_through_the_solve_helper(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The helper is what turns a Ctrl+C press into a stopped search.
+    calls: list[object] = []
+
+    def spy(solver, model):
+        calls.append(solver)
+        return run_solver(solver, model)
+
+    monkeypatch.setattr(schedule_builder, "run_solver", spy)
+    builder = ScheduleBuilder(ONE_PLAYOFF_TEAM_FROM_4_TEAM_DIVISION, SchedulerError)
+    with pytest.raises(SchedulerError):
+        builder.build_schedule([], seed=0, time_limit=30)
+    assert len(calls) == 1
 
 
 def test_soft_objective_is_added_to_the_model() -> None:

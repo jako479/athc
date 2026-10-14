@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import configparser
 import os
+import re
 import tomllib
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,7 @@ from platformdirs import user_config_path
 
 from athc.errors import (
     DIRECTORY_INVALID,
+    FILE_NOT_FOUND,
     PATH_NOT_FOUND,
     ConfigFileError,
     LeagueError,
@@ -84,19 +86,28 @@ class LeagueConfig:
     lists: dict[str, tuple[str, ...]] = field(default_factory=dict)
     categories: CategoryLabels = field(default_factory=CategoryLabels)
 
+    def string(self, key: str) -> str | None:
+        """`values[key]` without its outer spaces; None when absent or blank.
+        ConfigFileError when the key was written as an array."""
+        self._not_an_array(key)
+        return self.values.get(key, "").strip() or None
+
     def path(self, key: str) -> Path | None:
         """`values[key]` as a path; relative values resolve against the league
         folder (the file that names them), like `resolve_path` for `athc.ini`.
         ConfigFileError when the key was written as an array."""
+        self._not_an_array(key)
+        raw = self.values.get(key)
+        if not raw:
+            return None
+        return self._resolve(raw)
+
+    def _not_an_array(self, key: str) -> None:
         if key in self.lists:
             raise ConfigFileError(
                 f"[{LEAGUE_SECTION}] {key}: Expected a string, got an array.",
                 self.dir / LEAGUE_FILE,
             )
-        raw = self.values.get(key)
-        if not raw:
-            return None
-        return self._resolve(raw)
 
     def rules_file_path(self, filename: str) -> Path:
         """`<filename>` in the league folder, whether or not it exists."""
@@ -173,7 +184,7 @@ def resolve_league(league: str | None = None) -> str:
     name = league or configured_league()
     if not name:
         raise LeagueError(
-            "No league selected. Run 'athc config set league NAME' or pass "
+            "League is not set. Run 'athc config set league NAME' or pass "
             f"--league.{_available()}"
         )
     league_dir(name)
@@ -274,6 +285,91 @@ def set_config_value(key: str, value: str) -> Path:
     return path
 
 
+def league_file(league: str | None) -> Path:
+    """The resolved league's `league.toml`, whether or not it exists.
+    LeagueError when no league is set or its folder is missing."""
+    return league_dir(resolve_league(league)) / LEAGUE_FILE
+
+
+def set_league_value(league: str | None, key: str, value: str) -> Path:
+    """Write `key = value` under `[league]` in the league's `league.toml`,
+    keeping every comment and other line (tomlkit). Returns the path written.
+
+    A key already there is changed in place. A new key goes on the line after
+    its commented example (`# key = ...`) in `[league]`, else after the
+    table's last key line, never under the comment that opens the next table.
+
+    A missing file or `[league]` table is Windows' file-not-found
+    ConfigFileError and nothing is written: athc does not repair a broken
+    install. A malformed file is its parse error, as every reader prints it."""
+    import tomlkit  # only this writer needs it
+
+    path = league_file(league)
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except OSError as e:
+        raise ConfigFileError(reason_of(e), path) from e
+    try:
+        # Parsed by tomllib first so a malformed file gets the readers' wording.
+        tomllib.loads(text)
+    except tomllib.TOMLDecodeError as e:
+        raise ConfigFileError(toml_reason(e), path) from e
+    document = tomlkit.parse(text)
+    table = document.get(LEAGUE_SECTION)
+    if not isinstance(table, MutableMapping):
+        raise ConfigFileError(FILE_NOT_FOUND, path)
+    # A literal string keeps a Windows path's backslashes as typed, like the
+    # shipped file's values; one holding a quote needs the escaped form.
+    literal = "'" not in value and "\n" not in value
+    item = tomlkit.string(value, literal=literal)
+    line = f"{tomlkit.key(key).as_string()} = {item.as_string()}"
+    if key not in table and (added := _add_league_line(text, key, line)) is not None:
+        text = added
+    else:
+        table[key] = item
+        text = tomlkit.dumps(document)
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+# The `[league]` header line, its name bare or quoted, and any table header.
+_LEAGUE_HEADER = re.compile(rf"\s*\[\s*([\"']?){LEAGUE_SECTION}\1\s*\]\s*(#.*)?")
+_TABLE_HEADER = re.compile(r"\s*\[")
+
+
+def _add_league_line(text: str, key: str, line: str) -> str | None:
+    """`text` with `line`, a new key, added to `[league]`: after its
+    commented example (`# key = ...`), else after the table's last key line,
+    else after the header. None when no line is the `[league]` header (the
+    table written another way): tomlkit adds the key then.
+
+    tomlkit would add it after everything in the table, the comment that
+    opens the next table included, so the line is placed by text."""
+    lines = text.split("\n")
+    header = next(
+        (i for i, raw in enumerate(lines) if _LEAGUE_HEADER.fullmatch(raw.rstrip())),
+        None,
+    )
+    if header is None:
+        return None
+    end = next(
+        (i for i in range(header + 1, len(lines)) if _TABLE_HEADER.match(lines[i])),
+        len(lines),
+    )
+    body = range(header + 1, end)
+    example = re.compile(rf"\s*#\s*{re.escape(key)}\s*=")
+    after = next((i for i in body if example.match(lines[i])), None)
+    if after is None:
+        # The last line that is neither blank nor a comment ends the last key,
+        # a value written over several lines included.
+        after = max(
+            (i for i in body if lines[i].lstrip()[:1] not in ("", "#")),
+            default=header,
+        )
+    lines.insert(after + 1, line)
+    return "\n".join(lines)
+
+
 def _available() -> str:
     names = available_leagues()
     if names:
@@ -281,11 +377,11 @@ def _available() -> str:
     return f" No league folders under {leagues_dir()}."
 
 
-def play_dir(play_path: StrPath, league_file: Path) -> Path:
+def play_dir(play_path: StrPath) -> Path:
     """`play_path` when it is a folder; else ConfigFileError in Windows' words,
-    pointing at the league.toml that sets it."""
+    with the command that sets it."""
     path = Path(play_path)
     if not path.is_dir():
         reason = DIRECTORY_INVALID if path.exists() else PATH_NOT_FOUND
-        raise ConfigFileError(f"{reason} Set play_path in {league_file}.", path)
+        raise ConfigFileError(f"{reason} Run 'athc config set play_path FOLDER'.", path)
     return path

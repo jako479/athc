@@ -20,7 +20,7 @@ src/athc/profile/          # tool logic (no Click)
 
 src/athc/cli/profile/      # Click wiring
 ├── __init__.py    # `profile` group
-├── _common.py     # collect_files, resolve_rules
+├── _common.py     # profile keys (team_profiles, expand_names, one_profile), help epilog, load_rules_or_raise
 ├── check.py       # `athc profile check`
 ├── diff.py        # `athc profile diff` (+ render / render_csv)
 └── copy.py        # `athc profile copy`
@@ -56,10 +56,37 @@ Loading reports every problem at once (`RulesFileError.errors`); any error abort
 config dir; no `--config` flag). `check` has no rules override. No rules
 configured ⇒ `check` logs an error and exits 2 (nothing to validate). See [../design/architecture.md](../design/architecture.md#config).
 
+The profile keys read `team`, `path` and `ppp_path` from the same
+`league.toml`, and the league's `.lg2` and `.lge` from `path`; `diff` and
+`copy` read none of it without a key.
+
+## Profile keys
+
+`off1`, `def1`, `off2`, `def2` name the team's four profiles (`.lg2` entries
+1, 3, 5 and 7). `_common.py` resolves them through the team layer shared with
+`check-ppp` and `gameplan` (`src/athc/cli/_team.py`: `load_league_files`,
+`resolve_team`, `team_files`, `locate`, and the team checks and lines those
+commands share):
+
+- `is_key` (in `_team.py`): one of the four words, any case, with nothing of
+  that name in the current folder; anything else is a path.
+- `team_profiles(operands, team=, league=)`: the setup, once per run over all
+  operands, in the order its errors show: `--team` with no key (usage error),
+  `--league` resolved when given, then, only with a key, `team`, `path`, the
+  league files and the team match, then `ppp_path` for the `team` team. Each
+  key's file is located, and whether it exists decided, before anything reads
+  it.
+- `expand_names(operands, profiles)`: keys replaced by their files for
+  `collect_files` (`check` PATH, `copy` TARGET); a missing one becomes a
+  `FAIL` line counted failed, never a path.
+- `one_profile(raw, profiles)`: one file (`diff`, `copy` SOURCE): `named_file`
+  for a path, the located file for a key, AthcError when it is missing.
+
 ## Check
 
-`athc profile check [PATH]... [-r]` — each PATH a `.prf` file, directory, or glob
-(`-r` recurses a directory; no PATH means the current directory). Reads each via `fbpro98_profile.read_profile`, runs
+`athc profile check [PATH]... [-r] [--team NAME]` — each PATH a `.prf` file,
+folder, wildcard or profile key (`-r` takes a folder's tree; no PATH means the
+current folder). Reads each via `fbpro98_profile.read_profile`, runs
 `validate_profile`, prints a head line plus one line per violation. Exit 0 clean
 / 1 violations / 2 I/O or no rules. Continues past per-file parse errors.
 
@@ -76,25 +103,32 @@ pass directions stay collapsed, so those carry no `category_code`).
 
 ## Diff
 
-`athc profile diff file1 file2 [-o file]` — reads both (no rules), refuses a
+`athc profile diff PROFILE1 PROFILE2 [-o FILE] [--team NAME]` — each a `.prf`
+file or a profile key (`one_profile`); reads both (no rules), refuses a
 cross-side compare (exit 2), then `diff_profiles` builds a `ProfileDiff` by
 aligning the fixed records (2520 situations, 60 PAT, 8 subs, FG, audibles) and
 keeping only changes. The model (`diff.py`) is separate from rendering (`cli`):
-stdout prints `[profile]`/`[situations]`/`[pat]` sections, one dense line per
-change; `--output file` writes `.txt` (same text) or `.csv` (one row per change),
-format from the extension (unknown → exit 2). Exit 0 identical / 1 differs / 2 I/O.
+the console gets `[profile]`/`[situations]`/`[pat]` sections, one dense line
+per change, under `<file> -> <file>` (a key shown as its file); `--output FILE`
+writes `.txt` (same text) or `.csv` (one row per change), format from the
+extension (another extension is a usage error from the option's callback, exit
+2). Exit 0 identical / 1 differs / 2 error.
 
 ## Copy
 
-`athc profile copy source target <flags> [-r]` — copies selected
-fields from `source` into one or many targets (`ProfileWriter.apply` → updated
-`Profile`, written via `write_profile`). `target` resolves to a file, directory, or
-tree (`-r`); files of the wrong side are skipped by file-size parity (offense
-even, defense odd), and `source` is never overwritten. No backup is made. Flags (≥1 required, combinable):
-`--stop-clock`, `--sub-percent`, `--field-goal-range`, `--fourth-down`,
-`--goal-line`, `--pat-logic`; `--fourth-down` and `--goal-line` copy whole
-situations (stop-clock + weights); `--pat-logic` copies the 60-situation PAT table.
-Copy does not validate (use `check`). Exit 0 ok / 1 a target failed / 2 couldn't run.
+`athc profile copy SOURCE TARGET... <options> [-r] [--team NAME]` — copies
+selected fields from SOURCE (`one_profile`) into one or more targets
+(`ProfileWriter.apply` → updated `Profile`, written via `write_profile`). The
+TARGETs go through `expand_names` and `collect_files`: files, folders (`-r` for
+the tree), wildcards and keys, each file once in TARGET order. Files of the
+wrong side are skipped by file-size parity (offense even, defense odd), and
+SOURCE is never overwritten. No backup is made. Options (≥1 required,
+combinable): `--stop-clock`, `--substitutions` (the writer's
+`copy_sub_percent`), `--field-goal-range`, `--fourth-down`, `--goal-line`,
+`--pat-logic`; `--fourth-down` and `--goal-line` copy whole situations
+(stop-clock + weights); `--pat-logic` copies the 60-situation PAT table. Copy
+does not validate (use `check`). Exit 0 done (skips included) / 2 error (a
+target failed included).
 
 ## Exit codes
 
@@ -113,6 +147,7 @@ I/O (`fbpro98_profile`).
 
 ## Tests
 
-- `tests/integration/test_profile_{check,diff,copy}.py` — CLI end-to-end on real `.prf` files.
+- `tests/integration/test_profile_{check,diff,copy}.py` — CLI end-to-end on real `.prf` files, help screens pinned.
+- `tests/integration/test_team.py` — the profile keys: which operand is a key, where its file is, the setup lines.
 - `tests/unit/profile/` — rules loader, validators, compat, diff model, display labels, writer.
 - Matrices: `tests/integration/README.md`, `tests/unit/profile/README.md`.

@@ -8,14 +8,19 @@ from pathlib import Path
 
 import click
 
-from athc.cli import CONTEXT_SETTINGS, league_option
+from athc.cli import CONTEXT_SETTINGS, league_option, team_option
 from athc.cli.gameplan import gameplan
 from athc.cli.gameplan._common import (
+    TEAM_HELP,
     build_pool,
-    collect_files,
-    named_file,
+    epilog,
     parse_play_list,
+    path_option,
+    read_play_list,
+    require_key_path,
+    scope,
 )
+from athc.config import resolve_league
 from athc.console import console
 from athc.errors import AthcError, error_line
 from athc.fbpro98_gameplan import GamePlan, read_gameplan, write_gameplan
@@ -96,51 +101,54 @@ def _determine_side(pool: PlayPool, plays: Sequence[PlayLine]) -> str | None:
     return None
 
 
-@gameplan.command(name="set-specials", context_settings=CONTEXT_SETTINGS)
-@click.argument("target", metavar="path", type=click.Path(path_type=Path))
+@gameplan.command(
+    name="set-specials",
+    context_settings=CONTEXT_SETTINGS,
+    epilog=epilog(
+        "athc gameplan set-specials spec.txt",
+        "athc gameplan set-specials spec.txt --path plans -r",
+    ),
+)
 @click.argument(
-    "play_list_path",
-    metavar="play_list",
+    "input_file",
     type=click.Path(path_type=Path, allow_dash=True),
+    help="Play list, one name per line (- reads the console).",
 )
-@click.option(
-    "-r",
-    "--recursive",
-    is_flag=True,
-    help="Recurse into subdirectories when path is a directory.",
-)
+@path_option("Game plans to edit")
+@click.option("-r", "--recursive", is_flag=True, help="Include subfolders.")
+@team_option(TEAM_HELP)
 @league_option
 @click.pass_context
 def set_specials(
     ctx: click.Context,
-    target: Path,
-    play_list_path: Path,
+    input_file: Path,
+    path: str | None,
     recursive: bool,
+    team: str | None,
     league: str | None,
 ) -> None:
-    """Set the custom special-teams plays of path from play_list.
+    """Set the special-teams plays from a play list.
 
-    path is a .pln file or a directory (top level, or the tree with -r); a
-    play_list of `-` reads the list from the console. Files of the wrong side are
-    skipped (offense .pln are even-sized, defense odd). Merge semantics: unlisted
-    special categories are preserved. The league's play pool resolves names.
+    Other-side game plans are skipped; unlisted categories keep their plays.
     """
-    from_console = str(play_list_path) == "-"
-    if from_console:
-        text = sys.stdin.read()
-    else:
-        text = named_file(play_list_path).read_text(encoding="utf-8-sig")
+    require_key_path(team, path)
+    if league is not None:
+        resolve_league(league)  # a league that does not exist fails first
+    from_console = str(input_file) == "-"
+    text = sys.stdin.read() if from_console else read_play_list(input_file)
     # A list from the console has no file to name.
-    source = "" if from_console else f"{play_list_path}: "
-    where = "play list" if from_console else str(play_list_path)
+    source = "" if from_console else f"{input_file}: "
+    where = "play list" if from_console else str(input_file)
     plays = parse_play_list(text)
     if len(plays) > SPECIAL_COUNT:
         raise AthcError(
             f"Too many plays ({len(plays)}). The most is {SPECIAL_COUNT}.",
-            None if from_console else play_list_path,
+            None if from_console else input_file,
         )
+    # The team and the league files are read before the pool.
+    collected = scope(path, team, league, recursive=recursive)
     config = load_config(league, rule_files=())  # no gameplan rules needed
-    pool = build_pool(config.play_path, config.categories, config.league_file)
+    pool = build_pool(config.play_path, config.categories)
 
     invalid_plays = validate_special_play_list(plays, pool)
     if invalid_plays:
@@ -149,7 +157,6 @@ def set_specials(
         ctx.exit(2)
 
     side = _determine_side(pool, plays)
-    collected = collect_files([str(target)], suffix=".pln", recursive=recursive)
     for line in collected.errors:
         console.fail(line)
     for line in collected.warnings:
@@ -158,21 +165,21 @@ def set_specials(
     other_side = "defense" if side == "offense" else "offense"
     updated = skipped = 0
     failed = len(collected.errors)
-    for path in collected.files:
-        if not _matches_side(path, side):
+    for file in collected.files:
+        if not _matches_side(file, side):
             skipped += 1
-            console.skip(f"{path}: {other_side} gameplan")
+            console.skip(f"{file}: {other_side} gameplan")
             continue
         try:
-            gp = read_gameplan(str(path))
+            gp = read_gameplan(str(file))
             new_gp = apply_special_plays(gp, plays, pool)
-            write_gameplan(new_gp, path)
+            write_gameplan(new_gp, file)
         except InvalidPlayListError as error:
             # The line is the list's, so it goes last: after the .pln path it
             # would read as a line of the .pln.
             for invalid in error.invalid_plays:
                 reason = invalid.reason.removesuffix(".")
-                console.fail(f"{path}: {reason} ({where} line {invalid.line}).")
+                console.fail(f"{file}: {reason} ({where} line {invalid.line}).")
             failed += 1
             continue
         except (AthcError, OSError) as error:
@@ -180,12 +187,12 @@ def set_specials(
             failed += 1
             continue
         except Exception:
-            console.unexpected(str(path))
+            console.unexpected(str(file))
             failed += 1
             continue
         updated += 1
         count = sum(1 for p in new_gp.custom_special_plays if p is not None)
-        console.ok(f"{path}: updated ({count} special play(s))")
+        console.ok(f"{file}: updated ({count} special play(s))")
 
     console.print()
     console.result(

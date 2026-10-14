@@ -73,7 +73,7 @@ def test_load_config_from_league_folder(league: Path) -> None:
 
 
 def test_load_config_needs_a_league() -> None:
-    with pytest.raises(LeagueError, match="No league selected"):
+    with pytest.raises(LeagueError, match="League is not set"):
         load_config()
 
 
@@ -210,8 +210,8 @@ def test_missing_play_path_is_an_error(make_league: MakeLeague) -> None:
     folder = make_league(LEAGUE, league_toml())
     write_pdbtoexcel_toml(folder)
     message = (
-        f"{folder / 'league.toml'}: No play_path for the league. "
-        "Set play_path in this file."
+        f"{folder / 'league.toml'}: Play pool folder is not set. "
+        "Run 'athc config set play_path FOLDER'."
     )
     with _raises(message) as exc:
         load_config(LEAGUE)

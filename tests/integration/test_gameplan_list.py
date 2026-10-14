@@ -6,15 +6,17 @@ import shutil
 from collections.abc import Callable
 from pathlib import Path
 
+import click
 import pytest
 
 from athc.cli.gameplan.list_normals import list_normals
 from athc.cli.gameplan.list_specials import list_specials
-from athc.errors import ALREADY_EXISTS, FILE_NOT_FOUND
+from athc.errors import ACCESS_DENIED, ALREADY_EXISTS, FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_gameplan import ProfileType, write_gameplan
 from tests.conftest import (
     LEAGUE,
     OTHER_LEAGUE,
+    league_not_found,
     league_toml,
     no_league_selected,
     toml_error,
@@ -23,8 +25,11 @@ from tests.integration.conftest import (
     EXPECTED,
     GP_DEFENSE,
     GP_OFFENSE,
+    TEAM_NAMES,
     build_gameplan,
+    lge,
     offense_normal,
+    team,
 )
 
 MakeLeague = Callable[..., Path]
@@ -56,10 +61,10 @@ def test_normals_rejects_invalid_sort(runner) -> None:
     )
 
 
-def test_normals_help_uses_lowercase_names(runner) -> None:
+def test_normals_help_uses_uppercase_names(runner) -> None:
     result = runner.invoke(list_normals, ["--help"])
     assert result.exit_code == 0
-    assert "] gameplan [output_file]" in " ".join(result.stdout.split())  # wraps
+    assert "[OPTIONS] GAME_PLAN [OUTPUT_FILE]" in " ".join(result.stdout.split())
     assert "GAMEPLAN" not in result.stdout and "OUTPUT_PATH" not in result.stdout
 
 
@@ -293,10 +298,10 @@ def test_specials_requires_path(runner) -> None:
     assert runner.invoke(list_specials, []).exit_code == 2
 
 
-def test_specials_help_uses_lowercase_names(runner) -> None:
+def test_specials_help_uses_uppercase_names(runner) -> None:
     result = runner.invoke(list_specials, ["--help"])
     assert result.exit_code == 0
-    assert "] gameplan [output_file]" in result.stdout
+    assert "[OPTIONS] GAME_PLAN [OUTPUT_FILE]" in " ".join(result.stdout.split())
     assert "GAMEPLAN" not in result.stdout and "OUTPUT_PATH" not in result.stdout
 
 
@@ -381,3 +386,270 @@ def test_specials_malformed_file_mode_no_output(runner, tmp_path: Path) -> None:
         f"FAIL {bad}: File too small to contain PLN header and offsets table.\n"
     )
     assert not out.exists()
+
+
+# ── arguments ─────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("command", [list_normals, list_specials])
+def test_bare_is_missing_game_plan(runner, command: click.Command) -> None:
+    result = runner.invoke(command, [])
+    assert result.exit_code == 2
+    assert result.stderr.endswith("Error: Missing argument 'GAME_PLAN'.\n")
+
+
+def test_normals_extra_argument_rejected(runner, tmp_path: Path) -> None:
+    out = tmp_path / "out.txt"
+    result = runner.invoke(list_normals, [str(GP_OFFENSE), str(out), "extra"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith("Error: Got unexpected extra argument (extra).\n")
+    assert not out.exists()
+
+
+@pytest.mark.parametrize("command", [list_normals, list_specials])
+def test_team_with_a_path_is_a_usage_error(runner, command: click.Command) -> None:
+    result = runner.invoke(command, [str(GP_OFFENSE), "-", "--team", "Denver"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith(
+        "Error: --team requires a game plan key (off1, def1, off2 or def2).\n"
+    )
+    assert result.stdout == ""
+
+
+# ── --league on list-specials: resolved, read only for a key ──────────────────
+
+
+def test_specials_league_with_a_path_reads_nothing_from_it(
+    runner, make_league: MakeLeague
+) -> None:
+    """The league must exist; with a path nothing in it is read, so a broken
+    league.toml does not matter."""
+    make_league(OTHER_LEAGUE, "[league\n")
+    result = runner.invoke(
+        list_specials, [str(GP_OFFENSE), "-", "--league", OTHER_LEAGUE]
+    )
+    assert result.exit_code == 0
+    assert result.stdout.splitlines() == _expected("offense_specials.txt")
+
+
+def test_specials_league_that_does_not_exist_fails_even_with_a_path(
+    runner, config_dir: Path
+) -> None:
+    result = runner.invoke(list_specials, [str(GP_OFFENSE), "-", "--league", "NOPE"])
+    assert result.exit_code == 2
+    assert result.stderr == league_not_found(config_dir, "NOPE", LEAGUE)
+    assert result.stdout == ""
+
+
+def test_specials_path_without_any_settings(runner, config_dir: Path) -> None:
+    (config_dir / "athc.ini").unlink()
+    result = runner.invoke(list_specials, [str(GP_OFFENSE), "-"])
+    assert result.exit_code == 0
+
+
+def test_specials_key_needs_a_league(
+    runner, config_dir: Path, write_config: WriteConfig
+) -> None:
+    write_config("[athc]\n")
+    result = runner.invoke(list_specials, ["off1"])
+    assert result.exit_code == 2
+    assert result.stderr == no_league_selected(config_dir, LEAGUE)
+
+
+# ── a game plan key ───────────────────────────────────────────────────────────
+
+
+def set_league(folder: Path, **settings: str | Path) -> None:
+    """Add `[league]` settings to the league folder's league.toml."""
+    toml = folder / "league.toml"
+    lines = "".join(f"{key} = '{value}'\n" for key, value in settings.items())
+    text = toml.read_text(encoding="utf-8").replace("[league]\n", "[league]\n" + lines)
+    toml.write_text(text, encoding="utf-8")
+
+
+def team_league(
+    league: Path,
+    tmp_path: Path,
+    off: str = "OFF1.pln",
+    off2: str = "OFF2.pln",
+    **settings: str | Path,
+) -> Path:
+    """The league's .lg2 and .lge in `tmp_path/lg2` (Denver, then Las Vegas,
+    both in one folder), `path` and `settings` set. Denver's offense game
+    plans are `off` and `off2`, its defense ones DEF1.pln and DEF2.pln, all
+    there (copies of the test game plans); Las Vegas's are never there.
+    Returns the teams' league folder."""
+    lg2_dir = tmp_path / "lg2"
+    lg2_dir.mkdir()
+    denver = team(
+        ("o1.prf", off),
+        ("d1.prf", "DEF1.pln"),
+        ("o2.prf", off2),
+        ("d2.prf", "DEF2.pln"),
+    )
+    las_vegas = team(("lo.prf", "RAIDEROFF.pln"), ("ld.prf", "RAIDERDEF.pln"))
+    (lg2_dir / f"{LEAGUE}.lg2").write_bytes(denver + las_vegas)
+    (lg2_dir / f"{LEAGUE}.lge").write_bytes(lge(*TEAM_NAMES[:2]))
+    set_league(league, path=lg2_dir, **settings)
+    folder = lg2_dir / "PNFL" / "2049" / "Plans" / "Team"
+    folder.mkdir(parents=True)
+    for name in {off, off2}:
+        shutil.copy2(GP_OFFENSE, folder / name)
+    for name in ("DEF1.pln", "DEF2.pln"):
+        shutil.copy2(GP_DEFENSE, folder / name)
+    return folder
+
+
+@pytest.mark.parametrize(
+    ("key", "name", "count"),
+    [
+        ("off1", "OFF1.pln", 64),
+        ("def1", "DEF1.pln", 50),
+        ("off2", "OFF2.pln", 64),
+        ("DEF2", "DEF2.pln", 50),
+    ],
+)
+def test_normals_key_writes_beside_the_game_plan(
+    runner, league: Path, tmp_path: Path, key: str, name: str, count: int
+) -> None:
+    """Each key is its .lg2 entry, any case; the list lands beside the game
+    plan and the OK line names its full path."""
+    folder = team_league(league, tmp_path, team="Denver")
+    result = runner.invoke(list_normals, [key])
+    assert result.exit_code == 0
+    out = folder / name.replace(".pln", ".normals.txt")
+    assert result.stdout == f"OK   {out}: {count} normal play(s)\n"
+    assert str((folder / name).resolve()) in out.read_text(encoding="utf-8")
+
+
+def test_specials_key_to_the_console(runner, league: Path, tmp_path: Path) -> None:
+    team_league(league, tmp_path, team="Denver")
+    result = runner.invoke(list_specials, ["def1", "-"])
+    assert result.exit_code == 0
+    assert result.stdout.splitlines() == _expected("defense_specials.txt")
+
+
+def test_two_keys_one_shared_game_plan_write_one_file_twice(
+    runner, league: Path, tmp_path: Path
+) -> None:
+    folder = team_league(league, tmp_path, "OFF.pln", "OFF.pln", team="Denver")
+    first = runner.invoke(list_normals, ["off1"])
+    second = runner.invoke(list_normals, ["off2"])
+    out = folder / "OFF.normals.txt"
+    assert first.stdout == second.stdout == f"OK   {out}: 64 normal play(s)\n"
+
+
+def test_key_from_ppp_path(runner, league: Path, tmp_path: Path) -> None:
+    """In ppp_path a key's game plan is found by its .lg2 name, any case, and
+    the list lands beside it, in the coach's own folder."""
+    mine = tmp_path / "mine"
+    mine.mkdir()
+    shutil.copy2(GP_OFFENSE, mine / "off1.PLN")
+    team_league(league, tmp_path, team="Denver", ppp_path=mine)
+    result = runner.invoke(list_normals, ["off1"])
+    assert result.exit_code == 0
+    assert result.stdout == f"OK   {mine / 'off1.normals.txt'}: 64 normal play(s)\n"
+
+
+def test_key_team_option_names_another_team(
+    runner, league: Path, tmp_path: Path
+) -> None:
+    folder = team_league(league, tmp_path, team="Denver")
+    result = runner.invoke(list_specials, ["off1", "-", "--team", "Las Vegas"])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {folder / 'RAIDEROFF.pln'}: {FILE_NOT_FOUND}\n"
+
+
+def test_key_missing_at_your_league_location(
+    runner, league: Path, tmp_path: Path
+) -> None:
+    """The run's error, with the ppp_path hint: the team is yours."""
+    folder = team_league(league, tmp_path, team="Denver")
+    (folder / "OFF2.pln").unlink()
+    result = runner.invoke(list_specials, ["off2", "-"])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {folder / 'OFF2.pln'}: {FILE_NOT_FOUND} Run 'athc config set "
+        "ppp_path FOLDER' or pass a .pln file.\n"
+    )
+    assert result.stdout == ""
+
+
+def test_key_missing_folder_is_the_path_phrase(
+    runner, league: Path, tmp_path: Path
+) -> None:
+    folder = team_league(league, tmp_path, team="Denver")
+    shutil.rmtree(folder)
+    result = runner.invoke(list_specials, ["off1", "-"])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {folder / 'OFF1.pln'}: {PATH_NOT_FOUND} Run 'athc config set "
+        "ppp_path FOLDER' or pass a .pln file.\n"
+    )
+
+
+def test_key_missing_in_ppp_path(runner, league: Path, tmp_path: Path) -> None:
+    mine = tmp_path / "mine"
+    mine.mkdir()
+    team_league(league, tmp_path, team="Denver", ppp_path=mine)
+    result = runner.invoke(list_specials, ["off1", "-"])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {mine / 'OFF1.pln'}: {FILE_NOT_FOUND}\n"
+
+
+def test_key_team_not_set(runner, league: Path, tmp_path: Path) -> None:
+    team_league(league, tmp_path)
+    result = runner.invoke(list_specials, ["off1", "-"])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {league / 'league.toml'}: Team is not set. Run 'athc config set "
+        "team NAME' or pass --team or a .pln file.\n"
+    )
+
+
+def test_key_path_not_set(runner, league: Path) -> None:
+    set_league(league, team="Denver")
+    result = runner.invoke(list_specials, ["off1", "-"])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {league / 'league.toml'}: League files folder is not set. Run "
+        "'athc config set path FOLDER' or pass a .pln file.\n"
+    )
+
+
+def test_folder_named_like_a_key_is_that_folder(
+    runner, league: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team_league(league, tmp_path, team="Denver")
+    (tmp_path / "off1").mkdir()
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(list_specials, ["off1", "-"])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL off1: {ACCESS_DENIED}\n"
+
+
+def test_file_named_like_a_key_is_that_file(
+    runner, league: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team_league(league, tmp_path, team="Denver")
+    shutil.copy2(GP_DEFENSE, tmp_path / "off1")
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(list_specials, ["off1", "-"])
+    assert result.exit_code == 0
+    assert result.stdout.splitlines() == _expected("defense_specials.txt")
+
+
+@pytest.mark.parametrize("key", ["def2", "off3"], ids=["fourth key", "a fifth"])
+def test_four_keys_only(
+    runner, league: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str
+) -> None:
+    """The four keys are accepted; any other word is a path like any other."""
+    team_league(league, tmp_path, team="Denver")
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(list_specials, [key, "-"])
+    if key == "def2":
+        assert result.exit_code == 0
+        assert result.stdout.splitlines() == _expected("defense_specials.txt")
+    else:
+        assert result.exit_code == 2
+        assert result.stderr == f"FAIL off3: {FILE_NOT_FOUND}\n"

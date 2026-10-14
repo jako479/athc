@@ -23,7 +23,7 @@ from athc.scheduler.config import (
 from athc.scheduler.domain.league import League, RivalryPair, Team
 from athc.scheduler.domain.schedule import Game, Schedule
 from athc.scheduler.schedulers.types import Matchup, Matchups, make_matchup
-from athc.scheduler.schedulers.utils import make_solver
+from athc.scheduler.schedulers.utils import make_solver, run_solver
 
 
 class ScheduleBuilder:
@@ -816,7 +816,7 @@ class ScheduleBuilder:
         workers: SolverWorkers = DEFAULT_SOLVER_WORKERS,
     ) -> Schedule:
         solver = make_solver(seed=seed, time_limit=time_limit, workers=workers)
-        status = solver.solve(self.model)
+        status = run_solver(solver, self.model)
         if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             raise self.error_cls(
                 f"CP-SAT returned status {solver.status_name(status)} - no feasible "

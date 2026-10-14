@@ -15,10 +15,11 @@ generate-schedule  --  build the season schedule
    .txt and .html schedule plus a sortable HTML report (per-team strength of
    schedule; click a column header to sort) to the current folder. Files are
    named schedule_<season>_<timestamp>; the report adds a _report.html suffix.
+   A rerun in the same minute replaces them.
 
-   The previous season's <league>.lge (saved after its last playoff game)
+   The previous season's .lge file (saved after its last playoff game)
    gives the standings: each team's record and playoff finish. The upcoming
-   season's <league>.lge gives the conferences, divisions and team names.
+   season's .lge file gives the conferences, divisions and team names.
    Teams are matched by name; list a team that changed its name under
    [renames.<season>] in the league's scheduler.toml.
 
@@ -26,29 +27,52 @@ generate-schedule  --  build the season schedule
       athc generate-schedule -h
 
    Example terminal calls:
-      athc generate-schedule --season 2050 --previous "E:\PNFL\2049 final"
-      athc generate-schedule --league PCFL --season 2030 --previous D:\PCFL\2029 --seed 7
+      athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge
+      athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge --seed 7
+      athc generate-schedule --season 2030 --league PCFL --previous D:\PCFL\2029\PCFL.lge --upcoming D:\PCFL\2030\PCFL.lge
+      athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge --time-limit 900
 
    Options:
-      --league name         league to schedule; default is [athc] league
-      --season year         (required) season to schedule, e.g. 2050
-      --previous folder     (required) folder holding the previous season's
-                            league files; its <league>.lge gives the standings
-      --upcoming folder     folder holding the upcoming season's league files;
-                            its <league>.lge gives the conferences, divisions
-                            and teams. Default: path in league.toml
-      --seed number         random seed for reproducible output
-      --time-limit number   override the solver time limit (CP-SAT
-                            deterministic time, not wall-clock seconds)
+      --season YEAR        (required) season to schedule, e.g. 2048
+      --previous FILE      previous season's .lge file, saved after its last
+                           playoff game; default: the --upcoming file, which
+                           then gives the standings too ([renames.<season>]
+                           is ignored)
+      --upcoming FILE      upcoming season's .lge file; default: the league's
+                           .lge in path in league.toml
+      --seed NUMBER        seed for a repeatable run, 0 to 2147483647;
+                           default: random (0 to 1,000,000), and the last
+                           line shows it
+      --time-limit LIMIT   solver budget for placing games into weeks, 1 or
+                           more, in the solver's own time units, not seconds;
+                           default: time_limit in scheduler.toml
+      --league NAME        league to use; default: the one set with
+                           athc config set league
+
+   With no --upcoming and no path in league.toml:
+      FAIL <league.toml>: League files folder is not set. Run 'athc config
+      set path FOLDER' or pass --upcoming.
+
+   A file's season cannot be read from it, so a --previous of the wrong
+   season shows only through its team names (Team(s) not in <file>: ...).
 
    Progress prints as it runs; each file written gets an OK line, then
    "Generated <n> games (seed <s>)". Exit 0 = written, 2 = bad arguments
-   or an error (league, config, a league file, no feasible schedule).
+   or an error (league, config, a league file, no feasible schedule),
+   130 = Ctrl+C.
 
-   The previous season must be finished (every regular-season and playoff
-   game played). Teams rank by playoff finish, then record, then strength of
-   schedule (opponents' combined record), then point differential; each
-   division's finish order ranks its upcoming members by their records.
+   Ctrl+C stops the run: FAIL Interrupted., and nothing is written; during
+   a solve the search stops at the press. A press while the three files are
+   written takes effect once all three are written.
+
+   An unfinished season (games not played) is a warning, WARN <file>:
+   Season not finished: <n> game(s) not played., and the run goes on with
+   the games played. Teams rank by playoff finish, then record, then
+   strength of schedule (opponents' combined record), then their previous
+   season's division finish, then point differential, then a coin toss
+   drawn from the seed; each division's finish order ranks its upcoming
+   members by their records, with the same coin toss last. No file's team
+   order breaks a tie.
 
    A team that moved keeps its previous season. Renamed in the same
    division: list it under [renames.<season>] and it keeps its place under
@@ -63,8 +87,8 @@ generate-schedule  --  build the season schedule
 CONFIG FILES (in %LOCALAPPDATA%\athc\leagues\<NAME>\)
    ---------------------------------------------------
 
-   league.toml -- path names the folder that holds the league's files; it is
-   the default upcoming-season folder.
+   league.toml -- path names the folder that holds the league's files; the
+   league's .lge there is the default upcoming-season file.
 
    scheduler.toml -- optional tuning (difficulty tilt, solver time
    limits, weeks, rule amounts and toggles, rivalries) and the renamed teams:
@@ -72,5 +96,6 @@ CONFIG FILES (in %LOCALAPPDATA%\athc\leagues\<NAME>\)
       [renames.2048]
       Baltimore = "Los Angeles"      previous name = "new name"
 
-   Every other key defaults if absent; edit only to change a default. See the
+   Every other key defaults if absent; edit only to change a default.
+   time_limit and phase1_time_limit must be positive numbers. See the
    comments in the shipped PNFL and PCFL files.

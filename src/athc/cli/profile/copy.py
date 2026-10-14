@@ -6,18 +6,26 @@ from pathlib import Path
 
 import click
 
-from athc.cli import CONTEXT_SETTINGS
+from athc.cli import CONTEXT_SETTINGS, league_option, team_option
 from athc.cli.profile import profile
-from athc.cli.profile._common import collect_files, named_file
+from athc.cli.profile._common import (
+    TEAM_HELP,
+    collect_files,
+    epilog,
+    expand_names,
+    one_profile,
+    team_profiles,
+)
 from athc.console import console
 from athc.errors import AthcError, error_line
 from athc.fbpro98_profile import read_profile, write_profile
 from athc.profile.writer import ProfileWriter
 
-# CLI flag dest -> summary label, in display order.
+# CLI flag dest -> summary label, in display order. The writer's keyword names
+# the substitutions flag `copy_sub_percent`.
 _FLAG_LABELS = {
     "copy_stop_clock": "stop-clock",
-    "copy_sub_percent": "sub-percent",
+    "copy_sub_percent": "substitutions",
     "copy_field_goal_range": "field-goal-range",
     "copy_fourth_down": "fourth-down",
     "copy_goal_line": "goal-line",
@@ -25,26 +33,33 @@ _FLAG_LABELS = {
 }
 
 
-@profile.command(name="copy", context_settings=CONTEXT_SETTINGS)
-@click.argument("source", metavar="source", type=click.Path(path_type=Path))
-@click.argument("target", metavar="target", type=click.Path(path_type=Path))
-@click.option(
-    "-r",
-    "--recursive",
-    is_flag=True,
-    help="Recurse into subdirectories when target is a directory.",
+@profile.command(
+    name="copy",
+    context_settings=CONTEXT_SETTINGS,
+    epilog=epilog(
+        "athc profile copy off1 off2 --stop-clock --substitutions",
+        "athc profile copy new.prf off1 off2 --substitutions",
+    ),
 )
+@click.argument("source", help="Profile to copy from: a .prf file or a profile key.")
+@click.argument(
+    "target",
+    nargs=-1,
+    required=True,
+    help="Profiles to copy into: .prf files, folders, wildcards or profile keys.",
+)
+@click.option("-r", "--recursive", is_flag=True, help="Include subfolders.")
 @click.option(
     "--stop-clock",
     "copy_stop_clock",
     is_flag=True,
-    help="Copy the stop-clock flag for every situation.",
+    help="Copy the stop-clock setting of every situation.",
 )
 @click.option(
-    "--sub-percent",
+    "--substitutions",
     "copy_sub_percent",
     is_flag=True,
-    help="Copy all substitution percentages.",
+    help="Copy the substitution percentages.",
 )
 @click.option(
     "--field-goal-range",
@@ -62,46 +77,52 @@ _FLAG_LABELS = {
     "--goal-line",
     "copy_goal_line",
     is_flag=True,
-    help="Copy every goal-line situation (inside DEF 5 or OFF 5).",
+    help="Copy every goal-line situation (inside the 5).",
 )
 @click.option(
     "--pat-logic",
     "copy_pat_logic",
     is_flag=True,
-    help="Copy the PAT play-calling table (all 60 situations).",
+    help="Copy the PAT table (60 situations).",
 )
+@team_option(TEAM_HELP)
+@league_option
 @click.pass_context
 def copy(
     ctx: click.Context,
-    source: Path,
-    target: Path,
+    source: str,
+    target: tuple[str, ...],
     recursive: bool,
+    team: str | None,
+    league: str | None,
     **flags: bool,
 ) -> None:
-    """Copy selected fields from the source .prf into one or more target .prf files.
+    """Copy settings from one profile to others.
 
-    target is a .prf file or a directory (top level, or the whole tree with -r).
-    Files of the wrong side (offense vs defense) are skipped. At least one copy
-    flag is required.
+    Targets of the other side are skipped; run athc profile check afterward.
     """
     if not any(flags.values()):
         raise click.UsageError(
             "At least one copy option is required "
-            "(--stop-clock, --sub-percent, --field-goal-range, "
+            "(--stop-clock, --substitutions, --field-goal-range, "
             "--fourth-down, --goal-line, --pat-logic)."
         )
-    side = "offense" if read_profile(named_file(source)).is_offense else "defense"
+    profiles = team_profiles((source, *target), team=team, league=league)
+    source_path = one_profile(source, profiles)
+    side = "offense" if read_profile(source_path).is_offense else "defense"
 
-    collected = collect_files([str(target)], suffix=".prf", recursive=recursive)
-    for line in collected.errors:
+    expanded = expand_names(target, profiles)
+    collected = collect_files(expanded.paths, suffix=".prf", recursive=recursive)
+    errors = [*expanded.errors, *collected.errors]
+    for line in errors:
         console.fail(line)
     for line in collected.warnings:
         console.warn(line)
 
     other_side = "defense" if side == "offense" else "offense"
-    source_resolved = source.resolve()
+    source_resolved = source_path.resolve()
     updated = skipped = 0
-    failed = len(collected.errors)
+    failed = len(errors)
     for path in collected.files:
         if path.resolve() == source_resolved:
             skipped += 1
@@ -112,7 +133,7 @@ def copy(
             console.skip(f"{path}: {other_side} profile")
             continue
         try:
-            result = ProfileWriter(source, path).apply(**flags)
+            result = ProfileWriter(source_path, path).apply(**flags)
             write_profile(result, str(path))
         except (AthcError, OSError) as error:
             console.fail(error_line(error))

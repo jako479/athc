@@ -26,7 +26,7 @@ from athc.scheduler.schedulers.types import (
     Matchups,
     make_matchup,
 )
-from athc.scheduler.schedulers.utils import make_solver
+from athc.scheduler.schedulers.utils import make_solver, run_solver
 
 from .conftest import MATCHUP_CASES, LeagueCase, league_from_tables
 
@@ -166,6 +166,19 @@ def test_solve_runs_the_shared_solver_with_its_seed_time_limit_and_workers(
         seed=5,
     ).build_matchup_plan()
     assert calls == [(5, 77.0, 3)]
+
+
+def test_solve_goes_through_the_solve_helper(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The helper is what turns a Ctrl+C press into a stopped search.
+    calls: list[object] = []
+
+    def spy(solver, model):
+        calls.append(solver)
+        return run_solver(solver, model)
+
+    monkeypatch.setattr(matchup_builder, "run_solver", spy)
+    MatchupBuilder(MATCHUP_CASES[0].league, spread=FAST_SPREAD).build_matchup_plan()
+    assert len(calls) == 1
 
 
 def test_solve_defaults_to_the_pinned_worker_count(

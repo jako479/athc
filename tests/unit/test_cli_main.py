@@ -90,6 +90,73 @@ def test_usage_error_keeps_clicks_text(log_dir: Path) -> None:
     assert "ERROR No such option" in _log(log_dir)
 
 
+def test_usage_error_gets_its_period(log_dir: Path) -> None:
+    """Click leaves the period off this one; the one place adds it."""
+    result = CliRunner().invoke(cli, ["gameplan", "list-normals", "a", "b", "c"])
+    assert result.exit_code == 2
+    assert result.stderr.startswith("Usage: ")
+    assert result.stderr.endswith("Error: Got unexpected extra argument (c).\n")
+    assert "ERROR Got unexpected extra argument (c).\n" in _log(log_dir)
+
+
+@pytest.mark.parametrize(
+    ("args", "ending"),
+    [
+        (["gameplan", "check", "--nope"], "Error: No such option '--nope'.\n"),
+        (
+            ["gameplan", "check", "--recursiv"],
+            "Error: No such option '--recursiv'. Did you mean '--recursive'?\n",
+        ),
+    ],
+    ids=["period", "question"],
+)
+def test_usage_error_that_ends_a_sentence_is_kept(args: list[str], ending: str) -> None:
+    result = CliRunner().invoke(cli, args)
+    assert result.exit_code == 2
+    assert result.stderr.endswith(ending)
+
+
+def test_click_wildcard_expansion_is_off(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """On Windows Click would turn `GP*.pln` into GP1.pln and GP2.pln before
+    the command saw it, and list-normals would write the play list over
+    GP2.pln. athc gets the word as typed, and list-normals takes one file."""
+    for name in ("GP1.pln", "GP2.pln"):
+        (tmp_path / name).write_bytes(b"a game plan")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["athc", "gameplan", "list-normals", "GP*.pln"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 2
+    assert capsys.readouterr().err == f"FAIL GP*.pln: {FILE_NOT_FOUND}\n"
+    assert (tmp_path / "GP2.pln").read_bytes() == b"a game plan"
+
+
+def test_positional_arguments_show_bare_names() -> None:
+    """An optional argument and a repeating one are listed as `OUTPUT_FILE`
+    and `PLAY`; the usage line and Click's error hint keep `[OUTPUT_FILE]`
+    and `PLAY...`."""
+
+    @click.command(cls=AthcCommand, context_settings=CONTEXT_SETTINGS)
+    @click.argument("play", nargs=-1, required=True, help="Plays to find.")
+    @click.argument("output_file", required=False, help="Where to write them.")
+    def cmd(play: tuple[str, ...], output_file: str | None) -> None:
+        pass
+
+    help_text = CliRunner().invoke(cmd, ["--help"], prog_name="cmd").stdout
+    assert "Usage: cmd [OPTIONS] PLAY... [OUTPUT_FILE]\n" in help_text
+    section = help_text.split("Positional arguments:\n", 1)[1].split("\n\n", 1)[0]
+    assert section.splitlines() == [
+        "  PLAY         Plays to find.",
+        "  OUTPUT_FILE  Where to write them.",
+    ]
+    missing = CliRunner().invoke(cmd, [])
+    assert missing.stderr.endswith("Error: Missing argument 'PLAY...'.\n")
+
+
 def test_bare_athc_shows_help_without_logging_it(log_dir: Path) -> None:
     result = CliRunner().invoke(cli, [])
     assert result.exit_code == 2

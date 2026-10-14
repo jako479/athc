@@ -19,7 +19,7 @@ src/athc/scheduler/                 # subsystem source
 │   ├── matchup_builder.py          # phase 1: MatchupBuilder (structure, same-place pairs, rivalries, CP-SAT line)
 │   ├── schedule_builder.py         # phase 2: ScheduleBuilder (CP-SAT week placement)
 │   ├── types.py                    # MatchupPlan, SchedulerResult, get_scheduler
-│   ├── utils.py                    # make_solver, resolve_workers: the CP-SAT solver setup both phases share
+│   ├── utils.py                    # make_solver, resolve_workers, run_solver, write_hold: the CP-SAT setup both phases share, and Ctrl+C
 │   └── errors.py                   # SchedulerError
 └── writers/
     ├── writer.py                   # ScheduleWriter protocol + factory
@@ -32,25 +32,25 @@ src/athc/cli/generate_schedule.py   # Click command (lazy solver import)
 
 ## What this package does
 
-- Provides a CLI: `athc generate-schedule [--league name] --season year --previous folder [--upcoming folder] [--seed number] [--time-limit number]`
-- Resolves the league (`--league` → `[athc] league`) with the shared `athc.config.load_league_config`; `--upcoming` defaults to the league's `path`
-- Reads the previous season's `<league>.lge` (standings) and the upcoming season's (conferences, divisions, names) through `fbpro98_lge`, matches the teams by name with `[renames.<season>]`, ranks the previous season and builds the `League` (`league_files.py`); loads `scheduler.toml` (optional amounts and the renames) from the league's folder
+- Provides a CLI: `athc generate-schedule [OPTIONS]`, with `--season YEAR` (required), `--previous FILE`, `--upcoming FILE`, `--seed NUMBER`, `--time-limit LIMIT` and `--league NAME`
+- Resolves the league (`--league` → `[athc] league`) with the shared `athc.config.load_league_config`; `--upcoming` defaults to `<league>.lge` in the league's `path`, and `--previous` to the upcoming file
+- Reads the previous season's `.lge` file (standings), then the upcoming season's (conferences, divisions, names), through `fbpro98_lge`, matches the teams by name with `[renames.<season>]` (none when one file gives both), ranks the previous season and builds the `League` (`league_files.py`); loads `scheduler.toml` (optional amounts and the renames) from the league's folder first
 - Solves the schedule in two CP-SAT phases
-- Writes `schedule_<season>_<timestamp>.txt` / `.html` and `_report.html` to the current directory, titled by league
+- Writes `schedule_<season>_<timestamp>.txt` / `.html` and `_report.html` to the current folder, titled by league
 
 ## What this package enforces
 
 CLI-level (Click → exit 2):
-- `--season` and `--previous` provided; `--time-limit` an integer
+- `--season` provided; `--seed` an integer from 0 to 2147483647 (`must be 0 to 2147483647, got -1.`); `--time-limit` an integer of 1 or more (`must be 1 or more, got 0.`). The bounds are athc callbacks raising Click's `BadParameter`, so a non-integer keeps Click's `is not a valid integer.`
 
 Config (`ConfigFileError`, `LeagueError` → `FAIL`, exit 2) — found via `config_dir()` / `ATHC_CONFIG_DIR`, no `--config` flag:
-- The league (`--league`, else `[athc] league`) must have a folder `leagues\<NAME>\`; without `--upcoming`, its `league.toml` must set `path`.
-- `leagues\<NAME>\scheduler.toml` is **optional**; every key defaults; invalid TOML or a bad value is an error. `[renames.<season>]` keys are season years, values team names; a rename must name a previous-season team and an upcoming-season team, and not a name another previous-season team keeps.
+- The league (`--league`, else `[athc] league`) must have a folder `leagues\<NAME>\`; without `--upcoming`, its `league.toml` must set `path`, else `League files folder is not set. Run 'athc config set path FOLDER' or pass --upcoming.`
+- `leagues\<NAME>\scheduler.toml` is **optional**; every key defaults; invalid TOML or a bad value is an error. `[solver] time_limit` and `phase1_time_limit` must be positive numbers (`Must be a positive number.`). `[renames.<season>]` keys are season years, values team names; a rename must name a previous-season team and an upcoming-season team, and not a name another previous-season team keeps.
 - League-resolved rules: `weeks` must fit the league, `opening_nonconference_weeks` must leave room for every same-conference game, `[rivalries]` must name every team once with exactly one cross-conference pair.
 
 League files (`OSError`, `InvalidLgeError`, `SchedulerError` → `FAIL`, exit 2), each line naming the file:
-- Both `<league>.lge` files must exist and parse.
-- The previous season must be finished: `Season not finished: N game(s) not played.`
+- Both `.lge` files must exist and parse; a missing one is Windows' own phrase.
+- An unfinished previous season is a `WARN`, not an error: `Season not finished: N game(s) not played.`, and the standings come from the games played.
 - A team name must not repeat in a file; every previous-season team must match an upcoming one by (renamed) name and vice versa (`Team(s) not in <file>: ...`, with the `[renames.<season>]` hint); no playoff game may be tied.
 
 Domain (`ValueError`, surfaced as `SchedulerError` naming the upcoming file):
@@ -61,14 +61,15 @@ Solver (`SchedulerError` → `FAIL`, exit 2):
 
 ## The standings
 
-`league_files.py` ranks the previous season: playoff finish (the last round's winner first, then its loser, then each earlier round's losers; a bye costs nothing), then win percentage, then strength of schedule (opponents' combined regular-season record as a win percentage), then point differential, then file order. Each upcoming division's finish is its members ranked by the previous season with the lge library's `ranked` (the game's own order: win percentage, the manual's tie-breakers under the previous season's divisions, previous-file order). A league whose conferences each hold one division is the conference-only shape. Conferences and divisions carry their file position as `number`: the identity and sort key, since the PNFL's conference names are empty and both conferences have an `East`.
+`league_files.py` ranks the previous season: playoff finish (the last round's winner first, then its loser, then each earlier round's losers; a bye costs nothing), then win percentage, then strength of schedule (opponents' combined regular-season record as a win percentage), then the previous season's division finish (the team's place in the division it played in, ranked with `ranked` and the coin toss last), then point differential, then the coin toss. Each upcoming division's finish is its members ranked by the previous season with the lge library's `ranked` (the game's own order: win percentage, the manual's tie-breakers under the previous season's divisions, then the given order, which is the coin toss). The coin toss is one `random.Random(seed)` shuffle of the previous season's teams, drawn from the run's seed, so no file's team order breaks a tie and a seed reproduces its standings. A league whose conferences each hold one division is the conference-only shape. Conferences and divisions carry their file position as `number`: the identity and sort key, since the PNFL's conference names are empty and both conferences have an `East`.
 
 ## Exit codes
 
 | Exit | Meaning |
 |---|---|
 | `0` | **Done** — schedule (and report) written. |
-| `2` | **Error** — a `FAIL` line: league, config, no feasible schedule, I/O, or missing solver (ortools); or usage, bad `--season` / `--time-limit` (Click). |
+| `2` | **Error** — a `FAIL` line: league, config, no feasible schedule, I/O, or missing solver (ortools); or usage, bad `--season` / `--seed` / `--time-limit` (Click). |
+| `130` | **Interrupted** — Ctrl+C, `FAIL Interrupted.`: nothing written, or all three files when pressed while they are written. |
 
 The shared scheme: [architecture.md](../design/architecture.md#console-run-log-and-errors).
 
@@ -85,11 +86,13 @@ Both phases run CP-SAT the same way, through one shared setup (`make_solver`): *
 
 Also required: the model is built in canonical team order (never Python `set` iteration order). The model checksum test and the golden regression test guard both.
 
+Ctrl+C: `make_solver` turns CP-SAT's own handling off (`catch_sigint_signal = False`). With it on, a press ends the process at once with no line: OR-Tools keeps its handler on the solving thread, and Windows runs the Ctrl+C handler on a thread of its own. With it off alone, Python hears the press only when the solve returns, up to the whole budget later. So both builders solve through `run_solver`, which installs a console control handler (`SetConsoleCtrlHandler`) for the length of the solve: a press calls `stop_search()`, and `KeyboardInterrupt` follows once the solve returns, which the one place prints as `FAIL Interrupted.`, exit 130. Outside a solve, Python's own handler does the same. The three output files are written inside `write_hold`, whose handler only records a press, so a press there takes effect once all three are written. The best schedule found so far is not kept.
+
 ## Testing
 
 One suite in `tests/unit/scheduler/`, parametrized over every league case (two divisional standings variants, the conference league in an even season, an odd season, and with rotation off):
 
-- `test_matchups` (phase 1; matrix in [test-matrix-phase-1-matchups.md](../../tests/unit/scheduler/test-matrix-phase-1-matchups.md)), `test_schedule_builder` (phase-2 model wiring), `test_utils` (the shared solver setup), `test_cpu` (fast-thread count and CPU name) and `test_schedule_rules` (every rule on a solved schedule, through the shared validator; matrix in [test-matrix-phase-2-schedule.md](../../tests/unit/scheduler/test-matrix-phase-2-schedule.md)).
+- `test_matchups` (phase 1; matrix in [test-matrix-phase-1-matchups.md](../../tests/unit/scheduler/test-matrix-phase-1-matchups.md)), `test_schedule_builder` (phase-2 model wiring), `test_utils` (the shared solver setup, the Ctrl+C solve and the write hold), `test_cpu` (fast-thread count and CPU name) and `test_schedule_rules` (every rule on a solved schedule, through the shared validator; matrix in [test-matrix-phase-2-schedule.md](../../tests/unit/scheduler/test-matrix-phase-2-schedule.md)).
 - `test_cli` / `test_config` (CLI, the rules file and `[renames]`, every shipped `config/dev/` and `config/release/` rules file; matrix in [test-matrix-config-loading.md](../../tests/unit/scheduler/test-matrix-config-loading.md)), `test_league_files` (the League from two `.lge` files: the PNFL's real 2047 -> 2048 files reproduce the league's published 2048 order, 2046 -> 2047 covers a realignment with four renames, built `LgeFile`s cover every error and ranking rule), `test_league` (domain), `test_report` (matrix in [test-matrix-report.md](../../tests/unit/scheduler/test-matrix-report.md)), `test_writers`.
 - `test_model_checksum` pins both CP-SAT models per league; re-pin only with that league's goldens.
 

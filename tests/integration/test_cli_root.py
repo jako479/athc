@@ -19,11 +19,16 @@ from athc.cli import cli
 from athc.cli.check_ppp import check_ppp
 from athc.cli.convert_pdb import convert_pdb
 from athc.cli.gameplan.check import check as gameplan_check
+from athc.cli.gameplan.find_play import find_play
+from athc.cli.gameplan.list_normals import list_normals
+from athc.cli.gameplan.list_specials import list_specials
 from athc.cli.gameplan.replace_play import replace_play
 from athc.cli.gameplan.set_normals import set_normals
 from athc.cli.gameplan.set_specials import set_specials
 from athc.cli.generate_schedule import generate_schedule
 from athc.cli.profile.check import check as profile_check
+from athc.cli.profile.copy import copy as profile_copy
+from athc.cli.profile.diff import diff as profile_diff
 from athc.cli.standings import standings
 from tests.conftest import LEAGUE, OTHER_LEAGUE, league_not_found, no_league_selected
 from tests.integration.conftest import DATA, GP_OFFENSE, OFF1, RULES_TOML
@@ -32,10 +37,15 @@ MakeLeague = Callable[..., Path]
 
 LEAGUE_COMMANDS = [
     gameplan_check,
+    find_play,
+    list_normals,
+    list_specials,
     replace_play,
     set_normals,
     set_specials,
     profile_check,
+    profile_diff,
+    profile_copy,
     check_ppp,
     convert_pdb,
     generate_schedule,
@@ -57,23 +67,36 @@ def test_root_rejects_league(runner) -> None:
 
 @pytest.mark.parametrize("command", LEAGUE_COMMANDS)
 def test_league_commands_take_league(runner, command: click.Command) -> None:
+    """Every one reads the same: `--league NAME` and the shared help text."""
     result = runner.invoke(command, ["--help"])
     assert result.exit_code == 0
-    assert "--league name" in result.stdout
+    output = " ".join(result.stdout.split())  # the help text wraps
+    assert (
+        "--league NAME League to use (default: the one set with athc config set "
+        "league)." in output
+    )
 
 
 def _unknown_league_args(command: click.Command, tmp_path: Path) -> list[str]:
     """Arguments that get `command` as far as resolving its league."""
     plays = tmp_path / "plays.txt"
     plays.write_text("Some Play\n", encoding="utf-8")
-    if command is gameplan_check:
+    if command in (gameplan_check, list_normals, list_specials):
         return [str(GP_OFFENSE)]
+    if command is find_play:
+        return ["Some Play", "--path", str(GP_OFFENSE)]
     if command is replace_play:
-        return ["Old Play", "New Play", str(GP_OFFENSE)]
-    if command in (set_normals, set_specials):
+        return ["Old Play", "New Play", "--path", str(GP_OFFENSE)]
+    if command is set_normals:
         return [str(GP_OFFENSE), str(plays)]
+    if command is set_specials:
+        return [str(plays), "--path", str(GP_OFFENSE)]
     if command is profile_check:
         return [str(OFF1)]
+    if command is profile_diff:
+        return [str(OFF1), str(OFF1)]
+    if command is profile_copy:
+        return [str(OFF1), str(OFF1), "--stop-clock"]
     if command is check_ppp:
         return [str(OFF1), str(GP_OFFENSE)]
     if command is convert_pdb:
@@ -136,47 +159,86 @@ def test_short_help_option_on_every_command(runner, path: tuple[str, ...]) -> No
 @pytest.mark.parametrize(
     ("path", "shown", "hidden"),
     [
-        (("config", "set"), ["key value"], ["KEY", "VALUE"]),
         (
             ("convert-pdb",),
-            ["pdb_file output_file", "--pln-off pln_file"],
-            ["PDBFILE", "OUTPUTFILE", "PATH"],
+            [
+                "PDB_FILE [OUTPUT_FILE]",
+                "--pln-off GAME_PLAN",
+                "--path FOLDER",
+                "--team NAME",
+                "--percentages / --no-percentages",
+            ],
+            ["PDBFILE", "OUTPUTFILE", "pdb_file", "pln_file"],
         ),
-        (("gameplan", "check"), ["[path]..."], ["PATH"]),
-        (("gameplan", "find-play"), ["play... [path]"], ["PLAY", "PATH"]),
+        (
+            ("gameplan", "check"),
+            ["[PATH]...", "--team NAME"],
+            ["[path]", "PATHS"],
+        ),
+        (
+            ("gameplan", "find-play"),
+            ["PLAY...", "--path PATH", "--team NAME", "--league NAME"],
+            ["PLAYS", "[PATH]"],
+        ),
         (
             ("gameplan", "replace-play"),
-            ["play replacement... [path]"],
-            ["PLAY", "REPLACEMENT", "PATH"],
+            ["PLAY REPLACEMENT...", "--path PATH", "--team NAME"],
+            ["PATH]"],
+        ),
+        (
+            ("gameplan", "list-normals"),
+            ["GAME_PLAN [OUTPUT_FILE]", "--team NAME"],
+            ["GAMEPLAN", "OUTPUT_PATH", "[output_file]"],
         ),
         (
             ("gameplan", "set-normals"),
-            ["gameplan play_list"],
-            ["GAMEPLAN_PATH", "PLAY_LIST_PATH"],
+            ["GAME_PLAN INPUT_FILE", "--team NAME"],
+            ["GAMEPLAN_PATH", "PLAY_LIST", "play_list"],
         ),
         (
             ("gameplan", "set-specials"),
-            ["path play_list"],
-            ["TARGET", "PLAY_LIST_PATH"],
+            ["INPUT_FILE", "--path PATH", "--team NAME"],
+            ["PATH INPUT_FILE"],
         ),
         (
             ("generate-schedule",),
-            ["--season year", "--seed number", "--time-limit number"],
-            ["INTEGER"],
+            [
+                "--season YEAR",
+                "--previous FILE",
+                "--upcoming FILE",
+                "--seed NUMBER",
+                "--time-limit LIMIT",
+            ],
+            ["INTEGER", "--season year"],
         ),
-        (("profile", "check"), ["[path]..."], ["PATH"]),
+        (("playpool", "check"), ["[FOLDER]"], ["PLAY_DIR", "play_dir"]),
+        (
+            ("profile", "check"),
+            ["[PATH]...", "--team NAME"],
+            ["[path]", "PATHS"],
+        ),
+        (
+            ("profile", "copy"),
+            ["SOURCE TARGET...", "--team NAME"],
+            ["source target"],
+        ),
         (
             ("profile", "diff"),
-            ["file1 file2", "--output file"],
-            ["A.prf", "B.prf", "FILE"],
+            ["PROFILE1 PROFILE2", "--output FILE", "--team NAME"],
+            ["file1", "A.prf", "--output file"],
         ),
-        (("check-ppp",), ["path [path]"], ["PATH", "FIRST", "SECOND"]),
+        (
+            ("check-ppp",),
+            ["[PATH]...", "--team NAME"],
+            ["path [path]", "PATH [PATH]", "FIRST", "SECOND", "--team name"],
+        ),
     ],
     ids=lambda v: " ".join(v) if isinstance(v, tuple) else "",
 )
-def test_help_uses_lowercase_names(
+def test_help_uses_uppercase_names(
     runner, path: tuple[str, ...], shown: list[str], hidden: list[str]
 ) -> None:
+    """Placeholders are UPPERCASE with underscores, one name per kind of value."""
     result = runner.invoke(cli, [*path, "--help"])
     assert result.exit_code == 0
     output = " ".join(result.stdout.split())  # a long usage line wraps
@@ -187,34 +249,21 @@ def test_help_uses_lowercase_names(
 
 
 USAGE_CASES = [
-    ((), "athc [-h] [--version] command [args]..."),
-    (("gameplan",), "athc gameplan [-h] command [args]..."),
+    ((), "athc [OPTIONS] COMMAND [ARGS]..."),
+    (("gameplan",), "athc gameplan [OPTIONS] COMMAND [ARGS]..."),
     (
         ("gameplan", "list-normals"),
-        "athc gameplan list-normals [-h] [--sort slot|name|category] [--league name] "
-        "gameplan [output_file]",
+        "athc gameplan list-normals [OPTIONS] GAME_PLAN [OUTPUT_FILE]",
     ),
-    (("gameplan", "find-play"), "athc gameplan find-play [-h] [-r] play... [path]"),
-    (("profile", "diff"), "athc profile diff [-h] [-o file] file1 file2"),
-    (
-        ("generate-schedule",),
-        "athc generate-schedule [-h] --season year --previous folder "
-        "[--upcoming folder] [--seed number] [--time-limit number] [--league name]",
-    ),
-    (("autocontinue",), "athc autocontinue [-h] [--hot-corner | --no-hot-corner]"),
-    (("playpool",), "athc playpool [-h] command [args]..."),
-    (("playpool", "check"), "athc playpool check [-h] [--league name] [play_dir]"),
-    (("check-ppp",), "athc check-ppp [-h] [-r] [--league name] path [path]"),
-    (
-        ("convert-pdb",),
-        "athc convert-pdb [-h] [-o pln_file] [-o2 pln_file] [-d pln_file] "
-        "[-d2 pln_file] [--skip-calcs] [--league name] pdb_file output_file",
-    ),
-    (
-        ("standings",),
-        "athc standings [-h] [--view game|league|conference|division] "
-        "[--method scheduler|game|nfl] [--league name]",
-    ),
+    (("gameplan", "find-play"), "athc gameplan find-play [OPTIONS] PLAY..."),
+    (("profile", "diff"), "athc profile diff [OPTIONS] PROFILE1 PROFILE2"),
+    (("generate-schedule",), "athc generate-schedule [OPTIONS]"),
+    (("autocontinue",), "athc autocontinue [OPTIONS]"),
+    (("playpool",), "athc playpool [OPTIONS] COMMAND [ARGS]..."),
+    (("playpool", "check"), "athc playpool check [OPTIONS] [FOLDER]"),
+    (("check-ppp",), "athc check-ppp [OPTIONS] [PATH]..."),
+    (("convert-pdb",), "athc convert-pdb [OPTIONS] PDB_FILE [OUTPUT_FILE]"),
+    (("standings",), "athc standings [OPTIONS]"),
 ]
 
 
@@ -223,19 +272,60 @@ USAGE_CASES = [
     USAGE_CASES,
     ids=[" ".join(path) or "athc" for path, _ in USAGE_CASES],
 )
-def test_usage_lists_each_option(runner, path: tuple[str, ...], usage: str) -> None:
+def test_usage_is_clicks_own(runner, path: tuple[str, ...], usage: str) -> None:
+    """One `[OPTIONS]`, then the arguments; a group ends in `COMMAND [ARGS]...`."""
     result = runner.invoke(cli, [*path, "-h"], prog_name="athc")
     assert result.exit_code == 0
     block = result.stdout.split("\n\n", 1)[0]  # the usage line, however wrapped
     assert " ".join(block.split()) == f"Usage: {usage}"
 
 
-def test_long_usage_wraps_between_options(runner) -> None:
-    result = runner.invoke(cli, ["convert-pdb", "-h"], prog_name="athc")
-    usage = result.stdout.split("\n\n", 1)[0].splitlines()
-    assert len(usage) > 1  # long enough to wrap
-    for line in usage:
-        assert line.count("[") == line.count("]"), line  # no option split
+# Each leaf command with fixed positionals and a value for each of them: the
+# last one is accepted (each command's own tests), one past it is not.
+ALL_POSITIONALS = [
+    (("convert-pdb",), ["a.pdb", "b.xlsx"]),
+    (("gameplan", "list-normals"), ["a.pln", "b.txt"]),
+    (("gameplan", "list-specials"), ["a.pln", "b.txt"]),
+    (("gameplan", "set-normals"), ["a.pln", "b.txt"]),
+    (("gameplan", "set-specials"), ["a.txt"]),
+    (("profile", "diff"), ["a.prf", "b.prf"]),
+    (("config", "set"), ["team", "Denver"]),
+    (("config", "get"), ["team"]),
+    (("config", "path"), ["athc.ini"]),
+    (("playpool", "check"), ["plays"]),
+]
+
+
+@pytest.mark.parametrize(
+    ("path", "positionals"),
+    ALL_POSITIONALS,
+    ids=[" ".join(path) for path, _ in ALL_POSITIONALS],
+)
+def test_one_positional_past_the_last_is_rejected(
+    runner, path: tuple[str, ...], positionals: list[str]
+) -> None:
+    result = runner.invoke(cli, [*path, *positionals, "x"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith("Error: Got unexpected extra argument (x).\n")
+
+
+RECURSIVE_COMMANDS = [
+    ("check-ppp",),
+    ("gameplan", "check"),
+    ("gameplan", "find-play"),
+    ("gameplan", "replace-play"),
+    ("gameplan", "set-specials"),
+    ("profile", "check"),
+    ("profile", "copy"),
+]
+
+
+@pytest.mark.parametrize("path", RECURSIVE_COMMANDS, ids=" ".join)
+def test_recursive_option_reads_the_same(runner, path: tuple[str, ...]) -> None:
+    result = runner.invoke(cli, [*path, "--help"])
+    assert result.exit_code == 0
+    output = " ".join(result.stdout.split())  # the help column width varies
+    assert "-r, --recursive Include subfolders. " in output
 
 
 def test_root_ignores_athc_league_env(

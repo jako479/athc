@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 from click.testing import Result
 
+from athc.cli import cli
 from athc.cli.playpool.check import check
 from athc.errors import DIRECTORY_INVALID, PATH_NOT_FOUND
 from tests.conftest import (
@@ -188,9 +189,85 @@ def test_league_without_play_path_exit_2(
     result = run(runner)
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {folder / 'league.toml'}: No play_path for the league. "
-        "Set play_path in this file.\n"
+        f"FAIL {folder / 'league.toml'}: Play pool folder is not set. "
+        "Run 'athc config set play_path FOLDER' or pass the folder.\n"
     )
+
+
+@pytest.mark.parametrize(
+    ("is_file", "reason"),
+    [(False, PATH_NOT_FOUND), (True, DIRECTORY_INVALID)],
+    ids=["missing", "a file"],
+)
+def test_league_play_path_not_a_folder_gets_the_hint(
+    runner,
+    tmp_path: Path,
+    make_league: MakeLeague,
+    write_config: WriteConfig,
+    is_file: bool,
+    reason: str,
+) -> None:
+    """No FOLDER: the league's play_path that is not a folder is play_dir()'s
+    line, with the hint every other pool consumer gives."""
+    play_path = tmp_path / "plays"
+    if is_file:
+        play_path.write_text("x", encoding="utf-8")
+    league_with(make_league, LEAGUE, play_path)
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    result = run(runner)
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert result.stderr == (
+        f"FAIL {play_path}: {reason} Run 'athc config set play_path FOLDER'.\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "play_path",
+    ["'{missing}'", "['{missing}']"],
+    ids=["missing on disk", "an array"],
+)
+def test_folder_run_never_reads_play_path(
+    runner,
+    tmp_path: Path,
+    make_league: MakeLeague,
+    write_config: WriteConfig,
+    play_path: str,
+) -> None:
+    """A given FOLDER is checked alone: the league's play_path, however broken,
+    is never read."""
+    missing = tmp_path / "gone"
+    make_league(LEAGUE, f"[league]\nplay_path = {play_path.format(missing=missing)}\n")
+    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    root = clean_tree(tmp_path / "plays")
+    result = run(runner, root)
+    assert result.exit_code == 0
+    assert "FAIL" not in result.stderr
+    assert result.stdout == f"1 play(s) checked in '{root}', 0 issue(s)\n"
+
+
+def test_two_folders_are_a_usage_error(runner, tmp_path: Path) -> None:
+    """One FOLDER at most: a second is Click's usage error, with athc's period,
+    and nothing is checked."""
+    first = clean_tree(tmp_path / "one")
+    second = clean_tree(tmp_path / "two")
+    result = run(runner, first, second)
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert result.stderr.endswith(f"Error: Got unexpected extra argument ({second}).\n")
+
+
+def test_wildcard_folder_is_not_expanded(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FOLDER takes no wildcards: `plays*` is a folder that does not exist, even
+    beside a `plays` folder."""
+    clean_tree(tmp_path / "plays")
+    monkeypatch.chdir(tmp_path)
+    result = run(runner, "plays*")
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert result.stderr == f"FAIL plays*: {PATH_NOT_FOUND}\n"
 
 
 def test_missing_play_dir_is_not_found_exit_2(runner, tmp_path: Path) -> None:
@@ -220,3 +297,56 @@ def test_read_error_exit_2(
     result = run(runner, clean_tree(tmp_path / "plays"))
     assert result.exit_code == 2
     assert result.stderr == "FAIL Access is denied.\n"
+
+
+# ── help ──────────────────────────────────────────────────────────────────────
+
+CONSOLE_WIDTH = 78  # Click's help width in an 80-column console
+
+GROUP_HELP = """\
+Usage: athc playpool [OPTIONS] COMMAND [ARGS]...
+
+  Check the play pool (.ply).
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  check  Check the play pool for problems.
+"""
+
+CHECK_HELP = """\
+Usage: athc playpool check [OPTIONS] [FOLDER]
+
+  Check the play pool for problems.
+
+  Finds plays in the wrong folder, duplicate names and invalid play files.
+
+Positional arguments:
+  FOLDER  Play pool folder (default: the league's play_path).
+
+Options:
+  --league NAME  League to use (default: the one set with athc config set
+                 league).
+  -h, --help     Show this message and exit.
+
+  Examples:
+
+    athc playpool check
+    athc playpool check newplays
+"""
+
+
+@pytest.mark.parametrize(
+    ("args", "screen"),
+    [(["playpool"], GROUP_HELP), (["playpool", "check"], CHECK_HELP)],
+    ids=["playpool", "playpool check"],
+)
+def test_help_screen(runner, args: list[str], screen: str) -> None:
+    """The help as an 80-column console shows it: Click wraps it 78 wide there,
+    where CliRunner would force 80."""
+    result = runner.invoke(
+        cli, [*args, "--help"], prog_name="athc", terminal_width=CONSOLE_WIDTH
+    )
+    assert result.exit_code == 0
+    assert result.stdout == screen

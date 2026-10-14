@@ -19,7 +19,6 @@ __all__ = ["Config", "ConfigFileError", "load_config"]
 @dataclass(frozen=True, slots=True)
 class Config:
     play_path: Path
-    league_file: Path  # the league.toml that sets play_path, for its errors
     rule_files: tuple[Path, ...] = ()
     categories: CategoryLabels = field(default_factory=CategoryLabels)
 
@@ -34,7 +33,7 @@ def load_config(
     play_path = cfg.path("play_path")
     if play_path is None:
         raise ConfigFileError(
-            "No play_path for the league. Set play_path in this file.",
+            "Play pool folder is not set. Run 'athc config set play_path FOLDER'.",
             cfg.dir / LEAGUE_FILE,
         )
     files = (
@@ -44,7 +43,6 @@ def load_config(
     )
     return Config(
         play_path=play_path,
-        league_file=cfg.dir / LEAGUE_FILE,
         rule_files=files,
         categories=cfg.categories,
     )

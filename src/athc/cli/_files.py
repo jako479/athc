@@ -14,7 +14,9 @@ _GLOB_CHARS = frozenset("*?[")
 
 
 def is_glob(s: str) -> bool:
-    return any(c in s for c in _GLOB_CHARS)
+    """Whether `s` is a wildcard. A name that exists is a name, never a
+    wildcard, so a folder like `Season [2029]` is that folder."""
+    return any(c in s for c in _GLOB_CHARS) and not Path(s).exists()
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,7 +33,8 @@ class Collected:
 
 def collect_files(paths: Iterable[str], *, suffix: str, recursive: bool) -> Collected:
     """Resolve paths (file / directory / glob) to a deduped list of `suffix`
-    files, in order, with the errors and warnings the paths produced."""
+    files, in order, with the errors and warnings the paths produced. A path
+    that exists is used as is, before any wildcard check (`is_glob`)."""
     suffix = suffix.lower()
     collected = Collected()
     seen: set[Path] = set()

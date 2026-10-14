@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from os import PathLike
 
-from athc.fbpro98_gameplan import GamePlan, read_gameplan
+from athc.fbpro98_gameplan import GamePlan
 from athc.fbpro98_play import PlayCategory
 from athc.pdbtoexcel.config import Config
 from athc.pdbtoexcel.excel_workbook import ExcelPdbWorkbook
@@ -53,12 +53,13 @@ class PdbWorkbookCreator:
         cls,
         config: Config,
         pdb_filename: StrPath,
-        pln_def_filename: StrPath | None = None,
-        pln_off_filename: StrPath | None = None,
-        pln_def_filename_2: StrPath | None = None,
-        pln_off_filename_2: StrPath | None = None,
+        pln_defense: GamePlan | None = None,
+        pln_offense: GamePlan | None = None,
+        pln_defense_2: GamePlan | None = None,
+        pln_offense_2: GamePlan | None = None,
     ) -> PdbWorkbookCreator:
-        """Build all dependencies from file paths. Tests call `__init__` with fakes.
+        """Read the play pool and the PDB; the game plans come already read.
+        Tests call `__init__` with fakes.
 
         Each play-pool issue and each PDB notice lands in the creator's
         `warnings`."""
@@ -71,10 +72,10 @@ class PdbWorkbookCreator:
             config,
             play_pool,
             pdb,
-            read_gameplan(pln_def_filename) if pln_def_filename else None,
-            read_gameplan(pln_off_filename) if pln_off_filename else None,
-            read_gameplan(pln_def_filename_2) if pln_def_filename_2 else None,
-            read_gameplan(pln_off_filename_2) if pln_off_filename_2 else None,
+            pln_defense,
+            pln_offense,
+            pln_defense_2,
+            pln_offense_2,
         )
         creator.warnings.extend(notices)
         return creator
@@ -91,17 +92,14 @@ class PdbWorkbookCreator:
 
         `perform_calculations=False` omits derived percentage columns.
         `calculate_totals=True` appends a "Total Stats" team summing all teams.
+        Each Slot column shows only when its game plan is there.
         `progress` hears each progress line; nothing is printed or logged here.
         """
         say = progress or (lambda _: None)
         say(f"Creating '{filename}'")
         self._warn_stale_deleted_plays()
-        offense_slots = (1 if self.pln_offense else 0) + (
-            1 if self.pln_offense_2 else 0
-        )
-        defense_slots = (1 if self.pln_defense else 0) + (
-            1 if self.pln_defense_2 else 0
-        )
+        offense_slots = (self.pln_offense is not None, self.pln_offense_2 is not None)
+        defense_slots = (self.pln_defense is not None, self.pln_defense_2 is not None)
 
         with ExcelPdbWorkbook(
             self.config, filename, perform_calculations, offense_slots, defense_slots

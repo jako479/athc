@@ -1,7 +1,7 @@
 """`athc profile diff` — show differences between two .prf profiles.
 
-Default report goes to stdout. `--output file` writes it instead, format inferred
-from the extension: `.txt` (the stdout text) or `.csv` (one row per change).
+Default report goes to the console. `--output FILE` writes it instead, format
+from the extension: `.txt` (the console text) or `.csv` (one row per change).
 """
 
 from __future__ import annotations
@@ -12,9 +12,9 @@ from pathlib import Path
 
 import click
 
-from athc.cli import CONTEXT_SETTINGS
+from athc.cli import CONTEXT_SETTINGS, league_option, team_option
 from athc.cli.profile import profile
-from athc.cli.profile._common import named_file
+from athc.cli.profile._common import TEAM_HELP, epilog, one_profile, team_profiles
 from athc.console import console
 from athc.fbpro98_profile import ProfileType, read_profile
 from athc.profile import ProfileDiff, SituationChange, SlotChange, diff_profiles
@@ -23,46 +23,68 @@ from athc.profile.display import category_label
 _OUTPUT_FORMATS = ("csv", "txt")
 
 
-@profile.command(name="diff", context_settings=CONTEXT_SETTINGS)
-@click.argument("a", metavar="file1", type=click.Path(path_type=Path))
-@click.argument("b", metavar="file2", type=click.Path(path_type=Path))
+def _output_format(
+    ctx: click.Context, param: click.Parameter, value: Path | None
+) -> Path | None:
+    """`--output` as given, when its extension names a format. Raised here, in
+    the option's own callback, Click names the option in the error."""
+    if value is not None and _infer_format(value) is None:
+        raise click.BadParameter("must have a .txt or .csv extension.")
+    return value
+
+
+@profile.command(
+    name="diff",
+    context_settings=CONTEXT_SETTINGS,
+    epilog=epilog(
+        "athc profile diff off1 off2",
+        "athc profile diff off1 try.prf -o changes.csv",
+    ),
+)
+@click.argument("profile1", help="A .prf file or a profile key.")
+@click.argument("profile2", help="The profile to compare it with, named the same way.")
 @click.option(
     "-o",
     "--output",
     type=click.Path(path_type=Path),
     default=None,
-    metavar="file",
-    help=(
-        "Write the report to file instead of stdout; "
-        "format from the extension (.txt or .csv)."
-    ),
+    metavar="FILE",
+    callback=_output_format,
+    help="Write the report to FILE instead of the console (.txt, or .csv for Excel).",
 )
+@team_option(TEAM_HELP)
+@league_option
 @click.pass_context
-def diff(ctx: click.Context, a: Path, b: Path, output: Path | None) -> None:
-    """Show the differences between two .prf coaching profiles (same side only).
+def diff(
+    ctx: click.Context,
+    profile1: str,
+    profile2: str,
+    output: Path | None,
+    team: str | None,
+    league: str | None,
+) -> None:
+    """Show differences between two profiles.
 
-    Compares situations, PAT situations, substitution percentages, field-goal
-    range, and audibles; only changed records are shown.
+    Shows only what changed; both profiles must be the same side.
     """
-    fmt = None
-    if output is not None:
-        fmt = _infer_format(output)
-        if fmt is None:
-            raise click.BadParameter(
-                "the format comes from the extension: use .txt or .csv.",
-                param_hint="--output",
-            )
-
+    profiles = team_profiles((profile1, profile2), team=team, league=league)
+    first_path = one_profile(profile1, profiles)
+    first_profile = read_profile(first_path)
+    second_path = one_profile(profile2, profiles)
     result = diff_profiles(
-        read_profile(named_file(a)), read_profile(named_file(b)), a_path=a, b_path=b
+        first_profile,
+        read_profile(second_path),
+        a_path=first_path,
+        b_path=second_path,
     )
+    first, second = str(first_path), str(second_path)
     if output is None:
-        console.print(render(result, str(a), str(b)))
+        console.print(render(result, first, second))
     else:
         content = (
-            render_csv(result, str(a), str(b))
-            if fmt == "csv"
-            else render(result, str(a), str(b)) + "\n"
+            render_csv(result, first, second)
+            if _infer_format(output) == "csv"
+            else render(result, first, second) + "\n"
         )
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_bytes(content.encode("utf-8"))

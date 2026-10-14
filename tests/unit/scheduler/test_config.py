@@ -109,6 +109,16 @@ def test_load_scheduler_config_errors_on_invalid_value(config_dir: Path) -> None
         _load()
 
 
+def test_solver_time_limit_must_be_positive(tmp_path: Path) -> None:
+    # One validator for time_limit and phase1_time_limit, tested once.
+    path = _write(tmp_path / "s.toml", "[solver]\ntime_limit = 1\n")
+    assert load_scheduler_config(path).solver.time_limit == 1.0
+    _write(path, "[solver]\ntime_limit = 0\n")
+    with pytest.raises(ConfigFileError) as exc:
+        load_scheduler_config(path)
+    assert str(exc.value) == f"{path}: [solver] time_limit: Must be a positive number."
+
+
 def test_load_scheduler_config_errors_on_non_integer_workers(config_dir: Path) -> None:
     # solver_workers is an integer count; a fractional value is invalid.
     _write_scheduler_toml(config_dir, "[solver]\nsolver_workers = 1.5\n")

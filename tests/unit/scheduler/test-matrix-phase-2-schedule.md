@@ -28,7 +28,9 @@ Tests: `test_solved_schedule_obeys_every_rule`, `test_solved_schedule_realizes_t
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | Soft objective wired | 8 metrics, 16 slack terms | `test_soft_objective_is_added_to_the_model` | ☑ |
-| Reproducible parallel search | fixed workers, interleave, deterministic time (the solver setup shared with phase 1, in `test_utils.py`) | `test_solver_is_configured_for_reproducible_parallel_search` | ☑ |
+| Reproducible parallel search | fixed workers, interleave, deterministic time, CP-SAT's own Ctrl+C off (the solver setup shared with phase 1, in `test_utils.py`) | `test_solver_is_configured_for_reproducible_parallel_search` | ☑ |
+| Solve through the helper | phase 2 solves through `run_solver` | `test_solve_goes_through_the_solve_helper` | ☑ |
+| Ctrl+C (`test_utils.py`) | no press: the status, handler removed; Ctrl+C: `stop_search`, handled, `KeyboardInterrupt` once the solve returns; other events pass on; the write hold raises on the way out, not before | `test_run_solver_returns_the_status_and_removes_its_handler`, `test_ctrl_c_during_the_solve_stops_the_search_then_interrupts`, `test_other_console_events_pass_on` `[P]`, `test_write_hold_without_a_press_removes_its_handler`, `test_ctrl_c_in_the_write_hold_interrupts_on_the_way_out` | ☑ |
 | Worker count resolved | `"auto"` → fast threads minus 2; a number as given (`test_utils.py`) | `test_auto_workers_resolve_to_this_machines_fast_threads_minus_two`, `test_a_fixed_worker_count_is_used_as_given` | ☑ |
 | Fast threads (`test_cpu.py`) | hybrid → P-core threads only; uniform → every thread; minus 2, never below 1; this machine's count and CPU name | `test_cpu.py` | ☑ |
 | Rule gating (no divisions) | no `d_`/streak/objective parts; toggles add only when on; window follows the cap | `test_league_without_divisions_has_no_divisional_model_parts`, `test_home_away_toggles_add_constraints_only_when_on`, `test_streak_caps_on_without_divisions_is_allowed`, `test_max_consecutive_window_follows_the_cap` | ☑ |

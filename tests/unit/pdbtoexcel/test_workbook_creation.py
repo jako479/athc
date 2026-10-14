@@ -11,6 +11,7 @@ import pytest
 from athc.fbpro98_play import DefensiveFront
 from athc.fbpro98_play import OffensiveCategory as O
 from athc.pdbtoexcel import Config, PdbWorkbookCreator
+from athc.pdbtoexcel.excel_workbook import ExcelPdbWorkbook
 from athc.pdbtoexcel.pdb import PDB, PLAY_DATA
 from tests.conftest import PNFL_LABELS
 from tests.unit.pdbtoexcel.conftest import (
@@ -156,6 +157,15 @@ def test_skip_calcs_omits_percent_columns(tmp_path: Path) -> None:
     assert "Fumble %" in with_calcs and "Fumble %" not in without
 
 
+def test_percent_columns_follow_the_run_not_the_setting(tmp_path: Path) -> None:
+    """The caller weighs `calculate_percentages`; the workbook does as told."""
+    play = _run_play("RUN1", play_count=10, total_yards=46)
+    record = make_record("RUN1", play_category=0x01, user_category=0x09)
+    config = _config(calculate_percentages=False)
+    header = _rows(_build(tmp_path, [play], [record], config=config)["Run Plays"])[0]
+    assert "Fumble %" in header
+
+
 def test_totals_adds_total_stats_team(tmp_path: Path) -> None:
     plays = [
         _run_play("RUN1", play_count=10, total_yards=40),
@@ -216,6 +226,51 @@ def test_slot_column_from_gameplan(tmp_path: Path) -> None:
     creator.create_workbook(str(out), True, False)
     data = _rows(openpyxl.load_workbook(out)["Run Plays"])[1]
     assert data[2] == "1-1"  # Slot 1
+
+
+# ── Slot columns: each one hides by its own game plan ─────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("slots", "hidden"),
+    [
+        ((False, False), (True, True)),
+        ((True, False), (False, True)),
+        ((False, True), (True, False)),
+        ((True, True), (False, False)),
+    ],
+    ids=["neither", "plan 1 only", "plan 2 only", "both"],
+)
+def test_slot_options_by_presence(
+    slots: tuple[bool, bool], hidden: tuple[bool, bool]
+) -> None:
+    """0, 1 or 2 plans, and Slot 2 visible with plan 2 alone."""
+    options = tuple(ExcelPdbWorkbook._slot_options(slots, index) for index in (1, 2))
+    assert options == tuple({"hidden": True} if h else None for h in hidden)
+
+
+def _hidden(ws, column: int) -> bool:
+    # openpyxl keys a column range by its first letter; check every range.
+    return any(
+        dim.hidden and dim.min <= column <= dim.max
+        for dim in ws.column_dimensions.values()
+    )
+
+
+def test_second_plan_alone_shows_slot_2(tmp_path: Path) -> None:
+    from athc.fbpro98_gameplan import read_gameplan
+    from tests.unit.pdbtoexcel.conftest import DATA
+
+    plan = read_gameplan(str(DATA / "offense.pln"))  # OR45RL01 at slot 0: "1-1"
+    play = _run_play("OR45RL01", play_count=5, total_yards=20)
+    pdb = PDB(str(write_pdb(tmp_path / "in.pdb", plays=[play])))
+    pool = make_pool([make_record("OR45RL01", play_category=0x01, user_category=0x09)])
+    out = tmp_path / "out.xlsx"
+    creator = PdbWorkbookCreator(_config(), pool, pdb, pln_offense_2=plan)
+    creator.create_workbook(str(out), True, False)
+    ws = openpyxl.load_workbook(out)["Run Plays"]
+    assert (_hidden(ws, 3), _hidden(ws, 4)) == (True, False)
+    assert _rows(ws)[1][2:4] == (None, "1-1")  # openpyxl reads "" as None
 
 
 # ── category order ────────────────────────────────────────────────────────────

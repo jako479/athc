@@ -18,7 +18,20 @@ _METHODS: tuple[Method, ...] = ("scheduler", "game", "nfl")
 _SEED = 0
 
 
-@click.command(name="standings", cls=AthcCommand, context_settings=CONTEXT_SETTINGS)
+EXAMPLES = """Examples:
+
+\b
+  athc standings
+  athc standings --view division --method nfl
+"""
+
+
+@click.command(
+    name="standings",
+    cls=AthcCommand,
+    context_settings=CONTEXT_SETTINGS,
+    epilog=EXAMPLES,
+)
 @click.option(
     "--view",
     type=click.Choice(VIEWS),
@@ -37,20 +50,13 @@ _SEED = 0
 def standings(view: View, method: Method, league: str | None) -> None:
     """Show the league's standings as played so far.
 
-    Reads the league's <league>.lge from the folder `path` names in its
-    league.toml.
-
-    \b
-      --view game         the game's standings screen
-      --view league       every team, numbered (ESPN's League tab)
-      --view conference   each conference, numbered (ESPN's Conference tab)
-      --view division     each division (ESPN's Division tab)
+    Reads the league's .lge from the folder path names in league.toml.
     """
     config = load_league_config(league)
     folder = config.path(LEAGUE_PATH_KEY)
     if folder is None:
         raise ConfigFileError(
-            f"No {LEAGUE_PATH_KEY} for the league. Set {LEAGUE_PATH_KEY} in this file.",
+            "League files folder is not set. Run 'athc config set path FOLDER'.",
             config.dir / LEAGUE_FILE,
         )
     lge = read_lge(config.name, folder)

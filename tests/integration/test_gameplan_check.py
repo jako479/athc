@@ -32,6 +32,7 @@ from tests.integration.conftest import (
     GP_OFFENSE,
     GP_RULES,
     PLAYS,
+    team,
 )
 
 RULES = load_rules([str(GP_RULES)], labels=PNFL_LABELS)
@@ -261,6 +262,24 @@ def test_cli_recursive(runner, tmp_path: Path) -> None:
 
 
 @pytest.mark.usefixtures("league")
+def test_cli_wildcard_path(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """athc expands the wildcard itself: the two matching game plans only."""
+    plans = tmp_path / "plans"
+    plans.mkdir()
+    shutil.copy2(GP_OFFENSE, plans / "Off1.pln")
+    shutil.copy2(GP_OFFENSE, plans / "Off2.pln")
+    shutil.copy2(GP_DEFENSE, plans / "def.pln")
+    monkeypatch.chdir(plans)
+    result = runner.invoke(check, ["Off*.pln"])
+    assert result.exit_code == 1
+    assert f"{Path('Off1.pln')}: " in result.stdout
+    assert f"{Path('Off2.pln')}: " in result.stdout
+    assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
+
+
+@pytest.mark.usefixtures("league")
 def test_cli_clean_exit_0(runner, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "athc.cli.gameplan.check.validate_gameplan", lambda gp, rules, pool: ()
@@ -373,7 +392,7 @@ def test_cli_missing_play_path(runner, league: Path, tmp_path: Path) -> None:
     assert result.exit_code == 2
     assert result.stderr == (
         f"FAIL {tmp_path / 'nope'}: {PATH_NOT_FOUND} "
-        f"Set play_path in {league / 'league.toml'}.\n"
+        "Run 'athc config set play_path FOLDER'.\n"
     )
 
 
@@ -465,6 +484,135 @@ def test_cli_attribute_caps_apply(runner) -> None:
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 1
     assert "timed passes" in result.stdout
+
+
+# ── game plan keys and --team ─────────────────────────────────────────────────
+
+
+def team_plans(lg2_league, **settings: str) -> Path:
+    """A league whose one team (Denver) has its four game plans named after
+    their keys: OFF1.pln and DEF1.pln there (copies of the test game plans),
+    OFF2.pln and DEF2.pln not. Returns the team's league folder."""
+    lg2 = lg2_league(
+        team(
+            ("o1.prf", "OFF1.pln"),
+            ("d1.prf", "DEF1.pln"),
+            ("o2.prf", "OFF2.pln"),
+            ("d2.prf", "DEF2.pln"),
+        ),
+        **settings,
+    )
+    folder = lg2.parent / "PNFL" / "2049" / "Plans" / "Team"
+    folder.mkdir(parents=True)
+    shutil.copy2(GP_OFFENSE, folder / "OFF1.pln")
+    shutil.copy2(GP_DEFENSE, folder / "DEF1.pln")
+    return folder
+
+
+def heads(result) -> list[str]:
+    """The path of each report's first line, in order."""
+    return [
+        line.split(": ")[0]
+        for line in result.stdout.splitlines()
+        if line and not line.startswith(" ") and "file(s) checked" not in line
+    ]
+
+
+def test_cli_key_checks_that_game_plan(runner, lg2_league) -> None:
+    folder = team_plans(lg2_league, team="Denver")
+    result = runner.invoke(check, ["off1"])
+    assert result.exit_code == 1
+    assert heads(result) == [str(folder / "OFF1.pln")]
+    assert "1 file(s) checked, 1 with violations, 0 failed" in result.stdout
+
+
+def test_cli_key_and_a_path(runner, lg2_league) -> None:
+    """Left to right, each file once."""
+    folder = team_plans(lg2_league, team="Denver")
+    result = runner.invoke(check, ["DEF1", str(GP_OFFENSE), "def1"])
+    assert heads(result) == [str(folder / "DEF1.pln"), str(GP_OFFENSE)]
+    assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
+
+
+def test_cli_key_missing_is_a_failed_item(runner, lg2_league) -> None:
+    """At your league location, with the ppp_path hint; the others are
+    checked."""
+    folder = team_plans(lg2_league, team="Denver")
+    result = runner.invoke(check, ["off2", "off1"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith(
+        f"FAIL {folder / 'OFF2.pln'}: {FILE_NOT_FOUND} Run 'athc config set "
+        "ppp_path FOLDER' or pass a .pln file.\n"
+    )
+    assert "1 file(s) checked, 1 with violations, 1 failed" in result.stdout
+
+
+def test_cli_key_team_option(runner, lg2_league) -> None:
+    """--team with a key: `team` need not be set."""
+    folder = team_plans(lg2_league)
+    result = runner.invoke(check, ["off1", "--team", "Broncos"])
+    assert heads(result) == [str(folder / "OFF1.pln")]
+
+
+def test_cli_key_team_not_set(runner, lg2_league, config_dir: Path) -> None:
+    team_plans(lg2_league)
+    result = runner.invoke(check, ["off1"])
+    assert result.exit_code == 2
+    toml = config_dir / "leagues" / LEAGUE / "league.toml"
+    assert result.stderr == (
+        f"FAIL {toml}: Team is not set. Run 'athc config set team NAME' or pass "
+        "--team or a .pln file.\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "args", [[], [str(GP_OFFENSE)], ["."]], ids=["no PATH", "a file", "a folder"]
+)
+def test_cli_team_without_a_key_is_a_usage_error(runner, args: list[str]) -> None:
+    result = runner.invoke(check, [*args, "--team", "Denver"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith(
+        "Error: --team requires a game plan key (off1, def1, off2 or def2).\n"
+    )
+    assert result.stdout == ""
+
+
+def test_cli_folder_named_like_a_key_is_searched(
+    runner, lg2_league, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team_plans(lg2_league, team="Denver")
+    (tmp_path / "off1").mkdir()
+    shutil.copy2(GP_DEFENSE, tmp_path / "off1" / "draft.pln")
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(check, ["off1"])
+    assert heads(result) == [str(Path("off1") / "draft.pln")]
+
+
+def test_cli_file_named_like_a_key_is_that_file(
+    runner, lg2_league, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    team_plans(lg2_league, team="Denver")
+    (tmp_path / "off1").write_text("x", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(check, ["off1"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith("FAIL off1: Not a .pln file.\n")
+    assert result.stdout == "\n0 file(s) checked, 0 with violations, 1 failed\n"
+
+
+@pytest.mark.parametrize("key", ["def1", "off3"], ids=["a key", "a fifth"])
+def test_cli_four_keys_only(
+    runner, lg2_league, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str
+) -> None:
+    """The four keys are accepted; any other word is a path like any other."""
+    folder = team_plans(lg2_league, team="Denver")
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(check, [key])
+    if key == "def1":
+        assert heads(result) == [str(folder / "DEF1.pln")]
+    else:
+        assert result.exit_code == 2
+        assert result.stderr.endswith(f"FAIL off3: {FILE_NOT_FOUND}\n")
 
 
 # ── packaging check (real subprocess) ─────────────────────────────────────────

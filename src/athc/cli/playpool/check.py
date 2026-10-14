@@ -9,7 +9,13 @@ import click
 
 from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.playpool import playpool
-from athc.config import LEAGUE_FILE, LeagueError, load_league_config
+from athc.config import (
+    LEAGUE_FILE,
+    LeagueConfig,
+    LeagueError,
+    load_league_config,
+    play_dir,
+)
 from athc.console import console
 from athc.errors import (
     DIRECTORY_INVALID,
@@ -20,44 +26,40 @@ from athc.errors import (
 from athc.fbpro98_play import CategoryLabels
 from athc.playpool import read_play_pool
 
+EXAMPLES = """Examples:
 
-@playpool.command(name="check", context_settings=CONTEXT_SETTINGS)
+\b
+  athc playpool check
+  athc playpool check newplays
+"""
+
+
+@playpool.command(name="check", context_settings=CONTEXT_SETTINGS, epilog=EXAMPLES)
 @click.argument(
-    "play_dir", metavar="[play_dir]", required=False, type=click.Path(path_type=Path)
+    "folder",
+    required=False,
+    type=click.Path(path_type=Path),
+    help="Play pool folder (default: the league's play_path).",
 )
 @league_option
 @click.pass_context
-def check(ctx: click.Context, play_dir: Path | None, league: str | None) -> None:
-    """Check the play pool: plays in the wrong folder, duplicate play names, and
-    invalid play files.
+def check(ctx: click.Context, folder: Path | None, league: str | None) -> None:
+    """Check the play pool for problems.
 
-    play_dir defaults to the league's play_path. A given play_dir needs no
-    league, but a league that resolves still lends its category names to the
-    folders; without one no folder name means a category. The messages are the
-    warnings other commands show when they load the pool.
+    Finds plays in the wrong folder, duplicate names and invalid play files.
     """
-    labels = CategoryLabels()
-    try:
+    if folder is None:
         cfg = load_league_config(league)
-    except LeagueError:
-        # A given play_dir needs no league, but a league the user named must exist.
-        if play_dir is None or league:
-            raise
-    else:
         labels = cfg.categories
-        if play_dir is None:
-            play_dir = cfg.path("play_path")
-            if play_dir is None:
-                raise ConfigFileError(
-                    "No play_path for the league. Set play_path in this file.",
-                    cfg.dir / LEAGUE_FILE,
-                )
-
-    if not play_dir.exists():
-        raise AthcError(PATH_NOT_FOUND, play_dir)
-    if not play_dir.is_dir():
-        raise AthcError(DIRECTORY_INVALID, play_dir)
-    pool = read_play_pool(play_dir, labels=labels)
+        folder = _league_pool(cfg)
+    else:
+        labels = _folder_labels(league)
+        # A folder the user typed: Windows' plain phrases, no setting to point at.
+        if not folder.exists():
+            raise AthcError(PATH_NOT_FOUND, folder)
+        if not folder.is_dir():
+            raise AthcError(DIRECTORY_INVALID, folder)
+    pool = read_play_pool(folder, labels=labels)
 
     # The pool's issues are this command's findings: results, on stdout.
     for message in pool.issues:
@@ -70,6 +72,31 @@ def check(ctx: click.Context, play_dir: Path | None, league: str | None) -> None
         + len(pool.special_teams_plays)
     )
     console.result(
-        f"{plays} play(s) checked in '{play_dir}', {len(pool.issues)} issue(s)"
+        f"{plays} play(s) checked in '{folder}', {len(pool.issues)} issue(s)"
     )
     ctx.exit(1 if pool.issues else 0)
+
+
+def _league_pool(cfg: LeagueConfig) -> Path:
+    """The league's `play_path`, checked by `play_dir()` so a missing pool gets
+    the same line, hint included, as every other pool consumer."""
+    play_path = cfg.path("play_path")
+    if play_path is None:
+        raise ConfigFileError(
+            "Play pool folder is not set. Run 'athc config set play_path FOLDER' "
+            "or pass the folder.",
+            cfg.dir / LEAGUE_FILE,
+        )
+    return play_dir(play_path)
+
+
+def _folder_labels(league: str | None) -> CategoryLabels:
+    """The category labels a given folder's names go by: the league's when one
+    resolves, else none."""
+    try:
+        return load_league_config(league).categories
+    except LeagueError:
+        # A given folder needs no league, but a league the user named must exist.
+        if league:
+            raise
+        return CategoryLabels()

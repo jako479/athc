@@ -6,34 +6,61 @@ from pathlib import Path
 
 import click
 
-from athc.cli import CONTEXT_SETTINGS
+from athc.cli import CONTEXT_SETTINGS, league_option, team_option
 from athc.cli.gameplan import gameplan
-from athc.cli.gameplan._common import emit_play_list, named_file, special_play_lines
+from athc.cli.gameplan._common import (
+    TEAM_HELP,
+    emit_play_list,
+    epilog,
+    one_game_plan,
+    require_a_key,
+    special_play_lines,
+)
+from athc.config import resolve_league
 from athc.fbpro98_gameplan import read_gameplan
 
 
-@gameplan.command(name="list-specials", context_settings=CONTEXT_SETTINGS)
-@click.argument("gameplan_path", metavar="gameplan", type=click.Path(path_type=Path))
+@gameplan.command(
+    name="list-specials",
+    context_settings=CONTEXT_SETTINGS,
+    epilog=epilog(
+        "athc gameplan list-specials def1 -",
+        "athc gameplan list-specials DEN-DGP1.pln spec.txt",
+    ),
+)
+@click.argument("game_plan", help="A .pln file or a game plan key.")
 @click.argument(
-    "output_path",
-    metavar="[output_file]",
+    "output_file",
     required=False,
     type=click.Path(path_type=Path, allow_dash=True),
+    help=(
+        "Where to write the list (default: GAME_PLAN with .specials.txt, beside "
+        "it; - prints it)."
+    ),
 )
-def list_specials(gameplan_path: Path, output_path: Path | None) -> None:
-    """List the custom special-teams plays from gameplan, in source order.
+@team_option(TEAM_HELP)
+@league_option
+def list_specials(
+    game_plan: str,
+    output_file: Path | None,
+    team: str | None,
+    league: str | None,
+) -> None:
+    """List the special-teams plays in a game plan.
 
-    Writes them, under a `:: <source>` header line, to output_file, or by default
-    to <name>.specials.txt next to gameplan; an existing file is replaced. An
-    output_file of `-` prints them instead. Empty special slots are blank lines.
+    Lists them in game plan order; an existing output file is replaced.
     """
-    gp = read_gameplan(named_file(gameplan_path))
+    require_a_key(team, [game_plan])
+    if league is not None:
+        resolve_league(league)  # nothing is read from it for a path
+    source = one_game_plan(game_plan, team, league)
+    gp = read_gameplan(source)
     lines = special_play_lines(gp)
-    if output_path is None:
-        output_path = gameplan_path.with_name(f"{gameplan_path.stem}.specials.txt")
+    if output_file is None:
+        output_file = source.with_name(f"{source.stem}.specials.txt")
     emit_play_list(
         lines,
-        None if str(output_path) == "-" else output_path,
-        gameplan_path,
+        None if str(output_file) == "-" else output_file,
+        source,
         noun="special",
     )

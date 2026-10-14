@@ -197,11 +197,7 @@ Usage: athc config set [OPTIONS] KEY VALUE
 
   Set a value in athc.ini or league.toml.
 
-  league, kept in athc.ini, is the league used when a command is not given
-  --league; VALUE is the name of a folder under leagues\ in your settings
-  folder. path, play_path, team and ppp_path go in the league's league.toml;
-  VALUE is a folder, or your team's name for team. Comments and other lines in
-  both files are kept.
+  league goes in athc.ini, the other keys in the league's league.toml.
 
 Positional arguments:
   KEY    Setting to change: league, path, play_path, team or ppp_path.

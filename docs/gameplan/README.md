@@ -10,11 +10,11 @@ Every command prints through the shared console ([architecture](../design/archit
 
 | Command | Lines | Exit 1 (findings) |
 |---|---|---|
-| `check` | `WARN` per play-pool issue, then per file `OK   <file>: <side>, <n> normal` or the headline `<file>: <n> violation(s) (<side>, <n> normal)` with its indented detail lines; a blank line; `<n> file(s) checked, <n> with violations, <n> failed` | violations |
+| `check` | `WARN` per play-pool issue (`athc playpool check` lists the same problems on their own, with an exit code), then per file `OK   <file>: <side>, <n> normal` or the headline `<file>: <n> violation(s) (<side>, <n> normal)` with its indented detail lines; a blank line; `<n> file(s) checked, <n> with violations, <n> failed` | violations |
 | `find-play` | per file and play `<file>: 'play' found in slot(s) ...` or `<file>: 'play' not found`; in directory mode a tally per play, `'play': found <n> instance(s) in <m> gameplan(s)`; a single path, found or not, gets no tally | a play found nowhere (2 if any file failed) |
 | `list-normals` / `list-specials` | the play names (with `-`), else `OK   <file>: <n> normal play(s)` / `... special play(s)` | never |
 | `replace-play` | per skipped replacement `SKIP <file>: 'new' already in the gameplan` or `SKIP <file>: 'new' fails check: [cat] message`; `OK   <file>: 'old' (cat) replaced with 'new' (cat) [1-1][2-2]` per updated file; `<file>: 'old' not replaced, no valid replacement` when none fits; a single file without the play prints `<file>: 'play' not found`; in directory mode `'old' -> 'new1', 'new2': replaced <n> instance(s) in <m> gameplan(s), <f> failed, <k> not replaced` | nothing replaced anywhere, or a gameplan with no valid replacement; a replacement not in the pool is an error |
-| `set-normals` | `OK   <gameplan>: <n> normal play(s)` (`-q` skips it); a bad play list is one `FAIL <play_list> <what is wrong>` per bad line (`FAIL <what is wrong>` when the list came from the console), the game plan untouched, exit 2 | never |
+| `set-normals` | `OK   <gameplan>: <n> normal play(s)` (`> nul` hides it; `FAIL` lines still show); a play list that is not UTF-8 text is `FAIL <list>: Not a valid play list.`; a bad play list is one `FAIL <list>: line <n>: <reason>` per bad line (`FAIL line <n>: <reason>` when the list came from the console), the game plan untouched, exit 2 | never |
 | `set-specials` | `OK   <file>: updated (<n> special play(s))`, `SKIP <file>: <other side> gameplan`, `FAIL <file>: <why>` for a file the list does not fit; a tally `<n> file(s) processed, <n> updated, <n> skipped, <n> failed` | never (a failed file is exit 2) |
 
 ## Setup
@@ -39,27 +39,34 @@ violations = validate_gameplan(gp, rules, pool)  # tuple[RuleViolation, ...]
 ## CLI
 
 ```bash
-athc gameplan check OFF.pln Def.pln           # league from config
-athc gameplan check                           # every .pln in the current directory
-athc gameplan check plans/ -r                 # directory tree
+athc gameplan check                           # every .pln in the current folder
+athc gameplan check off1                      # your team's 1st-half offense game plan
+athc gameplan check plans -r                  # a folder and its subfolders
 athc gameplan check OFF.pln --league PCFL     # another league
 
-athc gameplan list-normals OFF.pln                 # 64 normal plays to OFF.normals.txt
-athc gameplan list-normals OFF.pln plays.txt --sort name
-athc gameplan list-normals OFF.pln --sort category # grouped under `:: <category>` headers
-athc gameplan list-normals OFF.pln -               # to stdout
-athc gameplan list-specials OFF.pln                # custom special teams to OFF.specials.txt
-athc gameplan find-play OR45RL01                   # every .pln in the current directory
-athc gameplan find-play OR45RL01 OFF.pln           # slot(s) holding the play
-athc gameplan find-play OR45RL01 BCFGPAT plans/ -r # many plays across a tree
-athc gameplan set-normals OFF.pln plays.txt        # replace 64 normal slots
-athc gameplan set-normals OFF.pln -                # play list from stdin
-athc gameplan set-specials plans/ spec.txt -r      # merge specials across a tree
-athc gameplan replace-play OLDRUN NEWRUN plans/ -r # swap one play for another
-athc gameplan replace-play OLDRUN NEW1 NEW2        # NEW2 as a backup, current directory
+athc gameplan list-normals off1                    # 64 normal plays beside the game plan
+athc gameplan list-normals OFF.pln plays.txt --sort category
+athc gameplan list-specials def1 -                 # special teams to the console
+athc gameplan find-play OR45RL01                   # your team's game plans
+athc gameplan find-play OR45RL01 BCFGPAT --path plans -r
+athc gameplan set-normals off1 plays.txt           # replace 64 normal slots
+athc gameplan set-normals OFF.pln - > nul          # list from the console, OK lines hidden
+athc gameplan set-specials spec.txt                # your team's game plans of the list's side
+athc gameplan replace-play OLDRUN NEWRUN BACKUP --path plans -r
 ```
 
-`list-specials` and `find-play` just read a `.pln` — no pool, rules or config; `list-normals` also reads the league's category names (`--league`). `list-*` create the output file's missing folders. `set-*` need the pool (like `check`, minus the gameplan rules) and edit in place with no backup. `replace-play play replacement... [path]` swaps one play wherever `find-play` would find it for the first replacement that is not already in the gameplan and with which the gameplan passes `check`; every replacement must be in the pool. The path is the current directory when left out; the last name counts as the path when it is an existing file or folder, or has a `\` or `/`, a `.pln` ending or a wildcard (which works like a folder). `athc gameplan <command> --help` for flags.
+**Scope.** No path means the command's default, `.` the current folder, an explicit path overrides both. `check` defaults to the current folder; `find-play`, `replace-play` and `set-specials` default to your team's four game plans, and `--path` points them at a `.pln` file, a folder, a wildcard or one game plan key. `-r` includes subfolders.
+
+**Game plan keys.** `off1`, `def1`, `off2` and `def2` are your team's 1st-half offense, 1st-half defense, 2nd-half offense and 2nd-half defense game plan, matched without case, wherever a game plan operand is (`check`'s PATH, `--path`, `GAME_PLAN`). A file or folder that exists by that name wins. A game plan shared by both halves is processed once.
+
+**Team and sources.** The team is `team` in `league.toml`, or `--team NAME` for one run (the `.lge`'s team name, nickname or both, without case). A key's file comes from `ppp_path` (your team only), else from where the league file puts it (`path` plus the `.lg2` folder). `--team` with a path and no key is a usage error: `check`, `list-*` and `set-normals` need a key among their operands, and `find-play`, `replace-play` and `set-specials` need `--path` to be a key or left out.
+
+**Missing files.** Where the league file puts them, a missing game plan is a `FAIL` counted as failed, and a team with none is one `FAIL` per folder; your team's lines add `Run 'athc config set ppp_path FOLDER' or pass --path.` (or `... or pass a .pln file.` for a key). In `ppp_path` a batch command `WARN`s per missing game plan, and one `WARN` names the team when none of the four is there. A named file that is missing is the run's error, exit 2.
+
+`list-specials` and `find-play` with a path just read a `.pln` — no pool, rules or config; with the default scope, a key or `--team` they read `league.toml` and the league files. `list-normals` also reads the league's category names. `list-*` write beside the game plan by default and create the output file's missing folders. `set-*` need the pool and edit in place with no backup. `replace-play PLAY REPLACEMENT...` swaps one play for the first replacement that is not already in the game plan and with which it passes `check`; every replacement must be in the pool, and a repeated one is tried once. No command has a quiet flag: `> nul` hides the `OK` lines and keeps every `FAIL`. `athc gameplan <command> --help` for flags.
+
+To check your team's game plans together with their profiles, use
+[check-ppp](../check_ppp/README.md).
 
 ## Config
 
@@ -67,6 +74,7 @@ The league folder `leagues\<NAME>\` (see [../design/architecture.md](../design/a
 
 - `gameplan.toml` — the rules (or a `gameplan_rules` array in `league.toml`, later files layering over earlier).
 - `league.toml` `play_path` (pool dir) and its `[categories.*]` labels.
+- `league.toml` `path`, `team` and `ppp_path`, read only when a run uses your team's game plans (the default scope, a key or `--team`).
 
 `check` and `replace-play` read all of these from the league folder only. No rules resolvable ⇒ `check` exits 2 (nothing to validate); `replace-play` checks no league rule.
 

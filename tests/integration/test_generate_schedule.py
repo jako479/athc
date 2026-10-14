@@ -31,6 +31,7 @@ from tests.integration.league_files import (
     GoldenCase,
     case_league,
     conference_league_files,
+    no_warning,
     write_conference_league_files,
     write_league_files,
 )
@@ -68,11 +69,11 @@ def _single(directory: Path, pattern: str) -> Path:
 
 def _write_config(config_dir: Path, case: GoldenCase, root: Path) -> Path:
     """Install the league in an athc config dir: its rules file and a
-    `league.toml` whose `path` is the upcoming season's folder under `root`.
-    Returns the previous season's folder."""
+    `league.toml` whose `path` is the folder holding the upcoming season's
+    file under `root`. Returns the previous season's file."""
     folder = make_league_dir(config_dir, case.league)
     previous, upcoming = write_league_files(case, root)
-    write_config_file(folder, f"[league]\npath = '{upcoming}'\n", "league.toml")
+    write_config_file(folder, f"[league]\npath = '{upcoming.parent}'\n", "league.toml")
     shutil.copy(case.rules, folder / "scheduler.toml")
     return previous
 
@@ -140,9 +141,11 @@ def test_conference_league_files_reproduce_the_test_league() -> None:
         parse_lge(upcoming),
         {},
         season=case.season,
+        seed=case.seed,
         previous_path=DATA / case.previous,
         upcoming_path=DATA / case.upcoming,
         rules_path=case.rules,
+        warn=no_warning,
     )
     assert league == CONFERENCES_LEAGUE
 

@@ -22,8 +22,8 @@ Every athc command's usage and help text move to one mainstream, modern style; t
 - Shared options read the same everywhere: `-r, --recursive  Include subfolders.` and `--league NAME  League to use (default: the one set with athc config set league).`
 - Short options: one letter, standard meanings only (`-o` output, `-r` recursive); convert-pdb keeps its `-o`, `-o2`, `-d` and `-d2`.
 - Long options: spelled out (`--substitutions`, not `--sub-percent`).
-- Description: two to four lines; rule details belong in the tool's docs.
-- Examples: one or two real examples per command, in an "Examples" epilog.
+- Description: one to four lines; rule details belong in the tool's docs.
+- Examples: one to six real examples per command, in an "Examples" epilog.
 - Wildcards: athc expands them itself, only in these arguments, and their help says so: PATH in `gameplan check` and `profile check`; `--path PATH` in `gameplan find-play`, `gameplan replace-play` and `gameplan set-specials`; TARGET in `profile copy`.
 - A name that exists is a name, never a wildcard, so a folder like `Season [2029]` works.
 - Path rule: no path means the configured default (your team's files; the league's play pool), `.` the current folder, an explicit path overrides both.
@@ -231,8 +231,8 @@ The command plans decide each command's arguments, options and lines; where a pl
 - One CLI test with a wildcard for each of the six wildcard arguments: PATH in `gameplan check` and `profile check`; `--path PATH` in `gameplan find-play`, `gameplan replace-play` and `gameplan set-specials`; TARGET in `profile copy`.
 - `tests/integration/test_cli_root.py` (`test_usage_lists_each_option`): pins the old usage line; changes with the approved style.
 - Summary limit: every command and group summary is 55 characters or fewer; the check passes a 55-character summary and fails a 56-character one.
-- Description range: every command's description is two to four lines; the check fails 1 line, passes 2 and 4, and fails 5.
-- Examples range: every command has one or two examples; the check fails 0, passes 1 and 2, and fails 3.
+- Description range: every command's description is one to four lines; the check fails 0 lines, passes 1 and 4, and fails 5.
+- Examples range: every command has one to six examples; the check fails 0, passes 1 and 6, and fails 7.
 
 ## Docs and meta
 

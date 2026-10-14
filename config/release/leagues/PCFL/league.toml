@@ -1,3 +1,5 @@
+# Open this file with: athc config edit league.toml
+
 # PCFL league settings. Rules live here (gameplan.toml, profile.toml,
 # pdbtoexcel.toml, scheduler.toml). Reinstalling never
 # overwrites this file.
@@ -7,6 +9,11 @@
 path = 'E:\SIERRA\FbPro98'
 # The folder that holds this league's plays (.ply files).
 play_path = 'E:\SIERRA\FbPro98\PCFL'
+# Your team: its name or nickname in the league (Denver, Broncos).
+# team = 'Denver'
+# Optional: where you keep your profiles and game plans, when it is not where
+# the league file puts them. A relative path is under this league folder.
+# ppp_path = 'D:\PNFL\Denver'
 # Optional: ordered rule files replacing the fixed gameplan.toml / profile.toml;
 # later files layer over earlier ones.
 # gameplan_rules = ['gameplan.toml']

@@ -6,7 +6,6 @@ import shutil
 from collections.abc import Callable
 from pathlib import Path
 
-import click
 import pytest
 
 from athc.cli.gameplan.replace_play import (
@@ -16,7 +15,6 @@ from athc.cli.gameplan.replace_play import (
     pick_replacement,
     replace_in_gameplan,
     replace_play,
-    split_args,
 )
 from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND, AthcError
 from athc.fbpro98_gameplan import (
@@ -35,11 +33,14 @@ from tests.integration.conftest import (
     GP_DEFENSE,
     GP_OFFENSE,
     PLAYS,
+    TEAM_NAMES,
     build_gameplan,
     defense_normal,
     defense_special,
+    lge,
     offense_normal,
     offense_special,
+    team,
 )
 
 MakeLeague = Callable[..., Path]
@@ -93,67 +94,6 @@ def _write(gp: GamePlan, tmp_path: Path, name: str = "gp.pln") -> Path:
 def _name(play: PlayRef | None) -> str:
     assert play is not None
     return play.name
-
-
-# ── split_args: play, replacements, optional path ─────────────────────────────
-
-
-def test_split_one_name_is_usage_error() -> None:
-    with pytest.raises(click.UsageError):
-        split_args(("OLD",))
-
-
-def test_split_play_and_replacement(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.chdir(tmp_path)
-    assert split_args(("OLD", "NEW")) == ("OLD", ["NEW"], None)
-
-
-def test_split_play_and_folder_only_is_usage_error(tmp_path: Path) -> None:
-    """The folder is the path, so no replacement is left."""
-    with pytest.raises(click.UsageError):
-        split_args(("OLD", str(tmp_path)))
-
-
-def test_split_last_existing_folder_is_path(tmp_path: Path) -> None:
-    assert split_args(("OLD", "NEW", str(tmp_path))) == (
-        "OLD",
-        ["NEW"],
-        str(tmp_path),
-    )
-
-
-def test_split_last_existing_file_is_path(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "plans").write_text("", encoding="utf-8")
-    assert split_args(("OLD", "NEW", "plans")) == ("OLD", ["NEW"], "plans")
-
-
-@pytest.mark.parametrize("last", ["plans\\", "plans/", "x.pln", "X.PLN", "plans*"])
-def test_split_path_looking_name_is_path(
-    tmp_path: Path, monkeypatch, last: str
-) -> None:
-    """Not on disk, but a folder separator, a .pln name or a wildcard."""
-    monkeypatch.chdir(tmp_path)
-    assert split_args(("OLD", "NEW", last)) == ("OLD", ["NEW"], last)
-
-
-def test_split_plain_names_are_replacements(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.chdir(tmp_path)
-    assert split_args(("OLD", "NEW1", "NEW2")) == ("OLD", ["NEW1", "NEW2"], None)
-
-
-def test_split_drops_repeated_replacements(tmp_path: Path, monkeypatch) -> None:
-    """A name listed twice, in any case, is tried once."""
-    monkeypatch.chdir(tmp_path)
-    assert split_args(("OLD", "NEW", "B", "new")) == ("OLD", ["NEW", "B"], None)
-
-
-def test_split_folder_named_like_play_is_the_folder(
-    tmp_path: Path, monkeypatch
-) -> None:
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "NEW2").mkdir()
-    assert split_args(("OLD", "NEW1", "NEW2")) == ("OLD", ["NEW1"], "NEW2")
 
 
 # ── pick_replacement (constructed gameplans) ──────────────────────────────────
@@ -446,30 +386,69 @@ def test_cli_requires_args(runner) -> None:
     assert runner.invoke(replace_play, []).exit_code == 2
 
 
+def test_cli_bare_is_missing_play(runner) -> None:
+    result = runner.invoke(replace_play, [])
+    assert result.exit_code == 2
+    assert result.stderr.endswith("Error: Missing argument 'PLAY'.\n")
+
+
 def test_cli_one_name_is_usage_error(runner) -> None:
     result = runner.invoke(replace_play, [NORMAL_TARGET])
     assert result.exit_code == 2
-    assert "Missing argument 'replacement'." in result.stderr
+    assert "Missing argument 'REPLACEMENT...'." in result.stderr
 
 
-def test_cli_path_left_out_uses_current_folder(
-    runner, tmp_path: Path, monkeypatch
+def test_cli_every_name_is_a_play(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The location is `--path`: a name that is also a folder is still a
+    replacement."""
+    (tmp_path / NORMAL_REPL).mkdir()
+    p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, "--path", str(p)])
+    assert result.exit_code == 0
+    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL_REPL
+
+
+def test_cli_repeated_replacement_tried_once(runner, tmp_path: Path) -> None:
+    """A replacement listed again, in any case, is tried once, where it first
+    stands."""
+    gp = _offense_gameplan(
+        normals={0: offense_normal("OLDRUN"), 1: offense_normal(NORMAL_REPL, 0x09)}
+    )
+    p = _write(gp, tmp_path)
+    result = runner.invoke(
+        replace_play,
+        ["OLDRUN", NORMAL_REPL, NORMAL_REPL.lower(), NORMAL_TARGET, "--path", str(p)],
+    )
+    assert result.exit_code == 0
+    assert result.stdout == (  # one SKIP: the repeat is not tried again
+        f"SKIP {p}: '{NORMAL_REPL}' already in the gameplan\n"
+        f"OK   {p}: 'OLDRUN' (RL) replaced with '{NORMAL_TARGET}' (RL) [1-1]\n"
+    )
+
+
+def test_cli_repeated_replacement_named_once_in_the_tally(
+    runner, tmp_path: Path
 ) -> None:
     _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
-    monkeypatch.chdir(tmp_path)
-    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL])
-    assert result.exit_code == 0
+    result = runner.invoke(
+        replace_play,
+        ["OLDRUN", NORMAL_REPL, NORMAL_REPL.lower(), "--path", str(tmp_path)],
+    )
     assert result.stdout.endswith(
         f"\n'OLDRUN' -> '{NORMAL_REPL}': replaced 1 instance(s) in "
         "1 gameplan(s), 0 failed, 0 not replaced\n"
     )
-    assert _name(read_gameplan("gp.pln").normal_plays[0]) == NORMAL_REPL
 
 
 def test_cli_every_replacement_must_be_in_pool(runner, tmp_path: Path) -> None:
     p = _copy_offense(tmp_path)
     original = p.read_bytes()
-    result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, MISSING, str(p)])
+    result = runner.invoke(
+        replace_play, [NORMAL_TARGET, NORMAL_REPL, MISSING, "--path", str(p)]
+    )
     assert result.exit_code == 2
     assert result.stderr == (
         f"FAIL Replacement play '{MISSING}' not found in the play pool.\n"
@@ -479,13 +458,15 @@ def test_cli_every_replacement_must_be_in_pool(runner, tmp_path: Path) -> None:
 
 def test_cli_no_quiet_option(runner, tmp_path: Path) -> None:
     p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
-    result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, str(p), "-q"])
+    result = runner.invoke(
+        replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(p), "-q"]
+    )
     assert result.exit_code == 2
 
 
 def test_cli_replacement_not_in_pool_exit_2(runner, tmp_path: Path) -> None:
     p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
-    result = runner.invoke(replace_play, ["OLDRUN", MISSING, str(p)])
+    result = runner.invoke(replace_play, ["OLDRUN", MISSING, "--path", str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
         f"FAIL Replacement play '{MISSING}' not found in the play pool.\n"
@@ -494,7 +475,9 @@ def test_cli_replacement_not_in_pool_exit_2(runner, tmp_path: Path) -> None:
 
 def test_cli_replacement_case_insensitive(runner, tmp_path: Path) -> None:
     p = _target_plan(tmp_path)
-    result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL.lower(), str(p)])
+    result = runner.invoke(
+        replace_play, [NORMAL_TARGET, NORMAL_REPL.lower(), "--path", str(p)]
+    )
     assert result.exit_code == 0
     assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL_REPL
 
@@ -522,7 +505,7 @@ def test_cli_single_file_replaces_normal(runner, tmp_path: Path) -> None:
         normals={0: offense_normal("OLDRUN"), 1: offense_normal(OTHER_RM, 0x09)}
     )
     p = _write(gp, tmp_path)
-    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, str(p)])
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, "--path", str(p)])
     assert result.exit_code == 0
     rt = read_gameplan(str(p))
     assert _name(rt.normal_plays[0]) == NORMAL_REPL
@@ -537,7 +520,7 @@ def test_cli_play_in_several_slots_not_replaced(runner, tmp_path: Path) -> None:
     old = offense_normal("OLDRUN")
     p = _write(_offense_gameplan(normals={0: old, 5: old, 63: old}), tmp_path)
     original = p.read_bytes()
-    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, str(p)])
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, "--path", str(p)])
     assert result.exit_code == 1
     assert result.stdout == (
         f"SKIP {p}: '{NORMAL_REPL}' fails check: Duplicate play '{NORMAL_REPL}' "
@@ -557,7 +540,7 @@ def test_cli_output_uses_game_names_without_league_labels(
     )
     old = offense_normal("OLDRUN")
     p = _write(_offense_gameplan(normals={0: old}), tmp_path)
-    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, str(p)])
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, "--path", str(p)])
     assert result.exit_code == 0
     assert result.stdout == (
         f"OK   {p}: 'OLDRUN' (Run Left) replaced with '{NORMAL_REPL}' "
@@ -570,7 +553,7 @@ def test_cli_single_file_replaces_special(runner, tmp_path: Path) -> None:
         specials={1: offense_special("OLDFG", 1), 2: offense_special("KEEPKICK", 2)}
     )
     p = _write(gp, tmp_path)
-    result = runner.invoke(replace_play, ["OLDFG", SPECIAL_REPL, str(p)])
+    result = runner.invoke(replace_play, ["OLDFG", SPECIAL_REPL, "--path", str(p)])
     assert result.exit_code == 0
     rt = read_gameplan(str(p))
     assert _name(rt.custom_special_plays[0]) == SPECIAL_REPL
@@ -583,7 +566,9 @@ def test_cli_single_file_replaces_special(runner, tmp_path: Path) -> None:
 
 def test_cli_single_file_target_case_insensitive(runner, tmp_path: Path) -> None:
     p = _target_plan(tmp_path)
-    result = runner.invoke(replace_play, [NORMAL_TARGET.lower(), NORMAL_REPL, str(p)])
+    result = runner.invoke(
+        replace_play, [NORMAL_TARGET.lower(), NORMAL_REPL, "--path", str(p)]
+    )
     assert result.exit_code == 0
     assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL_REPL
 
@@ -591,7 +576,7 @@ def test_cli_single_file_target_case_insensitive(runner, tmp_path: Path) -> None
 def test_cli_single_file_miss_exit_1(runner, tmp_path: Path) -> None:
     p = _copy_offense(tmp_path)
     original = p.read_bytes()
-    result = runner.invoke(replace_play, [MISSING, NORMAL_REPL, str(p)])
+    result = runner.invoke(replace_play, [MISSING, NORMAL_REPL, "--path", str(p)])
     assert result.exit_code == 1
     assert result.stdout == f"{p}: '{MISSING}' not found\n"
     assert p.read_bytes() == original  # untouched
@@ -605,7 +590,9 @@ def test_cli_backup_used_when_first_already_in_plan(runner, tmp_path: Path) -> N
         normals={0: offense_normal("OLDRUN"), 1: offense_normal(NORMAL_REPL, 0x09)}
     )
     p = _write(gp, tmp_path)
-    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, NORMAL_TARGET, str(p)])
+    result = runner.invoke(
+        replace_play, ["OLDRUN", NORMAL_REPL, NORMAL_TARGET, "--path", str(p)]
+    )
     assert result.exit_code == 0
     assert result.stdout == (
         f"SKIP {p}: '{NORMAL_REPL}' already in the gameplan\n"
@@ -619,7 +606,9 @@ def test_cli_backup_used_when_first_breaks_rule(
 ) -> None:
     (league / "gameplan.toml").write_text("[offense.RM]\nmax_count = 0\n", "utf-8")
     p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
-    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, NORMAL_TARGET, str(p)])
+    result = runner.invoke(
+        replace_play, ["OLDRUN", NORMAL_REPL, NORMAL_TARGET, "--path", str(p)]
+    )
     assert result.exit_code == 0
     assert result.stdout == (
         f"SKIP {p}: '{NORMAL_REPL}' fails check: [Run Middle] Offensive "
@@ -636,7 +625,9 @@ def test_cli_rollout_cap_uses_the_play_file(
         "[offense.PSL]\nmax_rollouts_count = 0\n", "utf-8"
     )
     p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
-    result = runner.invoke(replace_play, ["OLDRUN", "AF1AwagR", "JJ1AarrX", str(p)])
+    result = runner.invoke(
+        replace_play, ["OLDRUN", "AF1AwagR", "JJ1AarrX", "--path", str(p)]
+    )
     assert result.exit_code == 0
     assert result.stdout == (
         f"SKIP {p}: 'AF1AwagR' fails check: [Pass Short Left] Offensive "
@@ -676,7 +667,7 @@ def test_cli_cross_category_swap_within_limits(
         "[offense.PSL]\nmin_count = 1\n[offense.PML]\nmax_count = 2\n", "utf-8"
     )
     p = _psl_pml_plan(tmp_path)
-    result = runner.invoke(replace_play, [PSL_TARGET, PML_REPL, str(p)])
+    result = runner.invoke(replace_play, [PSL_TARGET, PML_REPL, "--path", str(p)])
     assert result.exit_code == 0
     assert result.stdout == (
         f"OK   {p}: '{PSL_TARGET}' (PSL) replaced with '{PML_REPL}' (PML) [1-1]\n"
@@ -699,7 +690,7 @@ def test_cli_cross_category_swap_leaves_losing_category_short(
     )
     p = _psl_pml_plan(tmp_path)
     original = p.read_bytes()
-    result = runner.invoke(replace_play, [PSL_TARGET, PML_REPL, str(p)])
+    result = runner.invoke(replace_play, [PSL_TARGET, PML_REPL, "--path", str(p)])
     assert result.exit_code == 1
     assert result.stdout == (
         f"SKIP {p}: '{PML_REPL}' fails check: [Pass Short Left] Offensive "
@@ -718,7 +709,9 @@ def test_cli_no_valid_replacement_single_file(
     )
     p = _write(gp, tmp_path)
     original = p.read_bytes()
-    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, NORMAL_TARGET, str(p)])
+    result = runner.invoke(
+        replace_play, ["OLDRUN", NORMAL_REPL, NORMAL_TARGET, "--path", str(p)]
+    )
     assert result.exit_code == 1
     assert result.stdout == (
         f"SKIP {p}: '{NORMAL_REPL}' fails check: [Run Middle] Offensive "
@@ -739,7 +732,7 @@ def test_cli_directory_counts_not_replaced(
     )
     _write(full, tmp_path, "b.pln")
     result = runner.invoke(
-        replace_play, ["OLDRUN", NORMAL_REPL, NORMAL_TARGET, str(tmp_path)]
+        replace_play, ["OLDRUN", NORMAL_REPL, NORMAL_TARGET, "--path", str(tmp_path)]
     )
     assert result.exit_code == 1
     assert result.stdout.endswith(
@@ -758,7 +751,8 @@ def test_cli_refused_later_replacement_names_it(runner, tmp_path: Path) -> None:
     p = _write(gp, tmp_path)
     original = p.read_bytes()
     result = runner.invoke(
-        replace_play, ["OLDRUN", NORMAL_REPL, DEFENSE_REPL, NORMAL_TARGET, str(p)]
+        replace_play,
+        ["OLDRUN", NORMAL_REPL, DEFENSE_REPL, NORMAL_TARGET, "--path", str(p)],
     )
     assert result.exit_code == 2
     assert result.stdout == f"SKIP {p}: '{NORMAL_REPL}' already in the gameplan\n"
@@ -774,7 +768,7 @@ def test_cli_wildcard_path_works_like_a_folder(runner, tmp_path: Path) -> None:
     _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path, "a.pln")
     _write(_offense_gameplan(), tmp_path, "b.pln")
     pattern = str(tmp_path / "*.pln")
-    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, pattern])
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, "--path", pattern])
     assert result.exit_code == 0
     assert result.stdout == (
         f"OK   {tmp_path / 'a.pln'}: 'OLDRUN' (RL) replaced with '{NORMAL_REPL}' "
@@ -789,7 +783,7 @@ def test_cli_bad_rules_file_exit_2(runner, league: Path, tmp_path: Path) -> None
     (league / "gameplan.toml").write_text("not = valid = toml", encoding="utf-8")
     p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
     original = p.read_bytes()
-    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, str(p)])
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, "--path", str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
         f"FAIL {league / 'gameplan.toml'}: {toml_error('not = valid = toml')}\n"
@@ -802,7 +796,7 @@ def test_cli_bad_rules_file_exit_2(runner, league: Path, tmp_path: Path) -> None
 
 def test_writes_no_backup(runner, tmp_path: Path) -> None:
     p = _target_plan(tmp_path)
-    result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, str(p)])
+    result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(p)])
     assert result.exit_code == 0
     assert list(tmp_path.glob("*.bak")) == []
     assert result.stdout == (  # no "<file>: backup <name>" line any more
@@ -813,7 +807,7 @@ def test_writes_no_backup(runner, tmp_path: Path) -> None:
 def test_no_backup_option_removed(runner, tmp_path: Path) -> None:
     p = _copy_offense(tmp_path)
     result = runner.invoke(
-        replace_play, [NORMAL_TARGET, NORMAL_REPL, str(p), "--no-backup"]
+        replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(p), "--no-backup"]
     )
     assert result.exit_code == 2
     assert "No such option" in result.stderr
@@ -825,7 +819,9 @@ def test_no_backup_option_removed(runner, tmp_path: Path) -> None:
 def test_cli_directory_updates_matching_files(runner, tmp_path: Path) -> None:
     _target_plan(tmp_path, "off1.pln")
     _target_plan(tmp_path, "off2.pln")
-    result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, str(tmp_path)])
+    result = runner.invoke(
+        replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(tmp_path)]
+    )
     assert result.exit_code == 0
     assert "replaced 2 instance(s) in 2 gameplan(s), 0 failed" in result.stdout
     for name in ("off1.pln", "off2.pln"):
@@ -837,7 +833,9 @@ def test_cli_directory_leaves_other_side_untouched(runner, tmp_path: Path) -> No
     def_pln = tmp_path / "defense.pln"
     shutil.copy2(GP_DEFENSE, def_pln)
     original_def = def_pln.read_bytes()
-    result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, str(tmp_path)])
+    result = runner.invoke(
+        replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(tmp_path)]
+    )
     assert result.exit_code == 0
     assert "in 1 gameplan(s), 0 failed" in result.stdout
     assert def_pln.read_bytes() == original_def  # no OR45RL01 there → untouched
@@ -845,7 +843,9 @@ def test_cli_directory_leaves_other_side_untouched(runner, tmp_path: Path) -> No
 
 def test_cli_directory_no_hits_exit_1(runner, tmp_path: Path) -> None:
     _copy_offense(tmp_path)
-    result = runner.invoke(replace_play, [MISSING, NORMAL_REPL, str(tmp_path)])
+    result = runner.invoke(
+        replace_play, [MISSING, NORMAL_REPL, "--path", str(tmp_path)]
+    )
     assert result.exit_code == 1
     assert "replaced 0 instance(s) in 0 gameplan(s), 0 failed" in result.stdout
 
@@ -855,7 +855,7 @@ def test_cli_recursive_replaces_in_subdir(runner, tmp_path: Path) -> None:
     sub.mkdir()
     _target_plan(sub)
     result = runner.invoke(
-        replace_play, [NORMAL_TARGET, NORMAL_REPL, str(tmp_path), "-r"]
+        replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(tmp_path), "-r"]
     )
     assert result.exit_code == 0
     assert _name(read_gameplan(str(sub / "offense.pln")).normal_plays[0]) == NORMAL_REPL
@@ -867,7 +867,7 @@ def test_cli_recursive_replaces_in_subdir(runner, tmp_path: Path) -> None:
 def test_cli_replacement_special_for_normal_fails(runner, tmp_path: Path) -> None:
     p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
     original = p.read_bytes()
-    result = runner.invoke(replace_play, ["OLDRUN", SPECIAL_REPL, str(p)])
+    result = runner.invoke(replace_play, ["OLDRUN", SPECIAL_REPL, "--path", str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
         f"FAIL {p}: Normal slot 0 contains a special-teams play "
@@ -880,7 +880,7 @@ def test_cli_replacement_special_for_normal_fails(runner, tmp_path: Path) -> Non
 def test_cli_replacement_wrong_side_fails(runner, tmp_path: Path) -> None:
     p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
     original = p.read_bytes()
-    result = runner.invoke(replace_play, ["OLDRUN", DEFENSE_REPL, str(p)])
+    result = runner.invoke(replace_play, ["OLDRUN", DEFENSE_REPL, "--path", str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
         f"FAIL {p}: Normal slot 0: play has defensive play_category=0x92, "
@@ -892,7 +892,7 @@ def test_cli_replacement_wrong_side_fails(runner, tmp_path: Path) -> None:
 def test_cli_replacement_wrong_special_category_fails(runner, tmp_path: Path) -> None:
     p = _write(_offense_gameplan(specials={1: offense_special("OLDFG", 1)}), tmp_path)
     original = p.read_bytes()
-    result = runner.invoke(replace_play, ["OLDFG", KICKOFF_REPL, str(p)])
+    result = runner.invoke(replace_play, ["OLDFG", KICKOFF_REPL, "--path", str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
         f"FAIL {p}: Special category 1: custom play has special_category=2.\n"
@@ -902,7 +902,9 @@ def test_cli_replacement_wrong_special_category_fails(runner, tmp_path: Path) ->
 
 def test_cli_missing_path_exit_2(runner, tmp_path: Path) -> None:
     missing = tmp_path / "nope.pln"
-    result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, str(missing)])
+    result = runner.invoke(
+        replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(missing)]
+    )
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {missing}: {FILE_NOT_FOUND}\n"
     assert result.stdout == ""  # a single path that failed: no tally
@@ -911,7 +913,9 @@ def test_cli_missing_path_exit_2(runner, tmp_path: Path) -> None:
 def test_cli_malformed_pln_exit_2(runner, tmp_path: Path) -> None:
     bad = tmp_path / "broken.pln"
     bad.write_bytes(b"\x00\x01\x02")
-    result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, str(bad)])
+    result = runner.invoke(
+        replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(bad)]
+    )
     assert result.exit_code == 2
     assert result.stderr == (
         f"FAIL {bad}: File too small to contain PLN header and offsets table.\n"
@@ -923,18 +927,19 @@ def test_cli_invalid_play_path_exit_2(runner, league: Path, tmp_path: Path) -> N
         league_toml(tmp_path / "missing"), encoding="utf-8"
     )
     p = _copy_offense(tmp_path)
-    result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, str(p)])
+    result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
         f"FAIL {tmp_path / 'missing'}: {PATH_NOT_FOUND} "
-        f"Set play_path in {league / 'league.toml'}.\n"
+        "Run 'athc config set play_path FOLDER'.\n"
     )
 
 
 def test_cli_play_path_option_removed(runner, tmp_path: Path) -> None:
     p = _copy_offense(tmp_path)
     result = runner.invoke(
-        replace_play, [NORMAL_TARGET, NORMAL_REPL, str(p), "--play-path", str(PLAYS)]
+        replace_play,
+        [NORMAL_TARGET, NORMAL_REPL, "--path", str(p), "--play-path", str(PLAYS)],
     )
     assert result.exit_code == 2
     assert "No such option" in result.stderr
@@ -943,6 +948,173 @@ def test_cli_play_path_option_removed(runner, tmp_path: Path) -> None:
 def test_cli_continues_past_failed_file(runner, tmp_path: Path) -> None:
     _target_plan(tmp_path)
     (tmp_path / "broken.pln").write_bytes(b"\x00\x01\x02")
-    result = runner.invoke(replace_play, [NORMAL_TARGET, NORMAL_REPL, str(tmp_path)])
+    result = runner.invoke(
+        replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(tmp_path)]
+    )
     assert result.exit_code == 2
     assert "replaced 1 instance(s) in 1 gameplan(s), 1 failed" in result.stdout
+
+
+# ── your team's game plans ────────────────────────────────────────────────────
+
+# Denver's four game plans, named after their keys, in .lg2 order.
+TEAM_PLANS = ("OFF1.pln", "DEF1.pln", "OFF2.pln", "DEF2.pln")
+TALLY = (
+    "'OLDRUN' -> '{repl}': replaced {n} instance(s) in {n} gameplan(s), "
+    "{failed} failed, 0 not replaced"
+)
+
+
+def set_league(folder: Path, **settings: str | Path) -> None:
+    """Add `[league]` settings to the league folder's league.toml."""
+    toml = folder / "league.toml"
+    lines = "".join(f"{key} = '{value}'\n" for key, value in settings.items())
+    text = toml.read_text(encoding="utf-8").replace("[league]\n", "[league]\n" + lines)
+    toml.write_text(text, encoding="utf-8")
+
+
+def team_league(
+    league: Path, tmp_path: Path, names: tuple[str, ...] = TEAM_PLANS, **settings
+) -> Path:
+    """The league's .lg2 and .lge in `tmp_path/lg2`, Denver's four game plans
+    named `names`, `path` and `settings` set; returns Denver's league folder,
+    made but empty."""
+    lg2_dir = tmp_path / "lg2"
+    lg2_dir.mkdir()
+    off1, def1, off2, def2 = names
+    record = team(
+        ("o1.prf", off1), ("d1.prf", def1), ("o2.prf", off2), ("d2.prf", def2)
+    )
+    (lg2_dir / f"{LEAGUE}.lg2").write_bytes(record)
+    (lg2_dir / f"{LEAGUE}.lge").write_bytes(lge(TEAM_NAMES[0]))
+    set_league(league, path=lg2_dir, **settings)
+    folder = lg2_dir / "PNFL" / "2049" / "Plans" / "Team"
+    folder.mkdir(parents=True)
+    return folder
+
+
+def write_team_plans(folder: Path, names: tuple[str, ...] = TEAM_PLANS) -> None:
+    """OLDRUN in each offense game plan; the defense ones lack it."""
+    for name in dict.fromkeys(names):
+        if name.startswith("OFF"):
+            _write(
+                _offense_gameplan(normals={0: offense_normal("OLDRUN")}), folder, name
+            )
+        else:
+            shutil.copy2(GP_DEFENSE, folder / name)
+
+
+def replaced_line(path: Path) -> str:
+    return f"OK   {path}: 'OLDRUN' (RL) replaced with '{NORMAL_REPL}' (RM) [1-1]\n"
+
+
+def test_cli_default_scope_is_your_teams_game_plans(
+    runner, league: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No --path: your team's four in .lg2 order, misses silent, then the
+    tally; a game plan in the current folder is not touched."""
+    folder = team_league(league, tmp_path, team="Denver")
+    write_team_plans(folder)
+    here = tmp_path / "here"
+    here.mkdir()
+    draft = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), here)
+    monkeypatch.chdir(here)
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL])
+    assert result.exit_code == 0
+    assert result.stdout == (
+        replaced_line(folder / "OFF1.pln")
+        + replaced_line(folder / "OFF2.pln")
+        + "\n"
+        + TALLY.format(repl=NORMAL_REPL, n=2, failed=0)
+        + "\n"
+    )
+    assert _name(read_gameplan(draft).normal_plays[0]) == "OLDRUN"
+
+
+def test_cli_shared_game_plan_once(runner, league: Path, tmp_path: Path) -> None:
+    names = ("OFF.pln", "DEF.pln", "OFF.pln", "DEF.pln")
+    folder = team_league(league, tmp_path, names, team="Denver")
+    write_team_plans(folder, names)
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL])
+    assert result.exit_code == 0
+    assert result.stdout == (
+        replaced_line(folder / "OFF.pln")
+        + "\n"
+        + TALLY.format(repl=NORMAL_REPL, n=1, failed=0)
+        + "\n"
+    )
+
+
+@pytest.mark.parametrize(("key", "replaced"), [("off2", True), ("DEF1", False)])
+def test_cli_key_is_one_file(
+    runner, league: Path, tmp_path: Path, key: str, replaced: bool
+) -> None:
+    """A key is one game plan: its line, no tally."""
+    folder = team_league(league, tmp_path, team="Denver")
+    write_team_plans(folder)
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, "--path", key])
+    if replaced:
+        assert result.exit_code == 0
+        assert result.stdout == replaced_line(folder / "OFF2.pln")
+    else:
+        assert result.exit_code == 1
+        assert result.stdout == f"{folder / 'DEF1.pln'}: 'OLDRUN' not found\n"
+    assert _name(read_gameplan(folder / "OFF1.pln").normal_plays[0]) == "OLDRUN"
+
+
+def test_cli_league_location_missing_game_plan_counts_as_failed(
+    runner, league: Path, tmp_path: Path
+) -> None:
+    folder = team_league(league, tmp_path, team="Denver")
+    write_team_plans(folder)
+    (folder / "OFF2.pln").unlink()
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL])
+    assert result.exit_code == 2
+    assert result.stderr.endswith(f"FAIL {folder / 'OFF2.pln'}: {FILE_NOT_FOUND}\n")
+    assert result.stdout == (
+        replaced_line(folder / "OFF1.pln")
+        + "\n"
+        + TALLY.format(repl=NORMAL_REPL, n=1, failed=1)
+        + "\n"
+    )
+
+
+def test_cli_ppp_path_with_no_game_plans(runner, league: Path, tmp_path: Path) -> None:
+    """The one scope line, a WARN: nothing replaced, so exit 1."""
+    mine = tmp_path / "mine"
+    mine.mkdir()
+    team_league(league, tmp_path, team="Denver", ppp_path=mine)
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL])
+    assert result.exit_code == 1
+    assert result.stderr.endswith(
+        f"WARN {mine}: No Denver game plans. The league file names "
+        f"{', '.join(TEAM_PLANS)}.\n"
+    )
+    assert result.stdout == "\n" + TALLY.format(repl=NORMAL_REPL, n=0, failed=0) + "\n"
+
+
+def test_cli_team_typo_shows_before_the_pool(
+    runner, league: Path, tmp_path: Path
+) -> None:
+    """The team is resolved before the pool is read: no pool WARN lines."""
+    team_league(league, tmp_path, team="Denver")
+    result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, "--team", "Denvr"])
+    assert result.exit_code == 2
+    assert "WARN " not in result.stderr
+    assert result.stderr.endswith(
+        "Error: Invalid value for '--team': no team named 'Denvr'. Teams: "
+        "Denver Broncos.\n"
+    )
+
+
+def test_cli_team_with_a_path_is_a_usage_error(runner, tmp_path: Path) -> None:
+    p = _target_plan(tmp_path)
+    result = runner.invoke(
+        replace_play,
+        [NORMAL_TARGET, NORMAL_REPL, "--path", str(p), "--team", "Denver"],
+    )
+    assert result.exit_code == 2
+    assert result.stderr.endswith(
+        "Error: --team requires --path to be a game plan key (off1, def1, off2 or "
+        "def2) or left out.\n"
+    )

@@ -78,27 +78,33 @@ CASE_BY_LEAGUE = {case.league: case for case in CASES}
 
 def write_league_files(case: GoldenCase, root: Path) -> tuple[Path, Path]:
     """Copy the case's two files to `root/previous/<league>.lge` and
-    `root/upcoming/<league>.lge`; return the two folders."""
-    folders: list[Path] = []
+    `root/upcoming/<league>.lge`; return the two files."""
+    files: list[Path] = []
     for kind, name in (("previous", case.previous), ("upcoming", case.upcoming)):
         folder = root / kind
         folder.mkdir(parents=True, exist_ok=True)
-        shutil.copy(DATA / name, folder / f"{case.league}.lge")
-        folders.append(folder)
-    return folders[0], folders[1]
+        files.append(Path(shutil.copy(DATA / name, folder / f"{case.league}.lge")))
+    return files[0], files[1]
+
+
+def no_warning(line: str) -> None:
+    """A case's previous season is finished, so its League hears no warning."""
+    raise AssertionError(f"unexpected warning: {line}")
 
 
 def case_league(case: GoldenCase, root: Path) -> League:
-    """The case's League, built the way `generate-schedule` builds it."""
+    """The case's League, built the way `generate-schedule` builds it, with the
+    case's seed for the coin toss."""
     previous, upcoming = write_league_files(case, root)
     renames = load_scheduler_config(case.rules).renames.get(case.season, {})
     return load_league(
-        case.league,
         previous,
         upcoming,
         renames,
         season=case.season,
+        seed=case.seed,
         rules_path=case.rules,
+        warn=no_warning,
     )
 
 

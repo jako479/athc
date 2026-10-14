@@ -7,30 +7,164 @@ import io
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from athc.cli import cli
 from athc.cli.profile.diff import _CSV_COLUMNS, _infer_format, diff, render, render_csv
 from athc.errors import ALREADY_EXISTS, FILE_NOT_FOUND
 from athc.fbpro98_profile import ProfileType
 from athc.profile import ProfileDiff, SituationChange, SlotChange
-from tests.integration.conftest import DATA, DEF1, EXPECTED, OFF1
+from tests.conftest import LEAGUE
+from tests.integration.conftest import (
+    DATA,
+    DEF1,
+    DENVER,
+    EXPECTED,
+    HINT,
+    OFF1,
+    TEAM_REQUIRES_KEY,
+    build_teams,
+    location,
+    profile_file,
+)
 
 OFF2 = DATA / "TST-OFF2.prf"
 BASE = DATA / "diff_base.prf"
 MOD = DATA / "diff_modified.prf"
+Lg2League = Callable[..., Path]
+
+HELP = """\
+Usage: athc profile diff [OPTIONS] PROFILE1 PROFILE2
+
+  Show differences between two profiles.
+
+  Shows only what changed; both profiles must be the same side.
+
+Positional arguments:
+  PROFILE1  A .prf file or a profile key.
+  PROFILE2  The profile to compare it with, named the same way.
+
+Options:
+  -o, --output FILE  Write the report to FILE instead of the console (.txt, or
+                     .csv for Excel).
+  --team NAME        Team the profile keys refer to (default: team in
+                     league.toml).
+  --league NAME      League to use (default: the one set with athc config set
+                     league).
+  -h, --help         Show this message and exit.
+
+  Profile keys, for your team's profiles:
+    off1  1st-half offense    def1  1st-half defense
+    off2  2nd-half offense    def2  2nd-half defense
+
+  Examples:
+
+    athc profile diff off1 off2
+    athc profile diff off1 try.prf -o changes.csv
+"""
 
 
 def _norm(text: str, a: Path, b: Path) -> str:
     return text.replace(str(a), a.name).replace(str(b), b.name)
 
 
+@pytest.fixture
+def work(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Run from an empty folder, so no key is a file there."""
+    folder = tmp_path / "work"
+    folder.mkdir()
+    monkeypatch.chdir(folder)
+    return folder
+
+
 # ── command (CliRunner) ───────────────────────────────────────────────────────
+
+
+def test_help_screen(runner) -> None:
+    result = runner.invoke(
+        cli, ["profile", "diff", "--help"], prog_name="athc", terminal_width=78
+    )
+    assert result.exit_code == 0
+    assert result.stdout == HELP
 
 
 def test_cli_requires_two_paths(runner) -> None:
     assert runner.invoke(diff, [str(OFF1)]).exit_code == 2
+
+
+@pytest.mark.parametrize(
+    ("count", "error"),
+    [
+        (0, "Missing argument 'PROFILE1'."),
+        (1, "Missing argument 'PROFILE2'."),
+        (2, None),
+        (3, f"Got unexpected extra argument ({OFF2})."),
+    ],
+)
+def test_cli_takes_two_operands(runner, count: int, error: str | None) -> None:
+    """Two are accepted; one fewer or one more is Click's line, with athc's
+    period."""
+    result = runner.invoke(diff, [str(OFF1), str(OFF1), str(OFF2)][:count])
+    if error is None:
+        assert result.exit_code == 0
+        assert result.stdout == f"{OFF1} and {OFF1} are identical.\n"
+    else:
+        assert result.exit_code == 2
+        assert result.stderr.endswith(f"Error: {error}\n")
+        assert result.stdout == ""
+
+
+@pytest.mark.usefixtures("work")
+def test_cli_two_keys(runner, lg2_league: Lg2League) -> None:
+    folder = location(build_teams(lg2_league, team="Denver"), DENVER)
+    result = runner.invoke(diff, ["off1", "off2"])
+    assert result.exit_code == 1
+    first, second = (profile_file(folder, DENVER, key) for key in ("off1", "off2"))
+    assert result.stdout.startswith(f"{first} -> {second}\n")
+
+
+@pytest.mark.usefixtures("work")
+def test_cli_key_and_a_file(runner, lg2_league: Lg2League) -> None:
+    """The report names the file the key stands for."""
+    folder = location(build_teams(lg2_league, team="Denver"), DENVER)
+    result = runner.invoke(diff, ["off1", str(OFF2)])
+    assert result.exit_code == 1
+    assert result.stdout.startswith(
+        f"{profile_file(folder, DENVER, 'off1')} -> {OFF2}\n"
+    )
+
+
+@pytest.mark.usefixtures("work")
+def test_cli_missing_key_file(runner, lg2_league: Lg2League) -> None:
+    folder = location(build_teams(lg2_league, team="Denver"), DENVER)
+    missing = profile_file(folder, DENVER, "off2")
+    missing.unlink()
+    result = runner.invoke(diff, ["off1", "off2"])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {missing}: {FILE_NOT_FOUND} {HINT}\n"
+    assert result.stdout == ""
+
+
+def test_cli_team_option_with_two_files(runner) -> None:
+    result = runner.invoke(diff, [str(OFF1), str(OFF2), "--team", "Denver"])
+    assert result.exit_code == 2
+    assert result.stderr.endswith(TEAM_REQUIRES_KEY)
+    assert result.stdout == ""
+
+
+def test_cli_league_option_with_two_files_reads_nothing_else(
+    runner, make_league: Callable[..., Path], write_config: Callable[..., Path]
+) -> None:
+    """The league is resolved, but neither athc.ini nor its league.toml is
+    read: both are broken here."""
+    make_league(LEAGUE, "not = valid = toml")
+    write_config("[athc\nbroken\n")
+    result = runner.invoke(diff, [str(OFF1), str(OFF1), "--league", LEAGUE])
+    assert result.exit_code == 0
+    assert result.stdout == f"{OFF1} and {OFF1} are identical.\n"
 
 
 def test_cli_identical_exit_0(runner) -> None:
@@ -108,8 +242,8 @@ def test_output_unknown_extension_is_a_usage_error(runner, tmp_path: Path) -> No
     assert result.exit_code == 2
     assert "Usage:" in result.stderr
     assert result.stderr.endswith(
-        "Error: Invalid value for --output: the format comes from the extension: "
-        "use .txt or .csv.\n"
+        "Error: Invalid value for '-o' / '--output': must have a .txt or .csv "
+        "extension.\n"
     )
     assert not out.exists()
 

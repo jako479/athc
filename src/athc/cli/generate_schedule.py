@@ -21,99 +21,126 @@ from athc.errors import AthcError, ConfigFileError
 from athc.scheduler.config import scheduler_rules_path
 from athc.scheduler.main import generate_schedule as run_generate
 
+# CP-SAT's seed is a 32-bit integer; its setter refuses a larger one.
+MAX_SEED = 2147483647
+# The seed drawn when none is given; the result line shows it.
+RANDOM_SEED_MAX = 1_000_000
+
+PATH_NOT_SET = (
+    "League files folder is not set. Run 'athc config set path FOLDER' or pass "
+    "--upcoming."
+)
+
+# The \b line keeps Click from joining the examples into one line.
+EXAMPLES = """Examples:
+
+\b
+  athc generate-schedule --season 2050 --previous E:\\PNFL\\2049\\PNFL.lge
+  athc generate-schedule --season 2030 --league PCFL --previous PCFL.lge
+"""
+
+
+def _seed_in_range(
+    ctx: click.Context, param: click.Parameter, value: int | None
+) -> int | None:
+    if value is not None and not 0 <= value <= MAX_SEED:
+        raise click.BadParameter(f"must be 0 to {MAX_SEED}, got {value}.", ctx, param)
+    return value
+
+
+def _time_limit_in_range(
+    ctx: click.Context, param: click.Parameter, value: int | None
+) -> int | None:
+    if value is not None and value < 1:
+        raise click.BadParameter(f"must be 1 or more, got {value}.", ctx, param)
+    return value
+
 
 @click.command(
     name="generate-schedule",
     cls=AthcCommand,
     hidden=True,
     context_settings=CONTEXT_SETTINGS,
+    epilog=EXAMPLES,
 )
 @click.option(
     "--season",
     required=True,
     type=int,
-    metavar="year",
-    help="Season being scheduled (e.g. 2048).",
+    metavar="YEAR",
+    help="Season to schedule, e.g. 2048.",
 )
 @click.option(
     "--previous",
-    "previous_dir",
-    required=True,
-    metavar="folder",
+    "previous_file",
+    default=None,
+    metavar="FILE",
     help=(
-        "Folder holding the previous season's league files; its <league>.lge "
-        "gives the standings."
+        "Previous season's .lge file, saved after its last playoff game "
+        "(default: the --upcoming file)."
     ),
 )
 @click.option(
     "--upcoming",
-    "upcoming_dir",
+    "upcoming_file",
     default=None,
-    metavar="folder",
+    metavar="FILE",
     help=(
-        "Folder holding the upcoming season's league files; its <league>.lge "
-        "gives the conferences, divisions and teams. Default: path in league.toml."
+        "Upcoming season's .lge file (default: the league's .lge in path in "
+        "league.toml)."
     ),
 )
 @click.option(
     "--seed",
     type=int,
     default=None,
-    metavar="number",
-    help="Random seed for deterministic generation.",
+    metavar="NUMBER",
+    callback=_seed_in_range,
+    help="Seed for a repeatable run (default: random; the last line shows it).",
 )
 @click.option(
     "--time-limit",
     type=int,
     default=None,
-    metavar="number",
+    metavar="LIMIT",
+    callback=_time_limit_in_range,
     help=(
-        "Override the solver time limit "
-        "(CP-SAT deterministic time, not wall-clock seconds)."
+        "Solver budget for placing games into weeks, in the solver's own time "
+        "units, not seconds (default: time_limit in scheduler.toml)."
     ),
 )
 @league_option
 def generate_schedule(
     season: int,
-    previous_dir: str,
-    upcoming_dir: str | None,
+    previous_file: str | None,
+    upcoming_file: str | None,
     seed: int | None,
     time_limit: int | None,
     league: str | None,
 ) -> None:
-    """Generate a league's seasonal schedule and an HTML report.
+    """Generate a league's season schedule and report.
 
-    Reads two of the league's game files, each named <league>.lge:
-
-    \b
-      --previous folder   the previous season's, after its last playoff game:
-                          the standings (records, playoff finish)
-      --upcoming folder   the upcoming season's: conferences, divisions and
-                          team names (default: path in league.toml)
-
-    Teams are matched by name; a team that changed its name between the two
-    seasons is listed under [renames.<season>] in the league's scheduler.toml
-    (optional rule amounts and solver settings) in the athc config dir (run
-    `athc config path` to find it, or `athc config reveal` to open it).
-
-    Writes a .txt and .html schedule plus an .html report to the current
-    directory, named `schedule_<season>_<timestamp>`.
+    Writes a .txt and .html schedule and a report to the current folder.
     """
-    chosen_seed = seed if seed is not None else random.randint(0, 1_000_000)
+    chosen_seed = seed if seed is not None else random.randint(0, RANDOM_SEED_MAX)
     config = load_league_config(league)
+    config_path = scheduler_rules_path(config.name)
+    upcoming = _upcoming_file(config, upcoming_file)
+    previous = Path(previous_file) if previous_file is not None else upcoming
     try:
         generated = run_generate(
             league=config.name,
             season=season,
-            config_path=scheduler_rules_path(config.name),
-            previous_dir=Path(previous_dir),
-            upcoming_dir=_upcoming_dir(config, upcoming_dir),
+            config_path=config_path,
+            previous_file=previous,
+            upcoming_file=upcoming,
             output_dir=Path.cwd(),
             seed=chosen_seed,
             time_limit=time_limit,
             # argv[1:] already starts with the subcommand name.
             command_line=subprocess.list2cmdline(["athc", *sys.argv[1:]]),
             progress=console.progress,
+            warn=console.warn,
         )
     except ImportError as error:
         raise AthcError(
@@ -125,15 +152,12 @@ def generate_schedule(
     console.result(f"Generated {games} games (seed {generated.seed})")
 
 
-def _upcoming_dir(config: LeagueConfig, upcoming_dir: str | None) -> Path:
-    """`--upcoming`, else the league's `path`; ConfigFileError when neither
-    names the upcoming season's folder."""
-    if upcoming_dir is not None:
-        return Path(upcoming_dir)
+def _upcoming_file(config: LeagueConfig, upcoming_file: str | None) -> Path:
+    """`--upcoming`, else `<league>.lge` in the league's `path`; ConfigFileError
+    when neither names the upcoming season's file."""
+    if upcoming_file is not None:
+        return Path(upcoming_file)
     folder = config.path(LEAGUE_PATH_KEY)
     if folder is None:
-        raise ConfigFileError(
-            f"No {LEAGUE_PATH_KEY} for the league. Set {LEAGUE_PATH_KEY} in this file.",
-            config.dir / LEAGUE_FILE,
-        )
-    return folder
+        raise ConfigFileError(PATH_NOT_SET, config.dir / LEAGUE_FILE)
+    return folder / f"{config.name}.lge"

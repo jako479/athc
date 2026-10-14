@@ -7,6 +7,26 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- standings: `athc standings` takes the shared help style
+- generate-schedule: an unfinished season is a warning, not an error; ties in the standings go to the previous season's division finish, then a coin toss from the run's seed, never a file's order; Ctrl+C stops the run and writes nothing
+- generate-schedule: `--previous` and `--upcoming` take the `.lge` file itself and `--previous` is optional; a hint when the League files folder is not set; `--seed`, `--time-limit` and the solver budgets in `scheduler.toml` are bounded
+- playpool: `check` says to set `play_path` or pass the folder when the pool is unset or missing
+- config: edit reports a file Windows cannot open instead of doing nothing
+- config: get prints the league in use and a league's path, play_path, team and ppp_path; path, edit and reveal take league.toml as well as athc.ini; set writes path, play_path, team and ppp_path to the league's league.toml and says which file it wrote
+- convert-pdb: the output is optional, `<name>.xlsm` beside the PDB
+- convert-pdb: the Slot columns come from your team's game plans by default (`--path`, `ppp_path` or the league file; `--team` for another team), or from `-o`, `-o2`, `-d`, `-d2` alone; a plan on the wrong side is refused
+- convert-pdb: `--percentages/--no-percentages` replace `--skip-calcs` and override the setting both ways
+- profile: check, diff and copy take off1, def1, off2 or def2 for one of your team's profiles, with `--team` for another team
+- profile: copy takes several targets (`SOURCE TARGET...`); `--substitutions` replaces `--sub-percent`
+- gameplan: find-play, replace-play and set-specials work on your team's game plans by default; --path points them at a file, a folder, a wildcard or one game plan
+- gameplan: every subcommand takes off1, def1, off2 or def2 for one of your team's game plans
+- gameplan: set-normals dropped -q; redirect with > nul instead
+- gameplan: find-play's --path takes a wildcard
+- gameplan: a play list that cannot be read is one FAIL line (Not a valid play list.), not an unexpected error
+- check-ppp: checks your team's profiles and game plans where the league file puts them (or in `ppp_path`) by default; `--team` and `--all-teams` pick other teams, and a folder is searched for the team's files
+- athc: every command's help in one style: `[OPTIONS]` usage, UPPERCASE placeholders, a line per argument, a short summary and examples
+- athc: athc expands wildcards itself, and a name that exists is never a wildcard
+- athc: `League is not set.` replaces `No league selected.`; a missing `play_path` folder says to run `athc config set play_path FOLDER`
 - standings: new `athc standings` command shows the league's standings as played so far, as the game's standings screen or ESPN's League, Conference and Division tabs
 - fbpro98_standings: new library that ranks division, conference and league standings from `.lge` files by the game's, the scheduler's or the NFL's tie-breakers
 - athc: the `.lge` spec decodes each team's Training Camp percentages

@@ -1,4 +1,4 @@
-"""`athc gameplan check` — validate .pln gameplans against league rules."""
+"""`athc gameplan check` — check .pln game plans against the league's rules."""
 
 from __future__ import annotations
 
@@ -6,14 +6,18 @@ from pathlib import Path
 
 import click
 
-from athc.cli import CONTEXT_SETTINGS, league_option
+from athc.cli import CONTEXT_SETTINGS, league_option, team_option
 from athc.cli.gameplan import gameplan
 from athc.cli.gameplan._common import (
+    TEAM_HELP,
     build_pool,
-    collect_files,
+    collect_entries,
+    epilog,
     format_violation,
     load_rules_or_raise,
+    require_a_key,
 )
+from athc.config import resolve_league
 from athc.console import console
 from athc.errors import AthcError, error_line
 from athc.fbpro98_gameplan import read_gameplan
@@ -22,34 +26,46 @@ from athc.gameplan.config import load_config
 from athc.playpool import PlayPool
 
 
-@gameplan.command(name="check", context_settings=CONTEXT_SETTINGS)
-@click.argument("paths", nargs=-1, required=False, metavar="[path]...")
-@click.option(
-    "-r",
-    "--recursive",
-    is_flag=True,
-    help="Recurse into subdirectories of a directory path.",
+@gameplan.command(
+    name="check",
+    context_settings=CONTEXT_SETTINGS,
+    epilog=epilog(
+        "athc gameplan check",
+        "athc gameplan check off1",
+        "athc gameplan check plans -r",
+    ),
 )
+@click.argument(
+    "path",
+    nargs=-1,
+    help=(
+        ".pln files, folders, wildcards or game plan keys (default: current folder)."
+    ),
+)
+@click.option("-r", "--recursive", is_flag=True, help="Include subfolders.")
+@team_option(TEAM_HELP)
 @league_option
 @click.pass_context
 def check(
     ctx: click.Context,
-    paths: tuple[str, ...],
+    path: tuple[str, ...],
     recursive: bool,
+    team: str | None,
     league: str | None,
 ) -> None:
-    """Validate one or more .pln gameplans against the league's rules.
+    """Check game plans against the league's rules.
 
-    Each path is a .pln file, a directory (top level, or the whole tree with -r),
-    or a glob. With no path, the current directory is checked.
+    To check game plans with their profiles, run athc check-ppp.
     """
-    if not paths:
-        paths = (".",)
+    require_a_key(team, path)
+    if league is not None:
+        resolve_league(league)  # a league that does not exist fails first
+    # A key reads the team and the league files before the rules and the pool.
+    collected = collect_entries(path or (".",), team, league, recursive=recursive)
     config = load_config(league)
     rules = load_rules_or_raise(config.rule_files, config.categories)
-    pool = build_pool(config.play_path, config.categories, config.league_file)
+    pool = build_pool(config.play_path, config.categories)
 
-    collected = collect_files(paths, suffix=".pln", recursive=recursive)
     for line in collected.errors:
         console.fail(line)
     for line in collected.warnings:
@@ -57,15 +73,15 @@ def check(
 
     findings = 0
     failed = len(collected.errors)
-    for path in collected.files:
+    for file in collected.files:
         try:
-            count, line = check_file(path, rules, pool)
+            count, line = check_file(file, rules, pool)
         except (AthcError, OSError) as error:
             console.fail(error_line(error))
             failed += 1
             continue
         except Exception:
-            console.unexpected(str(path))
+            console.unexpected(str(file))
             failed += 1
             continue
         if count > 0:

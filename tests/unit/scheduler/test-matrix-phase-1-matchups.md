@@ -18,6 +18,7 @@ Every row runs for each distinct league (two divisional standings variants, the 
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | Shared solver setup | phase 1 runs `make_solver` with its seed, `phase1_time_limit` and workers (once, one league) | `test_solve_runs_the_shared_solver_with_its_seed_time_limit_and_workers` | ☑ |
+| Solve through the helper | phase 1 solves through `run_solver` | `test_solve_goes_through_the_solve_helper` | ☑ |
 | Default width | no `workers` given → `DEFAULT_SOLVER_WORKERS` (multithreaded) | `test_solve_defaults_to_the_pinned_worker_count` | ☑ |
 | Config reaches phase 1 | the scheduler passes `solver_workers` and `phase1_time_limit` | `test_scheduler_runs_phase_1_with_the_configured_solver_workers` | ☑ |
 | `"auto"` resolved once | both phases run fast threads minus 2; the result carries the count | `test_scheduler_resolves_auto_workers_once_and_returns_the_count` | ☑ |
