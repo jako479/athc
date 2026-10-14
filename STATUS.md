@@ -8,7 +8,7 @@ Updated 2026-10-13. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
-Eight commands are in. Nothing has been released.
+Nine commands are in. Nothing has been released.
 
 All non-scheduler work was committed in one batch on 2026-07-19, so git dates
 for it are not when the work happened.
@@ -35,7 +35,17 @@ athc playpool check             DONE
 athc profile check              DONE
 athc profile copy               DONE
 athc profile diff               DONE
+athc standings                  DONE
 ```
+
+## standings
+
+- `athc standings` (2026-10-13): the league's standings as played so far,
+  from its current `.lge`; `--view game` (default, the game's screen),
+  `league`, `conference`, `division` (ESPN's tabs); `--method scheduler`
+  (default), `game`, `nfl`; one fixed coin toss. Docs:
+  [README](docs/standings/README.md),
+  [ARCHITECTURE](docs/standings/ARCHITECTURE.md).
 
 ## athc
 
@@ -284,7 +294,7 @@ standings by the game's, the scheduler's or the NFL's tie-breakers. Docs:
 
 - One season, or last season's results for this season's divisions and
   teams, with team moves for teams whose name changed; a seeded coin toss.
-- Library in, with unit tests. Nothing uses it yet: `fbpro98_lge` and
+- Library in, with unit tests. Used by `athc standings`; `fbpro98_lge` and
   `generate-schedule` keep their own ranking for now.
 
 ## gameplan

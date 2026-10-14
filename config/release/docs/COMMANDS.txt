@@ -337,6 +337,24 @@ given --league NAME.
       athc config set league PNFL
 
 
+16) standings  --  show the league's standings as played so far
+    -----------------------------------------------------------
+
+   Reads the league's .lge from the folder path names in its league.toml.
+   --view game (the default) shows the game's standings screen; --view
+   league, conference or division shows ESPN's tab of that name, with home,
+   away, division and conference records, point difference and streak.
+   --method picks the tie-breakers: scheduler (the default), game or nfl.
+
+   Show help:
+      athc standings -h
+
+   Example terminal calls:
+      athc standings
+      athc standings --view league
+      athc standings --view division --method nfl --league PCFL
+
+
 EXIT CODES
 ==========
 

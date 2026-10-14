@@ -4,6 +4,13 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-13 — **standings**: a new `athc standings` command, the first user
+  of the standings library. It shows the league's standings as played so far,
+  as the game's standings screen or ESPN's League, Conference and Division
+  tabs, so a commissioner can check them without opening the game. A fixed
+  coin toss keeps the order the same on every run of the same file. The
+  review caught PCT rounding a half down (13-3 read `.812`); it now rounds up
+  as ESPN prints it.
 - 2026-10-13 — **fbpro98_standings**: tie-breaking moved toward its own library,
   since it is a game rule and not part of the file format. One engine ranks
   for three methods (the game's, generate-schedule's, the NFL's), from one

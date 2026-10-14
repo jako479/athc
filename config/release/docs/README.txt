@@ -22,7 +22,7 @@ REQUIREMENTS
 needs no internet and no admin rights.
 
    Windows 8.1 or newer:   check-ppp, config, convert-pdb, gameplan,
-                           playpool, profile
+                           playpool, profile, standings
    Windows 10 or newer:    autocontinue, generate-schedule
 
 
@@ -53,9 +53,9 @@ folder, for example:
    [league]
    play_path = 'D:\SIERRA\FBPRO98\PNFL\plays'
 
-To check every profile and game plan in a folder with check-ppp, or to
-generate a schedule, also set path to the folder that holds the league's
-files (like PNFL.lg2 and PNFL.lge), for example:
+To check every profile and game plan in a folder with check-ppp, to
+generate a schedule, or to show the standings, also set path to the folder
+that holds the league's files (like PNFL.lg2 and PNFL.lge), for example:
 
    path = 'D:\SIERRA\FBPRO98'
 

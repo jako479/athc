@@ -24,6 +24,7 @@ from athc.cli.gameplan.set_normals import set_normals
 from athc.cli.gameplan.set_specials import set_specials
 from athc.cli.generate_schedule import generate_schedule
 from athc.cli.profile.check import check as profile_check
+from athc.cli.standings import standings
 from tests.conftest import LEAGUE, OTHER_LEAGUE, league_not_found, no_league_selected
 from tests.integration.conftest import DATA, GP_OFFENSE, OFF1, RULES_TOML
 
@@ -38,6 +39,7 @@ LEAGUE_COMMANDS = [
     check_ppp,
     convert_pdb,
     generate_schedule,
+    standings,
 ]
 
 
@@ -76,6 +78,8 @@ def _unknown_league_args(command: click.Command, tmp_path: Path) -> list[str]:
         return [str(OFF1), str(GP_OFFENSE)]
     if command is convert_pdb:
         return [str(DATA / "2045-2047.pdb"), str(tmp_path / "out.xlsx")]
+    if command is standings:
+        return []
     return ["--season", "2048", "--previous", str(tmp_path)]  # generate_schedule
 
 
@@ -205,6 +209,11 @@ USAGE_CASES = [
         ("convert-pdb",),
         "athc convert-pdb [-h] [-o pln_file] [-o2 pln_file] [-d pln_file] "
         "[-d2 pln_file] [--skip-calcs] [--league name] pdb_file output_file",
+    ),
+    (
+        ("standings",),
+        "athc standings [-h] [--view game|league|conference|division] "
+        "[--method scheduler|game|nfl] [--league name]",
     ),
 ]
 

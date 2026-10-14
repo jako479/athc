@@ -48,6 +48,7 @@ gameplan = "athc.cli.gameplan:gameplan"
 generate-schedule = "athc.cli.generate_schedule:generate_schedule"
 playpool = "athc.cli.playpool:playpool"
 profile = "athc.cli.profile:profile"
+standings = "athc.cli.standings:standings"
 
 # [project.urls]
 # Homepage = "https://github.com/jako479/athc"

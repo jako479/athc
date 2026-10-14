@@ -26,6 +26,7 @@ Commands:
   gameplan      Validate and edit Front Page Sports Football Pro '98...
   playpool      Check a Front Page Sports Football Pro '98 play pool (.ply).
   profile       Validate and edit Front Page Sports Football Pro '98...
+  standings     Show the league's standings as played so far.
 
 
 athc gameplan --help
@@ -313,6 +314,33 @@ Usage: athc playpool check [-h] [--league name] [play_dir]
 Options:
   --league name  League name (a folder under leagues\ in the config dir).
   -h, --help     Show this message and exit.
+
+
+athc standings --help
+---------------------
+
+Usage: athc standings [-h] [--view game|league|conference|division]
+                      [--method scheduler|game|nfl] [--league name]
+
+  Show the league's standings as played so far.
+
+  Reads the league's <league>.lge from the folder `path` names in its
+  league.toml.
+
+    --view game         the game's standings screen
+    --view league       every team, numbered (ESPN's League tab)
+    --view conference   each conference, numbered (ESPN's Conference tab)
+    --view division     each division (ESPN's Division tab)
+
+Options:
+  --view [game|league|conference|division]
+                                  The game's standings screen, or an ESPN
+                                  standings tab.  [default: game]
+  --method [scheduler|game|nfl]   Tie-breakers: the scheduler's, the game's or
+                                  the NFL's.  [default: scheduler]
+  --league name                   League name (a folder under leagues\ in the
+                                  config dir).
+  -h, --help                      Show this message and exit.
 
 
 athc convert-pdb --help

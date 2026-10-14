@@ -37,6 +37,7 @@ athc/
       generate_schedule.py               # athc generate-schedule (leaf)
       convert_pdb.py                     # athc convert-pdb (leaf)
       autocontinue.py                    # athc autocontinue (leaf)
+      standings.py                       # athc standings (leaf)
       gameplan/                          # athc gameplan ... (group with leaves)
         __init__.py                      # defines group
         check.py, find_play.py, list_normals.py, list_specials.py,
@@ -57,6 +58,7 @@ athc/
     scheduler/       config.py  main.py   league_files.py  domain/  schedulers/  writers/
     pdbtoexcel/      config.py  main.py  pdb.py  workbook_creator.py  excel_workbook.py
     autocontinue/    config.py  main.py  images/
+    standings/       records.py  views.py
 
     # LIBRARIES (importable by tools and by other libs; playpool also has a CLI)
     playpool/                  py.typed  model.py  reader.py
@@ -158,7 +160,7 @@ Rules that hold across every command and library. Each tool's own behavior is in
 - Argument names and option values show in lowercase with underscores (`metavar="pdb_file"`), never Click's capitals.
 - Bare `athc` (or a bare group) prints help on stderr and exits 2 (`no_args_is_help=True`); the run log gets `ERROR no command given; help shown`, not the help text; `--version` reads the installed metadata (`click.version_option(package_name="athc")`), no hard-coded version; `python -m athc` works via `athc/__main__.py`.
 - Every command and group has a one-line help, written from the user's side ("Advance the sim to the next decision", not "Read the [autocontinue] section"); `show_default=True` where a default matters.
-- `--league name` is an option on each league-aware command (`gameplan check` / `replace-play` / `set-normals` / `set-specials` / `list-normals`, `profile check`, `check-ppp`, `playpool check`, `convert-pdb`, `generate-schedule`), applied with the shared `league_option` decorator and taken as `league: str | None`. It goes after the command name like `aws s3 ls --profile x` and `kubectl get --context x`; it is not on the root group because Click only takes a group's options before the subcommand name. Commands that never read league data don't have it. Selection: `--league` → `[athc] league` → an error naming `athc config set league` and listing the league folders.
+- `--league name` is an option on each league-aware command (`gameplan check` / `replace-play` / `set-normals` / `set-specials` / `list-normals`, `profile check`, `check-ppp`, `playpool check`, `convert-pdb`, `generate-schedule`, `standings`), applied with the shared `league_option` decorator and taken as `league: str | None`. It goes after the command name like `aws s3 ls --profile x` and `kubectl get --context x`; it is not on the root group because Click only takes a group's options before the subcommand name. Commands that never read league data don't have it. Selection: `--league` → `[athc] league` → an error naming `athc config set league` and listing the league folders.
 - All dependencies are required (no opt-in extras): the installer must deliver every tool working. A tool with a heavy dependency (`generate-schedule` / ortools, `autocontinue` / pyautogui) imports it lazily inside the command, so discovery and `--help` survive a broken install; on `ImportError` it raises `AthcError("Missing <module>. Reinstall athc.")`, so the user sees `FAIL Missing <module>. Reinstall athc.` and exit 2, and has a test for the missing import.
 
 ### Console, run log and errors

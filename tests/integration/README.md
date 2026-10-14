@@ -737,3 +737,26 @@ In [test_config.py](test_config.py) (alongside the resolver tests above). Thin c
 | `edit` opens the default app | config_dir | file created; `launch(<athc.ini>)` | `test_edit_opens_associated_app` | ☑ |
 | `edit` ignores `$VISUAL`/`$EDITOR` | both set | `launch(<athc.ini>)`; no `edit` | `test_edit_ignores_editor_env` | ☑ |
 | `edit` keeps existing file | existing ini | content unchanged | `test_edit_preserves_existing_file` | ☑ |
+
+---
+
+# `athc standings`
+
+In [test_standings.py](test_standings.py). The selected league's `path` holds `tests/unit/fbpro98_lge/data/PNFL-2048-after-week16.lge` as `test_league.lge` (an autouse fixture); a second league holds `PNFL-before-week1.lge`. Goldens in `expected/standings_{game,league,conference,division}.txt`. Exit 0 done / 2 error.
+
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Each view | mid-season | stdout equals the golden; stderr empty | `test_view_matches_golden` `[P]` | ☑ |
+| Defaults | mid-season | same as `--view game --method scheduler` | `test_defaults_are_the_game_view_by_the_scheduler` | ☑ |
+| Records match the file | mid-season | W, L, T, PF, PA equal `Team.record` | `test_records_match_the_file` | ☑ |
+| League view numbered 1 to the team count | mid-season | 1-18 | `test_league_view_numbers_every_team` | ☑ |
+| Conference view numbered per conference | mid-season | 1-9, 1-9 | `test_conference_view_numbers_each_conference` | ☑ |
+| Each method orders the league view | mid-season | the library's `league()` order | `test_method_orders_the_league_view` `[P]` | ☑ |
+| Before week 1 | before week 1 | every row 0, `.000`, `0-0`, `0`, `-` | `test_before_week_one_shows_every_team_at_zero` | ☑ |
+| Same file, same order | before week 1 | five runs alike | `test_same_file_same_order` | ☑ |
+| `--league` picks the league | second league | its name as the title | `test_league_option_picks_the_league` | ☑ |
+| No league selected | athc.ini without league | exit 2; stderr: `FAIL No league selected ...`; stdout empty | `test_no_league_selected` | ☑ |
+| No `path` | league.toml without `path` | exit 2; stderr: `FAIL <league.toml>: No path for the league. Set path in this file.` | `test_no_path` | ☑ |
+| Missing `.lge` | file removed | exit 2; stderr: `FAIL <file>: The system cannot find the file specified.` | `test_missing_lge` | ☑ |
+| Broken `.lge` | empty file | exit 2; stderr: `FAIL <file>: Empty file.` | `test_broken_lge` | ☑ |
+| Bad `--view` / `--method` | `bogus` | usage error on stderr, exit 2 | `test_bad_choice_is_a_usage_error` `[P]` | ☑ |

@@ -1,0 +1,12 @@
+AFC EAST       W   L  T   PF   PA    NFC EAST        W   L  T   PF   PA
+Miami         10   6  0  298  257    Washington     14   2  0  431  251
+Buffalo       10   6  0  395  346    Atlanta         7   9  0  433  420
+New England    8   8  0  334  331    New York        4  12  0  275  411
+Jacksonville   7   9  0  296  360    Philadelphia    2  14  0  321  441
+
+AFC WEST       W   L  T   PF   PA    NFC WEST        W   L  T   PF   PA
+Cincinnati    12   4  0  422  346    Chicago        13   3  0  439  266
+Pittsburgh    10   6  0  326  258    Minnesota       9   7  0  333  294
+Las Vegas      8   8  0  351  347    Green Bay       8   8  0  359  380
+Denver         6  10  0  312  326    San Francisco   7   9  0  327  414
+Los Angeles    5  11  0  265  379    Seattle         4  12  0  323  413
