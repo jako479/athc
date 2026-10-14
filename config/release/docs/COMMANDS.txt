@@ -347,20 +347,28 @@ A file or folder that exists by that name wins over the key.
 
    Watches for the 'Continue' button and clicks it between plays. Settings
    live in athc.ini ([autocontinue] mouse_move_duration, delay_before_continue,
-   hot_corner) and are re-read whenever the file changes. It only clicks while
-   the game is the active window, so switching to another app is safe. Run the
-   game on your primary monitor (autocontinue only watches that display; a
-   single-display VM works too). Stop it with CTRL-C, or by moving the mouse to
-   the top-left screen corner (the "hot corner", on by default).
+   hot_corner); every one is optional (a missing one uses the shipped value),
+   and the file is re-read whenever it changes. It only clicks while the game
+   is the active window, so switching to another app is safe. Run the game on
+   your primary monitor (autocontinue only watches that display; a
+   single-display VM works too). Stop it with Ctrl+C, or by moving the mouse to
+   the top-left screen corner (the "hot corner", on by default). Run one copy
+   at a time; two copies both click.
+
+   --delay SECONDS sets the wait before each click for one run. -n, --dry-run
+   reports the button each time it is found and never moves the mouse or
+   clicks: a way to check a new monitor or display scaling.
 
    Set hot_corner = false (or pass --no-hot-corner) to turn the corner off and
-   use CTRL-C only; --hot-corner forces it on for one run.
+   use Ctrl+C only; --hot-corner forces it on for one run.
 
    Show help:
       athc autocontinue --help
 
    Example terminal calls:
       athc autocontinue
+      athc autocontinue --delay 3
+      athc autocontinue --dry-run
       athc autocontinue --no-hot-corner
 
 

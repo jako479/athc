@@ -1,13 +1,14 @@
 """Config dataclass, loader, and change detection for autocontinue.
 
 Settings live in the `[autocontinue]` section of `athc.ini` (found via
-`athc.config.config_dir()` / `ATHC_CONFIG_DIR`). Unlike most tools, autocontinue
-*requires* its settings -- a clicking watcher must not run on guessed timings.
+`athc.config.config_dir()` / `ATHC_CONFIG_DIR`). Every key is optional: a
+missing file, section or key means the defaults on `Config`.
 """
 
 from __future__ import annotations
 
 import configparser
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib import resources
@@ -25,28 +26,31 @@ _BOOLEAN_STATES = configparser.RawConfigParser.BOOLEAN_STATES
 
 @dataclass(frozen=True, slots=True)
 class Config:
-    mouse_move_duration: float
-    delay_before_continue: float
+    mouse_move_duration: float = 0.0
+    delay_before_continue: float = 1.0
     hot_corner: bool = True
+
+
+# What a missing key means; slots leave no class attributes to read them from.
+_DEFAULTS = Config()
 
 
 def load_config() -> Config:
     """Read and validate `[autocontinue]` from `config_dir()/athc.ini`.
 
-    The two timing settings are required; a missing section/key or a non-numeric
-    value raises ConfigFileError. `hot_corner` is optional and defaults to enabled.
-    Isolate the lookup in tests by setting `ATHC_CONFIG_DIR`.
+    Every key is optional: a missing file, section or key takes its default on
+    `Config`. A value that is present but wrong raises ConfigFileError. Isolate
+    the lookup in tests by setting `ATHC_CONFIG_DIR`.
     """
-    section = load_athc_config().get(SECTION)
-    if section is None:
-        raise ConfigFileError(
-            f"No [{SECTION}] section. Add one, or set ATHC_CONFIG_DIR.",
-            config_dir() / CONFIG_FILE,
-        )
+    section = load_athc_config().get(SECTION, {})
     return Config(
-        mouse_move_duration=_required_float(section, "mouse_move_duration"),
-        delay_before_continue=_required_float(section, "delay_before_continue"),
-        hot_corner=_optional_bool(section, "hot_corner", default=True),
+        mouse_move_duration=_timing(
+            section, "mouse_move_duration", default=_DEFAULTS.mouse_move_duration
+        ),
+        delay_before_continue=_timing(
+            section, "delay_before_continue", default=_DEFAULTS.delay_before_continue
+        ),
+        hot_corner=_optional_bool(section, "hot_corner", default=_DEFAULTS.hot_corner),
     )
 
 
@@ -81,16 +85,18 @@ def _optional_bool(section: Mapping[str, str], key: str, *, default: bool) -> bo
     return _BOOLEAN_STATES[value]
 
 
-def _required_float(section: Mapping[str, str], key: str) -> float:
+def _timing(section: Mapping[str, str], key: str, *, default: float) -> float:
+    """Seconds, 0 or more. NaN and infinity are not, since time.sleep refuses
+    them."""
     if key not in section:
+        return default
+    try:
+        value = float(section[key])
+    except ValueError:
+        value = None
+    if value is None or not 0 <= value < math.inf:
         raise ConfigFileError(
-            f"Missing required setting '{key}' in [{SECTION}].",
+            f"[{SECTION}] {key}: Must be a number, 0 or more, got {section[key]!r}.",
             config_dir() / CONFIG_FILE,
         )
-    try:
-        return float(section[key])
-    except ValueError:
-        raise ConfigFileError(
-            f"[{SECTION}] {key}: Must be a number, got {section[key]!r}.",
-            config_dir() / CONFIG_FILE,
-        ) from None
+    return value

@@ -1,8 +1,8 @@
 """Watch for the 'Continue' button in Front Page Sports Football Pro '98 and
 click it.
 
-Re-reads the INI when the config file changes on disk, so MouseMoveDuration /
-DelayBeforeContinue can be tuned while the watcher is running.
+Re-reads the INI when the config file changes on disk, so mouse_move_duration
+and delay_before_continue can be tuned while the watcher is running.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 import ctypes
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
@@ -46,32 +47,46 @@ pyautogui.FAILSAFE_POINTS = [(0, 0)]
 
 def auto_continue(
     hot_corner: bool | None = None,
+    delay: float | None = None,
+    dry_run: bool = False,
     *,
     progress: Say | None = None,
     warn: Say | None = None,
+    report: Say | None = None,
 ) -> None:
-    """Run the watch-and-click loop until interrupted (Ctrl-C).
+    """Run the watch-and-click loop until interrupted (Ctrl+C or the hot corner).
 
-    Reads `[autocontinue]` from `config_dir()/athc.ini`. The INI is re-read only when
-    the file changes on disk, so edits apply while the watcher runs; a reload that
-    fails validation goes to `warn` and the previous settings are kept. The initial
-    load is required; a ConfigFileError there propagates to the caller.
+    Reads `[autocontinue]` from `config_dir()/athc.ini`, every key optional. The
+    INI is re-read only when the file changes on disk, so edits apply while the
+    watcher runs; a reload that fails validation goes to `warn` and the previous
+    settings are kept. A wrong value at start raises ConfigFileError to the
+    caller.
 
-    `hot_corner` is the CLI override: None uses the config value, True/False forces it
-    and ignores config changes to the setting. `progress` hears the loop's status
-    lines and `warn` its retries; nothing is printed or logged here.
+    `hot_corner` and `delay` are the CLI overrides: None uses the config value,
+    a value forces it and ignores config changes to the setting. `dry_run` finds
+    the button as usual and tells `report` where, never moving the mouse or
+    clicking. `progress` hears the loop's status lines and `warn` its retries;
+    nothing is printed or logged here.
     """
     say = progress or (lambda _: None)
     complain = warn or (lambda _: None)
+    tell = report or (lambda _: None)
+    if dry_run:
+        # pyautogui checks the hot corner only inside the mouse calls a dry run
+        # never makes, so it is off whatever the flag or the setting says.
+        hot_corner = False
     last_signature = config_signature()
     config = load_config()
     button = _load_button_image(CONTINUE_BUTTON_IMAGE)
 
-    say("AutoContinue is RUNNING. Press CTRL-C to exit.")
-    _say_config_changes(None, config, say)
+    say("Watching for the Continue button. Press Ctrl+C to stop.")
+    _say_config_changes(None, config, delay, say)
     corner = _resolve_hot_corner(config, hot_corner)
     _apply_hot_corner(None, corner, say)
+    if dry_run:
+        say("Dry run: the Continue button is reported, never clicked.")
     width, height = _get_screen_size()
+    window = _GameWindow(say)
 
     while True:
         signature = config_signature()
@@ -82,36 +97,56 @@ def auto_continue(
             except ConfigFileError as error:
                 complain(_reload_failed(error))
             else:
-                _say_config_changes(config, new_config, say)
+                _say_config_changes(config, new_config, delay, say)
                 new_corner = _resolve_hot_corner(new_config, hot_corner)
                 _apply_hot_corner(corner, new_corner, say)
                 corner = new_corner
                 config = new_config
 
-        if not _game_has_focus():
+        if not window.check():
             time.sleep(_UNFOCUSED_POLL)
             continue
 
         location = _find_continue_button(button, 0, 0, width, height, complain)
         # Re-check focus: the commish may have switched away (pausing the game)
         # since the top of the loop.
-        if location is None or not _game_has_focus():
+        if location is None or not window.check():
             time.sleep(_SCAN_INTERVAL)
+            continue
+        if dry_run:
+            tell(f"Continue button found at {location.x}, {location.y}.")
+            time.sleep(_NO_CLICK_COOLDOWN)
             continue
         try:
             pyautogui.moveTo(location.x, location.y, config.mouse_move_duration)
-            if config.delay_before_continue >= 0:
-                time.sleep(config.delay_before_continue)
-                if not _game_has_focus():
-                    continue  # lost focus during the pre-click delay
-                pyautogui.leftClick()
-                time.sleep(_POST_CLICK_COOLDOWN)
-            else:
-                time.sleep(_NO_CLICK_COOLDOWN)
+            time.sleep(_resolve_delay(config, delay))
+            if not window.check():
+                continue  # lost focus during the pre-click delay
+            # On the button itself: the mouse may have moved during the delay.
+            pyautogui.leftClick(location.x, location.y)
+            time.sleep(_POST_CLICK_COOLDOWN)
         except pyautogui.FailSafeException as exc:
             # Top-left corner is the stop gesture; funnel it through the same
-            # path as Ctrl-C.
+            # path as Ctrl+C.
             raise KeyboardInterrupt from exc
+
+
+@dataclass(slots=True)
+class _GameWindow:
+    """Whether the game is the active window, said on the first check (the
+    state starts unknown) and on each change."""
+
+    say: Say
+    active: bool | None = None
+
+    def check(self) -> bool:
+        active = _game_has_focus()
+        if active != self.active:
+            self.active = active
+            self.say(
+                "Game window active." if active else "Waiting for the game window."
+            )
+        return active
 
 
 def _get_screen_size() -> tuple[int, int]:
@@ -186,20 +221,33 @@ def _resolve_hot_corner(config: Config, override: bool | None) -> bool:
     return config.hot_corner if override is None else override
 
 
+def _resolve_delay(config: Config, override: float | None) -> float:
+    """--delay wins; None falls back to the config value."""
+    return config.delay_before_continue if override is None else override
+
+
 def _apply_hot_corner(prev: bool | None, enabled: bool, say: Say) -> None:
-    """Toggle the PyAutoGUI fail-safe and say the state on change. Enabled: the
-    top-left corner stops the watcher. Disabled: Ctrl-C only."""
+    """Toggle the PyAutoGUI fail-safe and say the state on change. On: the
+    top-left corner stops the watcher at its next move or click. Off: Ctrl+C
+    only."""
     pyautogui.FAILSAFE = enabled
     if prev == enabled:
         return
     if enabled:
-        say("(Move the mouse to the top-left corner to stop.)")
+        say("Hot corner on: move the mouse to the top-left corner to stop.")
     else:
-        say("Hot corner disabled; press CTRL-C to stop.")
+        say("Hot corner off: press Ctrl+C to stop.")
 
 
-def _say_config_changes(prev: Config | None, current: Config, say: Say) -> None:
+def _say_config_changes(
+    prev: Config | None, current: Config, delay: float | None, say: Say
+) -> None:
+    """Say each setting at start (no `prev`) and each one a reload changed, by
+    its athc.ini key; a delay held by --delay is said once, at start."""
     if prev is None or prev.mouse_move_duration != current.mouse_move_duration:
-        say(f"MouseMoveDuration set to {current.mouse_move_duration}")
-    if prev is None or prev.delay_before_continue != current.delay_before_continue:
-        say(f"DelayBeforeContinue set to {current.delay_before_continue}")
+        say(f"mouse_move_duration = {current.mouse_move_duration}")
+    if delay is not None:
+        if prev is None:
+            say(f"delay_before_continue = {delay} (--delay)")
+    elif prev is None or prev.delay_before_continue != current.delay_before_continue:
+        say(f"delay_before_continue = {current.delay_before_continue}")

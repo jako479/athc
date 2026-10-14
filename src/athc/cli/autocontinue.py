@@ -3,14 +3,56 @@
 
 from __future__ import annotations
 
+import math
+
 import click
 
 from athc.cli import CONTEXT_SETTINGS, AthcCommand
 from athc.console import console
 from athc.errors import AthcError
 
+# The \b line keeps Click from joining the examples into one line.
+EXAMPLES = """Examples:
 
-@click.command(name="autocontinue", cls=AthcCommand, context_settings=CONTEXT_SETTINGS)
+\b
+  athc autocontinue
+  athc autocontinue --delay 3
+  athc autocontinue --dry-run
+"""
+
+
+def _zero_or_more(
+    ctx: click.Context, param: click.Parameter, value: float | None
+) -> float | None:
+    # NaN and infinity are not delays: time.sleep refuses them.
+    if value is not None and not 0 <= value < math.inf:
+        raise click.BadParameter(f"must be 0 or more, got {value}.", ctx, param)
+    return value
+
+
+@click.command(
+    name="autocontinue",
+    cls=AthcCommand,
+    context_settings=CONTEXT_SETTINGS,
+    epilog=EXAMPLES,
+)
+@click.option(
+    "--delay",
+    type=float,
+    default=None,
+    metavar="SECONDS",
+    callback=_zero_or_more,
+    help=(
+        "Seconds to wait before each click. Overrides delay_before_continue in "
+        "athc.ini (1.0 by default)."
+    ),
+)
+@click.option(
+    "-n",
+    "--dry-run",
+    is_flag=True,
+    help="Report the button each time it is found; never move the mouse or click.",
+)
 @click.option(
     "--hot-corner/--no-hot-corner",
     default=None,
@@ -19,14 +61,12 @@ from athc.errors import AthcError
         "Overrides hot_corner in athc.ini (on by default)."
     ),
 )
-def autocontinue(hot_corner: bool | None) -> None:
-    """Watch for the 'Continue' button between plays and click it.
+def autocontinue(delay: float | None, dry_run: bool, hot_corner: bool | None) -> None:
+    """Click the game's Continue button between plays.
 
-    Clicks the 'Continue' button in Front Page Sports Football Pro '98. Stop with
-    Ctrl+C, or by moving the mouse to the top-left screen corner (the "hot corner",
-    on by default; disable with --no-hot-corner or the config). Reads
-    `[autocontinue]` (mouse_move_duration, delay_before_continue, hot_corner) from
-    athc.ini, re-reading whenever the file changes so edits apply while it runs.
+    Watches the primary monitor while the game is the active window and clicks
+    Continue each time it appears, after a short delay. Runs until you press
+    Ctrl+C or move the mouse to the top-left corner of the screen.
     """
     try:
         # Lazy import: pulls in pyautogui only when the watcher actually runs.
@@ -38,8 +78,13 @@ def autocontinue(hot_corner: bool | None) -> None:
 
     try:
         auto_continue(
-            hot_corner=hot_corner, progress=console.progress, warn=console.warn
+            hot_corner=hot_corner,
+            delay=delay,
+            dry_run=dry_run,
+            progress=console.progress,
+            warn=console.warn,
+            report=console.result,
         )
     except KeyboardInterrupt:
-        # Ctrl-C and the top-left fail-safe both land here: the normal stop.
-        console.result("Shutting down AutoContinue")
+        # Ctrl+C and the top-left hot corner both land here: the normal stop.
+        console.result("Stopped.")

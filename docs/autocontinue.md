@@ -13,46 +13,79 @@ uv sync
 ## Usage
 
 ```bash
-athc autocontinue   # settings from athc.ini [autocontinue]
+athc autocontinue              # settings from athc.ini [autocontinue], or the defaults
+athc autocontinue --delay 3    # wait 3 s before each click, this run only
+athc autocontinue --dry-run    # report the button, never click
 ```
 
-`CTRL-C` stops it, or move the mouse to the top-left screen corner (the "hot corner", on by default; disable with `--no-hot-corner` or `hot_corner = false`). It only clicks while the game is the active window, so switching to another app (which pauses the game) is safe. The INI is re-read whenever the file changes, so edits apply while it runs. Its status (`AutoContinue is RUNNING...`, the settings in use) prints on stderr and in the run log; a failed config reload, or a screen that is locked, behind a screensaver or in a disconnected Remote Desktop session, is a `WARN` line and it keeps going. Stopping prints `Shutting down AutoContinue`, exit `0`. A config error, a missing pyautogui, or a missing or unreadable button image is `FAIL <why>`, exit `2`. Shared console and codes: [architecture](architecture.md#console-run-log-and-errors).
+| Option | Meaning |
+|---|---|
+| `--delay SECONDS` | Seconds to wait before each click, 0 or more; overrides `delay_before_continue` for one run, through live reloads. |
+| `-n, --dry-run` | Finds the button as usual and reports each sighting, never moving the mouse or clicking: a way to check a new monitor or display scaling before trusting it. `--delay` and the hot corner have no effect. |
+| `--hot-corner/--no-hot-corner` | Overrides `hot_corner` for one run. |
+
+It looks for the button only while the game is the active window, so switching to another app (which pauses the game) is safe. Ctrl+C stops it, or the hot corner. Run one copy at a time; two copies both click. Keep the PC unlocked and the screensaver off: Windows hides a locked screen, so nothing can be found or clicked.
 
 Run the game on your **primary monitor** — autocontinue only watches that display. (A single-display VM also works, and keeps your other monitors free.)
 
 ## Config
 
-Reads `[autocontinue]` from `athc.ini`, found via `ATHC_CONFIG_DIR` / the default config dir (see [architecture.md](architecture.md#config)) — there is no `--config` flag. Unlike most tools, both settings are **required** (a clicking watcher shouldn't run on guessed timings); a missing section or setting is an error.
+Reads `[autocontinue]` from `athc.ini`, found via `ATHC_CONFIG_DIR` / the default config dir (see [architecture.md](architecture.md#config)) — there is no `--config` flag. Every key is optional: a missing file, section or key means the default, the value the shipped `athc.ini` has. A key that is present but wrong is an error.
 
-| Setting | Meaning |
-|---|---|
-| `mouse_move_duration` | Seconds to move the mouse to the button (`0.0` = instant). |
-| `delay_before_continue` | Seconds to wait before clicking. `0.0` = instant; `-1.0` = find but don't click. |
-| `hot_corner` | Stop when the mouse hits the top-left corner. Optional; missing = enabled. |
+| Setting | Default | Meaning |
+|---|---|---|
+| `mouse_move_duration` | `0.0` | Seconds to move the mouse to the button, 0 or more (`0.0` = instant). |
+| `delay_before_continue` | `1.0` | Seconds to wait before each click, 0 or more (`0.0` = instant). |
+| `hot_corner` | `true` | Stop when the mouse hits the top-left corner. |
 
-`-1.0` is useful for detection-only logging when the game already auto-advances. The two timing settings are required; `hot_corner` is optional. `--hot-corner/--no-hot-corner` overrides it for one run.
+The timings have no upper limit. The file is re-read whenever it changes, so edits apply while it runs; a value held by `--delay` or a hot-corner flag is not affected. A deleted file means the defaults again; a file that comes back is read like any change.
+
+## Lines and exit codes
+
+Status lines go to stderr and the run log; a dry run's sightings and `Stopped.` go to stdout and the run log.
+
+| When | Line | Exit |
+|---|---|---|
+| start | `Watching for the Continue button. Press Ctrl+C to stop.` | |
+| the settings, at start and when a reload changes one | `mouse_move_duration = 0.0`, `delay_before_continue = 1.0`; with `--delay 3`, `delay_before_continue = 3.0 (--delay)` once at start | |
+| hot corner on | `Hot corner on: move the mouse to the top-left corner to stop.` | |
+| hot corner off, or a dry run | `Hot corner off: press Ctrl+C to stop.` | |
+| a dry run, at start | `Dry run: the Continue button is reported, never clicked.` | |
+| the first check, and each time the game stops being the active window | `Waiting for the game window.` | |
+| the first check, and each time the game becomes the active window | `Game window active.` | |
+| a dry run, each sighting | `Continue button found at 812, 640.` | |
+| a reload that fails | `WARN <athc.ini>: <why> Keeping the previous settings.` | |
+| the screen hidden | `WARN The screen is locked, a screensaver is on, or Remote Desktop is disconnected. Retrying in 60 seconds.` | |
+| stop: Ctrl+C, or the hot corner | `Stopped.` | 0 |
+| a bad timing at start | `FAIL <athc.ini>: [autocontinue] delay_before_continue: Must be a number, 0 or more, got '-1.0'.` | 2 |
+| a bad `hot_corner` at start | `FAIL <athc.ini>: [autocontinue] hot_corner: Must be true or false, got 'maybe'.` | 2 |
+| pyautogui missing | `FAIL Missing pyautogui. Reinstall athc.` | 2 |
+| the button image missing or unreadable | `FAIL <image>: <why> Reinstall athc.` | 2 |
+| an argument, or a `--delay` that is not a number 0 or more | Click's `Error: ...` | 2 |
+
+At start: the start line, the two settings, the hot-corner line, the dry-run line, then the first window line. The shared scheme: [architecture.md](architecture.md#console-run-log-and-errors).
 
 ## Tests
 
-`pytest tests/integration/test_autocontinue.py` covers config loading, change detection, and the CLI. The image-matching watch loop is manual-only — it depends on the live display.
+`pytest tests/integration/test_autocontinue.py` covers config loading and the defaults, change detection, the CLI with the loop stubbed, and the loop on a stand-in desktop (window, screen, mouse and clock faked). Live image matching stays manual — it depends on the display.
 
 ## How it works
 
-- Only scans while the game is the foreground window (`GetForegroundWindow` title match) — the game auto-pauses on focus loss, so this keeps it from clicking while the commish is in another app. Works windowed or fullscreen (the window keeps its title either way).
-- Loads `continue_button.png` once at start (grayscale, as the matcher reads it); a missing or unreadable image is a broken install: `FAIL <image>: <why> Reinstall athc.`, exit 2.
-- Polls the primary display for that image (PyAutoGUI grayscale match, confidence 0.8): one search per loop, paced by `_SCAN_INTERVAL`. We don't use pyscreeze's `minSearchTime` — its retry loop has no sleep (busy-loops a core), so we pace it ourselves.
-- On a hit, moves the mouse there over `mouse_move_duration` seconds and clicks after `delay_before_continue`.
-- Re-reads the INI only when the file changes on disk (`config_signature` fingerprints path/mtime/size), so settings tune live; a reload that fails validation is logged and the old settings kept.
-- When Windows hides the screen (locked, screensaver, disconnected Remote Desktop) the grab fails: `WARN The screen is locked, a screensaver is on, or Remote Desktop is disconnected. Retrying in 60 seconds.`, then it backs off `_LOCKED_SCREEN_BACKOFF` seconds so the log doesn't flood.
-- Stops on Ctrl-C, or — when the **hot corner** is enabled (default) — when the cursor reaches the top-left corner. The fail-safe is pinned to that one corner (`FAILSAFE_POINTS`), so the other three stay free, and is funneled through the Ctrl-C path so both exit cleanly. `hot_corner = false` (or `--no-hot-corner`) disables it, leaving Ctrl-C only; on launch the watcher logs which mode is active (info).
-- `ConfigFileError` covers a missing file, a missing `[autocontinue]` section, a missing/non-numeric timing setting, or a non-boolean `hot_corner` → a `FAIL` line, exit 2; a missing or blank `hot_corner` means enabled.
+- Only scans while the game is the foreground window (`GetForegroundWindow` title match) — the game auto-pauses on focus loss, so this keeps it from clicking while the commish is in another app. Works windowed or fullscreen (the window keeps its title either way). While the game is not active it checks again every 2 s.
+- Loads `continue_button.png` once at start (grayscale, as the matcher reads it); a missing or unreadable image is a broken install.
+- Polls the primary display for that image (PyAutoGUI grayscale match, confidence 0.8): one search a second. We don't use pyscreeze's `minSearchTime` — its retry loop has no sleep (busy-loops a core), so we pace it ourselves.
+- On a hit, moves the mouse there over `mouse_move_duration` seconds, waits the delay, clicks on the button itself (back on it if the mouse moved), then waits 4 s. A dry run reports the hit instead and waits 8 s.
+- Re-reads the INI only when the file changes on disk (`config_signature` fingerprints path/mtime/size), so settings tune live; a reload that fails validation is a `WARN` and the old settings are kept.
+- When Windows hides the screen (locked, screensaver, disconnected Remote Desktop) the grab fails; it warns and backs off 60 s so the log doesn't flood.
+- The hot corner is pyautogui's own fail-safe, pinned to the top-left corner (`FAILSAFE_POINTS`) so the other three stay free. pyautogui checks it inside its own mouse calls (the move to the button and the click); the loop adds no check of its own, so a dry run, which makes no mouse calls, cannot use it. A stop by the corner goes through the Ctrl+C path: `Stopped.`, exit 0.
+- After the game ends it keeps scanning, and clicks nothing unless the button appears, until stopped; there is no timed stop.
 
 ### Layout
 
 ```
 src/athc/autocontinue/
 ├── __init__.py
-├── config.py        # Config, load_config (raises ConfigFileError), config_signature, get_runtime_path
+├── config.py        # Config (the defaults), load_config, config_signature, get_runtime_path
 ├── main.py          # auto_continue() watch loop, screen helpers (pyautogui, ctypes)
 └── images/
     └── continue_button.png   # pyautogui match target (package_data)
@@ -65,16 +98,7 @@ src/athc/cli/autocontinue.py  # Click command; lazy-imports main so pyautogui lo
 - **Windows-only** — queries screen size via `ctypes.windll.user32` with DPI-awareness.
 - **Primary monitor only** — pyautogui/`ImageGrab` captures the primary display, so the game must run there. A single-display VM sidesteps this (the guest has one monitor, freeing the host's other monitors). Full multi-monitor support is out of scope (PIL has known multi-monitor/negative-coordinate bugs).
 - No `--config` flag — config is `config_dir()/athc.ini` (`ATHC_CONFIG_DIR`), per [architecture.md](architecture.md#config); tests isolate by setting that env var.
-- `--hot-corner/--no-hot-corner` (default unset) overrides the `hot_corner` config value; unset, the config wins. The override holds across live reloads.
+- `--delay` and `--hot-corner/--no-hot-corner` (default unset) override their `athc.ini` values; unset, the config wins. The overrides hold across live reloads.
 - pyautogui (+ opencv-python, which backs the confidence-based image match) is a **required dependency**, but the CLI still lazy-imports `main` so discovery and `--help` work even on a broken install; running without it then prints `FAIL Missing pyautogui. Reinstall athc.` and exits 2.
 - Sees pixels only — never inspects or edits game files.
-- The watch loop is **manual-tested only** (depends on the live display). `config.py` + the CLI are covered by `pytest`.
-
-### Exit codes
-
-| Exit | Meaning |
-|---|---|
-| `0` | **Done** — ran, including a clean Ctrl-C stop. |
-| `2` | **Error** — a `FAIL` line: config missing/invalid, pyautogui not installed or the button image missing/unreadable (reinstall hint); or usage, bad arguments (Click). |
-
-The shared scheme: [architecture.md](architecture.md#console-run-log-and-errors).
+- No single-instance guard: run one copy at a time.

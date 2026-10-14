@@ -120,23 +120,8 @@ def test_no_epilog_has_no_examples() -> None:
     assert example_count(None) == 0
 
 
-# Over 55 characters: autocontinue's new summary comes with its 2.0.0 plan.
-LONG_SUMMARIES = {("autocontinue",)}
-
-
 @pytest.mark.parametrize(
-    ("path", "command"),
-    [
-        pytest.param(
-            path,
-            command,
-            id=_id(path),
-            marks=pytest.mark.xfail(strict=True, reason="summary not yet shortened")
-            if path in LONG_SUMMARIES
-            else (),
-        )
-        for path, command in COMMANDS
-    ],
+    ("path", "command"), COMMANDS, ids=[_id(path) for path, _ in COMMANDS]
 )
 def test_summary_fits_the_command_list(
     path: tuple[str, ...], command: click.Command
@@ -145,11 +130,10 @@ def test_summary_fits_the_command_list(
 
 
 # Leaf commands only: a group's agreed screen has no description or examples.
-# autocontinue's help comes with its 2.0.0 plan.
 LEAF_COMMANDS = [
     (path, command)
     for path, command in COMMANDS
-    if not isinstance(command, click.Group) and path != ("autocontinue",)
+    if not isinstance(command, click.Group)
 ]
 
 
@@ -367,6 +351,32 @@ TEAM_OPTION = """\
 """
 
 SCREENS = {
+    ("autocontinue",): """\
+Usage: athc autocontinue [OPTIONS]
+
+  Click the game's Continue button between plays.
+
+  Watches the primary monitor while the game is the active window and clicks
+  Continue each time it appears, after a short delay. Runs until you press
+  Ctrl+C or move the mouse to the top-left corner of the screen.
+
+Options:
+  --delay SECONDS                 Seconds to wait before each click. Overrides
+                                  delay_before_continue in athc.ini (1.0 by
+                                  default).
+  -n, --dry-run                   Report the button each time it is found;
+                                  never move the mouse or click.
+  --hot-corner / --no-hot-corner  Stop when the mouse hits the top-left
+                                  corner. Overrides hot_corner in athc.ini (on
+                                  by default).
+  -h, --help                      Show this message and exit.
+
+  Examples:
+
+    athc autocontinue
+    athc autocontinue --delay 3
+    athc autocontinue --dry-run
+""",
     ("gameplan",): """\
 Usage: athc gameplan [OPTIONS] COMMAND [ARGS]...
 

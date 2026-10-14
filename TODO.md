@@ -39,7 +39,7 @@
 
 - view-standings: provide the official NFL tie-breaking rules (needs total TDs, etc.)
 - view-standings: add a playoff race setting that describes what needs to happen for a team to make the playoffs
-- autocontinue: CLI plan and improvements (every setting optional with shipped defaults, `--delay`, window lines, click on the button); see [docs/proposals/autocontinue-cli-plan.md](docs/proposals/autocontinue-cli-plan.md) and [docs/proposals/autocontinue-behavior-plan.md](docs/proposals/autocontinue-behavior-plan.md)
+- [x] autocontinue: CLI plan and improvements (every setting optional with shipped defaults, `--delay`, `-n/--dry-run`, window lines, click on the button)
 - playpool: add a `playpool find-play` command
 - playpool: add a `playpool show` command
 - athc: list the players who show P-1 but will still be injured for the next game after weekly healing; chart in [game behavior](docs/fbpro98-game-behavior.md#p-1-that-stays-injured)

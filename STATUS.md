@@ -195,6 +195,10 @@ athc.
 
 Working. Docs: [autocontinue.md](docs/autocontinue.md)
 
+- Every `[autocontinue]` setting is optional, with the shipped defaults.
+  `--delay SECONDS` overrides the delay for one run; `-n, --dry-run` reports
+  the button and never clicks. The status lines name the `athc.ini` keys and
+  say when the game window is active; the click lands on the button itself.
 - The Continue button image loads once at start; a missing or unreadable one
   stops the run (`Reinstall athc.`). A locked screen, screensaver or
   disconnected Remote Desktop is a `WARN` naming those causes, retried every

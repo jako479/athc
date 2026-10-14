@@ -63,8 +63,5 @@ Docs for repo readers; the end-user docs are in `config/release/docs/`. One fold
 
 Pending designs and plans; a finished pair folds into the docs and goes (the rule in AGENTS.md).
 
-- [autocontinue-behavior-plan.md](proposals/autocontinue-behavior-plan.md) — autocontinue behavior plan
-- [autocontinue-cli-plan.md](proposals/autocontinue-cli-plan.md) — autocontinue CLI plan
-- [autocontinue-cli.md](proposals/autocontinue-cli.md) — autocontinue CLI plan
 - [logging-updates.md](proposals/logging-updates.md) — Proposal — logging updates
 - [quirk-budget.md](proposals/quirk-budget.md) — Proposal — schedule quirk budget
