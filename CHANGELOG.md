@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- fbpro98_standings: new library that ranks division, conference and league standings from `.lge` files by the game's, the scheduler's or the NFL's tie-breakers
 - athc: the `.lge` spec decodes each team's Training Camp percentages
 - league.toml and athc.ini: each comment says what the setting is, not which commands read it
 - convert-pdb: the Type column says `QB run`, not `QB draw`

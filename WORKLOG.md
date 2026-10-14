@@ -4,6 +4,11 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-13 — **fbpro98_standings**: tie-breaking moved toward its own library,
+  since it is a game rule and not part of the file format. One engine ranks
+  for three methods (the game's, generate-schedule's, the NFL's), from one
+  season or from last season's results for this season's divisions, with
+  team moves for renamed teams and a seeded coin toss. Nothing uses it yet.
 - 2026-10-13 — **playpool**: play attributes from the play's own bytes. The
   filename filters in `playpool.toml` guessed at what a play does and needed
   a per-league exception list, so `fbpro98_play` now reads each player's

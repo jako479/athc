@@ -65,6 +65,7 @@ athc/
     fbpro98_lge/               py.typed  model.py  reader.py
     fbpro98_play/              py.typed  model.py  reader.py
     fbpro98_profile/           py.typed  model.py  reader.py  writer.py
+    fbpro98_standings/         py.typed  standings.py  methods.py  steps.py  moves.py  season.py
 ```
 
 ## Tools vs libraries
@@ -97,6 +98,7 @@ Each library's `docs/<lib>/README.md` is its quickstart and API reference: Featu
 - [fbpro98_lge](../fbpro98_lge/README.md)
 - [fbpro98_play](../fbpro98_play/README.md)
 - [fbpro98_profile](../fbpro98_profile/README.md)
+- [fbpro98_standings](../fbpro98_standings/README.md)
 
 ## Extension mechanism
 

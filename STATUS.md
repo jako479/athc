@@ -276,6 +276,17 @@ Reads and writes `.prf` coaching profiles. Docs:
 
 - Reader and writer in, with unit tests.
 
+## fbpro98_standings (library)
+
+Ranks a league's teams from its `.lge` files: division, conference and league
+standings by the game's, the scheduler's or the NFL's tie-breakers. Docs:
+[README](docs/fbpro98_standings/README.md)
+
+- One season, or last season's results for this season's divisions and
+  teams, with team moves for teams whose name changed; a seeded coin toss.
+- Library in, with unit tests. Nothing uses it yet: `fbpro98_lge` and
+  `generate-schedule` keep their own ranking for now.
+
 ## gameplan
 
 Working. Validates and edits `.pln` game plans. Docs:
