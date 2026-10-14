@@ -13,15 +13,11 @@ Where things stand now: [STATUS.md](STATUS.md).
   every offense attribute read from the snap on.
 - 2026-10-13 — **scheduler**: how a division whose members changed gets its
   finish order. The lge library's method that ranked an arbitrary team list
-  was rejected as a kluge; the first replacement idea, rebuilding the previous
-  season under the upcoming divisions, was checked against the 2002 NFL
-  realignment and found wrong (New Orleans finished ahead of Atlanta on their
-  old division's record; the new division's would have flipped them). So the
-  previous season stays as it stood, ranked by a plain library function the
-  loader calls once per division; a loader sort was the simpler alternative
-  but would have been a second standings rule. The moved-team cases are
-  documented with the 2047 AFC East; the dead point-differential research
-  files went.
+  was rejected as a kluge. The previous season stays as it stood, ranked by a
+  plain library function the loader calls once per division; a loader sort
+  was the simpler alternative but would have been a second standings rule.
+  The moved-team cases are documented with the 2047 AFC East; the dead
+  point-differential research files went.
 - 2026-10-12 — **scheduler**: the standings come from the game's own league
   files instead of a hand-written INI per season. The lge library grew the
   played games, playoff results and the unplayed count; a new loader matches
