@@ -112,9 +112,7 @@ def _resolve_normal_line(
     record = pool.find_by_name(name)
     if record is None:
         invalid_plays.append(
-            InvalidPlay(
-                play.line, f"'{name}' not found in the play pool (slot {grid})."
-            )
+            InvalidPlay(play.line, f"'{name}' is not in the play pool (slot {grid}).")
         )
         return None
     pf = record.play_file
@@ -122,7 +120,7 @@ def _resolve_normal_line(
         invalid_plays.append(
             InvalidPlay(
                 play.line,
-                f"'{name}' is a special teams play and cannot go in a normal slot.",
+                f"'{name}' is a special-teams play and cannot go in a normal slot.",
             )
         )
         return None
@@ -130,7 +128,7 @@ def _resolve_normal_line(
         invalid_plays.append(
             InvalidPlay(
                 play.line,
-                f"'{name}' is a defensive play, but the gameplan is offensive.",
+                f"'{name}' is a defensive play, but the game plan is offensive.",
             )
         )
         return None
@@ -138,7 +136,7 @@ def _resolve_normal_line(
         invalid_plays.append(
             InvalidPlay(
                 play.line,
-                f"'{name}' is an offensive play, but the gameplan is defensive.",
+                f"'{name}' is an offensive play, but the game plan is defensive.",
             )
         )
         return None
@@ -166,19 +164,20 @@ def _resolve_special_line(
         return None
     record = pool.find_by_name(name)
     if record is None:
-        invalid_plays.append(InvalidPlay(line, f"'{name}' not found in the play pool."))
+        invalid_plays.append(InvalidPlay(line, f"'{name}' is not in the play pool."))
         return None
     pf = record.play_file
     if not pf.is_special_teams:
         invalid_plays.append(
-            InvalidPlay(line, f"'{name}' is not a special teams play.")
+            InvalidPlay(line, f"'{name}' is not a special-teams play.")
         )
         return None
     if gp.is_offense and not pf.is_offensive:
         invalid_plays.append(
             InvalidPlay(
                 line,
-                f"'{name}' is a defensive special play, but the gameplan is offensive.",
+                f"'{name}' is a defensive special play, "
+                "but the game plan is offensive.",
             )
         )
         return None
@@ -187,7 +186,7 @@ def _resolve_special_line(
             InvalidPlay(
                 line,
                 f"'{name}' is an offensive special play, "
-                "but the gameplan is defensive.",
+                "but the game plan is defensive.",
             )
         )
         return None

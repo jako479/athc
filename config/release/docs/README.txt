@@ -146,7 +146,7 @@ An error with no detail (or filing a bug report):
     The run log holds the full technical detail, every traceback included:
     %LOCALAPPDATA%\athc\Logs\athc.log. Attach it to the report.
 
-convert-pdb says "has no play file in the play pool" for every play, and
+convert-pdb says "is not in the play pool" for every play, and
 the play sheets are empty:
     play_path in leagues\<NAME>\league.toml is not your play pool folder.
     Run athc config get play_path to see it, and athc config edit

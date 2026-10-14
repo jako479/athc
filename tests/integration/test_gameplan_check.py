@@ -353,7 +353,13 @@ def test_cli_bug_in_one_file_keeps_the_batch_going(
     )
     assert f"{good}: " in result.stdout
     assert "2 file(s) checked, 1 with violations, 1 failed" in result.stdout
-    assert "RuntimeError: kaboom" in (log_dir / "athc.log").read_text(encoding="utf-8")
+    log = (log_dir / "athc.log").read_text(encoding="utf-8").splitlines()
+    fail = next(i for i, line in enumerate(log) if "Unexpected error" in line)
+    assert log[fail].split(" ", 2)[2] == (
+        f"ERROR {doomed}: Unexpected error. See {log_dir / 'athc.log'} for details."
+    )
+    assert log[fail + 1] == "Traceback (most recent call last):"
+    assert "RuntimeError: kaboom" in "\n".join(log)
 
 
 @pytest.mark.usefixtures("league")
@@ -417,7 +423,7 @@ def test_cli_rules_file_with_two_problems_is_two_fail_lines(
     assert all(line.startswith(f"FAIL {rules}: ") for line in lines)
     assert all(line.endswith(".") for line in lines)
     log = (log_dir / "athc.log").read_text(encoding="utf-8")
-    assert log.count(f"ERROR FAIL {rules}: ") == 2
+    assert log.count(f" ERROR {rules}: ") == 2
 
 
 def test_cli_bad_rules_toml(runner, league: Path) -> None:

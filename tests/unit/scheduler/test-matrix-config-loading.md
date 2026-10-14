@@ -26,7 +26,7 @@ In `test_config.py`, `test_league_files.py` and `test_cli.py`. The test league i
 |---|---|---|---|---|
 | Real 2047 -> 2048 | golden | the league's published 2048 order and division finishes; empty conference names; divisions by position | `test_2048_league_matches_the_real_final_standings` | ☑ |
 | Real 2046 -> 2047 | golden | a realignment and four renames: divisions from the upcoming file, finish and overall from the 2046 records | `test_2047_league_follows_realignment_and_renames` | ☑ |
-| Previous season not finished | golden (an opening-week file) | `warn` hears `<file>: Season not finished: 142 game(s) not played.`; the League is built | `test_unfinished_season_is_a_warning` | ☑ |
+| Previous season not finished | golden (an opening-week file) | `warn` hears `<file>: Season not finished. 142 game(s) not played.`; the League is built | `test_unfinished_season_is_a_warning` | ☑ |
 | Renamed team not listed | golden, no renames | `Team(s) not in <upcoming>: Baltimore. List renamed teams under [renames.2048] in <rules>.` | `test_unmatched_previous_team_names_the_renames_table` | ☑ |
 | Rename names an unknown or taken team | golden | `ConfigFileError` naming the rules file, table and key | `test_rename_naming_an_unknown_or_taken_team` `[P]` | ☑ |
 | One division per conference | built | a league without divisions; the coin toss's order with no game | `test_one_division_per_conference_is_a_league_without_divisions` | ☑ |

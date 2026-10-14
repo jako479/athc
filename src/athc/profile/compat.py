@@ -154,7 +154,7 @@ def check_gameplan_compatibility(
                 CompatKind.MISSING_NORMAL_CATEGORY,
                 code,
                 f"play category {label} (0x{code:02X}) has no custom play "
-                f"in the gameplan",
+                f"in the game plan",
             )
         )
 
@@ -166,7 +166,7 @@ def check_gameplan_compatibility(
                     CompatKind.MISSING_SPECIAL_CATEGORY,
                     code,
                     f"special-teams category {_SPECIAL_NAME[code]} has no custom "
-                    f"special play in the gameplan",
+                    f"special play in the game plan",
                 )
             )
 
@@ -193,7 +193,8 @@ def gameplan_extra_categories(
                 CompatIssue(
                     CompatKind.EXTRA_NORMAL_CATEGORY,
                     None,
-                    f"gameplan play category {name} is not used by the profile",
+                    f"play category {name} is in the game plan "
+                    f"but not used by the profile",
                 )
             )
 
@@ -204,8 +205,8 @@ def gameplan_extra_categories(
                 CompatIssue(
                     CompatKind.EXTRA_SPECIAL_CATEGORY,
                     code,
-                    f"gameplan special-teams category {_SPECIAL_NAME[code]} "
-                    f"is not used by the profile",
+                    f"special-teams category {_SPECIAL_NAME[code]} "
+                    f"is in the game plan but not used by the profile",
                 )
             )
 

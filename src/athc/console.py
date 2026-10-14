@@ -86,7 +86,10 @@ class AthcConsole:
     ) -> None:
         padded = label.ljust(_LABEL_WIDTH)
         target.print(Text.assemble((label, color), padded[len(label) :], message))
-        logger.log(level, "%s%s", padded, message, exc_info=exc_info)
+        # The log line carries the level itself, so WARN and FAIL would only
+        # repeat it; OK and SKIP stay, since INFO alone would not say which.
+        entry = message if level >= logging.WARNING else f"{padded}{message}"
+        logger.log(level, "%s", entry, exc_info=exc_info)
 
 
 def _lines(message: str) -> list[str]:

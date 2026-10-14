@@ -107,12 +107,18 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 |---|---|---|---|---|
 | Every shipped league's rules load | shipped | loads | `test_shipped_rules_load` `[P]` | ☑ |
 
-## writer.py — `apply_special_plays`
+## writer.py — `apply_normal_plays`, `apply_special_plays`
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Special category 11 play (no custom slot) | make | `InvalidPlayListError` "which has no custom slot" | `test_special_play_without_custom_slot_is_rejected` | ☑ |
 | Special category 10 play (last custom slot) | make | placed in slot 10 | `test_special_play_in_last_custom_category_is_accepted` | ☑ |
+| Special-teams play in a normal slot | make | `InvalidPlayListError` "'KICKPLY' is a special-teams play and cannot go in a normal slot." | `test_special_teams_play_in_a_normal_slot_is_rejected` | ☑ |
+| Defensive play in an offense game plan | make | "'DEFPLAY' is a defensive play, but the game plan is offensive." | `test_defensive_play_in_an_offense_game_plan_is_rejected` | ☑ |
+| Offensive play in a defense game plan | make | "'OFFPLAY' is an offensive play, but the game plan is defensive." | `test_offensive_play_in_a_defense_game_plan_is_rejected` | ☑ |
+| Normal play in the specials list | make | "'RUNPLAY' is not a special-teams play." | `test_normal_play_in_the_specials_list_is_rejected` | ☑ |
+| Defensive special play in an offense game plan | make | "'DEFKICK' is a defensive special play, but the game plan is offensive." | `test_defensive_special_play_in_an_offense_game_plan_is_rejected` | ☑ |
+| Offensive special play in a defense game plan | make | "'OFFKICK' is an offensive special play, but the game plan is defensive." | `test_offensive_special_play_in_a_defense_game_plan_is_rejected` | ☑ |
 
 ## validators.py — `validate_gameplan`
 
@@ -165,3 +171,4 @@ Constructed gameplan + pool (records carry typed playpool attributes). Each side
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Unresolved play | make | `UNRESOLVED_PLAY` | `test_unresolved_play_fires` | ☑ |
+| Unresolved play message names the play and its slot | make | "Play 'GHOST' at slot 1 (1-1) is not in the play pool" | `test_unresolved_play_message_names_the_play_and_its_slot` | ☑ |

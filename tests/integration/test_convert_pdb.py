@@ -376,7 +376,7 @@ def test_default_output_is_beside_the_pdb(runner, tmp_path: Path) -> None:
     result = run(runner, pdb)
     assert result.exit_code == 0
     assert out.is_file()
-    assert result.stderr.splitlines()[0] == f"Creating '{out}'"
+    assert result.stderr.splitlines()[0] == f"Creating {out}"
     assert result.stdout == f"OK   {out}: 0 play(s)\n"
 
 
@@ -477,7 +477,7 @@ def test_entry_point_subprocess(
     assert result.returncode == 0 and out.is_file()
     assert result.stdout == f"OK   {out}: 0 play(s)\n"
     lines = result.stderr.splitlines()
-    assert lines[0] == f"Creating '{out}'"
+    assert lines[0] == f"Creating {out}"
     assert lines[1:] and all(line.startswith("WARN ") for line in lines[1:])
 
 
@@ -631,7 +631,7 @@ def test_progress_on_stderr_warnings_and_ok_line(
     )
     assert result.exit_code == 0
     lines = result.stderr.splitlines()
-    assert lines[0] == f"Creating '{out}'"
+    assert lines[0] == f"Creating {out}"
     assert lines[1:] and all(line.startswith("WARN ") for line in lines[1:])
     assert result.stdout == f"OK   {out}: {_golden_play_rows()} play(s)\n"
 
@@ -645,8 +645,7 @@ def test_empty_pool_warns_per_play_and_writes_no_play_rows(
     assert result.exit_code == 0
     warnings = result.stderr.splitlines()[1:]
     assert warnings and all(
-        line.startswith("WARN Play '")
-        and line.endswith(" has no play file in the play pool.")
+        line.startswith("WARN Play '") and line.endswith(" is not in the play pool.")
         for line in warnings
     )
     assert result.stdout == f"OK   {out}: 0 play(s)\n"
@@ -754,9 +753,9 @@ def at_league(tmp_path: Path, team_folder: str) -> Path:
 
 
 def plan_lines(result: Result) -> list[str]:
-    """The stderr lines before `Creating '...'`: the game plans' lines."""
+    """The stderr lines before `Creating <file>`: the game plans' lines."""
     lines = result.stderr.splitlines()
-    end = next(i for i, line in enumerate(lines) if line.startswith("Creating '"))
+    end = next(i for i, line in enumerate(lines) if line.startswith("Creating "))
     return lines[:end]
 
 

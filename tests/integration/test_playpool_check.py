@@ -65,7 +65,7 @@ def test_clean_exit_0(runner, tmp_path: Path) -> None:
     root = clean_tree(tmp_path / "plays")
     result = run(runner, root)
     assert result.exit_code == 0
-    assert result.stdout == f"1 play(s) checked in '{root}', 0 issue(s)\n"
+    assert result.stdout == f"{root}: 1 play(s) checked, 0 issue(s)\n"
 
 
 @pytest.mark.usefixtures("labeled_league")
@@ -80,7 +80,7 @@ def test_issues_print_word_for_word_exit_1(runner, tmp_path: Path) -> None:
         f"Defense/34RunMiddle/{PLAY}.ply: Run Left play in a Run Middle folder.",
         f"Duplicate play name '{PLAY}'. The last one loaded wins.",
     ]
-    assert lines[2:] == ["", f"2 play(s) checked in '{root}', 2 issue(s)"]
+    assert lines[2:] == ["", f"{root}: 2 play(s) checked, 2 issue(s)"]
 
 
 def test_dir_with_unknown_league_option_exit_2(
@@ -114,7 +114,7 @@ def test_dir_without_league_knows_no_category_folders(runner, tmp_path: Path) ->
     copy_play(root / "Defense" / "34RunMiddle")
     result = run(runner, root)
     assert result.exit_code == 0
-    assert result.stdout == f"1 play(s) checked in '{root}', 0 issue(s)\n"
+    assert result.stdout == f"{root}: 1 play(s) checked, 0 issue(s)\n"
 
 
 def test_invalid_file_is_an_issue(runner, tmp_path: Path) -> None:
@@ -126,7 +126,7 @@ def test_invalid_file_is_an_issue(runner, tmp_path: Path) -> None:
     lines = result.stdout.splitlines()
     assert lines[0].startswith(f"{root / 'bad.ply'}: ")
     assert lines[0].endswith(" Skipped.")
-    assert lines[1:] == ["", f"0 play(s) checked in '{root}', 1 issue(s)"]
+    assert lines[1:] == ["", f"{root}: 0 play(s) checked, 1 issue(s)"]
 
 
 @pytest.mark.usefixtures("labeled_league")
@@ -155,7 +155,7 @@ def test_default_is_current_league_play_path(
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner)
     assert result.exit_code == 0
-    assert result.stdout == f"1 play(s) checked in '{root}', 0 issue(s)\n"
+    assert result.stdout == f"{root}: 1 play(s) checked, 0 issue(s)\n"
 
 
 def test_league_option_picks_another_league(
@@ -168,7 +168,7 @@ def test_league_option_picks_another_league(
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, "--league", OTHER_LEAGUE)
     assert result.exit_code == 0
-    assert result.stdout == f"1 play(s) checked in '{other_plays}', 0 issue(s)\n"
+    assert result.stdout == f"{other_plays}: 1 play(s) checked, 0 issue(s)\n"
 
 
 # ── errors: exit 2, on stderr ─────────────────────────────────────────────────
@@ -243,7 +243,7 @@ def test_folder_run_never_reads_play_path(
     result = run(runner, root)
     assert result.exit_code == 0
     assert "FAIL" not in result.stderr
-    assert result.stdout == f"1 play(s) checked in '{root}', 0 issue(s)\n"
+    assert result.stdout == f"{root}: 1 play(s) checked, 0 issue(s)\n"
 
 
 def test_two_folders_are_a_usage_error(runner, tmp_path: Path) -> None:

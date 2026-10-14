@@ -66,7 +66,7 @@ generate-schedule  --  build the season schedule
    written takes effect once all three are written.
 
    An unfinished season (games not played) is a warning, WARN <file>:
-   Season not finished: <n> game(s) not played., and the run goes on with
+   Season not finished. <n> game(s) not played., and the run goes on with
    the games played. Teams rank by playoff finish, then record, then
    strength of schedule (opponents' combined record), then their previous
    season's division finish, then point differential, then a coin toss

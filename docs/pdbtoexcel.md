@@ -61,9 +61,9 @@ game plans, per side.
 
 ### Lines and exit codes
 
-- Progress on stderr: the game plans' lines, then `Creating '<workbook>'`.
-- A `WARN` line per notice (a missing game plan, a play with no play file in
-  the pool, a stale `[deleted_plays]` entry, invalid PDB data, a play-pool
+- Progress on stderr: the game plans' lines, then `Creating <workbook>`.
+- A `WARN` line per notice (a missing game plan, a play not in the
+  play pool, a stale `[deleted_plays]` entry, invalid PDB data, a play-pool
   issue), each naming its file first where one is to blame; then
   `OK   <workbook>: <n> play(s)`. `athc playpool check` lists the play-pool
   issues on their own, with an exit code.
@@ -141,7 +141,7 @@ src/athc/cli/_team.py         # shared team layer: league files, team, file loca
   league's `[category_order]` from `pdbtoexcel.toml`; a category not listed for
   its PDB play type is left out of the workbook.
 - Skips a play named in `[deleted_plays]` quietly instead of the
-  "has no play file in the play pool" warning; one still in the pool is also
+  "is not in the play pool" warning; one still in the pool is also
   skipped, with a warning, naming `pdbtoexcel.toml`, that the entry is stale.
 - Fills the Slot columns from game plans: with no game plan option, your
   team's four from the league file (Slot 1 the 1st-half plan, Slot 2 the

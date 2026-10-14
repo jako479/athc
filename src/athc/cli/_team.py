@@ -19,7 +19,7 @@ from typing import Literal
 
 import click
 
-from athc.config import LEAGUE_PATH_KEY, LEAGUE_SECTION
+from athc.config import LEAGUE_PATH_KEY, LEAGUE_SECTION, not_set_line
 from athc.errors import (
     DIRECTORY_INVALID,
     PATH_NOT_FOUND,
@@ -184,15 +184,12 @@ def is_key(raw: str) -> bool:
 def team_not_set(way: str) -> str:
     """The line for `team` not set, ending with the command's own way out
     (`--team`, `--team or a .prf file`)."""
-    return f"Team is not set. Run 'athc config set team NAME' or pass {way}."
+    return not_set_line("team", way)
 
 
 def path_not_set(way: str) -> str:
     """The line for `path` not set, ending with the command's own way out."""
-    return (
-        f"League files folder is not set. Run 'athc config set path FOLDER' or "
-        f"pass {way}."
-    )
+    return not_set_line("path", way)
 
 
 def location_hint(way: str) -> str:

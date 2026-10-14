@@ -63,7 +63,8 @@ def validate_special_play_list(
             errors.append(
                 InvalidPlay(
                     play.line,
-                    f"'{name}' is not a special teams play. Use set-normals.",
+                    f"'{name}' is not a special-teams play. "
+                    "Run 'athc gameplan set-normals'.",
                 )
             )
             continue
@@ -168,7 +169,7 @@ def set_specials(
     for file in collected.files:
         if not _matches_side(file, side):
             skipped += 1
-            console.skip(f"{file}: {other_side} gameplan")
+            console.skip(f"{file}: {other_side} game plan")
             continue
         try:
             gp = read_gameplan(str(file))

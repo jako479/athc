@@ -201,7 +201,7 @@ def test_special_teams_and_unknown_plays_skipped(tmp_path: Path) -> None:
     )
     wb, creator = _convert(tmp_path, plays, [record])
     assert _rows(wb["Run Plays"]) == [_rows(_build(tmp_path, [], [])["Run Plays"])[0]]
-    assert creator.warnings == ["Play 'GHOST' has no play file in the play pool."]
+    assert creator.warnings == ["Play 'GHOST' is not in the play pool."]
 
 
 def test_tendencies_written(tmp_path: Path) -> None:
@@ -362,6 +362,6 @@ def test_warnings_are_returned_not_logged(
     with caplog.at_level(logging.DEBUG):
         rows = creator.create_workbook(str(out), True, True, progress=said.append)
     assert caplog.records == []
-    assert said == [f"Creating '{out}'"]
-    assert creator.warnings == ["Play 'GHOST' has no play file in the play pool."]
+    assert said == [f"Creating {out}"]
+    assert creator.warnings == ["Play 'GHOST' is not in the play pool."]
     assert rows == 1

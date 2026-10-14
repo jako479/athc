@@ -107,7 +107,7 @@ def replace_in_gameplan(
 @dataclass(frozen=True, slots=True)
 class Skipped:
     """A replacement passed over in one game plan, each reason the rest of its
-    `SKIP` line: `already in the gameplan`, or `fails check: ...` once per
+    `SKIP` line: `already in the game plan`, or `fails check: ...` once per
     violation the game plan would have with it."""
 
     name: str
@@ -155,7 +155,7 @@ def pick_replacement(
     skipped: list[Skipped] = []
     for entry in entries:
         if _already_in(gp, entry.name, target):
-            skipped.append(Skipped(entry.name, ("already in the gameplan",)))
+            skipped.append(Skipped(entry.name, ("already in the game plan",)))
             continue
         try:
             updated, normal_hits, special_hits = replace_in_gameplan(
@@ -178,7 +178,7 @@ def _pool_entry(pool: PlayPool, name: str) -> CustomPlayRef:
     """The `.pln` entry for a replacement; AthcError when it is not in the pool."""
     record = pool.find_by_name(name)
     if record is None:
-        raise AthcError(f"Replacement play '{name}' not found in the play pool.")
+        raise AthcError(f"Replacement play '{name}' is not in the play pool.")
     return build_custom_play(record, pool.root_dir)
 
 
@@ -291,6 +291,6 @@ def replace_play(
         names = ", ".join(f"'{name}'" for name in replacements)
         console.result(
             f"'{play}' -> {names}: replaced {replaced_total} instance(s) "
-            f"in {updated} gameplan(s), {failed} failed, {not_replaced} not replaced"
+            f"in {updated} game plan(s), {failed} failed, {not_replaced} not replaced"
         )
     ctx.exit(2 if failed else 1 if replaced_total == 0 or not_replaced else 0)

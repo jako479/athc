@@ -87,7 +87,7 @@ the same messages:
 - A `.ply` file that isn't a valid play file.
 
 Each issue prints on its own line (a result, on stdout, never a `WARN`), then a
-blank line and `<n> play(s) checked in '<folder>', <n> issue(s)`, the folder
+blank line and `<folder>: <n> play(s) checked, <n> issue(s)`, the folder
 as typed. Shared console and codes:
 [architecture](architecture.md#console-run-log-and-errors).
 

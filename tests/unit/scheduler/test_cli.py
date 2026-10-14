@@ -342,7 +342,7 @@ def test_main_errors_when_the_previous_season_is_not_finished(
     said: list[str] = []
     with pytest.raises(_ReachedSolver):
         _run_main(upcoming, upcoming, tmp_path, warn=said.append)
-    assert said == [f"{_lge(upcoming)}: Season not finished: 142 game(s) not played."]
+    assert said == [f"{_lge(upcoming)}: Season not finished. 142 game(s) not played."]
 
 
 def test_main_builds_the_league_and_reaches_the_solver(
@@ -365,7 +365,7 @@ def test_cli_errors_when_the_previous_season_is_not_finished(
         generate_schedule, ["--season", "2048", "--previous", str(_lge(upcoming))]
     )
     assert result.stderr == (
-        f"WARN {_lge(upcoming)}: Season not finished: 142 game(s) not played.\n"
+        f"WARN {_lge(upcoming)}: Season not finished. 142 game(s) not played.\n"
         "Generating the 2048 schedule\n" + REACHED
     )
 
@@ -532,9 +532,9 @@ def test_prints_files_and_result_line(
         generate_schedule, ["--season", "2048", "--previous", str(_lge(previous))]
     )
     assert result.exit_code == 0
-    assert result.stdout == "".join(f"OK   {path}\n" for path in generated.files) + (
-        "Generated 128 games (seed 7)\n"
-    )
+    assert result.stdout == "".join(
+        f"OK   {path}: written\n" for path in generated.files
+    ) + ("Generated 128 games (seed 7)\n")
     assert result.stderr == ""
 
 

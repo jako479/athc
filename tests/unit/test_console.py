@@ -75,7 +75,8 @@ def test_status_lines_stream_label_and_log(
     out, err = capsys.readouterr()
     assert (out if stream == "out" else err) == line + "\n"
     assert (err if stream == "out" else out) == ""
-    assert [(r.levelno, r.getMessage()) for r in records] == [(level, line)]
+    logged = line if level < logging.WARNING else message  # the level says WARN/FAIL
+    assert [(r.levelno, r.getMessage()) for r in records] == [(level, logged)]
 
 
 def test_text_prints_verbatim(
@@ -192,8 +193,8 @@ def test_every_line_of_a_message_is_labeled_and_logged(
     getattr(plain, call)("a.toml: One.\na.toml: Two.")
     assert capsys.readouterr().err == f"{label} a.toml: One.\n{label} a.toml: Two.\n"
     assert [(r.levelno, r.getMessage()) for r in records] == [
-        (level, f"{label} a.toml: One."),
-        (level, f"{label} a.toml: Two."),
+        (level, "a.toml: One."),
+        (level, "a.toml: Two."),
     ]
 
 

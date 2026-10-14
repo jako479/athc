@@ -100,7 +100,7 @@ Same eight cases as profile (single / top level / recursive / missing / non-`.pl
 | Clean (mocked) | data + league | exit 0; stdout: `OK   <file>: ...` and the tally | `test_cli_clean_exit_0` | ☑ |
 | Missing path | tmp + league | exit 2; stderr: `FAIL <path>: The system cannot find the file specified.`; stdout: the tally | `test_cli_missing_path` | ☑ |
 | Locked file, batch goes on | two files; the reader raises `PermissionError` for one | exit 2; stderr: `FAIL <file>: Access is denied.`; tally `2 file(s) checked, 1 with violations, 1 failed` | `test_cli_locked_file_is_access_denied_and_the_batch_goes_on` | ☑ |
-| Bug in one file, batch goes on | two files; the reader raises `RuntimeError` for one | exit 2; stderr: `FAIL <file>: Unexpected error. See <log> for details.`; the other checked; traceback in the log | `test_cli_bug_in_one_file_keeps_the_batch_going` | ☑ |
+| Bug in one file, batch goes on | two files; the reader raises `RuntimeError` for one | exit 2; stderr: `FAIL <file>: Unexpected error. See <log> for details.`; the other checked; the log holds the line at `ERROR`, then the traceback | `test_cli_bug_in_one_file_keeps_the_batch_going` | ☑ |
 | Malformed `.pln` | tmp + league | exit 2; stderr: `FAIL <file>: ...` | `test_cli_malformed_pln` | ☑ |
 | Continues past bad file | tmp + league | exit 2; stderr: `FAIL` for the bad file; stdout: the good file's line and the tally | `test_cli_continues_past_bad` | ☑ |
 
@@ -215,7 +215,7 @@ In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `d
 
 # `athc gameplan find-play`
 
-In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find_in_gameplan`, `format_hit_line`) on constructed gameplans; CLI tier on real `data/offense.pln` / `data/defense.pln` and tmp-written constructed gameplans, through `--path`; the team tier on `pnfl_league` (`PNFL.lg2` + `PNFL.lge`, Denver's and Las Vegas's 2049 plans at their league locations) or a built league (`lg2_league`). Normal hits read `'OR45RL01' found in slots 1-3, 16-2` (no category); special hits read `'BCFGPAT' found in special slot 1 (Field Goal/PAT)`. Misses always print `not found`. No pool or rules; with a path no league either. The team rows stand for all three batch commands.
+In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find_in_gameplan`, `format_hit_line`) on constructed gameplans; CLI tier on real `data/offense.pln` / `data/defense.pln` and tmp-written constructed gameplans, through `--path`; the team tier on `pnfl_league` (`PNFL.lg2` + `PNFL.lge`, Denver's and Las Vegas's 2049 plans at their league locations) or a built league (`lg2_league`). Normal hits read `'OR45RL01' found in slots 1-3, 16-2` (no category); special hits read `'BCFGPAT' found in special slot 1 (Field Goal/PAT)`. A single game plan without the play prints `not found`; a set prints nothing for a miss. No pool or rules; with a path no league either. The team rows stand for all three batch commands.
 
 ## helpers (constructed gameplans)
 | Case | Expected | Test | Status |
@@ -239,12 +239,12 @@ In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find
 | Single file hit (normal / special) | data | stdout: slot(s); special adds category; no summary | `test_cli_single_file_hit` / `test_cli_finds_custom_special` | ☑ |
 | Single file miss | data | exit 1; stdout: `<file>: 'play' not found` | `test_cli_single_file_miss_exit_1` | ☑ |
 | Case-insensitive | data | hit | `test_cli_single_file_case_insensitive` | ☑ |
-| Several plays over a dir; one play in 2 slots of a gameplan that holds 2 of them; summary | tmp | exit 0; stdout: per-play "found N instance(s) in M gameplan(s)" | `test_cli_multiple_plays_all_hit` | ☑ |
+| Several plays over a dir; one play in 2 slots of a gameplan that holds 2 of them; summary | tmp | exit 0; stdout: per-play "found N instance(s) in M game plan(s)" | `test_cli_multiple_plays_all_hit` | ☑ |
 | Multiple plays, one found (grep rule) | data | exit 0 | `test_cli_one_play_found_exit_0` | ☑ |
 | Multiple plays, none found | data | exit 1 | `test_cli_no_play_found_exit_1` | ☑ |
-| Directory: hit in one file, miss in the other | tmp | exit 0; stdout: hit + `not found` lines; footer | `test_cli_directory_reports_hit_and_miss_per_file` | ☑ |
-| Directory: no hits | tmp | exit 1; stdout: `not found` + footer | `test_cli_directory_misses_are_reported` | ☑ |
-| Directory: instance/file counts | tmp | stdout: "found N instance(s) in M gameplan(s)"; exit 0 when any play found | `test_cli_directory_summary_counts_multiple_hits` / `..._per_play_summary` | ☑ |
+| Directory: hit in one file, miss in the other | tmp | exit 0; stdout: hit line only; no `not found` line; footer | `test_cli_directory_reports_hits_only` | ☑ |
+| Directory: no hits | tmp | exit 1; stdout: the tally only | `test_cli_directory_with_no_hits_prints_only_the_tally` | ☑ |
+| Directory: instance/file counts | tmp | stdout: "found N instance(s) in M game plan(s)"; exit 0 when any play found | `test_cli_directory_summary_counts_multiple_hits` / `..._per_play_summary` | ☑ |
 | Recursive subdir | tmp | exit 0; found | `test_cli_recursive_finds_in_subdir` | ☑ |
 | Missing path / malformed `.pln` | tmp | exit 2; stderr: `FAIL <path>: ...`; stdout empty (no tally) | `test_cli_missing_path_exit_2` / `test_cli_malformed_pln_exit_2` | ☑ |
 
@@ -259,16 +259,16 @@ In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find
 ## your team's game plans (the three batch commands)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Default scope: your team's four | `team = Denver`; a `.pln` in the cwd | Denver's four at their league location, `.lg2` order, then the tally; the cwd not searched | `test_default_scope_is_your_teams_game_plans` | ☑ |
-| Default scope from `ppp_path` | `ppp_path` = a copy of Denver's folder | the four from `ppp_path`; no `WARN` | `test_default_scope_from_ppp_path` | ☑ |
+| Default scope: your team's four | `team = Denver`; a `.pln` in the cwd | the hits among Denver's four at their league location, `.lg2` order, then the tally; the cwd not searched | `test_default_scope_is_your_teams_game_plans` | ☑ |
+| Default scope from `ppp_path` | `ppp_path` = a copy of Denver's folder | the two offense hits from `ppp_path`; no `WARN` | `test_default_scope_from_ppp_path` | ☑ |
 | `ppp_path` names without case; relative `ppp_path` | lowercase copies; `ppp_path = 'mine'` | found, shown as the folder spells them; under the league folder | `test_ppp_path_names_ignore_case` / `test_relative_ppp_path_is_in_the_league_folder` | ☑ |
 | `ppp_path` missing / a file | — | exit 2; stderr: `FAIL <ppp_path>: The system cannot find the path specified. Run 'athc config set ppp_path FOLDER'.` / `The directory name is invalid. ...`; stdout empty | `test_ppp_path_not_a_folder` `[P]` | ☑ |
-| Shared game plan once | `--team "Las Vegas"` | `RAIDEROFF.pln`, `RAIDERDEF.pln`, then the tally | `test_shared_game_plan_once` | ☑ |
+| Shared game plan once | `--team "Las Vegas"` | the hit in `RAIDEROFF.pln`, searched once; `RAIDERDEF.pln` prints nothing; then the tally | `test_shared_game_plan_once` | ☑ |
 | Each key, any case | `--path off1` / `def1` / `off2` / `def2` / `OFF1` / `Def2` | that `.lg2` entry; one file, no tally | `test_key_is_one_game_plan` `[P]` | ☑ |
 | Two keys, one shared game plan | `--path off1` / `off2`, `--team "Las Vegas"` | both `RAIDEROFF.pln` | `test_two_keys_one_shared_game_plan` | ☑ |
 | Four keys only | `--path def2` / `off3` | `DEN-DGP2.pln` / exit 2, `FAIL off3: The system cannot find the file specified.` | `test_four_keys_only` `[P]` | ☑ |
 | Folder / file named `off1` | in the cwd | the folder searched, with the tally / exit 2, `FAIL off1: Not a .pln file.` | `test_folder_named_like_a_key_is_searched` / `test_file_named_like_a_key_is_that_file` | ☑ |
-| Team by name, nickname, both, any case | `team` or `--team`: `Denver`, `Broncos`, `Denver Broncos`, `dENVER bRONCOS` | Denver's four | `test_team_by_name_nickname_or_both` `[P]` | ☑ |
+| Team by name, nickname, both, any case | `team` or `--team`: `Denver`, `Broncos`, `Denver Broncos`, `dENVER bRONCOS` | Denver's two offense hits | `test_team_by_name_nickname_or_both` `[P]` | ☑ |
 | `team` / `--team` matches no team | `Denvr` | exit 2; stderr: `FAIL <league.toml>: [league] team: No team named 'Denvr'. Teams: ...` / `Error: Invalid value for '--team': no team named 'Denvr'. Teams: ...` | `test_team_matches_no_team` / `test_team_option_matches_no_team` | ☑ |
 | `team` matches two teams | `New York` (built `.lge`) | exit 2; stderr: `FAIL <league.toml>: [league] team: 'New York' matches New York Giants and New York Jets. Use the nickname, or both names in quotes.` | `test_team_matches_two_teams` | ☑ |
 | `--team` match count: one / none / two | `Giants` / `Raiders` / `New York` | accepted / `Error: Invalid value for '--team': ...` | `test_team_option_match_count` `[P]` | ☑ |
@@ -318,9 +318,9 @@ In [test_gameplan_set_normals.py](test_gameplan_set_normals.py). Operates on a t
 | Special-teams play rejected (untouched) | tmp | exit 2; stderr: `FAIL` naming set-specials | `test_rejects_special_teams_play` | ☑ |
 | Missing play aborts (untouched) | tmp | exit 2; stderr: `FAIL` | `test_missing_play_aborts` | ☑ |
 | >64 plays / league `play_path` missing | tmp | exit 2; stderr: `FAIL` | `test_too_many_plays_rejected` / `test_invalid_play_path` | ☑ |
-| 64 plays accepted; >64 from the console | tmp | exit 0, `OK   <file>: 64 normal play(s)` / exit 2, `FAIL Too many plays (65). The most is 64.` | `test_as_many_plays_as_slots_accepted` / `test_too_many_plays_from_the_console_names_no_file` | ☑ |
+| 64 plays accepted; >64 from the console | tmp | exit 0, `OK   <file>: updated (64 normal play(s))` / exit 2, `FAIL Too many plays (65). The most is 64.` | `test_as_many_plays_as_slots_accepted` / `test_too_many_plays_from_the_console_names_no_file` | ☑ |
 | Missing `.pln` / missing play list | tmp | exit 2; stderr: `FAIL <path>: The system cannot find the file specified.` only | `test_missing_pln` / `test_missing_play_list` | ☑ |
-| A key | `off1 plays.txt`, `team = Denver` | Denver's `OFF1.pln` set; stdout `OK   <full path>: 1 normal play(s)` | `test_key_sets_your_game_plan` | ☑ |
+| A key | `off1 plays.txt`, `team = Denver` | Denver's `OFF1.pln` set; stdout `OK   <full path>: updated (1 normal play(s))` | `test_key_sets_your_game_plan` | ☑ |
 | A key's game plan missing | `off2 plays.txt` | exit 2; stderr: `FAIL <folder>\OFF2.pln: The system cannot find the file specified. Run 'athc config set ppp_path FOLDER' or pass a .pln file.` | `test_key_missing_names_the_game_plan` | ☑ |
 | Setup order: a path | `<pln>` + 65 plays, no league selected | the `Too many plays` line; no league read | `test_too_many_plays_with_a_path_fail_before_the_league` | ☑ |
 | Setup order: a key | `off1` + 65 plays, no `team` | `FAIL <league.toml>: Team is not set. ... or pass --team or a .pln file.`, before the list | `test_key_reads_the_league_before_the_list` | ☑ |
@@ -339,7 +339,7 @@ In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of
 | No backup | tmp | no `.bak`; no backup note | `test_writes_no_backup` | ☑ |
 | Comments; `-` reads the console | tmp | parsed; set | `test_skips_and_strips_comments` / `test_dash_reads_from_console` | ☑ |
 | `-` input errors name no file | tmp | exit 2; stderr: `FAIL line 1: ...`, no `- ` | `test_dash_input_errors_name_no_file` | ☑ |
-| A play a game plan cannot take | file / `-` | exit 2; stderr: `FAIL <pln>: 'NOPEPLAY' not found in the play pool (<list> line 3).` / `(play list line 1).` | `test_gameplan_problem_names_the_gameplan_and_the_list_line` / `test_gameplan_problem_from_the_console` | ☑ |
+| A play a game plan cannot take | file / `-` | exit 2; stderr: `FAIL <pln>: 'NOPEPLAY' is not in the play pool (<list> line 3).` / `(play list line 1).` | `test_gameplan_problem_names_the_gameplan_and_the_list_line` / `test_gameplan_problem_from_the_console` | ☑ |
 | Normal play / duplicate / >10 rejected (untouched) | tmp | exit 2; stderr: `FAIL ...` | `test_rejects_normal_play` / `test_rejects_duplicate_play` / `test_too_many_plays_rejected` | ☑ |
 | 10 plays pass the count | tmp | past the count (here to the duplicate check) | `test_as_many_plays_as_slots_pass_the_count` | ☑ |
 | Missing target / league `play_path` missing | tmp | exit 2 | `test_missing_target` / `test_invalid_play_path` | ☑ |
@@ -349,7 +349,7 @@ In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of
 | Continues past a failed file | tmp | exit 2; stderr: `FAIL` for the bad file; stdout tally: 1 updated, 1 failed | `test_continues_past_failed_file` | ☑ |
 | Wildcard `--path` | `Off*.pln` in tmp | the match only; `1 file(s) processed, 1 updated, 0 skipped, 0 failed` | `test_wildcard_path` | ☑ |
 | Setup order: the list before the league | 11 plays, no league selected | `FAIL <list>: Too many plays (11). The most is 10.` | `test_too_many_plays_fail_before_the_league` | ☑ |
-| Default scope: your team's four | offense list, `team = Denver`; four game plans / one per side | `OK` for the offense ones, `SKIP <file>: defense gameplan` for the others, `.lg2` order; `4 file(s) processed, 2 updated, 2 skipped, 0 failed` / `2 file(s) processed, 1 updated, 1 skipped, 0 failed` | `test_default_scope_is_your_teams_game_plans` `[P]` | ☑ |
+| Default scope: your team's four | offense list, `team = Denver`; four game plans / one per side | `OK` for the offense ones, `SKIP <file>: defense game plan` for the others, `.lg2` order; `4 file(s) processed, 2 updated, 2 skipped, 0 failed` / `2 file(s) processed, 1 updated, 1 skipped, 0 failed` | `test_default_scope_is_your_teams_game_plans` `[P]` | ☑ |
 | A key keeps its tally | `--path off2` | the `OK` line; `1 file(s) processed, 1 updated, 0 skipped, 0 failed` | `test_key_keeps_its_tally` | ☑ |
 | `ppp_path` with none of the four | empty `ppp_path` | exit 0; the scope `WARN`; zero tally | `test_ppp_path_with_no_game_plans` | ☑ |
 | League location: one missing | `DEF2.pln` removed | exit 2; `FAIL <folder>\DEF2.pln: ...`; `3 file(s) processed, 2 updated, 1 skipped, 1 failed` | `test_league_location_missing_game_plan_counts_as_failed` | ☑ |
@@ -359,21 +359,21 @@ In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of
 
 # `athc gameplan replace-play`
 
-In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `pick_replacement`, `replace_in_gameplan` / `format_replacement_lines` helpers on constructed offense/defense gameplans; CLI tier on constructed gameplans written to tmp (one holding `OR45RL01` @ 1-1 for the plain swaps) and tmp copies of `offense.pln` where nothing is swapped, against the curated pool (a selected league whose `play_path` is `data/plays`); the team rows add a built `.lg2`/`.lge` (Denver's game plans named after their keys). The location is `--path`; nothing else is positional. Finds the target like `find-play` (normal + custom-special, case-insensitive), swaps each hit for the first replacement (each must be in the pool) not already in the gameplan and with which it passes `check`. A play's normal hits collapse to one line, slots bracketed in order at the end — `'OLD' (cat) replaced with 'NEW' (cat) [1-3][4-2]`; specials print one line each — `Replaced 'OLD' (cat) in special slot N with 'NEW' (cat)`; short category; a skipped replacement is a `SKIP` line. The GamePlan model validates each swap (side; special category). Rules from the league's `gameplan.toml` when present. Exit 0 = clean, 1 = nothing replaced or no valid replacement, 2 = usage, setup error or a failed file.
+In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `pick_replacement`, `replace_in_gameplan` / `format_replacement_lines` helpers on constructed offense/defense gameplans; CLI tier on constructed gameplans written to tmp (one holding `OR45RL01` @ 1-1 for the plain swaps) and tmp copies of `offense.pln` where nothing is swapped, against the curated pool (a selected league whose `play_path` is `data/plays`); the team rows add a built `.lg2`/`.lge` (Denver's game plans named after their keys). The location is `--path`; nothing else is positional. Finds the target like `find-play` (normal + custom-special, case-insensitive), swaps each hit for the first replacement (each must be in the pool) not already in the game plan and with which it passes `check`. A play's normal hits collapse to one line, slots bracketed in order at the end — `'OLD' (cat) replaced with 'NEW' (cat) [1-3][4-2]`; specials print one line each — `Replaced 'OLD' (cat) in special slot N with 'NEW' (cat)`; short category; a skipped replacement is a `SKIP` line. The GamePlan model validates each swap (side; special category). Rules from the league's `gameplan.toml` when present. Exit 0 = clean, 1 = nothing replaced or no valid replacement, 2 = usage, setup error or a failed file.
 
 ## `pick_replacement` (constructed gameplans, curated pool)
 | Case | Expected | Test | Status |
 |---|---|---|---|
-| First replacement already in the gameplan | skipped; second used | `test_pick_skips_play_already_in_gameplan` | ☑ |
+| First replacement already in the game plan | skipped; second used | `test_pick_skips_play_already_in_gameplan` | ☑ |
 | First replacement breaks a rule | skipped with the `check` text; second used | `test_pick_skips_play_breaking_a_rule` | ☑ |
 | None fits | no update; both skipped | `test_pick_none_fits` | ☑ |
 | Play not in the gameplan | nothing | `test_pick_no_hits` | ☑ |
 | Plan still fails `check` after the swap | skipped with the `check` text; none fits | `test_pick_plan_still_failing_check_is_not_replaced` | ☑ |
 | Swap fixes what made the plan fail | used | `test_pick_swap_that_fixes_the_plan_is_used` | ☑ |
-| Play replaced by itself | not "already in the gameplan" | `test_pick_play_replaced_by_itself` | ☑ |
+| Play replaced by itself | not "already in the game plan" | `test_pick_play_replaced_by_itself` | ☑ |
 | Model refuses the only replacement | `refused`, the model's text | `test_pick_model_refusal_keeps_the_text_for_one_replacement` | ☑ |
 | Model refuses a later one of several | `refused` names it; earlier skips kept | `test_pick_refused_later_replacement_named_and_skips_kept` | ☑ |
-| Defense: first already in the gameplan | skipped; second used | `test_pick_defense_skips_play_already_in_gameplan` | ☑ |
+| Defense: first already in the game plan | skipped; second used | `test_pick_defense_skips_play_already_in_gameplan` | ☑ |
 
 ## `replace_in_gameplan` (constructed gameplans)
 | Case | Expected | Test | Status |
@@ -402,9 +402,9 @@ In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `pick_replace
 | No args / one name | — / `OLD` | exit 2; stderr ends `Error: Missing argument 'PLAY'.` / has `Missing argument 'REPLACEMENT...'.` | `test_cli_requires_args` / `test_cli_bare_is_missing_play` / `test_cli_one_name_is_usage_error` | ☑ |
 | Every name is a play | a replacement that is also a folder in the cwd; `--path <pln>` | exit 0; replaced with it | `test_cli_every_name_is_a_play` | ☑ |
 | A replacement listed again, any case | `NEW new OTHER` | one `SKIP` for `NEW`, then `OTHER` used / the tally names `NEW` once | `test_cli_repeated_replacement_tried_once` / `test_cli_repeated_replacement_named_once_in_the_tally` | ☑ |
-| Every replacement must be in the pool | data + flags | exit 2; stderr: `FAIL` "not found in the play pool"; unchanged | `test_cli_every_replacement_must_be_in_pool` | ☑ |
+| Every replacement must be in the pool | data + flags | exit 2; stderr: `FAIL` "is not in the play pool"; unchanged | `test_cli_every_replacement_must_be_in_pool` | ☑ |
 | `-q` not offered | tmp + flags | usage error on stderr, exit 2 | `test_cli_no_quiet_option` | ☑ |
-| Replacement not in pool | tmp + flags | exit 2; stderr: `FAIL` "not found in the play pool" | `test_cli_replacement_not_in_pool_exit_2` | ☑ |
+| Replacement not in pool | tmp + flags | exit 2; stderr: `FAIL` "is not in the play pool" | `test_cli_replacement_not_in_pool_exit_2` | ☑ |
 | Replacement case-insensitive | data + flags | exit 0; resolves | `test_cli_replacement_case_insensitive` | ☑ |
 
 ## command — single file
@@ -420,7 +420,7 @@ In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `pick_replace
 ## command — backup replacements and league rules
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| First already in the gameplan | constructed | `SKIP … already in the gameplan`, then `OK` with the second; exit 0 | `test_cli_backup_used_when_first_already_in_plan` | ☑ |
+| First already in the game plan | constructed | `SKIP … already in the game plan`, then `OK` with the second; exit 0 | `test_cli_backup_used_when_first_already_in_plan` | ☑ |
 | First breaks a `gameplan.toml` rule | constructed; `[offense.RM] max_count = 0` | `SKIP … fails check: [Run Middle] …`, then `OK`; exit 0 | `test_cli_backup_used_when_first_breaks_rule` | ☑ |
 | Rollout cap uses the play file | constructed; `[offense.PSL] max_rollouts_count = 0` | the rollout (AF1AwagR) skipped, the other used | `test_cli_rollout_cap_uses_the_play_file` | ☑ |
 | Swap across categories, both landing on their limits | constructed; `[offense.PSL] min_count = 1`, `[offense.PML] max_count = 2` | `OK … (PSL) replaced with … (PML)`; exit 0 | `test_cli_cross_category_swap_within_limits` | ☑ |
@@ -440,9 +440,9 @@ In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `pick_replace
 ## command — directory / tree
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Directory updates matching files + summary | tmp + flags | exit 0; stdout tally "replaced 2 … in 2 gameplan(s)" | `test_cli_directory_updates_matching_files` | ☑ |
-| Other-side file has no hit → untouched | tmp + flags | exit 0; stdout tally "in 1 gameplan(s)"; def unchanged | `test_cli_directory_leaves_other_side_untouched` | ☑ |
-| No hits anywhere | tmp + flags | exit 1; stdout tally "replaced 0 … in 0 gameplan(s)" | `test_cli_directory_no_hits_exit_1` | ☑ |
+| Directory updates matching files + summary | tmp + flags | exit 0; stdout tally "replaced 2 … in 2 game plan(s)" | `test_cli_directory_updates_matching_files` | ☑ |
+| Other-side file has no hit → untouched | tmp + flags | exit 0; stdout tally "in 1 game plan(s)"; def unchanged | `test_cli_directory_leaves_other_side_untouched` | ☑ |
+| No hits anywhere | tmp + flags | exit 1; stdout tally "replaced 0 … in 0 game plan(s)" | `test_cli_directory_no_hits_exit_1` | ☑ |
 | Recursive subdir | tmp + flags | exit 0; replaced | `test_cli_recursive_replaces_in_subdir` | ☑ |
 
 ## command — validation / errors (target left untouched)
@@ -460,8 +460,8 @@ In [test_gameplan_replace_play.py](test_gameplan_replace_play.py). `pick_replace
 ## command — your team's game plans
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Default scope | `team = Denver`; `OLDRUN` in `OFF1.pln` and `OFF2.pln`; a plan in the cwd | the two offense plans replaced in `.lg2` order, misses silent, tally `replaced 2 instance(s) in 2 gameplan(s)`; the cwd plan untouched | `test_cli_default_scope_is_your_teams_game_plans` | ☑ |
-| Shared game plan once | off1 = off2 = `OFF.pln` | one `OK` line; `replaced 1 instance(s) in 1 gameplan(s)` | `test_cli_shared_game_plan_once` | ☑ |
+| Default scope | `team = Denver`; `OLDRUN` in `OFF1.pln` and `OFF2.pln`; a plan in the cwd | the two offense plans replaced in `.lg2` order, misses silent, tally `replaced 2 instance(s) in 2 game plan(s)`; the cwd plan untouched | `test_cli_default_scope_is_your_teams_game_plans` | ☑ |
+| Shared game plan once | off1 = off2 = `OFF.pln` | one `OK` line; `replaced 1 instance(s) in 1 game plan(s)` | `test_cli_shared_game_plan_once` | ☑ |
 | A key is one file | `--path off2` / `DEF1` | the `OK` line / `<file>: 'OLDRUN' not found`, exit 1; no tally; off1 untouched | `test_cli_key_is_one_file` `[P]` | ☑ |
 | League location: one missing | `OFF2.pln` removed | exit 2; `FAIL <folder>\OFF2.pln: ...`; tally `1 failed` | `test_cli_league_location_missing_game_plan_counts_as_failed` | ☑ |
 | `ppp_path` with none of the four | empty `ppp_path` | exit 1; the scope `WARN`; zero tally | `test_cli_ppp_path_with_no_game_plans` | ☑ |
@@ -626,7 +626,8 @@ In [test_check_ppp.py](test_check_ppp.py). Same real `.prf` / `.pln` / pool as `
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | No path, no team | `full_league` | exit 2; stderr: `FAIL <league.toml>: Team is not set. Run 'athc config set team NAME' or pass --team or --all-teams.` | `test_cli_requires_a_path` | ☑ |
-| One file | profile / game plan alone | exit 2; stderr: `FAIL <path>: No game plan given. To check a profile alone, run athc profile check.` (the game plan's names `athc gameplan check`); stdout empty | `test_cli_one_file_is_an_error` `[P]` | ☑ |
+| One file | profile / game plan alone | exit 2; stderr: `FAIL <path>: No game plan given. Run 'athc profile check' to check a profile alone.` (the game plan's names `athc gameplan check`); stdout empty | `test_cli_one_file_is_an_error` `[P]` | ☑ |
+| One file of another kind | `plan.txt` | exit 2; stderr: `FAIL <path>: The directory name is invalid. Pass one profile and one game plan, or a folder.`; stdout empty | `test_cli_one_file_of_another_kind_is_an_error` | ☑ |
 | One missing path | tmp | exit 2; stderr: `FAIL <path>: The system cannot find the path specified.` | `test_cli_one_missing_path` | ☑ |
 | Third path | 3 files | usage error on stderr, exit 2 | `test_cli_rejects_a_third_path` | ☑ |
 | Path count | 2, 3, 4 paths | two are a pair; `Error: Got unexpected extra argument (x).` / `arguments (x y).`, exit 2 | `test_cli_path_count` `[P]` | ☑ |
@@ -640,10 +641,10 @@ In [test_check_ppp.py](test_check_ppp.py). Same real `.prf` / `.pln` / pool as `
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Both = `profile check --gameplan` + `gameplan check` (both settings on) | OFF1 + offense.pln / DEF1 + defense.pln | exit 1; stdout: both goldens + one tally | `test_cli_both_matches_existing_reports` `[P]` | ☑ |
-| Unused gameplan categories are info | DEF1 + defense.pln, unused-categories setting off | exit 1; 1 `gameplan:` line, 4 `gameplan info:` lines not counted | `test_cli_unused_gameplan_categories_are_info` | ☑ |
+| Unused gameplan categories are info | DEF1 + defense.pln, unused-categories setting off | exit 1; 1 `game plan:` line, 4 `game plan info:` lines not counted | `test_cli_unused_gameplan_categories_are_info` | ☑ |
 | Order does not matter | gameplan first | same stdout | `test_cli_file_order_does_not_matter` | ☑ |
 | Clean both (mocked) | clean profile, info mocked | exit 0; stdout: two `OK` lines | `test_cli_both_clean_exit_0` | ☑ |
-| Unused gameplan categories alone | clean profile, flags off, gameplan mocked | exit 0; 10 `gameplan info:` lines | `test_cli_unused_gameplan_categories_alone_exit_0` | ☑ |
+| Unused gameplan categories alone | clean profile, flags off, gameplan mocked | exit 0; 10 `game plan info:` lines | `test_cli_unused_gameplan_categories_alone_exit_0` | ☑ |
 | Cross-check follows the league settings | each setting combination | missing categories count only when required; unused ones count when required, else 4 info lines | `test_cli_cross_check_follows_league_settings` `[P]` | ☑ |
 | Side mismatch, both ways | OFF1 + defense.pln / DEF1 + offense.pln | exit 2; stderr: the mismatch `FAIL` line only; stdout empty | `test_cli_side_mismatch_stops_the_checks` `[P]` | ☑ |
 
@@ -656,7 +657,7 @@ Argument errors check nothing, since both files are required.
 | Wrong extension | OFF1 + `.txt` | exit 2; stderr: `FAIL <file>: not a .prf or .pln file`; stdout empty | `test_cli_wrong_extension` | ☑ |
 | Directory next to a file | tmp dir + offense.pln | exit 2; stderr: `FAIL <path>: Access is denied.`; stdout empty | `test_cli_directory_next_to_a_file_is_not_a_file` | ☑ |
 | Extension case-insensitive | `.PRF` + `.PLN` | exit 1 | `test_cli_extension_is_case_insensitive` | ☑ |
-| Second file of a kind | 2 `.prf` / 2 `.pln` | exit 2; stderr: `FAIL` "pass one profile and one gameplan"; stdout empty | `test_cli_second_file_of_a_kind_is_an_error` `[P]` | ☑ |
+| Second file of a kind | 2 `.prf` / 2 `.pln` | exit 2; stderr: `FAIL` "pass one profile and one game plan"; stdout empty | `test_cli_second_file_of_a_kind_is_an_error` `[P]` | ☑ |
 | Bad input checks nothing | OFF1 + `.txt` | exit 2; stderr: `FAIL`; stdout empty | `test_cli_bad_input_checks_nothing` | ☑ |
 | File of the other kind | profile as `.pln`, gameplan as `.prf` | exit 2; stderr: `FAIL` line | `test_cli_file_of_the_other_kind_is_an_error` `[P]` | ☑ |
 | Bad profile, gameplan still checked | tmp + data | exit 2; gameplan golden | `test_cli_bad_profile_still_checks_gameplan` | ☑ |
@@ -804,7 +805,7 @@ In [test_playpool_check.py](test_playpool_check.py). Loads the pool the way the 
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Clean tree | folder | exit 0; stdout: "1 play(s) checked …, 0 issue(s)." | `test_clean_exit_0` | ☑ |
+| Clean tree | folder | exit 0; stdout: "<folder>: 1 play(s) checked, 0 issue(s)" | `test_clean_exit_0` | ☑ |
 | Issues printed word for word | `labeled_league` + misfiled + duplicate | exit 1; stdout: both lines, blank, summary | `test_issues_print_word_for_word_exit_1` | ☑ |
 | Named league must exist | folder + `--league NOPE` | exit 2; stderr: `FAIL League 'NOPE' not found ...` | `test_dir_with_unknown_league_option_exit_2` | ☑ |
 | Malformed league.toml with a folder | bad TOML + folder | exit 2; stderr: `FAIL` naming the file | `test_dir_with_malformed_league_toml_exit_2` | ☑ |
@@ -899,11 +900,11 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`.
 | Bare PDB name | `49W6.pdb` in the current folder | exit 0; `49W6.xlsm` there; stdout: `OK   49W6.xlsm: 0 play(s)` | `test_bare_pdb_name_writes_into_the_current_folder` | ☑ |
 | `OUTPUT_FILE` wins | `reports\week6.xlsx` | exit 0; that file; no `.xlsm` beside the PDB | `test_output_file_given_wins` | ☑ |
 | Percentages over the setting | `calculate_percentages` true / false × no flag, `--percentages`, `--no-percentages` | exit 0; "Fumble %" header when the flag, else the setting, says so | `test_percentages_override_the_setting` `[P]` | ☑ |
-| Progress, warnings and the OK line | golden league + `-o`/`-d` | exit 0; stderr: `Creating '<file>'`, then only `WARN` lines; stdout: `OK   <file>: <n> play(s)`, n from the golden | `test_progress_on_stderr_warnings_and_ok_line` | ☑ |
-| Empty pool | league with no plays | exit 0; stderr: `WARN Play '...' has no play file in the play pool.` per play; stdout: `OK   <file>: 0 play(s)` | `test_empty_pool_warns_per_play_and_writes_no_play_rows` | ☑ |
+| Progress, warnings and the OK line | golden league + `-o`/`-d` | exit 0; stderr: `Creating <file>`, then only `WARN` lines; stdout: `OK   <file>: <n> play(s)`, n from the golden | `test_progress_on_stderr_warnings_and_ok_line` | ☑ |
+| Empty pool | league with no plays | exit 0; stderr: `WARN Play '...' is not in the play pool.` per play; stdout: `OK   <file>: 0 play(s)` | `test_empty_pool_warns_per_play_and_writes_no_play_rows` | ☑ |
 | No league set | no athc.ini | exit 2; stderr: `FAIL League is not set ...`, one line; stdout empty | `test_cli_no_league_is_one_line_error` | ☑ |
 | Config from the league folder | `league.toml` | `play_path` resolved; a missing `play_path` is a `ConfigFileError` naming `league.toml` | `test_config_play_path_from_league_folder` / `test_config_missing_play_path_is_an_error` | ☑ |
-| Real subprocess `athc convert-pdb` | data + dir | exit 0; stdout: `OK   <file>: 0 play(s)`; stderr: `Creating '<file>'`, then `WARN` lines | `test_entry_point_subprocess` | ☑ |
+| Real subprocess `athc convert-pdb` | data + dir | exit 0; stdout: `OK   <file>: 0 play(s)`; stderr: `Creating <file>`, then `WARN` lines | `test_entry_point_subprocess` | ☑ |
 | Workbook matches golden | `.pdb` + `data/plays/` + `-o`/`-d` + category sheets | every cell equal to `expected/2045-2047.workbook.json` | `test_workbook_matches_golden` | ☑ |
 | `-o` alone, team set | `team` set, plans in place, `-o try3.pln` | exit 0; no plan line; offense Slot 1 shown and filled, the other three hidden | `test_plan_option_fills_its_slot_alone` | ☑ |
 | Plan option reads no league file | `team` set, no `path`, `-d` | exit 0 | `test_plan_option_reads_no_league_file` | ☑ |
@@ -1125,7 +1126,7 @@ In [test_config.py](test_config.py). `league` through `resolve_league()`; the ot
 | `get ppp_path`, relative | `ppp_path = 'Denver'` | stdout: `<league folder>\Denver` | `test_get_relative_ppp_path_is_under_the_league_folder` | ☑ |
 | `get team` | `team = 'Las Vegas'` | stdout: as written | `test_get_team_as_written` | ☑ |
 | `get path` / `play_path` / `team`, not set | no value; no `league.toml` | exit 2; stderr: `FAIL <league.toml>: <what> is not set. Run 'athc config set <key> ...'.`; stdout empty | `test_get_required_key_not_set` `[P]` | ☑ |
-| `get ppp_path`, not set | no value; no `league.toml` | exit 0; stdout empty; stderr: `WARN <league.toml>: Game plan and profile folder is not set; using the folders the league file names.` | `test_get_ppp_path_not_set_is_a_warning` `[P]` | ☑ |
+| `get ppp_path`, not set | no value; no `league.toml` | exit 0; stdout empty; stderr: `WARN <league.toml>: Game plan and profile folder is not set. The folders the league file names are used.` | `test_get_ppp_path_not_set_is_a_warning` `[P]` | ☑ |
 | Key written as an array | `play_path` / `team` = `['x']` | exit 2; stderr: `FAIL <league.toml>: [league] <key>: Expected a string, got an array.` | `test_get_array_value_fails` `[P]` | ☑ |
 | `--league NAME` | two leagues | stdout: that league's value | `test_get_reads_the_named_league` | ☑ |
 | League key, no league set | no athc.ini | exit 2; stderr: `FAIL League is not set ...`; stdout empty | `test_get_league_key_with_no_league_set` | ☑ |

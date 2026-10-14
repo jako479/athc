@@ -125,7 +125,7 @@ def test_pick_skips_play_already_in_gameplan(pool: PlayPool) -> None:
     picked = pick_replacement(
         gp, "OLDRUN", _entries(pool, NORMAL_REPL, NORMAL_TARGET), Rules(), pool
     )
-    assert picked.skipped == (Skipped(NORMAL_REPL, ("already in the gameplan",)),)
+    assert picked.skipped == (Skipped(NORMAL_REPL, ("already in the game plan",)),)
     assert picked.entry is not None and picked.entry.name == NORMAL_TARGET
     assert picked.updated is not None
     assert _name(picked.updated.normal_plays[0]) == NORMAL_TARGET
@@ -196,7 +196,7 @@ def test_pick_swap_that_fixes_the_plan_is_used(pool: PlayPool) -> None:
 
 
 def test_pick_play_replaced_by_itself(pool: PlayPool) -> None:
-    """The play being replaced is not 'already in the gameplan'."""
+    """The play being replaced is not 'already in the game plan'."""
     gp = _offense_gameplan(normals={0: offense_normal(NORMAL_TARGET)})
     picked = pick_replacement(
         gp, NORMAL_TARGET, _entries(pool, NORMAL_TARGET), Rules(), pool
@@ -227,7 +227,7 @@ def test_pick_refused_later_replacement_named_and_skips_kept(
     entries = _entries(pool, NORMAL_REPL, DEFENSE_REPL, NORMAL_TARGET)
     picked = pick_replacement(gp, "OLDRUN", entries, Rules(), pool, Path("x.pln"))
     assert picked.updated is None and picked.entry is None
-    assert picked.skipped == (Skipped(NORMAL_REPL, ("already in the gameplan",)),)
+    assert picked.skipped == (Skipped(NORMAL_REPL, ("already in the game plan",)),)
     assert str(picked.refused) == (
         f"x.pln: '{DEFENSE_REPL}' does not fit: Normal slot 0: play has "
         "defensive play_category=0x92, but profile_type is OFFENSE."
@@ -241,7 +241,7 @@ def test_pick_defense_skips_play_already_in_gameplan(pool: PlayPool) -> None:
     picked = pick_replacement(
         gp, "OLDDEF", _entries(pool, DEFENSE_REPL, OTHER_DEFENSE), Rules(), pool
     )
-    assert picked.skipped == (Skipped(DEFENSE_REPL, ("already in the gameplan",)),)
+    assert picked.skipped == (Skipped(DEFENSE_REPL, ("already in the game plan",)),)
     assert picked.entry is not None and picked.entry.name == OTHER_DEFENSE
 
 
@@ -424,7 +424,7 @@ def test_cli_repeated_replacement_tried_once(runner, tmp_path: Path) -> None:
     )
     assert result.exit_code == 0
     assert result.stdout == (  # one SKIP: the repeat is not tried again
-        f"SKIP {p}: '{NORMAL_REPL}' already in the gameplan\n"
+        f"SKIP {p}: '{NORMAL_REPL}' already in the game plan\n"
         f"OK   {p}: 'OLDRUN' (RL) replaced with '{NORMAL_TARGET}' (RL) [1-1]\n"
     )
 
@@ -439,7 +439,7 @@ def test_cli_repeated_replacement_named_once_in_the_tally(
     )
     assert result.stdout.endswith(
         f"\n'OLDRUN' -> '{NORMAL_REPL}': replaced 1 instance(s) in "
-        "1 gameplan(s), 0 failed, 0 not replaced\n"
+        "1 game plan(s), 0 failed, 0 not replaced\n"
     )
 
 
@@ -451,7 +451,7 @@ def test_cli_every_replacement_must_be_in_pool(runner, tmp_path: Path) -> None:
     )
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL Replacement play '{MISSING}' not found in the play pool.\n"
+        f"FAIL Replacement play '{MISSING}' is not in the play pool.\n"
     )
     assert p.read_bytes() == original
 
@@ -469,7 +469,7 @@ def test_cli_replacement_not_in_pool_exit_2(runner, tmp_path: Path) -> None:
     result = runner.invoke(replace_play, ["OLDRUN", MISSING, "--path", str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL Replacement play '{MISSING}' not found in the play pool.\n"
+        f"FAIL Replacement play '{MISSING}' is not in the play pool.\n"
     )
 
 
@@ -494,7 +494,7 @@ def _copy_offense(tmp_path: Path, name: str = "offense.pln") -> Path:
 def _target_plan(folder: Path, name: str = "offense.pln") -> Path:
     """A made-up offense gameplan holding only the target, at 1-1 as in
     offense.pln. offense.pln holds every offense play in the test pool, so a
-    swap into a copy of it is always refused as already in the gameplan."""
+    swap into a copy of it is always refused as already in the game plan."""
     gp = _offense_gameplan(normals={0: offense_normal(NORMAL_TARGET)})
     return _write(gp, folder, name)
 
@@ -595,7 +595,7 @@ def test_cli_backup_used_when_first_already_in_plan(runner, tmp_path: Path) -> N
     )
     assert result.exit_code == 0
     assert result.stdout == (
-        f"SKIP {p}: '{NORMAL_REPL}' already in the gameplan\n"
+        f"SKIP {p}: '{NORMAL_REPL}' already in the game plan\n"
         f"OK   {p}: 'OLDRUN' (RL) replaced with '{NORMAL_TARGET}' (RL) [1-1]\n"
     )
     assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL_TARGET
@@ -716,7 +716,7 @@ def test_cli_no_valid_replacement_single_file(
     assert result.stdout == (
         f"SKIP {p}: '{NORMAL_REPL}' fails check: [Run Middle] Offensive "
         "category 'Run Middle' has 1 plays; allows at most 0.\n"
-        f"SKIP {p}: '{NORMAL_TARGET}' already in the gameplan\n"
+        f"SKIP {p}: '{NORMAL_TARGET}' already in the game plan\n"
         f"{p}: 'OLDRUN' not replaced, no valid replacement\n"
     )
     assert p.read_bytes() == original
@@ -737,7 +737,7 @@ def test_cli_directory_counts_not_replaced(
     assert result.exit_code == 1
     assert result.stdout.endswith(
         f"\n'OLDRUN' -> '{NORMAL_REPL}', '{NORMAL_TARGET}': replaced 1 instance(s) "
-        "in 1 gameplan(s), 0 failed, 1 not replaced\n"
+        "in 1 game plan(s), 0 failed, 1 not replaced\n"
     )
     assert _name(read_gameplan(str(tmp_path / "a.pln")).normal_plays[0]) == (
         NORMAL_TARGET
@@ -755,7 +755,7 @@ def test_cli_refused_later_replacement_names_it(runner, tmp_path: Path) -> None:
         ["OLDRUN", NORMAL_REPL, DEFENSE_REPL, NORMAL_TARGET, "--path", str(p)],
     )
     assert result.exit_code == 2
-    assert result.stdout == f"SKIP {p}: '{NORMAL_REPL}' already in the gameplan\n"
+    assert result.stdout == f"SKIP {p}: '{NORMAL_REPL}' already in the game plan\n"
     assert result.stderr == (
         f"FAIL {p}: '{DEFENSE_REPL}' does not fit: Normal slot 0: play has "
         "defensive play_category=0x92, but profile_type is OFFENSE.\n"
@@ -774,7 +774,7 @@ def test_cli_wildcard_path_works_like_a_folder(runner, tmp_path: Path) -> None:
         f"OK   {tmp_path / 'a.pln'}: 'OLDRUN' (RL) replaced with '{NORMAL_REPL}' "
         "(RM) [1-1]\n"
         "\n"
-        f"'OLDRUN' -> '{NORMAL_REPL}': replaced 1 instance(s) in 1 gameplan(s), "
+        f"'OLDRUN' -> '{NORMAL_REPL}': replaced 1 instance(s) in 1 game plan(s), "
         "0 failed, 0 not replaced\n"
     )
 
@@ -823,7 +823,7 @@ def test_cli_directory_updates_matching_files(runner, tmp_path: Path) -> None:
         replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(tmp_path)]
     )
     assert result.exit_code == 0
-    assert "replaced 2 instance(s) in 2 gameplan(s), 0 failed" in result.stdout
+    assert "replaced 2 instance(s) in 2 game plan(s), 0 failed" in result.stdout
     for name in ("off1.pln", "off2.pln"):
         assert _name(read_gameplan(str(tmp_path / name)).normal_plays[0]) == NORMAL_REPL
 
@@ -837,7 +837,7 @@ def test_cli_directory_leaves_other_side_untouched(runner, tmp_path: Path) -> No
         replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(tmp_path)]
     )
     assert result.exit_code == 0
-    assert "in 1 gameplan(s), 0 failed" in result.stdout
+    assert "in 1 game plan(s), 0 failed" in result.stdout
     assert def_pln.read_bytes() == original_def  # no OR45RL01 there → untouched
 
 
@@ -847,7 +847,7 @@ def test_cli_directory_no_hits_exit_1(runner, tmp_path: Path) -> None:
         replace_play, [MISSING, NORMAL_REPL, "--path", str(tmp_path)]
     )
     assert result.exit_code == 1
-    assert "replaced 0 instance(s) in 0 gameplan(s), 0 failed" in result.stdout
+    assert "replaced 0 instance(s) in 0 game plan(s), 0 failed" in result.stdout
 
 
 def test_cli_recursive_replaces_in_subdir(runner, tmp_path: Path) -> None:
@@ -952,7 +952,7 @@ def test_cli_continues_past_failed_file(runner, tmp_path: Path) -> None:
         replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(tmp_path)]
     )
     assert result.exit_code == 2
-    assert "replaced 1 instance(s) in 1 gameplan(s), 1 failed" in result.stdout
+    assert "replaced 1 instance(s) in 1 game plan(s), 1 failed" in result.stdout
 
 
 # ── your team's game plans ────────────────────────────────────────────────────
@@ -960,7 +960,7 @@ def test_cli_continues_past_failed_file(runner, tmp_path: Path) -> None:
 # Denver's four game plans, named after their keys, in .lg2 order.
 TEAM_PLANS = ("OFF1.pln", "DEF1.pln", "OFF2.pln", "DEF2.pln")
 TALLY = (
-    "'OLDRUN' -> '{repl}': replaced {n} instance(s) in {n} gameplan(s), "
+    "'OLDRUN' -> '{repl}': replaced {n} instance(s) in {n} game plan(s), "
     "{failed} failed, 0 not replaced"
 )
 

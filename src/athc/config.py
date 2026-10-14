@@ -31,6 +31,23 @@ LEAGUE_SECTION = "league"
 LEAGUE_PATH_KEY = "path"  # [league] path: the folder holding the league's files
 CATEGORIES_SECTION = "categories"
 
+# The settings a command may find unset: what to call each, and the value
+# word its `athc config set` form takes.
+_NOT_SET: dict[str, tuple[str, str]] = {
+    "league": ("League", "NAME"),
+    "path": ("League files folder", "FOLDER"),
+    "play_path": ("Play pool folder", "FOLDER"),
+    "team": ("Team", "NAME"),
+}
+
+
+def not_set_line(key: str, way: str | None = None) -> str:
+    """`<Setting> is not set. Run 'athc config set <key> <VALUE>'`, plus
+    ` or pass <way>` when the command has a way around it, then the period."""
+    what, value = _NOT_SET[key]
+    tail = "" if way is None else f" or pass {way}"
+    return f"{what} is not set. Run 'athc config set {key} {value}'{tail}."
+
 
 def config_dir() -> Path:
     if override := os.environ.get("ATHC_CONFIG_DIR"):
@@ -183,10 +200,7 @@ def resolve_league(league: str | None = None) -> str:
     league = (league or "").strip() or None
     name = league or configured_league()
     if not name:
-        raise LeagueError(
-            "League is not set. Run 'athc config set league NAME' or pass "
-            f"--league.{_available()}"
-        )
+        raise LeagueError(f"{not_set_line('league', '--league')}{_available()}")
     league_dir(name)
     return name
 

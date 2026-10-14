@@ -239,7 +239,7 @@ def test_cli_single_arg_recursive(
     monkeypatch.chdir(tmp_path)
     result = run(runner, KNOWN_NORMAL, "--path", ".", "-r")
     assert result.exit_code == 0
-    assert f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 gameplan(s)" in result.stdout
+    assert f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 game plan(s)" in result.stdout
 
 
 def test_cli_single_arg_empty_directory_exit_1(
@@ -250,7 +250,7 @@ def test_cli_single_arg_empty_directory_exit_1(
     result = run(runner, KNOWN_NORMAL, "--path", ".")
     assert result.exit_code == 1
     assert result.stderr == "WARN .: No .pln files.\n"
-    assert f"'{KNOWN_NORMAL}': found 0 instance(s) in 0 gameplan(s)" in result.stdout
+    assert f"'{KNOWN_NORMAL}': found 0 instance(s) in 0 game plan(s)" in result.stdout
 
 
 # ── command: single file ──────────────────────────────────────────────────────
@@ -303,8 +303,8 @@ def test_cli_multiple_plays_all_hit(runner, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "'OR45RL01' found in slots 1-1, 2-3" in result.stdout  # two slots in gp1
     assert "'DUPRM' found in slot 2-2" in result.stdout  # a 2nd different play in gp1
-    assert "'OR45RL01': found 3 instance(s) in 2 gameplan(s)" in result.stdout
-    assert "'DUPRM': found 1 instance(s) in 1 gameplan(s)" in result.stdout
+    assert "'OR45RL01': found 3 instance(s) in 2 game plan(s)" in result.stdout
+    assert "'DUPRM': found 1 instance(s) in 1 game plan(s)" in result.stdout
 
 
 def test_cli_one_play_found_exit_0(runner) -> None:
@@ -326,27 +326,28 @@ def test_cli_no_play_found_exit_1(runner) -> None:
 # ── command: directory / tree / wildcard ──────────────────────────────────────
 
 
-def test_cli_directory_reports_hit_and_miss_per_file(runner, tmp_path: Path) -> None:
-    """Directory mode reports each file's hit or miss, with no flag needed."""
+def test_cli_directory_reports_hits_only(runner, tmp_path: Path) -> None:
+    """In a set only hits print, as grep does; the tally carries the count."""
     shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
     shutil.copy2(GP_DEFENSE, tmp_path / "def.pln")
     result = run(runner, KNOWN_SPECIAL, "--path", tmp_path)
     assert result.exit_code == 0
     assert f"off.pln: '{KNOWN_SPECIAL}' found in special slot 1" in result.stdout
-    assert f"def.pln: '{KNOWN_SPECIAL}' not found" in result.stdout
-    assert f"'{KNOWN_SPECIAL}': found 1 instance(s) in 1 gameplan(s)" in result.stdout
+    assert "not found" not in result.stdout
+    assert f"'{KNOWN_SPECIAL}': found 1 instance(s) in 1 game plan(s)" in result.stdout
 
 
-def test_cli_directory_misses_are_reported(runner, tmp_path: Path) -> None:
+def test_cli_directory_with_no_hits_prints_only_the_tally(
+    runner, tmp_path: Path
+) -> None:
     shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
     result = run(runner, MISSING, "--path", tmp_path)
     assert result.exit_code == 1
-    assert f"off.pln: '{MISSING}' not found" in result.stdout
-    assert f"'{MISSING}': found 0 instance(s) in 0 gameplan(s)" in result.stdout
+    assert result.stdout == f"\n'{MISSING}': found 0 instance(s) in 0 game plan(s)\n"
 
 
 def test_cli_verbose_option_is_rejected(runner) -> None:
-    """`--verbose` was removed; misses are always reported."""
+    """`--verbose` was removed; there is no switch for misses."""
     result = run(runner, KNOWN_NORMAL, "--path", GP_OFFENSE, "--verbose")
     assert result.exit_code == 2
     assert "No such option '--verbose'" in result.stderr
@@ -357,15 +358,15 @@ def test_cli_directory_summary_counts_multiple_hits(runner, tmp_path: Path) -> N
     shutil.copy2(GP_OFFENSE, tmp_path / "off2.pln")
     result = run(runner, KNOWN_NORMAL, "--path", tmp_path)
     assert result.exit_code == 0
-    assert f"'{KNOWN_NORMAL}': found 2 instance(s) in 2 gameplan(s)" in result.stdout
+    assert f"'{KNOWN_NORMAL}': found 2 instance(s) in 2 game plan(s)" in result.stdout
 
 
 def test_cli_directory_per_play_summary(runner, tmp_path: Path) -> None:
     shutil.copy2(GP_OFFENSE, tmp_path / "off.pln")
     result = run(runner, KNOWN_NORMAL, KNOWN_SPECIAL, MISSING, "--path", tmp_path)
     assert result.exit_code == 0  # some plays found
-    assert f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 gameplan(s)" in result.stdout
-    assert f"'{MISSING}': found 0 instance(s) in 0 gameplan(s)" in result.stdout
+    assert f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 game plan(s)" in result.stdout
+    assert f"'{MISSING}': found 0 instance(s) in 0 game plan(s)" in result.stdout
 
 
 def test_cli_recursive_finds_in_subdir(runner, tmp_path: Path) -> None:
@@ -374,7 +375,7 @@ def test_cli_recursive_finds_in_subdir(runner, tmp_path: Path) -> None:
     shutil.copy2(GP_OFFENSE, sub / "off.pln")
     result = run(runner, KNOWN_NORMAL, "--path", tmp_path, "-r")
     assert result.exit_code == 0
-    assert f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 gameplan(s)" in result.stdout
+    assert f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 game plan(s)" in result.stdout
 
 
 def test_cli_wildcard_path_works_like_a_folder(runner, tmp_path: Path) -> None:
@@ -389,7 +390,7 @@ def test_cli_wildcard_path_works_like_a_folder(runner, tmp_path: Path) -> None:
         f"{tmp_path / 'Off1.pln'}: '{KNOWN_NORMAL}' found in slot 1-1\n"
         f"{tmp_path / 'Off2.pln'}: '{KNOWN_NORMAL}' found in slot 1-1\n"
         "\n"
-        f"'{KNOWN_NORMAL}': found 2 instance(s) in 2 gameplan(s)\n"
+        f"'{KNOWN_NORMAL}': found 2 instance(s) in 2 game plan(s)\n"
     )
 
 
@@ -460,8 +461,13 @@ def test_default_scope_needs_a_league(
 
 # Denver's game plans (DENVER_PLANS, in conftest.py) as a line lists them.
 DENVER_NAMES = ", ".join(DENVER_PLANS)
-# OR45RL01 is at 1-1 in Denver's (and Las Vegas's) offense game plans only.
-DENVER_OR45RL01 = [
+# OR45RL01 is at 1-1 in Denver's (and Las Vegas's) offense game plans only; the
+# defense game plans print nothing.
+DENVER_OR45RL01 = ["found in slot 1-1", "found in slot 1-1"]
+# Denver's offense game plans; DENVER_PLANS is in .lg2 order: off1, def1, off2, def2.
+DENVER_OFFENSE = [DENVER_PLANS[0], DENVER_PLANS[2]]
+# One game plan searched alone also says when OR45RL01 is not in it.
+DENVER_OR45RL01_ONE_FILE = [
     "found in slot 1-1",
     "not found",
     "found in slot 1-1",
@@ -488,7 +494,7 @@ def at_league(tmp_path: Path, team_folder: str) -> Path:
 
 
 def report(folder: Path, names: Sequence[str], outcomes: list[str]) -> str:
-    """find-play's line per game plan for OR45RL01."""
+    """find-play's hit line per game plan named: a set prints hits only."""
     return "".join(
         f"{folder / name}: '{KNOWN_NORMAL}' {outcome}\n"
         for name, outcome in zip(names, outcomes, strict=True)
@@ -511,8 +517,9 @@ def denver(pnfl_league: Path) -> Path:
 def test_default_scope_is_your_teams_game_plans(
     runner, denver: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """No --path: your team's four, in .lg2 order, then the tally; the
-    current folder is not searched (that is --path .)."""
+    """No --path: your team's four are searched and their hits listed in .lg2
+    order, then the tally; the current folder is not searched (that is
+    --path .)."""
     here = tmp_path / "here"
     here.mkdir()
     shutil.copy2(GP_OFFENSE, here / "off.pln")
@@ -521,9 +528,9 @@ def test_default_scope_is_your_teams_game_plans(
     assert result.exit_code == 0
     folder = at_league(tmp_path, "Denver (Brian)")
     assert result.stdout == (
-        report(folder, DENVER_PLANS, DENVER_OR45RL01)
+        report(folder, DENVER_OFFENSE, DENVER_OR45RL01)
         + "\n"
-        + f"'{KNOWN_NORMAL}': found 2 instance(s) in 2 gameplan(s)\n"
+        + f"'{KNOWN_NORMAL}': found 2 instance(s) in 2 game plan(s)\n"
     )
 
 
@@ -532,7 +539,7 @@ def test_default_scope_from_ppp_path(runner, pnfl_league: Path, tmp_path: Path) 
     set_league(pnfl_league, team="Denver", ppp_path=mine)
     result = run(runner, KNOWN_NORMAL)
     assert result.exit_code == 0
-    assert result.stdout.startswith(report(mine, DENVER_PLANS, DENVER_OR45RL01))
+    assert result.stdout.startswith(report(mine, DENVER_OFFENSE, DENVER_OR45RL01))
     assert result.stderr == ""
 
 
@@ -545,14 +552,15 @@ def test_ppp_path_names_ignore_case(runner, pnfl_league: Path, tmp_path: Path) -
     set_league(pnfl_league, team="Denver", ppp_path=mine)
     result = run(runner, KNOWN_NORMAL)
     lower = [name.lower() for name in DENVER_PLANS]
-    assert result.stdout.startswith(report(mine, lower, DENVER_OR45RL01))
+    offense = [lower[0], lower[2]]
+    assert result.stdout.startswith(report(mine, offense, DENVER_OR45RL01))
 
 
 def test_relative_ppp_path_is_in_the_league_folder(runner, pnfl_league: Path) -> None:
     mine = shutil.copytree(DENVER, pnfl_league / "mine")
     set_league(pnfl_league, team="Denver", ppp_path="mine")
     result = run(runner, KNOWN_NORMAL)
-    assert result.stdout.startswith(report(mine, DENVER_PLANS, DENVER_OR45RL01))
+    assert result.stdout.startswith(report(mine, DENVER_OFFENSE, DENVER_OR45RL01))
 
 
 @pytest.mark.parametrize("exists", [False, True], ids=["missing", "a file"])
@@ -573,14 +581,16 @@ def test_ppp_path_not_a_folder(
 
 
 def test_shared_game_plan_once(runner, pnfl_league: Path, tmp_path: Path) -> None:
-    """Las Vegas uses one game plan per side for both halves: two files."""
+    """Las Vegas uses one game plan per side for both halves: two files, each
+    searched once; the offense one holds the play, the defense one prints
+    nothing."""
     result = run(runner, KNOWN_NORMAL, "--team", "Las Vegas")
     folder = at_league(tmp_path, "Las Vegas (Neil)")
     assert result.exit_code == 0
     assert result.stdout == (
-        report(folder, ["RAIDEROFF.pln", "RAIDERDEF.pln"], DENVER_OR45RL01[:2])
+        report(folder, ["RAIDEROFF.pln"], DENVER_OR45RL01[:1])
         + "\n"
-        + f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 gameplan(s)\n"
+        + f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 game plan(s)\n"
     )
 
 
@@ -598,7 +608,7 @@ def test_key_is_one_game_plan(
     result = run(runner, KNOWN_NORMAL, "--path", key)
     folder = at_league(tmp_path, "Denver (Brian)")
     assert result.stdout == report(
-        folder, [DENVER_PLANS[index]], [DENVER_OR45RL01[index]]
+        folder, [DENVER_PLANS[index]], [DENVER_OR45RL01_ONE_FILE[index]]
     )
 
 
@@ -642,7 +652,7 @@ def test_folder_named_like_a_key_is_searched(
     assert result.stdout.startswith(
         f"{Path('off1') / 'draft.pln'}: '{KNOWN_NORMAL}' found in slot 1-1\n"
     )
-    assert "gameplan(s)" in result.stdout  # a folder: the tally
+    assert "game plan(s)" in result.stdout  # a folder: the tally
 
 
 def test_file_named_like_a_key_is_that_file(
@@ -671,7 +681,7 @@ def test_team_by_name_nickname_or_both(
     else:
         result = run(runner, KNOWN_NORMAL, "--team", name)
     folder = at_league(tmp_path, "Denver (Brian)")
-    assert result.stdout.startswith(report(folder, DENVER_PLANS, DENVER_OR45RL01))
+    assert result.stdout.startswith(report(folder, DENVER_OFFENSE, DENVER_OR45RL01))
 
 
 def test_team_matches_no_team(runner, pnfl_league: Path) -> None:
@@ -794,7 +804,7 @@ def test_team_option_without_your_team(
     result = run(runner, KNOWN_NORMAL, "--team", "Denver")
     assert result.exit_code == 0
     folder = at_league(tmp_path, "Denver (Brian)")
-    assert result.stdout.startswith(report(folder, DENVER_PLANS, DENVER_OR45RL01))
+    assert result.stdout.startswith(report(folder, DENVER_OFFENSE, DENVER_OR45RL01))
 
 
 @pytest.mark.parametrize(
@@ -912,9 +922,11 @@ def test_league_one_game_plan_missing(runner, denver: Path, tmp_path: Path) -> N
     result = run(runner, KNOWN_NORMAL)
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {folder / 'DEN-OGP2.pln'}: {FILE_NOT_FOUND}\n"
-    shown = [DENVER_PLANS[i] for i in (0, 1, 3)]
-    assert result.stdout.startswith(
-        report(folder, shown, [DENVER_OR45RL01[i] for i in (0, 1, 3)])
+    # Of the three searched, only DEN-OGP1.pln holds the play.
+    assert result.stdout == (
+        report(folder, DENVER_PLANS[:1], DENVER_OR45RL01[:1])
+        + "\n"
+        + f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 game plan(s)\n"
     )
 
 
@@ -947,7 +959,7 @@ def test_league_no_game_plans_for_your_team(runner, lg2_league, present: bool) -
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {folder}: {reason} {LOCATION_HINT} --path.\n"
     assert (
-        result.stdout == f"\n'{KNOWN_NORMAL}': found 0 instance(s) in 0 gameplan(s)\n"
+        result.stdout == f"\n'{KNOWN_NORMAL}': found 0 instance(s) in 0 game plan(s)\n"
     )
 
 
@@ -1002,7 +1014,7 @@ def test_ppp_path_one_game_plan_missing(
     result = run(runner, KNOWN_NORMAL)
     assert result.exit_code == 0
     assert result.stderr == f"WARN {mine / 'DEN-OGP2.pln'}: {FILE_NOT_FOUND}\n"
-    assert f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 gameplan(s)" in result.stdout
+    assert f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 game plan(s)" in result.stdout
 
 
 @pytest.mark.parametrize("count", [0, 1], ids=["none", "one"])
@@ -1029,7 +1041,7 @@ def test_ppp_path_no_game_plans_limit(
             f"{DENVER_NAMES}.\n"
         )
         assert result.stdout == (
-            f"\n'{KNOWN_NORMAL}': found 0 instance(s) in 0 gameplan(s)\n"
+            f"\n'{KNOWN_NORMAL}': found 0 instance(s) in 0 game plan(s)\n"
         )
 
 
@@ -1058,10 +1070,10 @@ def test_ppp_path_tree(runner, pnfl_league: Path, tmp_path: Path) -> None:
     result = run(runner, KNOWN_NORMAL, "-r")
     assert result.exit_code == 0
     assert result.stdout == (
-        report(week1, DENVER_PLANS, DENVER_OR45RL01)
+        report(week1, DENVER_OFFENSE, DENVER_OR45RL01)
         + report(mine / "week2", DENVER_PLANS[:1], DENVER_OR45RL01[:1])
         + "\n"
-        + f"'{KNOWN_NORMAL}': found 3 instance(s) in 3 gameplan(s)\n"
+        + f"'{KNOWN_NORMAL}': found 3 instance(s) in 3 game plan(s)\n"
     )
     assert result.stderr == "".join(
         f"WARN {mine / 'week2' / name}: {FILE_NOT_FOUND}\n" for name in DENVER_PLANS[1:]

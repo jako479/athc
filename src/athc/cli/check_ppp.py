@@ -167,15 +167,17 @@ def not_a_folder(raw: str) -> str | None:
     match path.suffix.lower():
         case ".pln":
             return (
-                f"{raw}: No profile given. To check a game plan alone, run athc "
-                "gameplan check."
+                f"{raw}: No profile given. Run 'athc gameplan check' to check a "
+                "game plan alone."
             )
         case ".prf":
             return (
-                f"{raw}: No game plan given. To check a profile alone, run athc "
-                "profile check."
+                f"{raw}: No game plan given. Run 'athc profile check' to check a "
+                "profile alone."
             )
-    return f"{raw}: {DIRECTORY_INVALID} Pass one profile and one gameplan, or a folder."
+    return (
+        f"{raw}: {DIRECTORY_INVALID} Pass one profile and one game plan, or a folder."
+    )
 
 
 def check_pair(first: str, second: str, league: str | None) -> int:
@@ -499,7 +501,7 @@ def identify_profile_and_gameplan(
             gameplan = path
         elif suffix in (".prf", ".pln"):
             errors.append(
-                f"{raw}: Second {suffix} file. Pass one profile and one gameplan."
+                f"{raw}: Second {suffix} file. Pass one profile and one game plan."
             )
         else:
             errors.append(f"{raw}: Not a .prf or .pln file.")
@@ -574,11 +576,11 @@ def read_gameplan_file(path: Path) -> GamePlan | str:
 
 
 def side_mismatch(path: Path, prof: Profile, gameplan: GamePlan) -> str | None:
-    """The `<path>: Profile is X but gameplan is Y.` line when the sides differ."""
+    """The `<path>: Profile is X but game plan is Y.` line when the sides differ."""
     if prof.is_offense == gameplan.is_offense:
         return None
     return (
-        f"{path}: Profile is {_side(prof.is_offense)} but gameplan is "
+        f"{path}: Profile is {_side(prof.is_offense)} but game plan is "
         f"{_side(gameplan.is_offense)}."
     )
 
@@ -609,15 +611,15 @@ def profile_report(
         extras = ()
     total = len(violations) + len(issues)
     if total == 0:
-        head = f"{path}: {summary}; gameplan compatible"
+        head = f"{path}: {summary}; game plan compatible"
     else:
         head = (
             f"{path}: {len(violations)} violation(s), "
-            f"{len(issues)} gameplan issue(s) ({summary})"
+            f"{len(issues)} game plan issue(s) ({summary})"
         )
     lines = [head, *details]
-    lines.extend(f"  gameplan: {issue.message}" for issue in issues)
-    lines.extend(f"  gameplan info: {extra.message}" for extra in extras)
+    lines.extend(f"  game plan: {issue.message}" for issue in issues)
+    lines.extend(f"  game plan info: {extra.message}" for extra in extras)
     return total, "\n".join(lines)
 
 

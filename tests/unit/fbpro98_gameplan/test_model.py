@@ -115,13 +115,17 @@ def test_custom_play_in_clock_category_raises(category: int):
 @pytest.mark.parametrize("category", CLOCK_CATEGORIES)
 def test_offense_missing_clock_play_raises(category: int):
     with pytest.raises(
-        ValueError, match=f"require a stock play in special category {category}"
+        ValueError,
+        match=f"Offense game plans require a stock play in special category {category}",
     ):
         _offense(specials=_offense_specials(**{f"c{category}": SpecialSlot()}))
 
 
 def test_offense_without_any_clock_plays_raises():
-    with pytest.raises(ValueError, match="require a stock play in special category 11"):
+    with pytest.raises(
+        ValueError,
+        match="Offense game plans require a stock play in special category 11",
+    ):
         _offense(specials=_specials())
 
 
@@ -129,7 +133,8 @@ def test_offense_without_any_clock_plays_raises():
 def test_defense_with_clock_play_raises(category: int):
     stock = _make_stock(special_category=category, play_category=0)
     with pytest.raises(
-        ValueError, match=f"must not have a play in special category {category}"
+        ValueError,
+        match=f"Defense game plans must not have a play in special category {category}",
     ):
         _defense(specials=_specials(**{f"c{category}": SpecialSlot(stock=stock)}))
 

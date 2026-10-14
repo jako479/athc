@@ -727,9 +727,7 @@ NOT_SET_LINES = {
     "play_path": "Play pool folder is not set. Run 'athc config set play_path FOLDER'.",
     "team": "Team is not set. Run 'athc config set team NAME'.",
 }
-PPP_PATH_NOT_SET = (
-    "Game plan and profile folder is not set; using the folders the league file names."
-)
+PPP_PATH_NOT_SET = "Game plan and profile folder is not set. The folders the league file names are used."
 
 
 @pytest.mark.parametrize("key", ["league", "League", "LEAGUE"])

@@ -150,7 +150,7 @@ def test_writes_no_backup(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
     result = runner.invoke(set_normals, [str(p), str(_input(tmp_path, NORMAL + "\n"))])
     assert result.exit_code == 0
-    assert result.stdout == f"OK   {p}: 1 normal play(s)\n"
+    assert result.stdout == f"OK   {p}: updated (1 normal play(s))\n"
     assert list(tmp_path.glob("*.bak")) == []
 
 
@@ -205,7 +205,7 @@ def test_dash_input_errors_name_no_file(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_normals, [str(p), "-"], input="NOTAREALPLAY\n")
     assert result.exit_code == 2
     assert (
-        "FAIL line 1: 'NOTAREALPLAY' not found in the play pool (slot 1-1).\n"
+        "FAIL line 1: 'NOTAREALPLAY' is not in the play pool (slot 1-1).\n"
         in result.stderr
     )
     assert "FAIL - " not in result.stderr
@@ -218,7 +218,7 @@ def test_dash_input_line_is_the_real_line(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_normals, [str(p), "-"], input=text)
     assert result.exit_code == 2
     assert (
-        "FAIL line 3: 'NOTAREALPLAY' not found in the play pool (slot 1-1).\n"
+        "FAIL line 3: 'NOTAREALPLAY' is not in the play pool (slot 1-1).\n"
         in result.stderr
     )
 
@@ -229,7 +229,7 @@ def test_file_input_line_is_the_real_line(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_normals, [str(p), str(inp)])
     assert result.exit_code == 2
     assert (
-        f"FAIL {inp}: line 4: 'NOTAREALPLAY' not found in the play pool (slot 1-2).\n"
+        f"FAIL {inp}: line 4: 'NOTAREALPLAY' is not in the play pool (slot 1-2).\n"
         in result.stderr
     )
 
@@ -244,7 +244,7 @@ def test_rejects_special_teams_play(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_normals, [str(p), str(inp)])
     assert result.exit_code == 2
     assert (
-        f"FAIL {inp}: line 1: '{SPECIAL}' is a special teams play. Use set-specials.\n"
+        f"FAIL {inp}: line 1: '{SPECIAL}' is a special-teams play. Run 'athc gameplan set-specials'.\n"
         in result.stderr
     )
     assert p.read_bytes() == original
@@ -257,7 +257,7 @@ def test_missing_play_aborts(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_normals, [str(p), str(inp)])
     assert result.exit_code == 2
     assert (
-        f"FAIL {inp}: line 1: 'NOTAREALPLAY' not found in the play pool (slot 1-1).\n"
+        f"FAIL {inp}: line 1: 'NOTAREALPLAY' is not in the play pool (slot 1-1).\n"
         in result.stderr
     )
     assert p.read_bytes() == original
@@ -283,7 +283,7 @@ def test_as_many_plays_as_slots_accepted(runner, tmp_path: Path) -> None:
     inp = _input(tmp_path, (NORMAL + "\n") * 64)
     result = runner.invoke(set_normals, [str(p), str(inp)])
     assert result.exit_code == 0
-    assert result.stdout == f"OK   {p}: 64 normal play(s)\n"
+    assert result.stdout == f"OK   {p}: updated (64 normal play(s))\n"
 
 
 def test_missing_pln(runner, tmp_path: Path) -> None:
@@ -351,7 +351,7 @@ def test_key_sets_your_game_plan(runner, league: Path, tmp_path: Path) -> None:
     inp = _input(tmp_path, NORMAL + "\n")
     result = runner.invoke(set_normals, ["off1", str(inp)])
     assert result.exit_code == 0
-    assert result.stdout == f"OK   {folder / 'OFF1.pln'}: 1 normal play(s)\n"
+    assert result.stdout == f"OK   {folder / 'OFF1.pln'}: updated (1 normal play(s))\n"
     assert _name(read_gameplan(folder / "OFF1.pln").normal_plays[0]) == NORMAL
 
 

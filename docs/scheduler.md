@@ -30,13 +30,13 @@ A file's season cannot be read from it, so a `--previous` of the wrong season sh
 
 Teams are matched by name. A team that changed its name between the two seasons is listed in the league's `scheduler.toml` (in the league's folder in the athc settings folder; find it with `athc config path`), one table per upcoming season: `[renames.2048]` with `Baltimore = "Los Angeles"` (previous name = new name). The same file holds the rule amounts and solver settings; every key defaults, and `time_limit` and `phase1_time_limit` must be positive numbers.
 
-It writes a `.txt` and `.html` schedule plus a sortable HTML report to the **current folder**, named `schedule_<season>_<timestamp>` (the report adds `_report.html`); a rerun in the same minute replaces them. Progress (`Generating the <season> schedule`, `Phase 1: ...`, `Phase 2: ...`) prints on stderr as it runs; then `OK   <file>` per file written and `Generated <n> games (seed <s>)`. Exit `0` = written, `2` = an error (`FAIL <why>`: config, a league file, no feasible schedule, I/O, `Missing ortools. Reinstall athc.`) or bad arguments, `130` = Ctrl+C. Shared console and codes: [architecture](architecture.md#console-run-log-and-errors).
+It writes a `.txt` and `.html` schedule plus a sortable HTML report to the **current folder**, named `schedule_<season>_<timestamp>` (the report adds `_report.html`); a rerun in the same minute replaces them. Progress (`Generating the <season> schedule`, `Phase 1: ...`, `Phase 2: ...`) prints on stderr as it runs; then `OK   <file>: written` per file and `Generated <n> games (seed <s>)`. Exit `0` = written, `2` = an error (`FAIL <why>`: config, a league file, no feasible schedule, I/O, `Missing ortools. Reinstall athc.`) or bad arguments, `130` = Ctrl+C. Shared console and codes: [architecture](architecture.md#console-run-log-and-errors).
 
 Ctrl+C stops the run with `FAIL Interrupted.` and nothing written; during a solve, the search stops at the press. A press while the three files are written takes effect once all three are written.
 
 ## The standings
 
-From the previous season's file. An unfinished season (games not played) is `WARN <file>: Season not finished: <n> game(s) not played.`, and the run goes on with the games played; a new league with no game played is ordered by the coin toss.
+From the previous season's file. An unfinished season (games not played) is `WARN <file>: Season not finished. <n> game(s) not played.`, and the run goes on with the games played; a new league with no game played is ordered by the coin toss.
 
 - Overall order (the 1-18 ranks, and the 1-9 conference ranks the difficulty line uses): playoff finish first (champion, runner-up, then the round each team went out in, then the teams that missed the playoffs), then win percentage, then strength of schedule (opponents' combined record that season, tougher first), then the previous season's division finish (the team's place in the division it played in, ranked as below), then point differential, then a coin toss. This reproduces the PNFL's own published order.
 - Each division's finish order (the same-place pairs): the upcoming division's members ranked by their previous season the way the game ranks a finished season (win percentage, then the manual's tie-breakers under the previous season's divisions, then the coin toss; the lge library's `ranked`), so a division whose membership changed still gets an order.
@@ -133,7 +133,7 @@ Config (`ConfigFileError`, `LeagueError` → `FAIL`, exit 2) — found via `conf
 
 League files (`OSError`, `InvalidLgeError`, `SchedulerError` → `FAIL`, exit 2), each line naming the file:
 - Both `.lge` files must exist and parse; a missing one is Windows' own phrase.
-- An unfinished previous season is a `WARN`, not an error: `Season not finished: N game(s) not played.`, and the standings come from the games played.
+- An unfinished previous season is a `WARN`, not an error: `Season not finished. N game(s) not played.`, and the standings come from the games played.
 - A team name must not repeat in a file; every previous-season team must match an upcoming one by (renamed) name and vice versa (`Team(s) not in <file>: ...`, with the `[renames.<season>]` hint); no playoff game may be tied.
 
 Domain (`ValueError`, surfaced as `SchedulerError` naming the upcoming file):

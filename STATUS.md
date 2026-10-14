@@ -67,6 +67,9 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
 ### Console, run log and errors
 
+- Messages review (2026-10-14): the pool's per-issue `WARN` lines stay on
+  purpose, `find-play` lists hits only in a set, one word and one form for
+  every message, the run log is `time LEVEL message`.
 - Error wording (2026-10-09): every `FAIL` and `WARN` line is a sentence in
   Windows' words (`The system cannot find the file specified.`), names its
   file once and fits on one line; `athc/errors.py` holds the phrases and

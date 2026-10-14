@@ -179,7 +179,7 @@ def test_unfinished_season_is_a_warning(tmp_path: Path) -> None:
         rules_path=RULES,
         warn=said.append,
     )
-    assert said == [f"{previous}: Season not finished: 142 game(s) not played."]
+    assert said == [f"{previous}: Season not finished. 142 game(s) not played."]
     assert len(league.teams) == 18
 
 

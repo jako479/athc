@@ -194,19 +194,19 @@ $target = Join-Path $work 'offense.pln'
 $r = Athc @('gameplan', 'find-play', 'OR45RL01', '--path', $target)
 Check 'gameplan find-play: found in slot 1-1' (($r.Code -eq 0) -and ($r.Out -match "'OR45RL01' found in slot 1-1"))
 $r = Athc @('gameplan', 'replace-play', 'OR45RL01', 'DN28RM01', '--path', $target)
-Check 'gameplan replace-play: DN28RM01 already in the gameplan, not replaced' (
-    ($r.Code -eq 1) -and ($r.All -match "'DN28RM01' already in the gameplan") -and ($r.All -match "'OR45RL01' not replaced, no valid replacement"))
+Check 'gameplan replace-play: DN28RM01 already in the game plan, not replaced' (
+    ($r.Code -eq 1) -and ($r.All -match "'DN28RM01' already in the game plan") -and ($r.All -match "'OR45RL01' not replaced, no valid replacement"))
 $r = Athc @('gameplan', 'find-play', 'OR45RL01', '--path', $target)
 Check 'gameplan find-play after replace-play: still in slot 1-1' (($r.Code -eq 0) -and ($r.Out -match "'OR45RL01' found in slot 1-1"))
 $r = Athc @('gameplan', 'set-normals', (Join-Path $work 'offense2.pln'), (Join-Path $work 'normals.txt'))
-Check 'gameplan set-normals: updated' (($r.Code -eq 0) -and ($r.All -match 'OK +.*: 1 normal play\(s\)'))
+Check 'gameplan set-normals: updated' (($r.Code -eq 0) -and ($r.All -match 'OK +.*: updated \(1 normal play\(s\)\)'))
 $r = Athc @('gameplan', 'set-specials', (Join-Path $work 'specials.txt'), '--path', (Join-Path $work 'offense3.pln'))
 Check 'gameplan set-specials: updated' (($r.Code -eq 0) -and ($r.All -match '1 updated, 0 skipped, 0 failed'))
 
 # --- playpool, check-ppp, convert-pdb ----------------------------------------
 $r = Athc @('playpool', 'check')
 Check "playpool check (league play_path): 128 plays, 0 issues" (
-    ($r.Code -eq 0) -and ($r.Out -match "128 play\(s\) checked in '.*', 0 issue\(s\)"))
+    ($r.Code -eq 0) -and ($r.Out -match ".+: 128 play\(s\) checked, 0 issue\(s\)"))
 $prf = Join-Path $data 'TST-OFF1.prf'
 $pln = Join-Path $data 'offense.pln'
 $r = Athc @('check-ppp', $prf, $pln)

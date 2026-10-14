@@ -113,7 +113,7 @@ def find_play(
                 console.result(
                     format_hit_line(file, play_name, normal_hits, special_hits)
                 )
-            else:
+            elif one_file:  # the one answer asked for; silent in a set, like grep
                 console.result(f"{file}: '{play_name}' not found")
 
     if not one_file:
@@ -121,7 +121,7 @@ def find_play(
         for play_name in play_names:
             console.result(
                 f"'{play_name}': found {instances_per_play[play_name]} instance(s) "
-                f"in {files_hit_per_play[play_name]} gameplan(s)"
+                f"in {files_hit_per_play[play_name]} game plan(s)"
             )
 
     if failed:

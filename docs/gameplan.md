@@ -11,11 +11,11 @@ Every command prints through the shared console ([architecture](architecture.md#
 | Command | Lines | Exit 1 (findings) |
 |---|---|---|
 | `check` | `WARN` per play-pool issue (`athc playpool check` lists the same problems on their own, with an exit code), then per file `OK   <file>: <side>, <n> normal` or the headline `<file>: <n> violation(s) (<side>, <n> normal)` with its indented detail lines; a blank line; `<n> file(s) checked, <n> with violations, <n> failed` | violations |
-| `find-play` | per file and play `<file>: 'play' found in slot(s) ...` or `<file>: 'play' not found`; in directory mode a tally per play, `'play': found <n> instance(s) in <m> gameplan(s)`; a single path, found or not, gets no tally | a play found nowhere (2 if any file failed) |
+| `find-play` | per hit `<file>: 'play' found in slot(s) ...`; a single game plan without the play prints `<file>: 'play' not found`, a set prints nothing for a miss; in directory mode a tally per play, `'play': found <n> instance(s) in <m> game plan(s)`; a single path, found or not, gets no tally | a play found nowhere (2 if any file failed) |
 | `list-normals` / `list-specials` | the play names (with `-`), else `OK   <file>: <n> normal play(s)` / `... special play(s)` | never |
-| `replace-play` | per skipped replacement `SKIP <file>: 'new' already in the gameplan` or `SKIP <file>: 'new' fails check: [cat] message`; `OK   <file>: 'old' (cat) replaced with 'new' (cat) [1-1][2-2]` per updated file; `<file>: 'old' not replaced, no valid replacement` when none fits; a single file without the play prints `<file>: 'play' not found`; in directory mode `'old' -> 'new1', 'new2': replaced <n> instance(s) in <m> gameplan(s), <f> failed, <k> not replaced` | nothing replaced anywhere, or a gameplan with no valid replacement; a replacement not in the pool is an error |
-| `set-normals` | `OK   <gameplan>: <n> normal play(s)` (`> nul` hides it; `FAIL` lines still show); a play list that is not UTF-8 text is `FAIL <list>: Not a valid play list.`; a bad play list is one `FAIL <list>: line <n>: <reason>` per bad line (`FAIL line <n>: <reason>` when the list came from the console), the game plan untouched, exit 2 | never |
-| `set-specials` | `OK   <file>: updated (<n> special play(s))`, `SKIP <file>: <other side> gameplan`, `FAIL <file>: <why>` for a file the list does not fit; a tally `<n> file(s) processed, <n> updated, <n> skipped, <n> failed` | never (a failed file is exit 2) |
+| `replace-play` | per skipped replacement `SKIP <file>: 'new' already in the game plan` or `SKIP <file>: 'new' fails check: [cat] message`; `OK   <file>: 'old' (cat) replaced with 'new' (cat) [1-1][2-2]` per updated file; `<file>: 'old' not replaced, no valid replacement` when none fits; a single file without the play prints `<file>: 'play' not found`; in directory mode `'old' -> 'new1', 'new2': replaced <n> instance(s) in <m> game plan(s), <f> failed, <k> not replaced` | nothing replaced anywhere, or a game plan with no valid replacement; a replacement not in the pool is an error |
+| `set-normals` | `OK   <game plan>: updated (<n> normal play(s))` (`> nul` hides it; `FAIL` lines still show); a play list that is not UTF-8 text is `FAIL <list>: Not a valid play list.`; a bad play list is one `FAIL <list>: line <n>: <reason>` per bad line (`FAIL line <n>: <reason>` when the list came from the console), the game plan untouched, exit 2 | never |
+| `set-specials` | `OK   <file>: updated (<n> special play(s))`, `SKIP <file>: <other side> game plan`, `FAIL <file>: <why>` for a file the list does not fit; a tally `<n> file(s) processed, <n> updated, <n> skipped, <n> failed` | never (a failed file is exit 2) |
 
 ## Setup
 
@@ -162,13 +162,13 @@ Each league's rule set is `config/release/leagues/<NAME>/gameplan.toml` — data
 
 ### find-play
 
-`athc gameplan find-play PLAY...` searches one or more case-insensitive names across the normal + custom-special slots of your team's four game plans, or of what `--path` names (a `.pln`, a folder, a tree with `-r`, a wildcard, or one of the four names); every argument is a play. Stock specials and clock plays are skipped. Normal hits read `'NAME' found in slots G-C, G-C` (`slot` for one); a custom-special hit reads `'NAME' found in special slot N (long-cat)`. Every file missing a play prints `not found`; a set (the four, a folder, a tree, a wildcard) adds a per-play summary footer, one file none. Exit codes follow grep: `0` = at least one play found, `1` = none found, `2` = I/O error.
+`athc gameplan find-play PLAY...` searches one or more case-insensitive names across the normal + custom-special slots of your team's four game plans, or of what `--path` names (a `.pln`, a folder, a tree with `-r`, a wildcard, or one of the four names); every argument is a play. Stock specials and clock plays are skipped. Normal hits read `'NAME' found in slots G-C, G-C` (`slot` for one); a custom-special hit reads `'NAME' found in special slot N (long-cat)`. A set (the four, a folder, a tree, a wildcard) lists hits only, then a per-play summary footer; one file gets its hit or its `not found` line and no footer. Exit codes follow grep: `0` = at least one play found, `1` = none found, `2` = I/O error.
 
 ### set-normals / set-specials
 
 `gameplan.writer` resolves a play list against the pool into `.pln` slot entries (`apply_normal_plays` / `apply_special_plays`), aggregating every per-line problem into one `InvalidPlayListError`. Side and special-teams classification come from each play's `.ply` header, not the rules. A play in a stock-only special category (11-12) is rejected per line. The list format is one name per line, `::` comment lines, ` ::` inline trailers (`parse_play_list`); `read_play_list` reads a list file, and one that is not text (a `.pln` given by mistake) is `FAIL <list>: Not a valid play list.` Input or read failures abort before any write. Each slot's play path is the play pool's folder name, then the play's path inside the pool (`<pool folder>\Offense\RL\OR45RL01.ply`).
 
-- `set-normals GAME_PLAN INPUT_FILE` replaces all 64 normal slots of one `.pln` (a path or one of the four names); an `INPUT_FILE` of `-` reads the console. The pool comes from the league. No backup is made, and there is no quiet flag (`> nul` hides the `OK` line). Special-teams plays are rejected (use set-specials). Exit `0` = updated, `2` = usage or error.
+- `set-normals GAME_PLAN INPUT_FILE` replaces all 64 normal slots of one `.pln` (a path or one of the four names); an `INPUT_FILE` of `-` reads the console. The pool comes from the league. No backup is made, and there is no quiet flag (`> nul` hides the `OK` line). Special-teams plays are rejected (`'X' is a special-teams play. Run 'athc gameplan set-specials'.`). Exit `0` = updated, `2` = usage or error.
 - `set-specials INPUT_FILE` merges the custom special slots (unlisted categories preserved) of your team's four game plans, or of what `--path` names (one `.pln`, a name, every `.pln` in a folder/tree with `-r`, a wildcard); an `INPUT_FILE` of `-` reads the console. The list is read and counted before the league. Each play self-slots by its special category; wrong-side files are skipped with a `SKIP` line (offense `.pln` are even-sized, defense odd). The pool comes from the league. No backup is made. Exit `0` = all updated, `2` = usage, setup error or a failed file.
 
 ### replace-play
@@ -206,7 +206,7 @@ one line, slots bracketed in order at the end: `<file>: 'OLD' (cat) replaced wit
 'NEW' (cat) [1-3][4-2]` (a play can fill many normal slots). Special hits print one
 line each: `<file>: Replaced 'OLD' (cat) in special slot N with 'NEW' (cat)`
 (`special slot N` like `find-play`; a play fills only one special slot). A
-skipped replacement prints `SKIP <file>: 'NEW' already in the gameplan`, or
+skipped replacement prints `SKIP <file>: 'NEW' already in the game plan`, or
 `SKIP <file>: 'NEW' fails check: [cat] message` once per violation (the
 `check` text, from the shared `format_violation`); a gameplan none fits prints
 `<file>: 'OLD' not replaced, no valid replacement`.

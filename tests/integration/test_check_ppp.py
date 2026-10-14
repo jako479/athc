@@ -199,11 +199,11 @@ def test_cli_path_count(
     [
         (
             OFF1,
-            "No game plan given. To check a profile alone, run athc profile check.",
+            "No game plan given. Run 'athc profile check' to check a profile alone.",
         ),
         (
             GP_OFFENSE,
-            "No profile given. To check a game plan alone, run athc gameplan check.",
+            "No profile given. Run 'athc gameplan check' to check a game plan alone.",
         ),
     ],
     ids=["profile", "game plan"],
@@ -216,6 +216,21 @@ def test_cli_one_file_is_an_error(
     result = run(runner, path)
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {path}: {line}\n"
+    assert result.stdout == ""
+
+
+def test_cli_one_file_of_another_kind_is_an_error(
+    runner, full_league: Path, tmp_path: Path
+) -> None:
+    """One path is a folder argument; a file that is neither a profile nor a game
+    plan is not a folder."""
+    wrong = write_bytes(tmp_path, "plan.txt")
+    result = run(runner, wrong)
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {wrong}: {DIRECTORY_INVALID} "
+        "Pass one profile and one game plan, or a folder.\n"
+    )
     assert result.stdout == ""
 
 
@@ -278,7 +293,7 @@ def test_cli_both_matches_existing_reports(
 ) -> None:
     """With both compatibility settings on, as in the test rules (the profile
     rules' `[gameplan_compatibility]` and the gameplan rules'
-    `[profile_compatibility]`): profile report with its `gameplan:` lines (as
+    `[profile_compatibility]`): profile report with its `game plan:` lines (as
     `profile check --gameplan` printed), then the gameplan report (as
     `gameplan check`), then one summary."""
     result = run(runner, prof, gameplan)
@@ -300,13 +315,13 @@ def test_cli_unused_gameplan_categories_are_info(
     assert result.exit_code == 1
     situations = golden("TST-DEF1").splitlines(keepends=True)[1:]
     assert normalized(result, DEF1, GP_DEFENSE) == (
-        "TST-DEF1.prf: 7 violation(s), 1 gameplan issue(s) (defense, FG range 36)\n"
+        "TST-DEF1.prf: 7 violation(s), 1 game plan issue(s) (defense, FG range 36)\n"
         + "".join(situations)
-        + "  gameplan: special-teams category Field Goal/PAT has no custom special play in the gameplan\n"
-        "  gameplan info: gameplan special-teams category Fake FG Run is not used by the profile\n"
-        "  gameplan info: gameplan special-teams category Fake FG Pass is not used by the profile\n"
-        "  gameplan info: gameplan special-teams category Fake Punt Run is not used by the profile\n"
-        "  gameplan info: gameplan special-teams category Fake Punt Pass is not used by the profile\n"
+        + "  game plan: special-teams category Field Goal/PAT has no custom special play in the game plan\n"
+        "  game plan info: special-teams category Fake FG Run is in the game plan but not used by the profile\n"
+        "  game plan info: special-teams category Fake FG Pass is in the game plan but not used by the profile\n"
+        "  game plan info: special-teams category Fake Punt Run is in the game plan but not used by the profile\n"
+        "  game plan info: special-teams category Fake Punt Pass is in the game plan but not used by the profile\n"
         + golden("defense")
         + "\n2 file(s) checked, 2 with violations, 0 failed\n"
     )
@@ -340,7 +355,7 @@ def test_cli_both_clean_exit_0(
     result = run(runner, COMPAT_OFF_CLEAN, GP_OFFENSE)
     assert result.exit_code == 0
     assert result.stdout == (
-        f"OK   {COMPAT_OFF_CLEAN}: offense, FG range 20; gameplan compatible\n"
+        f"OK   {COMPAT_OFF_CLEAN}: offense, FG range 20; game plan compatible\n"
         f"OK   {GP_OFFENSE}: offense, 64 normal\n"
         "\n2 file(s) checked, 0 with violations, 0 failed\n"
     )
@@ -367,12 +382,12 @@ def test_cli_unused_gameplan_categories_alone_exit_0(
     result = run(runner, COMPAT_OFF_CLEAN, GP_OFFENSE)
     assert result.exit_code == 0
     assert result.stdout.startswith(
-        f"OK   {COMPAT_OFF_CLEAN}: offense, FG range 20; gameplan compatible\n"
-        "  gameplan info: gameplan play category "
+        f"OK   {COMPAT_OFF_CLEAN}: offense, FG range 20; game plan compatible\n"
+        "  game plan info: play category "
     )
-    assert result.stdout.count("  gameplan info: ") == 10
+    assert result.stdout.count("  game plan info: ") == 10
     assert (
-        "  gameplan info: gameplan play category Run Left is not used by the profile"
+        "  game plan info: play category Run Left is in the game plan but not used by the profile"
         in result.stdout
     )
     assert "2 file(s) checked, 0 with violations, 0 failed" in result.stdout
@@ -415,8 +430,8 @@ def test_cli_cross_check_follows_league_settings(
     write_config(f"[athc]\nleague = {LEAGUE}\n")
     result = run(runner, DEF1, GP_DEFENSE)
     assert result.exit_code == 1
-    assert result.stdout.count("  gameplan: ") == issues
-    assert result.stdout.count("  gameplan info: ") == infos
+    assert result.stdout.count("  game plan: ") == issues
+    assert result.stdout.count("  game plan info: ") == infos
     assert f"2 file(s) checked, {files} with violations, 0 failed" in result.stdout
 
 
@@ -426,8 +441,8 @@ def test_cli_cross_check_follows_league_settings(
 @pytest.mark.parametrize(
     "prof,gameplan,sides",
     [
-        (OFF1, GP_DEFENSE, "Profile is offense but gameplan is defense."),
-        (DEF1, GP_OFFENSE, "Profile is defense but gameplan is offense."),
+        (OFF1, GP_DEFENSE, "Profile is offense but game plan is defense."),
+        (DEF1, GP_OFFENSE, "Profile is defense but game plan is offense."),
     ],
 )
 def test_cli_side_mismatch_stops_the_checks(
@@ -508,7 +523,7 @@ def test_cli_second_file_of_a_kind_is_an_error(
     result = run(runner, first, second)
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {second}: Second {kind} file. Pass one profile and one gameplan.\n"
+        f"FAIL {second}: Second {kind} file. Pass one profile and one game plan.\n"
     )
     assert result.stdout == ""
 
@@ -818,7 +833,7 @@ def test_dir_clean_exit_0(
     assert result.exit_code == 0
     assert result.stdout == (
         f"OK   {folder / 'compat_off_clean.prf'}: offense, FG range 20; "
-        "gameplan compatible\n"
+        "game plan compatible\n"
         f"OK   {folder / 'offense.pln'}: offense, 64 normal\n"
         "\n2 file(s) checked, 0 with violations, 0 failed, 0 missing, "
         "0 team(s) with no files\n"
@@ -1063,7 +1078,7 @@ def test_dir_side_mismatch_is_that_pairs_error(
     assert result.exit_code == 2
     files = [folder / p.name for p in (OFF1, DEF1, GP_DEFENSE)]
     assert (
-        f"FAIL {folder / 'TST-OFF1.prf'}: Profile is offense but gameplan is defense."
+        f"FAIL {folder / 'TST-OFF1.prf'}: Profile is offense but game plan is defense."
         in result.stderr
     )
     assert normalized(result, *files) == (
@@ -1747,7 +1762,7 @@ def test_league_one_file_missing(runner, pnfl_league: Path, tmp_path: Path) -> N
     alone = next(
         line for line in result.stdout.splitlines() if "DEN-OFF2.prf: " in line
     )
-    assert "gameplan" not in alone
+    assert "game plan" not in alone
     assert re.fullmatch(
         r"8 file\(s\) checked, \d+ with violations, 1 failed", tally(result)
     )
@@ -1958,5 +1973,5 @@ def test_entry_point_errors_go_to_stderr(
     assert result.stdout == ""
     assert f"FAIL {missing}: {FILE_NOT_FOUND}" in result.stderr
     log = (log_dir / "athc.log").read_text(encoding="utf-8")
-    assert f" ERROR FAIL {missing}: {FILE_NOT_FOUND}" in log
+    assert f" ERROR {missing}: {FILE_NOT_FOUND}" in log
     assert log.rstrip().endswith(" INFO exit 2")

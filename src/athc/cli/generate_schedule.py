@@ -15,6 +15,7 @@ from athc.config import (
     LEAGUE_PATH_KEY,
     LeagueConfig,
     load_league_config,
+    not_set_line,
 )
 from athc.console import console
 from athc.errors import AthcError, ConfigFileError
@@ -26,10 +27,7 @@ MAX_SEED = 2147483647
 # The seed drawn when none is given; the result line shows it.
 RANDOM_SEED_MAX = 1_000_000
 
-PATH_NOT_SET = (
-    "League files folder is not set. Run 'athc config set path FOLDER' or pass "
-    "--upcoming."
-)
+PATH_NOT_SET = not_set_line("path", "--upcoming")
 
 # The \b line keeps Click from joining the examples into one line.
 EXAMPLES = """Examples:
@@ -147,7 +145,7 @@ def generate_schedule(
             f"Missing {error.name or 'ortools'}. Reinstall athc."
         ) from error
     for path in generated.files:
-        console.ok(str(path))
+        console.ok(f"{path}: written")
     games = len(generated.result.schedule.games)
     console.result(f"Generated {games} games (seed {generated.seed})")
 

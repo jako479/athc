@@ -354,8 +354,8 @@ def test_extra_normal_sorted_by_code() -> None:
     gp = make_gameplan(offense=True, normal=(0x33, OFF_GOAL_LINE_RUN, OFF_RUN_MIDDLE))
     msgs = [i.message for i in gameplan_extra_categories(prof, gp)]
     assert msgs == [
-        "gameplan play category Goal Line Run is not used by the profile",
-        "gameplan play category Goal Line Pass is not used by the profile",
+        "play category Goal Line Run is in the game plan but not used by the profile",
+        "play category Goal Line Pass is in the game plan but not used by the profile",
     ]
 
 

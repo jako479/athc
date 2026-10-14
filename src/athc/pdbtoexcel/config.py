@@ -19,7 +19,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from athc.config import LEAGUE_FILE, ConfigFileError, config_file, load_league_config
+from athc.config import (
+    LEAGUE_FILE,
+    ConfigFileError,
+    config_file,
+    load_league_config,
+    not_set_line,
+)
 from athc.config import load_config as load_athc_config
 from athc.errors import missing_reason, reason_of, toml_reason
 from athc.fbpro98_play import (
@@ -85,10 +91,7 @@ def load_config(league: str | None = None) -> Config:
     cfg = load_league_config(league)
     play_path = cfg.path("play_path")
     if play_path is None:
-        raise ConfigFileError(
-            "Play pool folder is not set. Run 'athc config set play_path FOLDER'.",
-            cfg.dir / LEAGUE_FILE,
-        )
+        raise ConfigFileError(not_set_line("play_path"), cfg.dir / LEAGUE_FILE)
     raw = load_athc_config().get(SECTION, {})
     pdbtoexcel_file = cfg.rules_file_path(PDBTOEXCEL_FILE)
     category_order, deleted_plays = read_pdbtoexcel_toml(

@@ -35,7 +35,7 @@ athc config set KEY VALUE        # change a setting, keeping the file's comments
 | `path`, `get` done | the path or value (stdout) | 0 |
 | `edit`, `reveal` done | nothing | 0 |
 | `set` done | `OK   <file>: <key> = <value>` | 0 |
-| `get ppp_path`, not set | `WARN <league.toml>: Game plan and profile folder is not set; using the folders the league file names.` | 0 |
+| `get ppp_path`, not set | `WARN <league.toml>: Game plan and profile folder is not set. The folders the league file names are used.` | 0 |
 | `get path`, `play_path` or `team`, not set | `FAIL <league.toml>: ... is not set. Run 'athc config set <key> ...'.` | 2 |
 | no league set, or no folder for it | `FAIL League is not set. ...` or `FAIL League 'X' not found. ...` | 2 |
 | `league.toml` missing or without `[league]` (`set`, `edit`) | `FAIL <league.toml>: The system cannot find the file specified.` | 2 |

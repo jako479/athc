@@ -7,21 +7,15 @@ import click
 
 from athc.cli import CONTEXT_SETTINGS, league_option
 from athc.cli.config import config, key_callback
-from athc.config import LEAGUE_FILE, load_league_config, resolve_league
+from athc.config import LEAGUE_FILE, load_league_config, not_set_line, resolve_league
 from athc.console import console
 from athc.errors import ConfigFileError
 
-# A required key with no value fails with the line the tools give for it,
-# without their alternatives: get takes none.
-NOT_SET = {
-    "path": "League files folder is not set. Run 'athc config set path FOLDER'.",
-    "play_path": "Play pool folder is not set. Run 'athc config set play_path FOLDER'.",
-    "team": "Team is not set. Run 'athc config set team NAME'.",
-}
 # ppp_path is optional, so its absence is noted, never a failure, and the line
 # does not ask the coach to set it.
 PPP_PATH_NOT_SET = (
-    "Game plan and profile folder is not set; using the folders the league file names."
+    "Game plan and profile folder is not set. "
+    "The folders the league file names are used."
 )
 
 EXAMPLES = """Examples:
@@ -54,4 +48,4 @@ def get(key: str, league: str | None) -> None:
     elif key == "ppp_path":
         console.warn(f"{cfg.dir / LEAGUE_FILE}: {PPP_PATH_NOT_SET}")
     else:
-        raise ConfigFileError(NOT_SET[key], cfg.dir / LEAGUE_FILE)
+        raise ConfigFileError(not_set_line(key), cfg.dir / LEAGUE_FILE)

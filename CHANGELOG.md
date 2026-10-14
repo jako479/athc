@@ -7,6 +7,10 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- gameplan: find-play prints hits only when searching a set; a single game plan still says when the play is not in it
+- athc: messages say "game plan", "special-teams" and "is not in the play pool" everywhere, and every command hint reads `Run 'athc ...'`
+- athc: set-normals says `updated`, generate-schedule says `written`, and no line quotes a path
+- athc: the run log is `time LEVEL message`, the level once: `WARN` and `FAIL` lines carry it as the level, `OK` and `SKIP` lines keep their word
 - docs: `docs/` is four folders: one doc per module, `formats/` for every file spec and its patterns, `research/` and `proposals/`; the designs, specs and plans of merged work are gone
 - docs: tie-breaking has one design doc, the standings library's ARCHITECTURE, and one research note; the standings specs and plans are gone
 - standings: `athc standings` takes the shared help style

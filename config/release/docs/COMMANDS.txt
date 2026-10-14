@@ -98,8 +98,9 @@ A file or folder that exists by that name wins over the key.
    slots are searched (stock/clock slots skipped). Hits show the slot(s),
    e.g. 'OR45RL01' found in slots 1-3, 16-2; special-teams hits add the
    category, e.g. 'BCFGPAT' found in special slot 1 (Field Goal/PAT). No pool
-   setup needed -- the category is read from the .pln. A file without the
-   play prints `not found`; several files end with a per-play summary.
+   setup needed -- the category is read from the .pln. A single game plan
+   without the play prints `not found`; a folder, a wildcard or your team's
+   game plans list only their hits and end with a per-play summary.
 
    Show help:
       athc gameplan find-play -h
@@ -154,7 +155,7 @@ A file or folder that exists by that name wins over the key.
    case-insensitive (same as find-play); only matching slots change, the
    rest are left alone.
 
-   List one or more replacement plays: each gameplan gets the first one that
+   List one or more replacement plays: each game plan gets the first one that
    is not already in it and with which it passes `gameplan check`; the
    others are backups, tried in order. Every replacement
    must exist in the league's play pool (its play_path); the play being
@@ -163,7 +164,7 @@ A file or folder that exists by that name wins over the key.
    Each replaced play prints a line; a play in several slots lists them all
    in brackets at the end, e.g.:
       offense.pln: 'OR45RL01' (RL) replaced with 'OR43RM02' (RM) [1-3][4-2]
-   A replacement passed over prints a SKIP line saying why; a gameplan no
+   A replacement passed over prints a SKIP line saying why; a game plan no
    replacement fits prints "not replaced, no valid replacement" and is left
    unchanged.
 

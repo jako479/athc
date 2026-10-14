@@ -1,5 +1,10 @@
 """The run log: the `athc` logger, where its file lives, and `setup_logging()`.
 
+A log line is `time LEVEL message`: the level once, as `logging` names it
+(`INFO`, `WARNING`, `ERROR`), then the console line without its `WARN` or
+`FAIL` label; `OK` and `SKIP` lines keep theirs, since `INFO` alone would
+not say which.
+
 The console writes every status line here itself; nothing else in athc logs.
 """
 

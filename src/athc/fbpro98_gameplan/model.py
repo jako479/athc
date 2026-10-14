@@ -205,11 +205,13 @@ class GamePlan:
             )
         if self.is_offense and slot.stock is None:
             raise ValueError(
-                f"Offense gameplans require a stock play in special category {category}"
+                "Offense game plans require a stock play "
+                f"in special category {category}"
             )
         if self.is_defense and slot.stock is not None:
             raise ValueError(
-                f"Defense gameplans must not have a play in special category {category}"
+                "Defense game plans must not have a play "
+                f"in special category {category}"
             )
 
     def _filled_plays(self) -> Iterator[tuple[str, PlayRef]]:

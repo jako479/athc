@@ -91,7 +91,7 @@ def _resolve_normal_plays(
                 RuleViolation(
                     rule_name=RuleName.UNRESOLVED_PLAY,
                     message=f"Play '{play.name}' at {_slot_label(slot)} "
-                    "not found in play pool",
+                    "is not in the play pool",
                 )
             )
             continue

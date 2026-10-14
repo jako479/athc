@@ -5,7 +5,7 @@ from __future__ import annotations
 import click
 
 from athc.cli import CONTEXT_SETTINGS, AthcCommand, league_option
-from athc.config import LEAGUE_FILE, LEAGUE_PATH_KEY, load_league_config
+from athc.config import LEAGUE_FILE, LEAGUE_PATH_KEY, load_league_config, not_set_line
 from athc.console import console
 from athc.errors import ConfigFileError
 from athc.fbpro98_lge import read_lge
@@ -55,10 +55,7 @@ def standings(view: View, method: Method, league: str | None) -> None:
     config = load_league_config(league)
     folder = config.path(LEAGUE_PATH_KEY)
     if folder is None:
-        raise ConfigFileError(
-            "League files folder is not set. Run 'athc config set path FOLDER'.",
-            config.dir / LEAGUE_FILE,
-        )
+        raise ConfigFileError(not_set_line("path"), config.dir / LEAGUE_FILE)
     lge = read_lge(config.name, folder)
     ranked = Standings(lge, method=method, seed=_SEED)
     for line in render(view, lge, ranked, config.name):

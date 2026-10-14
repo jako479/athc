@@ -1,4 +1,4 @@
-TST-OFF1.prf: 18 violation(s), 1 gameplan issue(s) (offense, FG range 36)
+TST-OFF1.prf: 18 violation(s), 1 game plan issue(s) (offense, FG range 36)
   [situation 1] Situation 1 uses disallowed categories: 0x09, 0x0C
   [situation 37] Situation 37 uses disallowed categories: 0x09
   [situation 43] Situation 43 has 2 category(ies) with non-zero weight; requires 3.
@@ -17,4 +17,4 @@ TST-OFF1.prf: 18 violation(s), 1 gameplan issue(s) (offense, FG range 36)
   [situation 327] Situation 327 is missing a mandatory category (one of: 0x0C)
   [situation 342] Situation 342 is missing a mandatory category (one of: 0x0C)
   [situation 414] Situation 414 has 2 category(ies) with non-zero weight; requires 3.
-  gameplan: play category GLR (0x00) has no custom play in the gameplan
+  game plan: play category GLR (0x00) has no custom play in the game plan

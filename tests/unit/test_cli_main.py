@@ -36,7 +36,7 @@ def test_athc_error_is_a_fail_line_exit_2(log_dir: Path) -> None:
     result = CliRunner().invoke(_command(_raise), [])
     assert result.exit_code == 2
     assert result.stderr == "FAIL league 'NOPE' not found\n" and result.stdout == ""
-    assert "ERROR FAIL league 'NOPE' not found" in _log(log_dir)
+    assert "ERROR league 'NOPE' not found" in _log(log_dir)
     assert _log(log_dir).rstrip().endswith("INFO exit 2")
 
 

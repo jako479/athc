@@ -96,7 +96,7 @@ class PdbWorkbookCreator:
         `progress` hears each progress line; nothing is printed or logged here.
         """
         say = progress or (lambda _: None)
-        say(f"Creating '{filename}'")
+        say(f"Creating {filename}")
         self._warn_stale_deleted_plays()
         offense_slots = (self.pln_offense is not None, self.pln_offense_2 is not None)
         defense_slots = (self.pln_defense is not None, self.pln_defense_2 is not None)
@@ -176,9 +176,7 @@ class PdbWorkbookCreator:
             play_record = self.play_pool.find_by_name(play_name)
             if play_record is None:
                 if play_name not in missing:
-                    self.warnings.append(
-                        f"Play '{play_name}' has no play file in the play pool."
-                    )
+                    self.warnings.append(f"Play '{play_name}' is not in the play pool.")
                     missing.add(play_name)
                 continue
             if self._should_export(play_in_pdb, play_record):

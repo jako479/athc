@@ -250,6 +250,13 @@ def test_unresolved_play_fires() -> None:
     assert RuleName.UNRESOLVED_PLAY in fired(gp, def_rules(), make_pool([]))
 
 
+def test_unresolved_play_message_names_the_play_and_its_slot() -> None:
+    gp = defense_gameplan(["GHOST"])
+    (violation,) = validate_gameplan(gp, def_rules(), make_pool([]))
+    assert violation.rule_name == RuleName.UNRESOLVED_PLAY
+    assert violation.message == "Play 'GHOST' at slot 1 (1-1) is not in the play pool"
+
+
 # ── offense harness ───────────────────────────────────────────────────────────
 
 

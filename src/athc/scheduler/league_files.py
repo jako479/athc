@@ -53,9 +53,9 @@ def load_league(
         season: The season being scheduled; names the `[renames]` table.
         seed: The run's seed; draws the coin toss.
         rules_path: The `scheduler.toml` the renames came from, for errors.
-        warn: Hears `<previous_file>: Season not finished: ...` when the
-            previous season has games not played; the League is built from
-            the games played.
+        warn: Hears `<previous_file>: Season not finished. <n> game(s) not played.`
+            when the previous season has games not played; the League is built
+            from the games played.
 
     Raises:
         OSError: A file cannot be opened or read.
@@ -98,7 +98,7 @@ def league_from_files(
     messages."""
     if previous.unplayed_games:
         warn(
-            f"{previous_path}: Season not finished: "
+            f"{previous_path}: Season not finished. "
             f"{previous.unplayed_games} game(s) not played."
         )
     previous_teams = _teams(previous)

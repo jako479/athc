@@ -79,7 +79,8 @@ def set_normals(
 
     specials = [
         InvalidPlay(
-            play.line, f"'{play.name}' is a special teams play. Use set-specials."
+            play.line,
+            f"'{play.name}' is a special-teams play. Run 'athc gameplan set-specials'.",
         )
         for play in plays
         if (r := pool.find_by_name(play.name)) is not None
@@ -99,4 +100,4 @@ def set_normals(
         ctx.exit(2)
     write_gameplan(updated, target)
     count = sum(1 for p in updated.normal_plays if p is not None)
-    console.ok(f"{target}: {count} normal play(s)")
+    console.ok(f"{target}: updated ({count} normal play(s))")

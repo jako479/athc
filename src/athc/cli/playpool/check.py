@@ -14,6 +14,7 @@ from athc.config import (
     LeagueConfig,
     LeagueError,
     load_league_config,
+    not_set_line,
     play_dir,
 )
 from athc.console import console
@@ -71,9 +72,7 @@ def check(ctx: click.Context, folder: Path | None, league: str | None) -> None:
         + len(pool.defensive_plays)
         + len(pool.special_teams_plays)
     )
-    console.result(
-        f"{plays} play(s) checked in '{folder}', {len(pool.issues)} issue(s)"
-    )
+    console.result(f"{folder}: {plays} play(s) checked, {len(pool.issues)} issue(s)")
     ctx.exit(1 if pool.issues else 0)
 
 
@@ -83,9 +82,7 @@ def _league_pool(cfg: LeagueConfig) -> Path:
     play_path = cfg.path("play_path")
     if play_path is None:
         raise ConfigFileError(
-            "Play pool folder is not set. Run 'athc config set play_path FOLDER' "
-            "or pass the folder.",
-            cfg.dir / LEAGUE_FILE,
+            not_set_line("play_path", "the folder"), cfg.dir / LEAGUE_FILE
         )
     return play_dir(play_path)
 

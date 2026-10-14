@@ -67,12 +67,12 @@ teams, in the same order.
   decide what fails:
   - `require_all_profile_categories_in_gameplan`, in the profile rules'
     `[gameplan_compatibility]` — every play category the profile uses must
-    have a custom play in the game plan; each one missing is a `gameplan:`
+    have a custom play in the game plan; each one missing is a `game plan:`
     line that fails the check. Off, it isn't checked.
   - `require_all_gameplan_categories_in_profile`, in the game plan rules'
     `[profile_compatibility]` — every category the game plan has a custom
-    play for must be used by the profile; each one unused is a `gameplan:`
-    line that fails the check. Off, they are only `gameplan info:` lines that
+    play for must be used by the profile; each one unused is a `game plan:`
+    line that fails the check. Off, they are only `game plan info:` lines that
     don't fail.
 - A file whose partner is missing is checked alone, without the cross-check.
 

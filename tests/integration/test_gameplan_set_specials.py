@@ -182,7 +182,7 @@ def test_dash_input_errors_name_no_file(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_specials, ["--path", str(p), "-"], input=NORMAL + "\n")
     assert result.exit_code == 2
     assert (
-        f"FAIL line 1: '{NORMAL}' is not a special teams play. Use set-normals.\n"
+        f"FAIL line 1: '{NORMAL}' is not a special-teams play. Run 'athc gameplan set-normals'.\n"
         in result.stderr
     )
     assert "FAIL - " not in result.stderr
@@ -198,7 +198,7 @@ def test_gameplan_problem_names_the_gameplan_and_the_list_line(
     result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
     assert result.exit_code == 2
     assert (
-        f"FAIL {p}: 'NOPEPLAY' not found in the play pool ({inp} line 3).\n"
+        f"FAIL {p}: 'NOPEPLAY' is not in the play pool ({inp} line 3).\n"
         in result.stderr
     )
 
@@ -208,7 +208,7 @@ def test_gameplan_problem_from_the_console(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_specials, ["--path", str(p), "-"], input="NOPEPLAY\n")
     assert result.exit_code == 2
     assert (
-        f"FAIL {p}: 'NOPEPLAY' not found in the play pool (play list line 1).\n"
+        f"FAIL {p}: 'NOPEPLAY' is not in the play pool (play list line 1).\n"
         in result.stderr
     )
 
@@ -225,7 +225,8 @@ def test_rejects_normal_play(runner, tmp_path: Path) -> None:
     assert result.exit_code == 2
     assert result.stderr.splitlines()[-1].startswith("FAIL ")  # after the WARN lines
     assert (
-        "not a special teams play" in result.stderr and "set-normals" in result.stderr
+        "not a special-teams play" in result.stderr
+        and "athc gameplan set-normals" in result.stderr
     )
     assert p.read_bytes() == original
 
@@ -332,7 +333,7 @@ def test_offense_input_skips_defense_files(runner, tmp_path: Path) -> None:
         set_specials, ["--path", str(plans), str(_input(tmp_path, SPECIAL + "\n"))]
     )
     assert result.exit_code == 0
-    assert f"SKIP {deff}: defense gameplan" in result.stdout
+    assert f"SKIP {deff}: defense game plan" in result.stdout
     assert "2 file(s) processed, 1 updated, 1 skipped, 0 failed" in result.stdout
     assert deff.read_bytes() == def_pre
 
@@ -446,7 +447,7 @@ def test_default_scope_is_your_teams_game_plans(
                 SPECIAL
             )
         else:
-            lines.append(f"SKIP {folder / name}: defense gameplan")
+            lines.append(f"SKIP {folder / name}: defense game plan")
     assert result.stdout == "\n".join(lines) + f"\n\n{tally}\n"
 
 
