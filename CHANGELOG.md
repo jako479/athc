@@ -8,6 +8,7 @@ high-level change completed alongside it gets its own line.
 ## athc
 
 - athc: the `.lge` spec decodes each team's Training Camp percentages
+- league.toml and athc.ini: each comment says what the setting is, not which commands read it
 - convert-pdb: the Type column says `QB run`, not `QB draw`
 - fbpro98_play: a damaged play file reads `The play file is invalid or corrupted.`; a wrong header and an unknown category keep their own messages
 - playpool: QB run, rollout, timed pass and the defensive front come from each play file, not its name or folder; `playpool.toml` is gone

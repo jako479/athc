@@ -3,19 +3,17 @@
 # overwrites this file.
 
 [league]
-# Needed for check-ppp on a directory and for generate-schedule -- the folder
-# that holds this league's files (PCFL.lg2, PCFL.lge and the rest).
+# The folder that holds this league's files (PCFL.lg2, PCFL.lge and the rest).
 path = 'E:\SIERRA\FbPro98'
-# REQUIRED for gameplan/profile/convert-pdb -- your FbPro98 league plays folder.
+# The folder that holds this league's plays (.ply files).
 play_path = 'E:\SIERRA\FbPro98\PCFL'
 # Optional: ordered rule files replacing the fixed gameplan.toml / profile.toml;
 # later files layer over earlier ones.
 # gameplan_rules = ['gameplan.toml']
 # profile_rules = ['profile.toml']
 
-# The league's short names for the game's play categories, as the rule files
-# and the play-pool folders use them. A category with no league name is
-# commented out and goes by its game name.
+# The league's short names for the game's play categories. A category with no
+# league name is commented out and goes by its game name.
 [categories.offense]
 "Run Right" = "RR"
 "Pass Short Right" = "PSR"

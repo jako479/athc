@@ -52,19 +52,19 @@
 1. **The three commands stay, and no command takes "the team's four profiles" as a set.** `check` checks files of one kind by any name (check-ppp decision 1 and section 8; STATUS.md); the four with their game plans are `check-ppp`'s job, and a coach who wants one or more of the four profiles alone names them (decision 3).
 2. **`check` keeps the current folder as its no-PATH default,** a stated deviation from check-ppp decision 3's "no PATH means the configured source": it is the generic one-kind checker over drafts the league file never names (rows 1, 2, 5), the current folder is pytest's, ruff's and today's default, and the configured default (your team's files) belongs to `check-ppp`. `.` and an explicit path behave as today and as in `check-ppp`.
 3. **Every `.prf` operand may be one of the four names, `off1`, `def1`, `off2` or `def2`:** the 1st-half offense, 1st-half defense, 2nd-half offense or 2nd-half defense profile of your team (`.lg2` file entries 1, 3, 5 and 7), in `check`'s PATH, `diff`'s PROFILE1 and PROFILE2, and `copy`'s SOURCE and TARGET. The words are the game's own stock names and the pattern every PNFL coach already uses; `gameplan`'s commands take the same four words for the game plans (entries 2, 4, 6 and 8). One spelling, lowercase, since cli-help.md rule 2 reserves caps for placeholders and Click shows choice values as given (`slot|name|category`); matched after casefolding, Click's `Choice(case_sensitive=False)` behaviour, so `OFF1` works; no synonyms (`o1`, `offense-1`), so the help lists all four.
-4. **An existing path wins over a name** (cli-help.md rule 15; replace-play's `_is_path`, which puts "an existing file or folder" first). An operand that exists on disk, file or folder, is a path whatever it is called; an operand with an extension or a folder separator is a path too (`off1.prf`, `.\off1`); else one of the four words is the team's file; else it is a missing path and gets today's line. So a folder named `off1` in the current folder is that folder: `check off1` checks its `.prf` files (or `WARN off1: No .prf files.`), `copy new.prf off1 --stop-clock` edits every same-side `.prf` in it, and `diff off1 try.prf` is `FAIL off1: Access is denied. Run from another folder to use your team's profile.`, the one imperative hint sentence every one-file operand that takes a name adds (`diff`'s PROFILE1 and PROFILE2, `copy`'s SOURCE; `gameplan`'s line with "profile" for "game plan"; the project's hint shape, architecture.md Wording). `.\off1` always means the path; since existence is tested against the current folder, running from another folder yields the word. A file named `off1` is a path like any other: on `check`'s PATH and `copy`'s TARGET it is `FAIL off1: Not a .prf file.` (`collect_files`, as today); on `diff` and `copy`'s SOURCE it reaches the reader, which gives its own line.
+4. **An existing path wins over a name** (cli-help.md rule 15; replace-play's `_is_path`, which puts "an existing file or folder" first). An operand that exists on disk, file or folder, is a path whatever it is called; an operand with an extension or a folder separator is a path too (`off1.prf`, `.\off1`); else one of the four words is the team's file; else it is a missing path and gets today's line. So a folder named `off1` in the current folder is that folder: `check off1` checks its `.prf` files (or `WARN off1: No .prf files.`), `copy new.prf off1 --stop-clock` edits every same-side `.prf` in it, and `diff off1 try.prf` is `named_file`'s `FAIL off1: Access is denied.`, as for any folder. `.\off1` always means the path; since existence is tested against the current folder, running from another folder yields the word. A file named `off1` is a path like any other: on `check`'s PATH and `copy`'s TARGET it is `FAIL off1: Not a .prf file.` (`collect_files`, as today); on `diff` and `copy`'s SOURCE it reaches the reader, which gives its own line.
 5. **A name resolves through check-ppp decision 3's sources and decision 4's team:** the file's `.lg2` name in `ppp_path`, else the league location (`path` joined with the file's `.lg2` folder and name); the team is `team` in league.toml or `--team NAME`, matched by the `.lge` names as check-ppp decision 5 says (name, nickname or both, without case, exactly one match). No new keys.
 6. **`ppp_path` applies only to the team `team` names** (check-ppp decision 4): `--team` naming that same team goes through it; `--team` naming another team, or `--team` with `team` unset or unresolvable, uses the league locations (rows 15 and 16).
-7. **`--team NAME` and `--league NAME` sit on all three commands,** `--team` for a coach whose `team` is not set yet (row 15) and never `--all-teams` (coach commands only). `--team` without one of the four names among the operands is a contradiction, as `--team` with two files is in check-ppp decision 10: Click's usage error `Error: Cannot use --team with a path.`, exit 2; `check` with no PATH counts too, since the current folder names no team, and the rule is the same on every command, `gameplan check` included. `--league NAME` is never a contradiction: it is the shared option of every league command, a named league must exist (today's `League 'NOPE' not found` line from `league_dir` in `src/athc/config.py`, as `playpool check` with an explicit folder does), and the league's files are read only when something needs them. `check` reads the league on every run for its rules; `diff` and `copy` read `league.toml`, the `.lg2` and the `.lge` only when an operand is a name, and with plain files and no `--league` read no config at all (today's `test_entry_point_subprocess` runs `diff` with an empty config dir).
+7. **`--team NAME` and `--league NAME` sit on all three commands,** `--team` for a coach whose `team` is not set yet (row 15) and never `--all-teams` (coach commands only). `--team` without one of the four names among the operands is a contradiction, as `--team` with two files is in check-ppp decision 10: Click's usage error `Error: --team requires a profile key (off1, def1, off2 or def2).`, exit 2; `check` with no PATH counts too, since the current folder names no team, and the rule is the same on every command, `gameplan check` included. `--league NAME` is never a contradiction: it is the shared option of every league command, a named league must exist (today's `League 'NOPE' not found` line from `league_dir` in `src/athc/config.py`, as `playpool check` with an explicit folder does), and the league's files are read only when something needs them. `check` reads the league on every run for its rules; `diff` and `copy` read `league.toml`, the `.lg2` and the `.lge` only when an operand is a name, and with plain files and no `--league` read no config at all (today's `test_entry_point_subprocess` runs `diff` with an empty config dir).
 8. **`diff` takes exactly two operands, and no argument is a usage error,** Click's `Missing argument` line: `fc` and `diff` require both files, and athc has no one baseline a bare `diff` could mean (the other half, last week's file and the league copy are all plausible; git's bare form works only because the index is its baseline). Folders are not operands: one run is one report, so `-o` writes one file and exit 1 means "these two differ" (`fc`'s and `diff`'s codes).
 9. **`copy` takes `SOURCE TARGET...`:** one source, one or more targets, each a `.prf` file, a folder, a wildcard or a name; targets are collected in order and each file once, as `check`'s paths are. `tee` is the shape (one input, each FILE); the common pair is the team's two same-side profiles (rows 10, 11). No TARGET or no SOURCE is Click's `Missing argument` line (Windows `copy`: source and destination "Required"); the argument is `nargs=-1, required=True`, since Click leaves a variadic argument optional by default.
 10. **1st half to 2nd half is `copy off1 off2 ...` and `copy def1 def2 ...`; offense to defense stays one `SKIP <file>: defense profile` per wrong-side target, exit 0,** as today for one wrong-side target: the writer refuses any side mismatch before any field (`ProfileTypeMismatchError`, `src/athc/profile/writer.py`), `_matches_side` in `copy.py` skips a wrong-side target by its file-size parity (prf.md section 2.2's trailer), and the rule is one whether a target came from a folder or by name. Nothing is safe to carry across: `--substitutions` replaces the whole `SubstitutionSettings`, and while "All 32 bytes [are] physically present in both offense and defense profiles", "The UI exposes only the offense groups (OL, QB, RB, WR, K) when editing an offense profile and only the defense groups (DL, LB, DB) for defense" (prf.md section 2.2), so a cross-side copy would land the source's editable groups in the target's non-editable ones; the situation and PAT tables carry the side's own category codes (prf.md section 2.3.2). Any change to that is TODO.md's 2.0.0 item "profile: revisit edit\copy options". A source that is also a target (`copy off1 off1`) is today's `SKIP <file>: the source profile`.
 11. **`--substitutions` replaces `--sub-percent`** (cli-help.md, profile copy); the `OK` line's label follows, `updated (substitutions)`, and the usage error lists the new name. The writer's keyword `copy_sub_percent` is tool logic and keeps its name.
 12. **The other copy options stay:** `--stop-clock`, `--field-goal-range`, `--fourth-down`, `--goal-line`, `--pat-logic`; at least one is required, as today. No `--dry-run` and no backup: TODO.md defers "revisit edit\copy options" to 2.0.0, `diff` is the preview (`diff off1 try.prf` before `copy try.prf off1`), and architecture.md's in-place rule holds.
 13. **`-r` keeps today's meaning** on `check` (a PATH folder's tree) and `copy` (a TARGET folder's tree), with cli-help.md rule 10's text (check-ppp decision 9); it is ignored for files and names.
-14. **Missing team files.** Whether a name's file exists is decided when the name is resolved, before anything reads it (check-ppp decision 6), and the resolver builds the line itself: `FAIL <path>: The system cannot find the file specified.` (the path phrase when its folder is missing too, `missing_reason`). At the league location, when the team is the one `team` names, the line adds `Set ppp_path in <league.toml>, or pass the file.` (check-ppp's hint for your team's files, with "file" for "folder"); for another team, or in `ppp_path`, it adds nothing, since `ppp_path` cannot apply or is the coach's own choice. For `diff` and for `copy`'s SOURCE nothing runs (2); in `check` and among `copy`'s targets it counts as failed and the run continues, as a missing path does today.
+14. **Missing team files.** Whether a name's file exists is decided when the name is resolved, before anything reads it (check-ppp decision 6), and the resolver builds the line itself: `FAIL <path>: The system cannot find the file specified.` (the path phrase when its folder is missing too, `missing_reason`). At the league location, when the team is the one `team` names, the line adds `Run 'athc config set ppp_path FOLDER' or pass a .prf file.` (check-ppp's hint for your team's files, with "a .prf file" for "the folder"); for another team, or in `ppp_path`, it adds nothing, since `ppp_path` cannot apply or is the coach's own choice. For `diff` and for `copy`'s SOURCE nothing runs (2); in `check` and among `copy`'s targets it counts as failed and the run continues, as a missing path does today.
 15. **Setup order:** the arguments (Click, the `--team`-with-a-path error included); then `--league` resolved whenever it is given (decision 7); then, when a name is present, `league.toml` read for `team` alone (so a missing `team` shows before a missing `path`), then `path`, the `.lg2` with its stock check, the `.lge`, the team counts and the team match (check-ppp decision 12's order); then `check`'s rules; then the files. A `--team` typo shows before any file is read.
-16. **The lines stay the three commands' lines;** the new ones are the setup lines and `copy`'s renamed label (section 7). Codes stay 0 / 1 / 2.
+16. **The lines stay the three commands' lines;** the new ones are the setup lines, `copy`'s renamed label and `diff`'s `-o` extension line (section 7). Codes stay 0 / 1 / 2.
 17. **Help text is cli-help.md's:** the blocks of section 5. The arguments carry no metavar; Click derives `PROFILE1`, `PROFILE2`, `SOURCE` and `TARGET...` from the dests, so the usage line and the error hints agree (cli-help.md's shared rule).
 
 ## 5. The commands
@@ -77,7 +77,7 @@
 | `off1`, `def1`, `off2` or `def2` (any case), `ppp_path` set | the one `team` names, by default or with `--team` naming it | `<ppp_path>\<its .lg2 name>` | `path`, the `.lg2` and `.lge`, `team` |
 | `off1`, `def1`, `off2` or `def2`, no `ppp_path` | the same | `<path>\<its .lg2 folder>\<its .lg2 name>` | the same |
 | `off1`, `def1`, `off2` or `def2` | another team with `--team`, or `--team` with `team` unset or unresolvable | `<path>\<its .lg2 folder>\<its .lg2 name>`, `ppp_path` not used | `path`, the `.lg2` and `.lge` |
-| `off1`, `def1`, `off2` or `def2` | `team` unset or unresolvable, no `--team` | nothing is located: section 7's "No team" line, or the no-match / two-match line | `league.toml` |
+| `off1`, `def1`, `off2` or `def2` | `team` unset or unresolvable, no `--team` | nothing is located: section 7's "Team is not set" line, or the no-match / two-match line | `league.toml` |
 | anything else | none | a missing path, today's line | nothing |
 
 The `.lg2` entries (`docs/fbpro98_lg2/specs/lg2.md` section 2.2): `off1` is file entry 1 (1st-half offense profile), `def1` entry 3, `off2` entry 5, `def2` entry 7.
@@ -111,16 +111,20 @@ Usage: athc profile check [OPTIONS] [PATH]...
   plan, run athc check-ppp.
 
 Positional arguments:
-  PATH  .prf files, folders or wildcards, or off1, def1, off2 or def2 for one
-        of your team's profiles (default: current folder).
+  PATH  .prf files, folders, wildcards or profile keys (default: current
+        folder).
 
 Options:
   -r, --recursive  Include subfolders.
-  --team NAME      Team whose profiles off1, def1, off2 and def2 name (default:
-                   team in league.toml).
+  --team NAME      Team the profile keys refer to (default: team in
+                   league.toml).
   --league NAME    League to use (default: the one set with athc config set
                    league).
   -h, --help       Show this message and exit.
+
+  Profile keys, for your team's profiles:
+    off1  1st-half offense    def1  1st-half defense
+    off2  2nd-half offense    def2  2nd-half defense
 
   Examples:
 
@@ -144,18 +148,21 @@ Usage: athc profile diff [OPTIONS] PROFILE1 PROFILE2
   audibles; only what changed is shown. Both must be the same side.
 
 Positional arguments:
-  PROFILE1  A .prf file, or off1, def1, off2 or def2 for one of your team's
-            profiles.
+  PROFILE1  A .prf file or a profile key.
   PROFILE2  The profile to compare it with, named the same way.
 
 Options:
   -o, --output FILE  Write the report to FILE instead of the console (.txt, or
                      .csv for Excel).
-  --team NAME        Team whose profiles off1, def1, off2 and def2 name
-                     (default: team in league.toml).
+  --team NAME        Team the profile keys refer to (default: team in
+                     league.toml).
   --league NAME      League to use (default: the one set with athc config set
                      league).
   -h, --help         Show this message and exit.
+
+  Profile keys, for your team's profiles:
+    off1  1st-half offense    def1  1st-half defense
+    off2  2nd-half offense    def2  2nd-half defense
 
   Examples:
 
@@ -164,7 +171,7 @@ Options:
 ```
 
 - The report names each file by the operand's resolved path (`<path> -> <path>`), so a name shows the file it stood for.
-- Argument errors: no operand is Click's `Error: Missing argument 'PROFILE1'.`, one operand `'PROFILE2'.`; three operands is `Error: Got unexpected extra argument (<x>).` (Click's text, athc's period added once in `src/athc/cli/__init__.py` where usage errors are rendered, the mechanism in convert-pdb-cli.md decision 22); `--team` with two paths is the usage error of decision 7; a folder named like one of the four names is the hinted `Access is denied.` line of decision 4; a bad `-o` extension as today.
+- Argument errors: no operand is Click's `Error: Missing argument 'PROFILE1'.`, one operand `'PROFILE2'.`; three operands is `Error: Got unexpected extra argument (<x>).` (Click's text, athc's period added once in `src/athc/cli/__init__.py` where usage errors are rendered, the mechanism in convert-pdb-cli.md decision 22); `--team` with two paths is the usage error of decision 7; a folder is `named_file`'s `Access is denied.` line, as today; a bad `-o` extension is `Error: Invalid value for '-o' / '--output': must have a .txt or .csv extension.`
 
 ### profile copy
 
@@ -177,10 +184,9 @@ Usage: athc profile copy [OPTIONS] SOURCE TARGET...
   skipped. Rules are not checked; run athc profile check afterward.
 
 Positional arguments:
-  SOURCE  Profile to copy from: a .prf file, or off1, def1, off2 or def2 for
-          one of your team's profiles.
-  TARGET  Profiles to copy into: .prf files, folders or wildcards, or off1,
-          def1, off2 or def2.
+  SOURCE  Profile to copy from: a .prf file or a profile key.
+  TARGET  Profiles to copy into: .prf files, folders, wildcards or profile
+          keys.
 
 Options:
   -r, --recursive     Include subfolders.
@@ -190,11 +196,15 @@ Options:
   --fourth-down       Copy every 4th-down situation.
   --goal-line         Copy every goal-line situation (inside the 5).
   --pat-logic         Copy the PAT table (60 situations).
-  --team NAME         Team whose profiles off1, def1, off2 and def2 name
-                      (default: team in league.toml).
+  --team NAME         Team the profile keys refer to (default: team in
+                      league.toml).
   --league NAME       League to use (default: the one set with athc config set
                       league).
   -h, --help          Show this message and exit.
+
+  Profile keys, for your team's profiles:
+    off1  1st-half offense    def1  1st-half defense
+    off2  2nd-half offense    def2  2nd-half defense
 
   Examples:
 
@@ -210,9 +220,9 @@ Options:
 In `league.toml`, under `[league]`: the keys check-ppp-cli.md adds, nothing new. The `path` and `team` comment text is the one check-ppp-cli.md section 6 owns, quoted here:
 
 ```toml
-# Needed for check-ppp and generate-schedule, and for off1, def1, off2 and def2 in gameplan, profile and convert-pdb -- the folder that holds this league's files (PNFL.lg2, PNFL.lge and the rest).
+# The folder that holds this league's files (PNFL.lg2, PNFL.lge and the rest).
 path = 'C:\SIERRA\FBPRO98'
-# Your team, for the same commands: its name or nickname in the league (Denver, Broncos).
+# Your team: its name or nickname in the league (Denver, Broncos).
 team = 'Denver'
 # Optional: where you keep your profiles and game plans, when it is not where
 # the league file puts them. A relative path is under this league folder.
@@ -229,21 +239,21 @@ New or changed lines, in the project's wording; everything else prints as today.
 
 | When | Line | Code |
 |---|---|---|
-| a name, no `team`, no `--team` | `FAIL <league.toml>: No team for the league. Set team in this file, or pass --team or a .prf file.` | 2 |
+| a name, no `team`, no `--team` | `FAIL <league.toml>: Team is not set. Run 'athc config set team NAME' or pass --team or a .prf file.` | 2 |
 | `team` matches no team, two teams, or is an array | check-ppp's lines (one shared resolver) | 2 |
 | `--team` matches no team or two teams | check-ppp's `Error: Invalid value for '--team': ...` lines | 2 |
-| `--team` with no name among the operands (a path, a wildcard, or `check` with no PATH) | `Error: Cannot use --team with a path.` | 2 |
+| `--team` with no name among the operands (a path, a wildcard, or `check` with no PATH) | `Error: --team requires a profile key (off1, def1, off2 or def2).` | 2 |
 | `--league NOPE`, whatever the operands | `FAIL League 'NOPE' not found. No folder <leagues>\NOPE. Available: PCFL, PNFL.` (today's `league_dir` line) | 2 |
-| a name, no `path` | `FAIL <league.toml>: No path for the league. Set path in this file, or pass a .prf file.` | 2 |
+| a name, no `path` | `FAIL <league.toml>: League files folder is not set. Run 'athc config set path FOLDER' or pass a .prf file.` | 2 |
 | `.lg2` or `.lge` missing or bad, a stock league, team counts that differ | the libraries' and check-ppp's lines | 2 |
 | `ppp_path` missing on disk, or a file | check-ppp's line | 2 |
-| a team file missing at the league location, the team is the one `team` names | `FAIL <path>\PNFL\2048\Plans\Denver (Brian)\DEN-OFF2.prf: The system cannot find the file specified. Set ppp_path in <league.toml>, or pass the file.` (the path phrase when the folder is missing) | `diff`, `copy` SOURCE: 2; `check`, `copy` TARGET: counted failed, 2 at the end |
+| a team file missing at the league location, the team is the one `team` names | `FAIL <path>\PNFL\2048\Plans\Denver (Brian)\DEN-OFF2.prf: The system cannot find the file specified. Run 'athc config set ppp_path FOLDER' or pass a .prf file.` (the path phrase when the folder is missing) | `diff`, `copy` SOURCE: 2; `check`, `copy` TARGET: counted failed, 2 at the end |
 | a team file missing at the league location, another team | the same line without the hint | the same |
 | a team file missing in `ppp_path` | `FAIL <ppp_path>\DEN-OFF2.prf: The system cannot find the file specified.` | the same |
-| a folder named like one of the four names given as `diff`'s PROFILE1 or PROFILE2 or `copy`'s SOURCE | `FAIL off1: Access is denied. Run from another folder to use your team's profile.` | 2 |
 | a file named like one of the four names on `check`'s PATH or among `copy`'s TARGETs | `FAIL off1: Not a .prf file.` (`collect_files`, as today) | counted failed, 2 at the end |
 | `diff` with no operand, or one | `Error: Missing argument 'PROFILE1'.` / `'PROFILE2'.` (Click) | 2 |
 | `diff` with three operands | `Error: Got unexpected extra argument (<x>).` (Click's text, athc's period from the shared change in `src/athc/cli/__init__.py`) | 2 |
+| `diff -o` with another extension | `Error: Invalid value for '-o' / '--output': must have a .txt or .csv extension.` (was `Error: Invalid value for --output: the format comes from the extension: use .txt or .csv.`) | 2 |
 | `copy` with no SOURCE or no TARGET | `Error: Missing argument 'SOURCE'.` / `'TARGET...'.` (Click) | 2 |
 | `copy` without a copy option | `Error: At least one copy option is required (--stop-clock, --substitutions, --field-goal-range, --fourth-down, --goal-line, --pat-logic).` | 2 |
 | `copy` updated a target's substitutions | `OK   <file>: updated (substitutions)` (was `sub-percent`) | |
@@ -258,11 +268,11 @@ New or changed lines, in the project's wording; everything else prints as today.
 
 ## 9. Code
 
-- `src/athc/cli/__init__.py`: `team_option(head)` beside `league_option`, the `--team NAME` decorator that joins the command's head to the fixed tail `(default: team in league.toml).`; profile's head is "Team whose profiles off1, def1, off2 and def2 name". architecture.md's "What goes where" puts shared option decorators here. The same module adds athc's period to Click's `Got unexpected extra argument (x)` once, where usage errors are rendered (convert-pdb-cli.md decision 22).
+- `src/athc/cli/__init__.py`: `team_option(head)` beside `league_option`, the `--team NAME` decorator that joins the command's head to the fixed tail `(default: team in league.toml).`; profile's head is "Team the profile keys refer to", gameplan's "Team the game plan keys refer to". architecture.md's "What goes where" puts shared option decorators here. The same module adds athc's period to Click's `Got unexpected extra argument (x)` once, where usage errors are rendered (convert-pdb-cli.md decision 22).
 - `src/athc/cli/_team.py` (new, beside `_files.py`): the team layer shared by `check-ppp`, `gameplan` and `profile`, moved out of `check_ppp.py` (check-ppp-cli.md section 9 is amended; section 11 here). `TEAM_FILE_NAMES = ("off1", "def1", "off2", "def2")`; the keys `TEAM_KEY = "team"`, `PPP_PATH_KEY = "ppp_path"`, `LEAGUE_PATH_KEY = "path"` (in `src/athc/config.py` since main's dade898; `_team.py` imports it); `load_league_files(league, league_dir)`, the `.lg2` with its stock check, then the `.lge`, then the team counts compared (check-ppp decision 12's order); `resolve_team(name, lge)`, check-ppp decision 5's matcher with its two error lines; `team_files(team, kind)`, the team's four `(name, file)` pairs of one kind in `.lg2` order with a shared file repeated, so a caller with fixed slots knows which slot each file fills, while profile's callers drop repeats by resolved path, as `collect_files` already does; `locate(file, ppp_path, league_path) -> Located(path, exists, source)`, check-ppp decision 3's sources with existence decided before any read.
-- `src/athc/cli/profile/_common.py`: `expand_names(operands, *, team, league) -> Expanded(paths, errors)`: an operand that exists, has an extension or a separator, or is not one of the four names passes through as a path string; a name goes through `_team`, and a located file that does not exist becomes a `FAIL` line in `errors` (the hint when the source is the league location and the team is the one `team` names), never a path for `collect_files`; `--team` with no name raises the `UsageError`; `--league` is resolved first when given, and `league.toml` and the league files are loaded here once, only when a name is present. `one_profile(raw, *, team, league) -> Path`: `named_file` for a path, with the folder hint sentence of decision 4 added to its `Access is denied.` when the path is a folder spelled like one of the four names; for a name the located path, raising `AthcError(reason with the hint, path)` when it is missing.
+- `src/athc/cli/profile/_common.py`: `expand_names(operands, *, team, league) -> Expanded(paths, errors)`: an operand that exists, has an extension or a separator, or is not one of the four names passes through as a path string; a name goes through `_team`, and a located file that does not exist becomes a `FAIL` line in `errors` (the hint when the source is the league location and the team is the one `team` names), never a path for `collect_files`; `--team` with no name raises the `UsageError`; `--league` is resolved first when given, and `league.toml` and the league files are loaded here once, only when a name is present. `one_profile(raw, *, team, league) -> Path`: `named_file` for a path; for a name the located path, raising `AthcError(reason with the hint, path)` when it is missing.
 - `src/athc/cli/profile/check.py`: `team_option`; the PATHs through `expand_names` before `collect_files`, its `errors` printed and counted with `collected.errors`.
-- `src/athc/cli/profile/diff.py`: `team_option`, `league_option`; both operands through `one_profile`; the dests `profile1` / `profile2` with no metavar, so Click shows `PROFILE1 PROFILE2` and the missing-argument hint reads `'PROFILE1'` (cli-help.md's no-metavar rule).
+- `src/athc/cli/profile/diff.py`: `team_option`, `league_option`; both operands through `one_profile`; the dests `profile1` / `profile2` with no metavar, so Click shows `PROFILE1 PROFILE2` and the missing-argument hint reads `'PROFILE1'` (cli-help.md's no-metavar rule); the `-o` extension check raises `click.BadParameter("must have a .txt or .csv extension.")`, so Click shows `Invalid value for '-o' / '--output': must have a .txt or .csv extension.`
 - `src/athc/cli/profile/copy.py`: the dests `source` and `target`, the latter `nargs=-1, required=True`, no metavar, so Click builds `SOURCE` and `TARGET...` for the usage line and the hints `'SOURCE'` and `'TARGET...'` (a dest named `targets` would read `TARGETS...`). `--substitutions` on the dest `copy_sub_percent`, label `substitutions`; the usage sentence; `team_option`, `league_option`; SOURCE through `one_profile`, the TARGETs through `expand_names`.
 - `src/athc/cli/check_ppp.py`: its resolver, sources and keys import from `_team.py`; no behaviour change.
 - `tests/integration/conftest.py`: check-ppp's fixtures move here under the names every plan shares, since eight integration modules (`test_profile_check.py` among them) and `tests/unit/pdbtoexcel/test_config.py` define a fixture named `league` that would override a conftest one: the league-folder builder `league` becomes `build_league`, while `lg2_league` (a built league with its `.lg2` and `.lge` beside `league.toml`), `pnfl_league` (the real PNFL fixtures copied in) and the `.lg2` team-record builder `team()` keep their names (main's `tests/integration/league_files.py` module rules out a `league_files` fixture); `tests/integration/test_check_ppp.py` switches to these names.
@@ -271,11 +281,11 @@ New or changed lines, in the project's wording; everything else prints as today.
 
 New tests, in `tests/integration/test_profile_check.py`, `test_profile_diff.py`, `test_profile_copy.py` and a new `tests/integration/test_team.py` for the shared resolver, all building leagues with `build_league`, `lg2_league` and `team()` from `tests/integration/conftest.py`:
 
-- Resolver, tested once for every command: each of the four names, in mixed case; `off`, `o1` and `off3` are not names (a missing-path `FAIL`); a file named `off1` on disk wins over the word; a folder named `off1` in the current folder wins too (`check off1` checks it, `copy new.prf off1` edits its files, `diff off1 x.prf` and `copy off1 x.prf` are `Access is denied. Run from another folder to use your team's profile.`), a file named `off1` is `Not a .prf file.` on `check` and among `copy`'s targets and reaches the reader on `diff` and as `copy`'s source, and the same word run from another folder is the name; `off1.prf` and `.\off1` are plain paths; `ppp_path` set and unset; a relative `ppp_path`; `ppp_path` used for `--team` naming the `team` team, skipped for another team and for `--team` with `team` unset; the file missing at the league location for the `team` team (the hint) and for another team (no hint), and in `ppp_path` (no hint); `team` unset with and without `--team`, the "No team" line before any `path` check; `--team` beats `team`; no `path` (the line with the alternative); the `.lge` missing; a stock `.lg2`; `--team` with a path, a wildcard and no operand (the usage error); `--league NOPE` with plain files (the not-found line) and with a name; no league configured, plain files: the command runs. Team-name matching limits (one match accepted, zero and two rejected) stay check-ppp's tests of the same resolver.
+- Resolver, tested once for every command: each of the four names, in mixed case; `off`, `o1` and `off3` are not names (a missing-path `FAIL`); a file named `off1` on disk wins over the word; a folder named `off1` in the current folder wins too (`check off1` checks it, `copy new.prf off1` edits its files, `diff off1 x.prf` and `copy off1 x.prf` are `Access is denied.`), a file named `off1` is `Not a .prf file.` on `check` and among `copy`'s targets and reaches the reader on `diff` and as `copy`'s source, and the same word run from another folder is the name; `off1.prf` and `.\off1` are plain paths; `ppp_path` set and unset; a relative `ppp_path`; `ppp_path` used for `--team` naming the `team` team, skipped for another team and for `--team` with `team` unset; the file missing at the league location for the `team` team (the hint) and for another team (no hint), and in `ppp_path` (no hint); `team` unset with and without `--team`, the "Team is not set" line before any `path` check; `--team` beats `team`; no `path` (the line with the alternative); the `.lge` missing; a stock `.lg2`; `--team` with a path, a wildcard and no operand (the usage error); `--league NOPE` with plain files (the not-found line) and with a name; no league configured, plain files: the command runs. Team-name matching limits (one match accepted, zero and two rejected) stay check-ppp's tests of the same resolver.
 - `check`: `check off2` checks that file; `check off1 def1` two files; a name among paths keeps PATH order; a missing team file is counted failed and the run continues; no PATH is still the current folder; `--team` with a name; `--team` with no PATH is the usage error.
-- `diff`: `diff off1 off2`; `diff off1 <file>`, the report naming the resolved path; a missing team file is 2 with nothing on stdout; limits: two operands accepted, one and three rejected (Click's phrases, the extra-argument one with athc's period); `--team` with two plain files is the usage error; `--league` with two plain files resolves the league and reads nothing else.
+- `diff`: `diff off1 off2`; `diff off1 <file>`, the report naming the resolved path; a missing team file is 2 with nothing on stdout; limits: two operands accepted, one and three rejected (Click's phrases, the extra-argument one with athc's period); `--team` with two plain files is the usage error; a bad `-o` extension is the new `Invalid value for '-o' / '--output'` line; `--league` with two plain files resolves the league and reads nothing else.
 - `copy`: `copy off1 off2 --stop-clock`; `copy <file> off1 off2 --substitutions`, two targets and the label `substitutions`; `copy off1 def1 --stop-clock` is one `SKIP` and exit 0, `copy off1 def1 def2 --stop-clock` two; `copy off1 off1` is the source `SKIP`; a folder and a name together; a name repeated is processed once; limits: one TARGET accepted, none rejected (`Missing argument 'TARGET...'.`); the usage sentence lists `--substitutions`; `--sub-percent` is Click's `No such option`.
-- Existing tests that change: `tests/integration/test_profile_copy.py`: `test_cli_no_copy_flag_is_a_sentence` (the new option name), `test_cli_copies_sub_percent` (passes `--substitutions`), `test_cli_help_uses_lowercase_names` (the usage shows `SOURCE TARGET...` in caps). `tests/integration/test_cli_root.py`: `LEAGUE_COMMANDS` gains `profile diff` and `profile copy`, with `_unknown_league_args` of `[str(OFF1), str(OFF1)]` and `[str(OFF1), str(OFF1), "--stop-clock"]` (a named league is resolved whatever the operands); `USAGE_CASES`'s `profile diff` row reads `athc profile diff [OPTIONS] PROFILE1 PROFILE2`; `test_help_uses_lowercase_names`'s `profile check` and `profile diff` rows change with cli-help.md's style, as that plan lists. `tests/integration/test_check_ppp.py`: imports and fixture names (`build_league`, `lg2_league`, `pnfl_league`) after the move to `conftest.py`. `test_cli_requires_two_paths`, `test_cli_usage_errors_exit_2`, `test_cli_single_wrong_side_target_skipped`, `test_cli_missing_source_exit_2` and `test_cli_missing_target_exit_2` keep passing by design. `tests/unit/profile/test_writer.py` is unchanged (the keyword keeps its name).
+- Existing tests that change: `tests/integration/test_profile_copy.py`: `test_cli_no_copy_flag_is_a_sentence` (the new option name), `test_cli_copies_sub_percent` (passes `--substitutions`), `test_cli_help_uses_lowercase_names` (the usage shows `SOURCE TARGET...` in caps). `tests/integration/test_profile_diff.py`: the test that pins the -o extension error (the new line). `tests/integration/test_cli_root.py`: `LEAGUE_COMMANDS` gains `profile diff` and `profile copy`, with `_unknown_league_args` of `[str(OFF1), str(OFF1)]` and `[str(OFF1), str(OFF1), "--stop-clock"]` (a named league is resolved whatever the operands); `USAGE_CASES`'s `profile diff` row reads `athc profile diff [OPTIONS] PROFILE1 PROFILE2`; `test_help_uses_lowercase_names`'s `profile check` and `profile diff` rows change with cli-help.md's style, as that plan lists. `tests/integration/test_check_ppp.py`: imports and fixture names (`build_league`, `lg2_league`, `pnfl_league`) after the move to `conftest.py`. `test_cli_requires_two_paths`, `test_cli_usage_errors_exit_2`, `test_cli_single_wrong_side_target_skipped`, `test_cli_missing_source_exit_2` and `test_cli_missing_target_exit_2` keep passing by design. `tests/unit/profile/test_writer.py` is unchanged (the keyword keeps its name).
 
 ## 11. Docs and meta
 
@@ -289,11 +299,11 @@ New tests, in `tests/integration/test_profile_check.py`, `test_profile_diff.py`,
 
 ## Shared vocabulary
 
-- **The four names:** `off1`, `def1`, `off2`, `def2`, lowercase in help and docs, matched without case; the team's 1st-half offense, 1st-half defense, 2nd-half offense and 2nd-half defense file of the command's kind (`.prf` under `profile`, `.pln` under `gameplan`; `.lg2` entries 1 to 8 in that order), from `ppp_path` by `.lg2` name, else the league location. Accepted wherever a `.prf` operand is (PATH, PROFILE1, PROFILE2, SOURCE, TARGET). An existing path, file or folder, and any operand with an extension or a separator win over a word; `o1`, `off` and the like are not names.
-- **`--team NAME`:** on every command that accepts the four names, declared once as `team_option(head)` in `src/athc/cli/__init__.py`, the shared decorator adding the fixed tail; profile's head "Team whose profiles off1, def1, off2 and def2 name", so the help reads "Team whose profiles off1, def1, off2 and def2 name (default: team in league.toml)." (`gameplan`: "Team whose game plans ..."). With no name among the operands it is `Error: Cannot use --team with a path.`, exit 2.
+- **The four names:** `off1`, `def1`, `off2`, `def2`, lowercase in help and docs, matched without case; the team's 1st-half offense, 1st-half defense, 2nd-half offense and 2nd-half defense file of the command's kind (`.prf` under `profile`, `.pln` under `gameplan`; `.lg2` entries 1 to 8 in that order), from `ppp_path` by `.lg2` name, else the league location. Accepted wherever a `.prf` operand is (PATH, PROFILE1, PROFILE2, SOURCE, TARGET). An existing path, file or folder, and any operand with an extension or a separator win over a word; `o1`, `off` and the like are not names. Help calls them profile keys (game plan keys under `gameplan`): operands say "or a profile key", and a "Profile keys" block above Examples gives each one's meaning (cli-help.md rule 17).
+- **`--team NAME`:** on every command that accepts the four names, declared once as `team_option(head)` in `src/athc/cli/__init__.py`, the shared decorator adding the fixed tail; profile's head "Team the profile keys refer to", so the help reads "Team the profile keys refer to (default: team in league.toml)." (`gameplan` says "game plan keys"). With no name among the operands it is `Error: --team requires a profile key (off1, def1, off2 or def2).`, exit 2.
 - **`--league NAME`:** never a contradiction; a named league must exist; the league's files are read only when needed.
 - **`SOURCE TARGET...`:** one source, one or more targets, for a copy command.
-- **Hints:** `No team for the league. Set team in this file, or pass --team or a .prf file.`; `No path for the league. Set path in this file, or pass a .prf file.`; `Set ppp_path in <league.toml>, or pass the file.` on a team file missing at the league location when the team is the one `team` names; `Run from another folder to use your team's profile.` after `Access is denied.` on a one-file operand.
+- **Hints:** `Team is not set. Run 'athc config set team NAME' or pass --team or a .prf file.`; `League files folder is not set. Run 'athc config set path FOLDER' or pass a .prf file.`; `Run 'athc config set ppp_path FOLDER' or pass a .prf file.` on a team file missing at the league location when the team is the one `team` names.
 - **Shared code and fixtures:** `src/athc/cli/_team.py` (`TEAM_FILE_NAMES`, `load_league_files`, `resolve_team`, `team_files`, `locate` / `Located`); `tests/integration/conftest.py` (`build_league`, `lg2_league`, `pnfl_league`, `team()`).
 
 ## Sources
