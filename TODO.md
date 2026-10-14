@@ -37,6 +37,8 @@
 
 ## 2.0.0
 
+- view-standings: provide the official NFL tie-breaking rules (needs total TDs, etc.)
+- view-standings: add a playoff race setting that describes what needs to happen for a team to make the playoffs
 - autocontinue: CLI plan and improvements (every setting optional with shipped defaults, `--delay`, window lines, click on the button); see [docs/design/TODO/plans/autocontinue-cli.md](docs/design/TODO/plans/autocontinue-cli.md) and [docs/design/TODO/plans/autocontinue-behavior.md](docs/design/TODO/plans/autocontinue-behavior.md)
 - playpool: add a `playpool find-play` command
 - playpool: add a `playpool show` command
