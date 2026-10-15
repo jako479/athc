@@ -9,16 +9,14 @@
 [league]
 weeks = 16
 
-[renames.2048]
-Baltimore = "Los Angeles"
-
-[difficulty]
-spread = 2.5
-
 [solver]
-time_limit = 600.0        # phase-2 deterministic-time budget (well above a full solve's ~62-unit burn)
 phase1_time_limit = 120.0 # phase-1 (matchup) deterministic-time budget
+phase2_time_limit = 600.0 # phase-2 deterministic-time budget (well above a full solve's ~62-unit burn)
 solver_workers = 8        # fixed parallel width (both phases); the matchups and schedule change if this changes
+
+[phase1]
+difficulty_slope = 2.5
+random_nonconference = false
 
 [phase2]
 # Home/away sequencing
@@ -90,3 +88,6 @@ opening_nonconference_weeks = 0              # off: no all-non-conference openin
 require_home_balance_per_six_weeks = true
 require_home_away_streak_caps = true
 require_mixed_home_away_at_season_ends = true
+
+[renames.2048]
+Baltimore = "Los Angeles"

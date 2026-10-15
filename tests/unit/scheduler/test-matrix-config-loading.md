@@ -13,7 +13,9 @@ In `test_config.py`, `test_league_files.py` and `test_cli.py`. The test league i
 | UTF-8 BOM | skipped; values read | `test_load_scheduler_config_skips_bom` | ☑ |
 | Bad value / TOML / unknown key | `ConfigFileError` | `test_load_scheduler_config_errors_*`, `test_load_scheduler_config_rejects_*` | ☑ |
 | `solver_workers` | default and `"auto"` → `"auto"`; 1 accepted; 0 and other text rejected | `test_solver_workers_*` | ☑ |
-| `[solver] time_limit` / `phase1_time_limit` (one validator) | 1 accepted; 0 → `[solver] time_limit: Must be a positive number.` | `test_solver_time_limit_must_be_positive` | ☑ |
+| `[solver] phase1_time_limit` / `phase2_time_limit` (one validator) | 1 accepted; 0 → `[solver] phase2_time_limit: Must be a positive number.` | `test_solver_time_limit_must_be_positive` | ☑ |
+| `[phase1]` | `difficulty_slope` and `random_nonconference` read; defaults 2.5 and false; an unknown key → `[phase1]: Unknown key(s): <key>.` | `test_load_scheduler_config_reads_values`, `test_load_scheduler_config_defaults_when_no_file`, `test_load_scheduler_config_rejects_unknown_phase1_key` | ☑ |
+| Unknown table / `[solver]` key | `(top): Unknown key(s): <table>.` / `[solver]: Unknown key(s): <key>.`; no list of valid names | `test_load_scheduler_config_rejects_unknown_table`, `test_load_scheduler_config_rejects_unknown_solver_key` | ☑ |
 | `[phase2]`, `[league]`, `[rivalries]` | parsed; defaults; 0 off, -1 error; bad shapes error | `test_load_scheduler_config_reads_*`, `test_zero_is_off_and_negative_is_rejected` | ☑ |
 | `[renames.<season>]` | parsed per season, names stripped; default `{}` | `test_load_scheduler_config_reads_renames`, `test_renames_default_to_none` | ☑ |
 | Bad `[renames]` | not a table; key not a year; season not a table; value not a name; blank name; renamed to itself; two teams to one name | `test_bad_renames_name_the_table_and_key` `[P]` | ☑ |
@@ -45,16 +47,16 @@ In `test_config.py`, `test_league_files.py` and `test_cli.py`. The test league i
 |---|---|---|---|
 | Each rules file fits a league of its shape | weeks, opening weeks, rivalries | `test_shipped_rules_file_fits_its_league_shape` | ☑ |
 | config/dev/ and config/release/ ship the same set | 2 files each | `test_shipped_file_sets_match_between_dev_and_release` | ☑ |
-| Conference league rules match the test league | expected rule values | `test_shipped_conference_league_rules_match_the_test_league` | ☑ |
+| Conference league rules match the test league | expected rule values, slope 0.0, random off | `test_shipped_conference_league_rules_match_the_test_league` | ☑ |
 
 ### CLI — `generate-schedule`
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | Help screen | the help, word for word | `test_help_screen` | ☑ |
-| No `--season` / non-integer `--time-limit` / `--workers` | exit 2 | `test_requires_season`, `test_rejects_non_integer_time_limit`, `test_no_worker_count_override` | ☑ |
+| No `--season` / non-integer `--phase2-time-limit` / `--workers` | exit 2 | `test_requires_season`, `test_rejects_non_integer_phase2_time_limit`, `test_no_worker_count_override` | ☑ |
 | `--seed` (0 to 2147483647) | 0 and 2147483647 forwarded; -1 and 2147483648 exit 2 with `must be 0 to 2147483647, got <n>.`, never reaching the run | `test_seed_at_its_bounds_is_forwarded`, `test_seed_past_its_bounds_is_a_usage_error` `[P]` | ☑ |
 | No `--seed` | a seed from 0 to 1,000,000 | `test_no_seed_draws_one_from_0_to_1000000` | ☑ |
-| `--time-limit` (1 or more) | 1 forwarded; 0 exits 2 with `must be 1 or more, got 0.` | `test_time_limit_of_1_is_forwarded`, `test_time_limit_of_0_is_a_usage_error` | ☑ |
+| `--phase2-time-limit` (1 or more) | 1 forwarded; 0 exits 2 with `must be 1 or more, got 0.`; replaces only phase 2's limit | `test_phase2_time_limit_of_1_is_forwarded`, `test_phase2_time_limit_of_0_is_a_usage_error`, `test_phase2_time_limit_replaces_only_phase_2s_limit` | ☑ |
 | No `--previous` | the upcoming file as both files | `test_without_previous_the_upcoming_file_gives_both` | ☑ |
 | No `--previous`, `[renames.<season>]` set | the table is ignored; the run reaches the solver | `test_without_previous_the_renames_are_ignored` | ☑ |
 | No league resolvable | exit 2 + "No league selected" | `test_errors_when_no_league_is_configured` | ☑ |

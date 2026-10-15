@@ -2,9 +2,10 @@
 
 Phase 1 fixes the same-place games (each division place plays the same place in
 every other-conference division that has it, from the divisions' finish orders)
-and any
-cross-conference rivalry, then one CP-SAT solve picks the rest, tilting each
-team's average opponent conference rank by the configurable `spread`.
+and any cross-conference rivalry, then one CP-SAT solve picks the rest: each
+team's opponent conference ranks add up close to a target tilted by the
+configurable `difficulty_slope`, or with `random_nonconference` the picks are
+random from the seed.
 
 Phase 2 uses CP-SAT to place that full inventory into the league's weeks under
 the rules in docs/scheduler-phase-2-schedule.md (`schedule_builder.py`); the
@@ -56,7 +57,8 @@ def generate_schedule(
         league,
         weeks=weeks,
         rivalries=rivalries,
-        spread=config.difficulty.spread,
+        difficulty_slope=config.phase1.difficulty_slope,
+        random_nonconference=config.phase1.random_nonconference,
         phase1_time_limit=config.solver.phase1_time_limit,
         workers=workers,
         seed=seed,
@@ -79,7 +81,7 @@ def generate_schedule(
     schedule = schedule_builder.build_schedule(
         matchups=matchup_plan.matchups,
         seed=seed,
-        time_limit=config.solver.time_limit,
+        time_limit=config.solver.phase2_time_limit,
         workers=workers,
     )
     return SchedulerResult(

@@ -2,7 +2,7 @@
 cross-conference rivalries, and the difficulty line.
 
 The phase-1 solve is fast (multithreaded, the slowest case -- proving the flat
-line, spread 0.0, optimal on the conference league -- takes about 3 s), so these
+line, slope 0.0, optimal on the conference league -- takes about 2 s), so these
 all run in the default suite.
 """
 
@@ -11,11 +11,17 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Iterable
 from dataclasses import replace
+from typing import NoReturn
 
 import pytest
 
 from athc.scheduler import cpu
-from athc.scheduler.config import DEFAULT_SOLVER_WORKERS, resolve_rivalries
+from athc.scheduler.config import (
+    DEFAULT_SOLVER_WORKERS,
+    Phase1Config,
+    SolverWorkers,
+    resolve_rivalries,
+)
 from athc.scheduler.domain.league import League, Team
 from athc.scheduler.domain.schedule import GAMES_PER_WEEK, Schedule
 from athc.scheduler.schedulers import matchup_builder, scheduler
@@ -30,20 +36,30 @@ from athc.scheduler.schedulers.utils import make_solver, run_solver
 
 from .conftest import MATCHUP_CASES, LeagueCase, league_from_tables
 
-FAST_SPREAD = 2.5
-TOP_HALF = 5  # conference ranks 1-5 are the top half, 5-9 the bottom half
+FAST_SLOPE = 2.5
 
 
 def _weeks(case: LeagueCase) -> int:
     return case.config.league.weeks
 
 
-def _builder(case: LeagueCase, spread: float = FAST_SPREAD, weeks: int | None = None):
+def _builder(
+    case: LeagueCase,
+    slope: float = FAST_SLOPE,
+    weeks: int | None = None,
+    *,
+    random_nonconference: bool = False,
+    seed: int = 0,
+    workers: SolverWorkers = DEFAULT_SOLVER_WORKERS,
+) -> MatchupBuilder:
     return MatchupBuilder(
         case.league,
         weeks=weeks or _weeks(case),
         rivalries=resolve_rivalries(case.league, case.config.rivalries),
-        spread=spread,
+        difficulty_slope=slope,
+        random_nonconference=random_nonconference,
+        workers=workers,
+        seed=seed,
     )
 
 
@@ -90,6 +106,12 @@ def _avg_opponent_conf_rank(team: Team, matchups: Matchups, league: League) -> f
         league.rankings.rank_of(o) for o in _nonconference_opponents(team, matchups)
     ]
     return sum(ranks) / len(ranks)
+
+
+def _opponent_rank_sum(team: Team, matchups: Matchups, league: League) -> int:
+    return sum(
+        league.rankings.rank_of(o) for o in _nonconference_opponents(team, matchups)
+    )
 
 
 # --- Structure ----------------------------------------------------------------
@@ -160,7 +182,7 @@ def test_solve_runs_the_shared_solver_with_its_seed_time_limit_and_workers(
     case = MATCHUP_CASES[0]
     MatchupBuilder(
         case.league,
-        spread=FAST_SPREAD,
+        difficulty_slope=FAST_SLOPE,
         phase1_time_limit=77.0,
         workers=3,
         seed=5,
@@ -177,7 +199,9 @@ def test_solve_goes_through_the_solve_helper(monkeypatch: pytest.MonkeyPatch) ->
         return run_solver(solver, model)
 
     monkeypatch.setattr(matchup_builder, "run_solver", spy)
-    MatchupBuilder(MATCHUP_CASES[0].league, spread=FAST_SPREAD).build_matchup_plan()
+    MatchupBuilder(
+        MATCHUP_CASES[0].league, difficulty_slope=FAST_SLOPE
+    ).build_matchup_plan()
     assert len(calls) == 1
 
 
@@ -187,7 +211,9 @@ def test_solve_defaults_to_the_pinned_worker_count(
     # Every caller that does not pass `workers` (the tests) still solves
     # multithreaded, at the same width as phase 2.
     calls = _spy_on_solver(monkeypatch)
-    MatchupBuilder(MATCHUP_CASES[0].league, spread=FAST_SPREAD).build_matchup_plan()
+    MatchupBuilder(
+        MATCHUP_CASES[0].league, difficulty_slope=FAST_SLOPE
+    ).build_matchup_plan()
     assert [workers for _, _, workers in calls] == [DEFAULT_SOLVER_WORKERS]
 
 
@@ -244,6 +270,29 @@ def test_scheduler_resolves_auto_workers_once_and_returns_the_count(
     assert result.workers == 10
 
 
+def test_scheduler_passes_the_phase1_settings_to_phase_1(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, object] = {}
+
+    def spy(league: League, **kwargs: object) -> NoReturn:
+        seen.update(kwargs)
+        raise _StopAfterPhase1
+
+    monkeypatch.setattr(scheduler, "MatchupBuilder", spy)
+    case = MATCHUP_CASES[0]
+    config = replace(
+        case.config,
+        phase1=Phase1Config(difficulty_slope=1.5, random_nonconference=True),
+    )
+    with pytest.raises(_StopAfterPhase1):
+        scheduler.generate_schedule(
+            case.league, seed=5, scheduler_config=config, season=case.season
+        )
+    assert seen["difficulty_slope"] == 1.5
+    assert seen["random_nonconference"] is True
+
+
 @pytest.mark.parametrize(
     "case",
     [c for c in MATCHUP_CASES if not c.league.has_divisions],
@@ -251,8 +300,7 @@ def test_scheduler_resolves_auto_workers_once_and_returns_the_count(
 )
 def test_fewer_weeks_give_fewer_nonconference_games(case: LeagueCase) -> None:
     # Without same-place pairs every non-conference slot is the solver's, so
-    # the inventory shrinks with the weeks (with divisions the fixed pairs and
-    # the top/bottom-half guard need the full slate).
+    # the inventory shrinks with the weeks.
     weeks = _weeks(case) - 2
     plan = _builder(case, weeks=weeks).build_matchup_plan()
     assert len(plan.matchups) == weeks * GAMES_PER_WEEK
@@ -360,36 +408,40 @@ def test_fixed_pairs_follow_division_standings_not_rank() -> None:
 # --- Difficulty line ----------------------------------------------------------
 
 
-def test_each_team_draws_a_top_and_bottom_half_opponent(
-    plan: MatchupPlan, matchup_case: LeagueCase
-) -> None:
-    league = matchup_case.league
-    for team in league.teams:
-        ranks = [
-            league.rankings.rank_of(o)
-            for o in _nonconference_opponents(team, plan.matchups)
-        ]
-        assert any(r <= TOP_HALF for r in ranks), team.metro
-        assert any(r >= TOP_HALF for r in ranks), team.metro
-
-
 @pytest.mark.parametrize(
-    ("case", "spread"),
+    ("case", "slope"),
     [
-        pytest.param(case, spread, id=f"{case.id}-spread-{spread}")
+        pytest.param(case, slope, id=f"{case.id}-slope-{slope}")
         for case in MATCHUP_CASES
-        for spread in (0.0, 1.8, 2.5)
+        for slope in (0.0, 1.8, 2.5)
     ],
 )
-def test_difficulty_is_near_line_target(case: LeagueCase, spread: float) -> None:
-    # Soft target; worst observed miss across leagues and spreads is 0.75.
-    plan = _builder(case, spread=spread).build_matchup_plan()
-    for team in case.league.teams:
-        avg = _avg_opponent_conf_rank(team, plan.matchups, case.league)
-        target = difficulty_target(case.league.rankings.rank_of(team), spread)
-        assert abs(avg - target) <= 1.0, (
-            f"{team.metro}: avg opponent rank {avg:.2f} far from target {target:.2f}"
+def test_difficulty_is_near_line_target(case: LeagueCase, slope: float) -> None:
+    # Soft target: every team's opponent rank sum lands within 4 of it.
+    plan = _builder(case, slope=slope).build_matchup_plan()
+    league = case.league
+    games = {
+        team: league.nonconference_games(team, _weeks(case)) for team in league.teams
+    }
+    tilted = min(games.values())
+    for team in league.teams:
+        total = _opponent_rank_sum(team, plan.matchups, league)
+        target = difficulty_target(
+            league.rankings.rank_of(team), games[team], tilted, slope
         )
+        assert abs(total - target) <= 4, (
+            f"{team.metro}: opponent rank sum {total} far from target {target:.2f}"
+        )
+
+
+@pytest.mark.parametrize("slope", [-5.0, 20.0])
+def test_extreme_slopes_still_build_a_full_inventory(
+    matchup_case: LeagueCase, slope: float
+) -> None:
+    # A target past every team's reach is still a valid model: the solve gets
+    # as close as it can.
+    plan = _builder(matchup_case, slope=slope).build_matchup_plan()
+    assert len(plan.matchups) == _weeks(matchup_case) * GAMES_PER_WEEK
 
 
 def test_orders_difficulty_by_conference_rank(
@@ -403,19 +455,102 @@ def test_orders_difficulty_by_conference_rank(
         assert top < bottom, "top seed should get a tougher slate than the bottom seed"
 
 
-def test_difficulty_target_line() -> None:
-    # Linear on conference rank 1-9: default tilt 2.5, symmetric about 5.
-    assert difficulty_target(1) == 2.5
-    assert difficulty_target(5) == 5.0
-    assert difficulty_target(9) == 7.5
-    assert difficulty_target(1, spread=1.8) == pytest.approx(3.2)
+def test_slope_changes_the_matchups(matchup_case: LeagueCase) -> None:
+    # A steeper line gives each conference's best team harder opponents and its
+    # worst team easier ones than the flat line, so the games change.
+    league = matchup_case.league
+    flat = _builder(matchup_case, slope=0.0).build_matchup_plan().matchups
+    steep = _builder(matchup_case, slope=2.5).build_matchup_plan().matchups
+    for conference in league.conferences:
+        ranked = league.rankings.ranked(conference)
+        best, worst = ranked[0], ranked[-1]
+        assert _opponent_rank_sum(best, steep, league) < _opponent_rank_sum(
+            best, flat, league
+        ), best.metro
+        assert _opponent_rank_sum(worst, steep, league) > _opponent_rank_sum(
+            worst, flat, league
+        ), worst.metro
+
+
+def test_difficulty_target_sums() -> None:
+    # A line through 5 a game: the slope tilts `tilted_games` games and every
+    # game past them adds a neutral 5.
+    assert difficulty_target(1, games=4, tilted_games=4) == 10.0
+    assert difficulty_target(1, games=5, tilted_games=4) == 15.0
+    assert difficulty_target(5, games=4, tilted_games=4) == 20.0
+    assert difficulty_target(5, games=5, tilted_games=4) == 25.0
+    assert difficulty_target(9, games=4, tilted_games=4) == 30.0
+    assert difficulty_target(9, games=5, tilted_games=4) == 35.0
+    assert difficulty_target(1, 4, 4, slope=1.8) == pytest.approx(12.8)
     for rank in range(1, 10):
-        assert difficulty_target(rank, spread=0.0) == 5.0
-        assert difficulty_target(rank) + difficulty_target(10 - rank) == pytest.approx(
-            10.0
-        )
-    targets = [difficulty_target(r) for r in range(1, 10)]
+        assert difficulty_target(rank, 5, 4, slope=0.0) == 25.0
+        assert difficulty_target(rank, 4, 4) + difficulty_target(
+            10 - rank, 4, 4
+        ) == pytest.approx(40.0)
+    targets = [difficulty_target(rank, 4, 4) for rank in range(1, 10)]
     assert targets == sorted(targets)
+
+
+# --- Random non-conference games ----------------------------------------------
+
+
+def _random_plan(
+    case: LeagueCase,
+    seed: int,
+    slope: float = FAST_SLOPE,
+    workers: SolverWorkers = DEFAULT_SOLVER_WORKERS,
+) -> MatchupPlan:
+    return _builder(
+        case, slope, random_nonconference=True, seed=seed, workers=workers
+    ).build_matchup_plan()
+
+
+def _nonconference_pairs(plan: MatchupPlan) -> frozenset[Matchup]:
+    return frozenset(
+        pair for pair in plan.matchups if pair[0].conference != pair[1].conference
+    )
+
+
+def test_random_nonconference_keeps_the_inventory_and_fixed_pairs(
+    matchup_case: LeagueCase,
+) -> None:
+    plan = _random_plan(matchup_case, seed=11)
+    league = matchup_case.league
+    weeks = _weeks(matchup_case)
+    assert len(plan.matchups) == weeks * GAMES_PER_WEEK
+    assert plan.fixed_nonconference_pairs == _expected_fixed_pairs(matchup_case)
+    assert plan.fixed_nonconference_pairs <= set(plan.matchups)
+    for team in league.teams:
+        opponents = _nonconference_opponents(team, plan.matchups)
+        expected = league.nonconference_games(team, weeks)
+        assert len(opponents) == len(set(opponents)) == expected, team.metro
+
+
+def test_random_nonconference_repeats_for_a_seed(matchup_case: LeagueCase) -> None:
+    first = _nonconference_pairs(_random_plan(matchup_case, seed=11))
+    assert _nonconference_pairs(_random_plan(matchup_case, seed=11)) == first
+
+
+def test_random_nonconference_repeats_at_any_worker_count(
+    matchup_case: LeagueCase,
+) -> None:
+    # Seeded weights give one best set, so the worker count cannot change it.
+    one = _nonconference_pairs(_random_plan(matchup_case, seed=11, workers=1))
+    four = _nonconference_pairs(_random_plan(matchup_case, seed=11, workers=4))
+    assert one == four
+
+
+def test_random_nonconference_changes_with_the_seed(matchup_case: LeagueCase) -> None:
+    sets = {
+        _nonconference_pairs(_random_plan(matchup_case, seed=seed)) for seed in range(3)
+    }
+    assert len(sets) > 1
+
+
+def test_random_nonconference_ignores_the_slope(matchup_case: LeagueCase) -> None:
+    flat = _nonconference_pairs(_random_plan(matchup_case, seed=11, slope=0.0))
+    steep = _nonconference_pairs(_random_plan(matchup_case, seed=11, slope=2.5))
+    assert flat == steep
 
 
 def test_scheduler_says_both_phases_through_progress(

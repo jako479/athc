@@ -8,7 +8,7 @@ from html import escape
 from os import PathLike
 from pathlib import Path
 
-from athc.scheduler.config import DEFAULT_DIFFICULTY_SPREAD
+from athc.scheduler.config import DEFAULT_DIFFICULTY_SLOPE
 from athc.scheduler.domain.league import League, Team, ordered_teams
 from athc.scheduler.domain.schedule import Schedule
 from athc.scheduler.schedulers.types import SCHEDULER_DESCRIPTION, MatchupPlan
@@ -37,7 +37,8 @@ class ScheduleReport:
     elapsed_time_seconds: float
     teams: tuple[TeamScheduleReport, ...]
     command_line: str | None = None
-    difficulty_spread: float = DEFAULT_DIFFICULTY_SPREAD
+    difficulty_slope: float = DEFAULT_DIFFICULTY_SLOPE
+    random_nonconference: bool = False
     cpu: str | None = None
     threads: int | None = None  # solver threads; with the seed, reproduces it
 
@@ -72,7 +73,8 @@ def build_schedule_report(
     config_path: StrPath,
     elapsed_time_seconds: float,
     command_line: str | None = None,
-    difficulty_spread: float = DEFAULT_DIFFICULTY_SPREAD,
+    difficulty_slope: float = DEFAULT_DIFFICULTY_SLOPE,
+    random_nonconference: bool = False,
     cpu: str | None = None,
     threads: int | None = None,
 ) -> ScheduleReport:
@@ -121,7 +123,8 @@ def build_schedule_report(
         config_path=str(config_path),
         elapsed_time_seconds=elapsed_time_seconds,
         teams=tuple(rows),
-        difficulty_spread=difficulty_spread,
+        difficulty_slope=difficulty_slope,
+        random_nonconference=random_nonconference,
         cpu=cpu,
         threads=threads,
     )
@@ -193,10 +196,12 @@ class HtmlReportWriter:
         Path(self.path).write_text(self.render(report), encoding="utf-8")
 
     def render(self, report: ScheduleReport) -> str:
-        info_rows = [
-            ("Scheduler", SCHEDULER_DESCRIPTION),
-            ("Difficulty spread", f"{report.difficulty_spread:g}"),
-        ]
+        nonconference = (
+            ("Non-conference", "random")
+            if report.random_nonconference
+            else ("Difficulty slope", f"{report.difficulty_slope:g}")
+        )
+        info_rows = [("Scheduler", SCHEDULER_DESCRIPTION), nonconference]
         info_rows += [
             ("Seed", str(report.seed)),
             ("CPU", report.cpu or "-"),

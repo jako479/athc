@@ -20,6 +20,7 @@ import athc.scheduler.main as main_module
 from athc.cli import cli
 from athc.cli.generate_schedule import generate_schedule
 from athc.errors import AthcError
+from athc.scheduler.config import SchedulerConfig
 from athc.scheduler.domain.league import Conference, Team
 from athc.scheduler.domain.schedule import Game, Schedule
 from athc.scheduler.main import GeneratedSchedule
@@ -42,19 +43,19 @@ HELP = r"""Usage: athc generate-schedule [OPTIONS]
   Writes a .txt and .html schedule and a report to the current folder.
 
 Options:
-  --season YEAR       Season to schedule, e.g. 2048.  [required]
-  --previous FILE     Previous season's .lge file, saved after its last
-                      playoff game (default: the --upcoming file).
-  --upcoming FILE     Upcoming season's .lge file (default: the league's .lge
-                      in path in league.toml).
-  --seed NUMBER       Seed for a repeatable run (default: random; the last
-                      line shows it).
-  --time-limit LIMIT  Solver budget for placing games into weeks, in the
-                      solver's own time units, not seconds (default:
-                      time_limit in scheduler.toml).
-  --league NAME       League to use (default: the one set with athc config set
-                      league).
-  -h, --help          Show this message and exit.
+  --season YEAR              Season to schedule, e.g. 2048.  [required]
+  --previous FILE            Previous season's .lge file, saved after its last
+                             playoff game (default: the --upcoming file).
+  --upcoming FILE            Upcoming season's .lge file (default: the
+                             league's .lge in path in league.toml).
+  --seed NUMBER              Seed for a repeatable run (default: random; the
+                             last line shows it).
+  --phase2-time-limit LIMIT  Solver budget for placing games into weeks, in
+                             the solver's own time units, not seconds
+                             (default: phase2_time_limit in scheduler.toml).
+  --league NAME              League to use (default: the one set with athc
+                             config set league).
+  -h, --help                 Show this message and exit.
 
   Examples:
 
@@ -112,12 +113,19 @@ def test_requires_season(runner, folders) -> None:
     assert "season" in result.stderr
 
 
-def test_rejects_non_integer_time_limit(runner, folders) -> None:
-    # --time-limit is an integer; a fractional value is a usage error.
+def test_rejects_non_integer_phase2_time_limit(runner, folders) -> None:
+    # --phase2-time-limit is an integer; a fractional value is a usage error.
     previous, _ = folders
     result = runner.invoke(
         generate_schedule,
-        ["--season", "2048", "--previous", str(_lge(previous)), "--time-limit", "1.5"],
+        [
+            "--season",
+            "2048",
+            "--previous",
+            str(_lge(previous)),
+            "--phase2-time-limit",
+            "1.5",
+        ],
     )
     assert result.exit_code == 2
 
@@ -185,21 +193,25 @@ def test_no_seed_draws_one_from_0_to_1000000(
     assert 0 <= seed <= 1_000_000
 
 
-def test_time_limit_of_1_is_forwarded(runner, monkeypatch, tmp_path: Path) -> None:
+def test_phase2_time_limit_of_1_is_forwarded(
+    runner, monkeypatch, tmp_path: Path
+) -> None:
     captured, result = _invoke_captured(
-        runner, monkeypatch, tmp_path, "--time-limit", "1"
+        runner, monkeypatch, tmp_path, "--phase2-time-limit", "1"
     )
     assert result.exit_code == 0, result.stderr
-    assert captured["time_limit"] == 1
+    assert captured["phase2_time_limit"] == 1
 
 
-def test_time_limit_of_0_is_a_usage_error(runner, monkeypatch, tmp_path: Path) -> None:
+def test_phase2_time_limit_of_0_is_a_usage_error(
+    runner, monkeypatch, tmp_path: Path
+) -> None:
     captured, result = _invoke_captured(
-        runner, monkeypatch, tmp_path, "--time-limit", "0"
+        runner, monkeypatch, tmp_path, "--phase2-time-limit", "0"
     )
     assert result.exit_code == 2
     assert (
-        "Error: Invalid value for '--time-limit': must be 1 or more, got 0.\n"
+        "Error: Invalid value for '--phase2-time-limit': must be 1 or more, got 0.\n"
     ) in result.stderr
     assert captured == {}
 
@@ -327,7 +339,7 @@ def _run_main(previous: Path, upcoming: Path, tmp_path: Path, **overrides) -> No
         "upcoming_file": _lge(upcoming),
         "output_dir": tmp_path,
         "seed": 0,
-        "time_limit": None,
+        "phase2_time_limit": None,
         "command_line": "test",
     }
     main_module.generate_schedule(**(arguments | overrides))
@@ -352,6 +364,35 @@ def test_main_builds_the_league_and_reaches_the_solver(
     _stub_solver(monkeypatch)
     with pytest.raises(_ReachedSolver):
         _run_main(previous, upcoming, tmp_path)
+
+
+def test_phase2_time_limit_replaces_only_phase_2s_limit(
+    tmp_path: Path, monkeypatch, folders
+) -> None:
+    # --phase2-time-limit replaces the file's phase2_time_limit for this run;
+    # phase1_time_limit keeps the file's value.
+    previous, upcoming = folders
+    seen: dict[str, object] = {}
+
+    def fake_get_scheduler():
+        def run(**kwargs: object) -> None:
+            seen.update(kwargs)
+            raise _ReachedSolver
+
+        return run
+
+    monkeypatch.setattr(main_module, "get_scheduler", fake_get_scheduler)
+    rules = tmp_path / "solver.toml"
+    rules.write_text(
+        RENAMES_TOML + "[solver]\nphase1_time_limit = 40\nphase2_time_limit = 50\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(_ReachedSolver):
+        _run_main(previous, upcoming, tmp_path, config_path=rules, phase2_time_limit=7)
+    config = seen["scheduler_config"]
+    assert isinstance(config, SchedulerConfig)
+    assert config.solver.phase1_time_limit == 40.0
+    assert config.solver.phase2_time_limit == 7
 
 
 def test_cli_errors_when_the_previous_season_is_not_finished(

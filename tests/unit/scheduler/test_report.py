@@ -68,9 +68,18 @@ def test_html_report_shows_cpu_threads_and_seed() -> None:
     assert "<b>Threads:</b> 10</p>" in html
 
 
-def test_html_report_shows_difficulty_knob() -> None:
-    rendered = HtmlReportWriter("unused", league_name="Test").render(_sample_report())
-    assert "Difficulty spread" in rendered
+def test_html_report_shows_difficulty_slope() -> None:
+    report = replace(_sample_report(), difficulty_slope=1.5)
+    html = HtmlReportWriter("unused", league_name="Test").render(report)
+    assert "<b>Difficulty slope:</b> 1.5</p>" in html
+    assert "<b>Non-conference:</b>" not in html
+
+
+def test_html_report_shows_random_nonconference() -> None:
+    report = replace(_sample_report(), random_nonconference=True)
+    html = HtmlReportWriter("unused", league_name="Test").render(report)
+    assert "<b>Non-conference:</b> random</p>" in html
+    assert "Difficulty slope" not in html
 
 
 def test_html_report_has_new_columns_and_values() -> None:

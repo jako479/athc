@@ -461,16 +461,27 @@ Working. Docs: [scheduler.md](docs/scheduler.md) ·
 [phase 1](docs/scheduler-phase-1-matchups.md) ·
 [phase 2](docs/scheduler-phase-2-schedule.md)
 
+- Phase 1 aims each team at a sum of opponent conference ranks, not an
+  average: the slope tilts the league's smallest non-conference count and
+  each extra game adds a neutral rank 5, so a 4-team-division team's fifth
+  game is no longer tilted. The top-half/bottom-half opponent rule is gone.
+  `[phase1] random_nonconference` (the PCFL's, off) picks the non-conference
+  games at random instead, through seeded pair weights in the same solve.
+  `scheduler.toml` reads `[solver]` (`phase1_time_limit`,
+  `phase2_time_limit`) then `[phase1]` (`difficulty_slope`, was
+  `[difficulty] spread`); `--phase2-time-limit` replaces `--time-limit`.
+  An unknown table or `[solver]` key is an error, like the other tables'
+  unknown keys.
 - Ctrl+C stops the run with `FAIL Interrupted.` (exit 130) and nothing
   written: CP-SAT's own handler is off and a console handler stops the
   search at the press; a press while the three files are written takes
   effect once all three are written.
 - CLI fits the shared help style: `--previous FILE` (optional, default the
   upcoming file) and `--upcoming FILE` (default `<league>.lge` in `path`)
-  take the `.lge` file itself; `--seed` is 0 to 2147483647 and `--time-limit`
-  1 or more, usage errors outside; `[solver] time_limit` and
-  `phase1_time_limit` must be positive; with no `path` and no `--upcoming`,
-  the "League files folder is not set" hint.
+  take the `.lge` file itself; `--seed` is 0 to 2147483647 and
+  `--phase2-time-limit` 1 or more, usage errors outside;
+  `[solver] phase1_time_limit` and `phase2_time_limit` must be positive; with
+  no `path` and no `--upcoming`, the "League files folder is not set" hint.
 - `solver_workers = "auto"` is the default: the CPU's fast threads (P-cores
   on Intel hybrid CPUs) minus 2. A benchmark on an i5-14600KF found 8-12
   threads fastest and 18-24 slower. The report shows the CPU, thread count and

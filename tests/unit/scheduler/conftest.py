@@ -17,8 +17,8 @@ import pytest
 from click.testing import CliRunner
 
 from athc.scheduler.config import (
-    DifficultyConfig,
     LeagueConfig,
+    Phase1Config,
     Phase2Config,
     RivalriesConfig,
     SchedulerConfig,
@@ -159,7 +159,7 @@ THREE_PLAYOFF_TEAMS_FROM_4_TEAM_DIVISION = _divisional_league(
     ),
 )
 DIVISIONS_CONFIG = SchedulerConfig(
-    solver=SolverConfig(time_limit=SLOW_SOLVE_TIME_LIMIT)
+    solver=SolverConfig(phase2_time_limit=SLOW_SOLVE_TIME_LIMIT)
 )
 
 # --- A league without divisions: two conferences of nine, 12 weeks, rivalry week
@@ -234,8 +234,8 @@ CONFERENCES_AMOUNTS = Phase2Config(
 )
 CONFERENCES_CONFIG = SchedulerConfig(
     league=LeagueConfig(weeks=12),
-    difficulty=DifficultyConfig(spread=0.0),
-    solver=SolverConfig(time_limit=SLOW_SOLVE_TIME_LIMIT),
+    phase1=Phase1Config(difficulty_slope=0.0),
+    solver=SolverConfig(phase2_time_limit=SLOW_SOLVE_TIME_LIMIT),
     phase2=CONFERENCES_AMOUNTS,
     rivalries=RivalriesConfig(pairs=CONFERENCES_RIVALRIES, rotate_home_by_season=True),
 )
@@ -341,7 +341,8 @@ def solve_and_report(case: LeagueCase, tmp_path_factory) -> Solved:
             seed=seed,
             config_path=Path("test-config.toml"),
             elapsed_time_seconds=0.0,
-            difficulty_spread=case.config.difficulty.spread,
+            difficulty_slope=case.config.phase1.difficulty_slope,
+            random_nonconference=case.config.phase1.random_nonconference,
         )
         report_path = tmp_path_factory.mktemp("schedule_report") / f"{case.id}.html"
         HtmlReportWriter(str(report_path), league_name=case.id).write(report)

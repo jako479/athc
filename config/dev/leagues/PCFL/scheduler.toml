@@ -6,17 +6,32 @@
 [league]
 weeks = 12               # regular-season weeks (even): 8 conference + 4 non-conference games
 
-[difficulty]
-# Nothing is fixed by standings (no divisions): the solver picks every
-# non-conference game, tilting each team's average opponent conference rank
-# (1-9) by spread. 0.0 = flat: every team's opponents average near rank 5.
-# 2.5 = max: #1's opponents average near 3.0. Linear between.
-spread = 0.0
-
 [solver]
-time_limit = 300.0       # max deterministic time for the week-placement (phase-2) solve
-phase1_time_limit = 120.0 # max deterministic time for the matchup (phase-1) solve; the flat line takes ~20 to prove optimal
-solver_workers = "auto"  # both phases; a number, or "auto" = fast threads minus 2; the report shows the count to reproduce a seed
+# Time limits for the two solves, in CP-SAT deterministic time: the solver's
+# own measure of work, not wall-clock seconds, so a fast and a slow machine
+# stop at the same point. Both solves run multithreaded.
+phase1_time_limit = 180.0  # picking the matchups
+phase2_time_limit = 300.0  # placing the games into weeks
+# Parallel search width for both phases: a number, or "auto" = this machine's
+# fast threads (P-cores on Intel hybrid CPUs) minus 2. The same seed gives the
+# same matchups and schedule ONLY at the same count; the report shows the count
+# used, so set that number to reproduce a schedule on another machine.
+solver_workers = "auto"
+
+[phase1]
+# Picking the 4 non-conference games. The cross-conference rivalry (see
+# [rivalries]) is fixed; the solver picks the rest so that the conference ranks
+# (1-9) of each team's 4 non-conference opponents add up close to a target.
+#
+# difficulty_slope sets how steep that target is from the best team to the
+# worst:
+#   0.0 = flat: every team's opponents add up near 20 (average rank 5)
+#   2.5: #1's add up near 10 (ranks 1-4), #9's near 30 (ranks 6-9)
+# These are targets, not guarantees: actual sums land close, rarely exact.
+difficulty_slope = 0.0
+# true = pick the non-conference games at random from the run's seed instead:
+# the rivalry stays fixed and difficulty_slope is ignored.
+random_nonconference = false
 
 [phase2]
 # Fixed policy rules (always enforced, no setting):

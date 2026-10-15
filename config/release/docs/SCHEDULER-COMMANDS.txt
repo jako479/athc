@@ -30,7 +30,7 @@ generate-schedule  --  build the season schedule
       athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge
       athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge --seed 7
       athc generate-schedule --season 2030 --league PCFL --previous D:\PCFL\2029\PCFL.lge --upcoming D:\PCFL\2030\PCFL.lge
-      athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge --time-limit 900
+      athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge --phase2-time-limit 900
 
    Options:
       --season YEAR        (required) season to schedule, e.g. 2048
@@ -43,9 +43,10 @@ generate-schedule  --  build the season schedule
       --seed NUMBER        seed for a repeatable run, 0 to 2147483647;
                            default: random (0 to 1,000,000), and the last
                            line shows it
-      --time-limit LIMIT   solver budget for placing games into weeks, 1 or
+      --phase2-time-limit LIMIT
+                           solver budget for placing games into weeks, 1 or
                            more, in the solver's own time units, not seconds;
-                           default: time_limit in scheduler.toml
+                           default: phase2_time_limit in scheduler.toml
       --league NAME        league to use; default: the one set with
                            athc config set league
 
@@ -90,12 +91,13 @@ CONFIG FILES (in %LOCALAPPDATA%\athc\leagues\<NAME>\)
    league.toml -- path names the folder that holds the league's files; the
    league's .lge there is the default upcoming-season file.
 
-   scheduler.toml -- optional tuning (difficulty tilt, solver time
-   limits, weeks, rule amounts and toggles, rivalries) and the renamed teams:
+   scheduler.toml -- optional tuning (weeks, solver time limits, the
+   difficulty slope or random non-conference games, rule amounts and
+   toggles, rivalries) and the renamed teams:
 
       [renames.2048]
       Baltimore = "Los Angeles"      previous name = "new name"
 
    Every other key defaults if absent; edit only to change a default.
-   time_limit and phase1_time_limit must be positive numbers. See the
+   phase1_time_limit and phase2_time_limit must be positive numbers. See the
    comments in the shipped PNFL and PCFL files.

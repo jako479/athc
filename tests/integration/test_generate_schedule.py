@@ -83,7 +83,7 @@ def _generate(
 ) -> tuple[str, str, str]:
     """Run the CLI into `directory` and return (txt, html, normalized report).
 
-    No `--time-limit`: the run is driven entirely by the installed rules file.
+    No `--phase2-time-limit`: the run is driven entirely by the installed rules file.
     """
     from click.testing import CliRunner
 

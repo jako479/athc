@@ -7,6 +7,10 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- generate-schedule: an unknown table or `[solver]` key in `scheduler.toml` is an error, like an unknown key in the other tables; the error names only the unknown ones, not every valid name
+- generate-schedule: every team's non-conference difficulty covers the same number of games, so an extra game is no harder or easier than average; no team has to draw a top-half and a bottom-half opponent
+- generate-schedule: `random_nonconference` picks the non-conference games at random from the run's seed (the PCFL's option, off)
+- generate-schedule: `--phase2-time-limit` replaces `--time-limit`; `scheduler.toml` puts `[solver]` first with `phase1_time_limit` and `phase2_time_limit`, and `[phase1] difficulty_slope` replaces `[difficulty] spread`
 - autocontinue: every setting is optional, with the shipped defaults; `--delay` sets the wait before each click for one run; `-n/--dry-run` reports the button and never clicks; it says when it has the game window; the click lands on the button itself
 - gameplan: find-play prints hits only when searching a set; a single game plan still says when the play is not in it
 - athc: messages say "game plan", "special-teams" and "is not in the play pool" everywhere, and every command hint reads `Run 'athc ...'`

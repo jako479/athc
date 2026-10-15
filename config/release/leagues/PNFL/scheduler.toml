@@ -2,28 +2,32 @@
 # leagues\<NAME>\scheduler.toml but not advertised; the commissioner edits it. A missing
 # file or key falls back to the built-in default.
 
-[difficulty]
-# Two non-conference games are fixed by division standings (AE1 vs NE1 and
-# NW1, etc.; 5ths play each other). The solver picks the rest, tilting each
-# team's average opponent conference rank (1-9) by spread. These are targets
-# the solver shoots for, not guarantees -- actual averages land close, rarely
-# exact:
-#   0.0 = flat: every team's opponents average near rank 5
-#   1.5: #1's opponents average near 3.5 (e.g. ranks 1,2,3,5,6)
-#   1.8: #1's opponents average near 3.2 (e.g. ranks 1,2,3,4,6)
-#   2.5 = default and max: #1's opponents average near 3.0 (e.g. ranks 1,2,3,4,5)
-# Linear: every 0.1 of spread moves #1's average by 0.1. Above 2.5
-# changes nothing.
-spread = 2.5
-
 [solver]
-time_limit = 600.0        # max deterministic time for the week-placement (phase-2) solve (multithreaded; not wall-clock seconds)
-phase1_time_limit = 120.0 # max deterministic time for the matchup (phase-1) solve (multithreaded; not wall-clock seconds)
+# Time limits for the two solves, in CP-SAT deterministic time: the solver's
+# own measure of work, not wall-clock seconds, so a fast and a slow machine
+# stop at the same point. Both solves run multithreaded.
+phase1_time_limit = 180.0  # picking the matchups
+phase2_time_limit = 300.0  # placing the games into weeks
 # Parallel search width for both phases: a number, or "auto" = this machine's
 # fast threads (P-cores on Intel hybrid CPUs) minus 2. The same seed gives the
 # same matchups and schedule ONLY at the same count; the report shows the count
 # used, so set that number to reproduce a schedule on another machine.
 solver_workers = "auto"
+
+[phase1]
+# Picking the non-conference games. Each division place first plays the same
+# place in the other conference's divisions (AE1 vs NE1 and NW1, etc.; the two
+# 5ths play each other). The solver picks the rest so that the conference ranks
+# (1-9) of each team's non-conference opponents add up close to a target:
+# hardest for the best team, easiest for the worst.
+#
+# difficulty_slope sets how steep that target is. It tilts 4 games, the fewest
+# any team has; a 5th game adds an average opponent (rank 5). Targets for #1:
+#   0.0 = flat: every team's opponents average rank 5
+#   1.5: 14 over 4 games (average 3.5), 19 over 5 (average 3.8)
+#   2.5 = default: 10 over 4 games (ranks 1-4), 15 over 5 (ranks 1-5)
+# These are targets, not guarantees: actual sums land close, rarely exact.
+difficulty_slope = 2.5
 
 [phase2]
 # Week-placement rule amounts and toggles (defaults shown). The rules

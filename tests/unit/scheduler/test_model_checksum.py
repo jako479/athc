@@ -25,13 +25,13 @@ from tests.integration.league_files import CASE_BY_LEAGUE, case_league
 PINNED = [
     pytest.param(
         "divisions",
-        "ea944d39a327f6e4e70d74e09f593edc4ffd340118c4f8240a5a8a881f82d34d",
-        "41d55300fdfacfb76dc9535fabef867d0a5a610b4a7f32722054197fc77fbaf0",
+        "786d0ab813a75c0e0c4457c767b693c787fe72cf630c209721ac872164670b61",
+        "884594d8667a4a7a6efef12f13e19f14240445e1eb15a708646f937889c9b90f",
         id="divisions",
     ),
     pytest.param(
         "conferences",
-        "85066772f3f2a71093b82d0b1f23a1f44b0ca437ab7088c5b700cec00b1bb9ae",
+        "4d2bd7043892fdacbbf14aeaecdc4fe0b418e376725e6c6ea15629d0d4c866ee",
         "f53c3b57a8efce4e75941a4146ab6d69747dc61a900fbbd17e36d9854496faa7",
         id="conferences",
     ),
@@ -61,7 +61,8 @@ def test_phase_models_are_unchanged(
         league,
         weeks=config.league.weeks,
         rivalries=rivalries,
-        spread=config.difficulty.spread,
+        difficulty_slope=config.phase1.difficulty_slope,
+        random_nonconference=config.phase1.random_nonconference,
         phase1_time_limit=config.solver.phase1_time_limit,
         workers=config.solver.solver_workers,  # the frozen count, not "auto"
         seed=0,

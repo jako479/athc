@@ -97,14 +97,14 @@ def _time_limit_in_range(
     help="Seed for a repeatable run (default: random; the last line shows it).",
 )
 @click.option(
-    "--time-limit",
+    "--phase2-time-limit",
     type=int,
     default=None,
     metavar="LIMIT",
     callback=_time_limit_in_range,
     help=(
         "Solver budget for placing games into weeks, in the solver's own time "
-        "units, not seconds (default: time_limit in scheduler.toml)."
+        "units, not seconds (default: phase2_time_limit in scheduler.toml)."
     ),
 )
 @league_option
@@ -113,7 +113,7 @@ def generate_schedule(
     previous_file: str | None,
     upcoming_file: str | None,
     seed: int | None,
-    time_limit: int | None,
+    phase2_time_limit: int | None,
     league: str | None,
 ) -> None:
     """Generate a league's season schedule and report.
@@ -134,7 +134,7 @@ def generate_schedule(
             upcoming_file=upcoming,
             output_dir=Path.cwd(),
             seed=chosen_seed,
-            time_limit=time_limit,
+            phase2_time_limit=phase2_time_limit,
             # argv[1:] already starts with the subcommand name.
             command_line=subprocess.list2cmdline(["athc", *sys.argv[1:]]),
             progress=console.progress,

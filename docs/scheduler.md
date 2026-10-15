@@ -16,7 +16,7 @@ uv sync
 athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge
 athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge --seed 7
 athc generate-schedule --season 2030 --league PCFL --previous D:\PCFL\2029\PCFL.lge --upcoming D:\PCFL\2030\PCFL.lge
-athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge --time-limit 900
+athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge --phase2-time-limit 900
 ```
 
 `--season YEAR` is required. `--league NAME` names the league (default: the one set with `athc config set league`). The league data comes from two of the game's own league files, each a `.lge` file named outright:
@@ -24,11 +24,11 @@ athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge --time-lim
 - `--previous FILE` — the previous season's `.lge`, saved after its last playoff game: the standings (each team's record, opponents and playoff finish). Default: the `--upcoming` file, which then gives the standings too, and `[renames.<season>]` is ignored.
 - `--upcoming FILE` — the upcoming season's `.lge`: the conferences, divisions and team names. Default: `<league>.lge` in `path` in the league's `league.toml`, the folder that holds the league's files. With neither: `FAIL <league.toml>: League files folder is not set. Run 'athc config set path FOLDER' or pass --upcoming.`
 - `--seed NUMBER` — 0 to 2147483647, for a repeatable run; without it a seed from 0 to 1,000,000 is drawn, and the last line shows it.
-- `--time-limit LIMIT` — 1 or more, in the solver's own time units, not seconds; it replaces `time_limit` (placing games into weeks) for this run only.
+- `--phase2-time-limit LIMIT` — 1 or more, in the solver's own time units, not seconds; it replaces `phase2_time_limit` (placing games into weeks) for this run only.
 
 A file's season cannot be read from it, so a `--previous` of the wrong season shows only through its team names (`Team(s) not in <file>: ...`).
 
-Teams are matched by name. A team that changed its name between the two seasons is listed in the league's `scheduler.toml` (in the league's folder in the athc settings folder; find it with `athc config path`), one table per upcoming season: `[renames.2048]` with `Baltimore = "Los Angeles"` (previous name = new name). The same file holds the rule amounts and solver settings; every key defaults, and `time_limit` and `phase1_time_limit` must be positive numbers.
+Teams are matched by name. A team that changed its name between the two seasons is listed in the league's `scheduler.toml` (in the league's folder in the athc settings folder; find it with `athc config path`), one table per upcoming season: `[renames.2048]` with `Baltimore = "Los Angeles"` (previous name = new name). The same file holds the rule amounts and solver settings; every key defaults, and `phase1_time_limit` and `phase2_time_limit` must be positive numbers.
 
 It writes a `.txt` and `.html` schedule plus a sortable HTML report to the **current folder**, named `schedule_<season>_<timestamp>` (the report adds `_report.html`); a rerun in the same minute replaces them. Progress (`Generating the <season> schedule`, `Phase 1: ...`, `Phase 2: ...`) prints on stderr as it runs; then `OK   <file>: written` per file and `Generated <n> games (seed <s>)`. Exit `0` = written, `2` = an error (`FAIL <why>`: config, a league file, no feasible schedule, I/O, `Missing ortools. Reinstall athc.`) or bad arguments, `130` = Ctrl+C. Shared console and codes: [architecture](architecture.md#console-run-log-and-errors).
 
@@ -58,7 +58,7 @@ A team is matched to its previous season by name, so a team that moved keeps its
 | League file | two or more divisions in a conference | one division per conference |
 | Weeks | 16 (`[league] weeks`, the default) | 12 |
 | Same-conference games | division rivals twice, rest of the conference once | every conference team once |
-| Non-conference | same-place pairs fixed, rest by the difficulty line | the cross-conference rivalry fixed, rest by the line |
+| Non-conference | same-place pairs fixed, rest by the difficulty line | the cross-conference rivalry fixed, rest by the line or at random |
 | Season shape | NFL-style rules ([phase 2](scheduler-phase-2-schedule.md)) | opening non-conference weeks, conference-sequence cap, rivalry week last |
 
 Conferences and divisions go by their position in the league file (names may be empty or repeat); division sizes are their team counts. Shipped files, in `config/dev/` and `config/release/`: `leagues\PNFL\` and `leagues\PCFL\`, each with its `scheduler.toml`.
@@ -83,7 +83,30 @@ One test suite runs every league: two divisional standings variants and the conf
 
 ## How it works
 
-Two phases. Phase 1 picks every matchup: league structure fixes the same-conference games, the same-place rule and any cross-conference rivalry fix some non-conference games, and CP-SAT picks the rest along a configurable difficulty line. Phase 2 places the matchups into weeks with CP-SAT. The same code serves every league: the upcoming season's league file gives the structure, the previous season's the standings, the rules file the amounts.
+Two phases, both CP-SAT: phase 1 picks every matchup, phase 2 places them into weeks. The same code serves every league: the upcoming season's league file gives the structure, the previous season's the standings, the rules file the amounts. Phase 1, league by league:
+
+### PNFL
+
+Two conferences of nine, each with a 4-team and a 5-team division; 16 games a team.
+
+1. **Divisional:** each team plays its division rivals twice, home and away.
+2. **Conference:** each team plays the rest of its conference once.
+3. **Non-conference:** the other 4 games (a 5-team division) or 5 (a 4-team division).
+   1. **Same place:** each team plays the teams that finished in its place in the other conference's two divisions ([the standings](#the-standings) give the places); the two 5th places play each other.
+   2. **Difficulty:** the solver picks the rest so that the conference ranks (1-9) of each team's non-conference opponents add up close to a target: hardest for the best team, easiest for the worst.
+
+`difficulty_slope` (`[phase1]`, 2.5) sets how steep that target is from the best team to the worst. At 0 it is flat: every team's opponents average rank 5. At 2.5 the #1 team aims at ranks 1-4, a sum of 10. The slope covers 4 games, the fewest any team has; a 5th game adds an average opponent (rank 5), so a #1 team in a 4-team division aims at 15.
+
+### PCFL
+
+Two conferences of nine, no divisions; 12 games a team.
+
+1. **Conference:** each team plays every conference team once (8 games).
+2. **Non-conference:** the other 4 games.
+   1. **Rivalry:** the two teams left over from the in-conference rivalries play each other, in the final week (rivalry week).
+   2. **Difficulty:** the solver picks the rest, as in the PNFL.
+
+`difficulty_slope` (`[phase1]`, 0.0) makes the target flat: every team's 4 opponents add up near 20, an average rank of 5. `random_nonconference` (`[phase1]`, off) picks the non-conference games at random from the run's seed instead: the rivalry stays, and the slope is ignored.
 
 ### Module layout
 
@@ -99,7 +122,7 @@ src/athc/scheduler/                 # subsystem source
 │   └── schedule.py                 # Schedule, Game
 ├── schedulers/
 │   ├── scheduler.py                # the scheduler entry: phase 1 then phase 2
-│   ├── matchup_builder.py          # phase 1: MatchupBuilder (structure, same-place pairs, rivalries, CP-SAT line)
+│   ├── matchup_builder.py          # phase 1: MatchupBuilder (structure, same-place pairs, rivalries, CP-SAT line or random)
 │   ├── schedule_builder.py         # phase 2: ScheduleBuilder (CP-SAT week placement)
 │   ├── types.py                    # MatchupPlan, SchedulerResult, get_scheduler
 │   ├── utils.py                    # make_solver, resolve_workers, run_solver, write_hold: the CP-SAT setup both phases share, and Ctrl+C
@@ -115,7 +138,7 @@ src/athc/cli/generate_schedule.py   # Click command (lazy solver import)
 
 ### What this package does
 
-- Provides a CLI: `athc generate-schedule [OPTIONS]`, with `--season YEAR` (required), `--previous FILE`, `--upcoming FILE`, `--seed NUMBER`, `--time-limit LIMIT` and `--league NAME`
+- Provides a CLI: `athc generate-schedule [OPTIONS]`, with `--season YEAR` (required), `--previous FILE`, `--upcoming FILE`, `--seed NUMBER`, `--phase2-time-limit LIMIT` and `--league NAME`
 - Resolves the league (`--league` → `[athc] league`) with the shared `athc.config.load_league_config`; `--upcoming` defaults to `<league>.lge` in the league's `path`, and `--previous` to the upcoming file
 - Reads the previous season's `.lge` file (standings), then the upcoming season's (conferences, divisions, names), through `fbpro98_lge`, matches the teams by name with `[renames.<season>]` (none when one file gives both), ranks the previous season and builds the `League` (`league_files.py`); loads `scheduler.toml` (optional amounts and the renames) from the league's folder first
 - Solves the schedule in two CP-SAT phases
@@ -124,11 +147,11 @@ src/athc/cli/generate_schedule.py   # Click command (lazy solver import)
 ### What this package enforces
 
 CLI-level (Click → exit 2):
-- `--season` provided; `--seed` an integer from 0 to 2147483647 (`must be 0 to 2147483647, got -1.`); `--time-limit` an integer of 1 or more (`must be 1 or more, got 0.`). The bounds are athc callbacks raising Click's `BadParameter`, so a non-integer keeps Click's `is not a valid integer.`
+- `--season` provided; `--seed` an integer from 0 to 2147483647 (`must be 0 to 2147483647, got -1.`); `--phase2-time-limit` an integer of 1 or more (`must be 1 or more, got 0.`). The bounds are athc callbacks raising Click's `BadParameter`, so a non-integer keeps Click's `is not a valid integer.`
 
 Config (`ConfigFileError`, `LeagueError` → `FAIL`, exit 2) — found via `config_dir()` / `ATHC_CONFIG_DIR`, no `--config` flag:
 - The league (`--league`, else `[athc] league`) must have a folder `leagues\<NAME>\`; without `--upcoming`, its `league.toml` must set `path`, else `League files folder is not set. Run 'athc config set path FOLDER' or pass --upcoming.`
-- `leagues\<NAME>\scheduler.toml` is **optional**; every key defaults; invalid TOML or a bad value is an error. `[solver] time_limit` and `phase1_time_limit` must be positive numbers (`Must be a positive number.`). `[renames.<season>]` keys are season years, values team names; a rename must name a previous-season team and an upcoming-season team, and not a name another previous-season team keeps.
+- `leagues\<NAME>\scheduler.toml` is **optional**; every key defaults; invalid TOML, a bad value, an unknown table, or an unknown key in `[league]`, `[solver]`, `[phase1]`, `[phase2]` or `[rivalries]` is an error. `[solver] phase1_time_limit` and `phase2_time_limit` must be positive numbers (`Must be a positive number.`). `[renames.<season>]` keys are season years, values team names; a rename must name a previous-season team and an upcoming-season team, and not a name another previous-season team keeps.
 - League-resolved rules: `weeks` must fit the league, `opening_nonconference_weeks` must leave room for every same-conference game, `[rivalries]` must name every team once with exactly one cross-conference pair.
 
 League files (`OSError`, `InvalidLgeError`, `SchedulerError` → `FAIL`, exit 2), each line naming the file:
@@ -151,21 +174,21 @@ Solver (`SchedulerError` → `FAIL`, exit 2):
 | Exit | Meaning |
 |---|---|
 | `0` | **Done** — schedule (and report) written. |
-| `2` | **Error** — a `FAIL` line: league, config, no feasible schedule, I/O, or missing solver (ortools); or usage, bad `--season` / `--seed` / `--time-limit` (Click). |
+| `2` | **Error** — a `FAIL` line: league, config, no feasible schedule, I/O, or missing solver (ortools); or usage, bad `--season` / `--seed` / `--phase2-time-limit` (Click). |
 | `130` | **Interrupted** — Ctrl+C, `FAIL Interrupted.`: nothing written, or all three files when pressed while they are written. |
 
 The shared scheme: [architecture.md](architecture.md#console-run-log-and-errors).
 
 ### The scheduler
 
-Two-phase CP-SAT. Phase 1 ([scheduler-phase-1-matchups.md](scheduler-phase-1-matchups.md)) builds the matchup inventory: structure fixes the same-conference games; the same-place rule (each division place plays the same place in every other-conference division that has that place) and any cross-conference rivalry fix some non-conference games; one CP-SAT solve picks the rest along the `spread` line. Phase 2 ([scheduler-phase-2-schedule.md](scheduler-phase-2-schedule.md)) places the inventory into weeks.
+Two-phase CP-SAT. Phase 1 ([scheduler-phase-1-matchups.md](scheduler-phase-1-matchups.md)) builds the matchup inventory: structure fixes the same-conference games; the same-place rule (each division place plays the same place in every other-conference division that has that place) and any cross-conference rivalry fix some non-conference games; one CP-SAT solve picks the rest: each team's opponent conference ranks add up close to a target tilted by `difficulty_slope`, or with `random_nonconference` the picks are random from the seed. Phase 2 ([scheduler-phase-2-schedule.md](scheduler-phase-2-schedule.md)) places the inventory into weeks.
 
 ### Solver & reproducibility
 
 Both phases run CP-SAT the same way, through one shared setup (`make_solver`): **interleave search** — parallel but reproducible. Two rules make a seed's matchups and schedule identical across runs and machines:
 
 - **Same worker count.** Interleave results change with the number of workers, so both phases run one count from `solver_workers`: a number, or `"auto"` (the default) = this CPU's fast threads minus 2 — the threads on its highest-efficiency-class cores (the P-cores on Intel hybrid CPUs, every core on most AMD CPUs), from Windows' `GetLogicalProcessorInformationEx`. `"auto"` varies by machine, so the report shows the CPU and thread count; setting that number reproduces a seed anywhere. Not CLI-overridable.
-- **Deterministic-time budget.** Each solve stops on its own limit — `phase1_time_limit` (default 120) for phase 1, `time_limit` (default 300) for phase 2 — measured in CP-SAT *deterministic time*, so a slow or fast machine reaches the same stopping point.
+- **Deterministic-time budget.** Each solve stops on its own limit — `phase1_time_limit` (default 120) for phase 1, `phase2_time_limit` (default 300) for phase 2 — measured in CP-SAT *deterministic time*, so a slow or fast machine reaches the same stopping point.
 
 Also required: the model is built in canonical team order (never Python `set` iteration order). The model checksum test and the golden regression test guard both.
 

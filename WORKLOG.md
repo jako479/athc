@@ -4,6 +4,18 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-14 — **scheduler**: phase 1's difficulty line aimed each team's
+  average opponent conference rank, so a 4-team-division team had all five
+  non-conference games tilted where a 5-team-division team had four. The
+  target is now a sum, tilted over the league's smallest count with each
+  extra game a neutral rank 5. The hard-coded top-half/bottom-half opponent
+  rule went. The PCFL gets `random_nonconference`: seeded random pair weights
+  in the same solve, so a seed repeats its games on any machine. The rules
+  file now reads `[solver]` then `[phase1]` beside `[phase2]`, with the time
+  limits named by phase and `--phase2-time-limit` to match.
+  Unknown tables and `[solver]` keys are now errors, as in most mainstream
+  tools, so a misspelled name no longer falls back to a default silently;
+  like those tools, the error names only the unknown key, not every valid one.
 - 2026-10-14 — **athc**: review of every console and run-log line. The
   2026-10-09 concerns were checked against the code and mainstream tools; the
   pool lines stay as the nag to fix the pool, find-play's misses go, plus

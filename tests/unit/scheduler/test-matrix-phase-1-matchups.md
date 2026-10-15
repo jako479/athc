@@ -2,7 +2,7 @@
 
 Cases for `matchup_builder.py`, in `test_matchups.py`. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). Design: [scheduler-phase-1-matchups.md](../../../docs/scheduler-phase-1-matchups.md).
 
-Every row runs for each distinct league (two divisional standings variants, the conference league) unless noted. Status: ☑ covered · ☐ no test yet. The phase-1 solve is multithreaded and fast (about 3 s at worst), so every row runs in the default suite.
+Every row runs for each distinct league (two divisional standings variants, the conference league) unless noted. Status: ☑ covered · ☐ no test yet. The phase-1 solve is multithreaded and fast (about 2 s at worst), so every row runs in the default suite.
 
 ### Structure
 | Case | Expected | Test | Status |
@@ -22,6 +22,7 @@ Every row runs for each distinct league (two divisional standings variants, the 
 | Default width | no `workers` given → `DEFAULT_SOLVER_WORKERS` (multithreaded) | `test_solve_defaults_to_the_pinned_worker_count` | ☑ |
 | Config reaches phase 1 | the scheduler passes `solver_workers` and `phase1_time_limit` | `test_scheduler_runs_phase_1_with_the_configured_solver_workers` | ☑ |
 | `"auto"` resolved once | both phases run fast threads minus 2; the result carries the count | `test_scheduler_resolves_auto_workers_once_and_returns_the_count` | ☑ |
+| `[phase1]` reaches phase 1 | the scheduler passes `difficulty_slope` and `random_nonconference` | `test_scheduler_passes_the_phase1_settings_to_phase_1` | ☑ |
 
 ### Fixed non-conference games
 | Case | Expected | Test | Status |
@@ -35,10 +36,20 @@ Every row runs for each distinct league (two divisional standings variants, the 
 ### Difficulty line
 | Case | Expected | Test | Status |
 |---|---|---|---|
-| ≥1 top-half & ≥1 bottom-half opponent | per team | `test_each_team_draws_a_top_and_bottom_half_opponent` | ☑ |
-| Teams near line target | within 1.0 at spread 0 / 1.8 / 2.5 | `test_difficulty_is_near_line_target` | ☑ |
+| Teams near their target | each team's opponent rank sum within 4 of its target at slope 0 / 1.8 / 2.5 | `test_difficulty_is_near_line_target` | ☑ |
 | Difficulty ordered by rank | top seed's avg < bottom's, both conferences | `test_orders_difficulty_by_conference_rank` | ☑ |
-| Line target values | 2.5/5/7.5; 0 flat; symmetric; monotonic | `test_difficulty_target_line` | ☑ |
+| Slope changes the matchups | at slope 2.5 vs 0, each conference's best team gets harder opponents and its worst team easier ones | `test_slope_changes_the_matchups` | ☑ |
+| Target sums | ranks 1/5/9: 10/20/30 over 4 games, 15/25/35 over 5; 0 flat; symmetric; rising with rank | `test_difficulty_target_sums` | ☑ |
+| Extreme slopes (-5, 20) | a full inventory; the solve gets as close as it can | `test_extreme_slopes_still_build_a_full_inventory` | ☑ |
+
+### Random non-conference games
+| Case | Expected | Test | Status |
+|---|---|---|---|
+| Inventory and fixed pairs | full inventory; every fixed pair kept; degrees match the league | `test_random_nonconference_keeps_the_inventory_and_fixed_pairs` | ☑ |
+| Same seed | the same non-conference games | `test_random_nonconference_repeats_for_a_seed` | ☑ |
+| Any worker count | 1 and 4 workers give the same games for a seed | `test_random_nonconference_repeats_at_any_worker_count` | ☑ |
+| Other seeds | seeds 0-2 do not all give the same games | `test_random_nonconference_changes_with_the_seed` | ☑ |
+| Slope ignored | slope 0 and 2.5 give the same games | `test_random_nonconference_ignores_the_slope` | ☑ |
 
 ### Error
 | Case | Expected | Test | Status |

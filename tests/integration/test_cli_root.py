@@ -207,7 +207,7 @@ def test_short_help_option_on_every_command(runner, path: tuple[str, ...]) -> No
                 "--previous FILE",
                 "--upcoming FILE",
                 "--seed NUMBER",
-                "--time-limit LIMIT",
+                "--phase2-time-limit LIMIT",
             ],
             ["INTEGER", "--season year"],
         ),

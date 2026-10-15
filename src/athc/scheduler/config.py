@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tomllib
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field, fields
 from os import PathLike
 from pathlib import Path
@@ -35,9 +35,9 @@ DEFAULT_WEEKS = 16  # regular-season weeks when the rules file sets none
 # Scheduler tunables; overridable in scheduler.toml (missing -> these).
 # Both phases run multithreaded (interleave_search) and stop on deterministic
 # time, not wall-clock seconds.
-DEFAULT_TIME_LIMIT = 300.0  # phase-2 (week-placement) solve, deterministic time
 DEFAULT_PHASE1_TIME_LIMIT = 120.0  # phase-1 (matchup) solve, deterministic time
-DEFAULT_DIFFICULTY_SPREAD = 2.5  # difficulty tilt on the 1-9 conference scale
+DEFAULT_PHASE2_TIME_LIMIT = 300.0  # phase-2 (week-placement) solve, deterministic time
+DEFAULT_DIFFICULTY_SLOPE = 2.5  # difficulty tilt on the 1-9 conference scale
 
 # Parallel search width for both phases: a worker count, or "auto" for this
 # machine's fast threads minus two (see cpu.py). CP-SAT interleave search is
@@ -58,18 +58,19 @@ class LeagueConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class DifficultyConfig:
-    """Non-conference difficulty tilt: `spread` covers the whole
-    non-conference slate."""
-
-    spread: float = DEFAULT_DIFFICULTY_SPREAD
+class SolverConfig:
+    phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT
+    phase2_time_limit: float = DEFAULT_PHASE2_TIME_LIMIT
+    solver_workers: SolverWorkers = DEFAULT_SOLVER_WORKERS
 
 
 @dataclass(frozen=True, slots=True)
-class SolverConfig:
-    time_limit: float = DEFAULT_TIME_LIMIT
-    phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT
-    solver_workers: SolverWorkers = DEFAULT_SOLVER_WORKERS
+class Phase1Config:
+    """Phase-1 (matchup) settings: the difficulty line's slope, or random
+    non-conference games from the run's seed instead of the line."""
+
+    difficulty_slope: float = DEFAULT_DIFFICULTY_SLOPE
+    random_nonconference: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,8 +162,8 @@ class RivalriesConfig:
 @dataclass(frozen=True, slots=True)
 class SchedulerConfig:
     league: LeagueConfig = field(default_factory=LeagueConfig)
-    difficulty: DifficultyConfig = field(default_factory=DifficultyConfig)
     solver: SolverConfig = field(default_factory=SolverConfig)
+    phase1: Phase1Config = field(default_factory=Phase1Config)
     phase2: Phase2Config = field(default_factory=Phase2Config)
     rivalries: RivalriesConfig = field(default_factory=RivalriesConfig)
     renames: Renames = field(default_factory=dict)
@@ -181,7 +182,8 @@ def scheduler_rules_path(league: str) -> Path:
 def load_scheduler_config(path: StrPath, *, required: bool = True) -> SchedulerConfig:
     """Read scheduler tunables from `path`, defaulting any absent key. A missing
     file errors when `required`, else gives every default (the league's rules
-    file is optional). Invalid TOML or a bad value errors."""
+    file is optional). Invalid TOML, a bad value, or an unknown table or key
+    errors."""
     resolved = Path(path)
     if not resolved.is_file():
         if required:
@@ -193,19 +195,19 @@ def load_scheduler_config(path: StrPath, *, required: bool = True) -> SchedulerC
         raise ConfigFileError(reason_of(error), resolved) from error
     except tomllib.TOMLDecodeError as error:
         raise ConfigFileError(toml_reason(error), resolved) from error
-    difficulty = data.get("difficulty", {})
+    # A misspelled or retired table would otherwise leave its settings at the
+    # defaults without a word.
+    _reject_unknown(data, _TABLES, "(top)", resolved)
     solver = data.get("solver", {})
+    _reject_unknown(
+        solver,
+        {"phase1_time_limit", "phase2_time_limit", "solver_workers"},
+        "[solver]",
+        resolved,
+    )
     return SchedulerConfig(
         league=_league(data.get("league", {}), resolved),
-        difficulty=DifficultyConfig(
-            spread=_number(
-                difficulty, "difficulty", "spread", DEFAULT_DIFFICULTY_SPREAD, resolved
-            ),
-        ),
         solver=SolverConfig(
-            time_limit=_positive_number(
-                solver, "solver", "time_limit", DEFAULT_TIME_LIMIT, resolved
-            ),
             phase1_time_limit=_positive_number(
                 solver,
                 "solver",
@@ -213,8 +215,16 @@ def load_scheduler_config(path: StrPath, *, required: bool = True) -> SchedulerC
                 DEFAULT_PHASE1_TIME_LIMIT,
                 resolved,
             ),
+            phase2_time_limit=_positive_number(
+                solver,
+                "solver",
+                "phase2_time_limit",
+                DEFAULT_PHASE2_TIME_LIMIT,
+                resolved,
+            ),
             solver_workers=_workers(solver, "solver_workers", resolved),
         ),
+        phase1=_phase1(data.get("phase1", {}), resolved),
         phase2=_phase2(data.get("phase2", {}), resolved),
         rivalries=_rivalries(data.get("rivalries"), resolved),
         renames=_renames(data.get("renames"), resolved),
@@ -278,25 +288,41 @@ def _workers(section: Mapping[str, Any], key: str, path: Path) -> SolverWorkers:
     return value
 
 
+def _phase1(table: Mapping[str, Any], path: Path) -> Phase1Config:
+    _reject_unknown(
+        table, {"difficulty_slope", "random_nonconference"}, "[phase1]", path
+    )
+    return Phase1Config(
+        difficulty_slope=_number(
+            table, "phase1", "difficulty_slope", DEFAULT_DIFFICULTY_SLOPE, path
+        ),
+        random_nonconference=_bool(
+            table, "phase1", "random_nonconference", False, path
+        ),
+    )
+
+
 _NON_NEGATIVE_PHASE2_KEYS = frozenset(
     {"max_consecutive_conference_home_or_away", "opening_nonconference_weeks"}
 )
 
 
 def _reject_unknown(
-    table: Mapping[str, Any], known: set[str], name: str, path: Path
+    table: Mapping[str, Any], known: Collection[str], where: str, path: Path
 ) -> None:
-    unknown = sorted(set(table) - known)
+    # Only the unknown names, as mainstream tools report them: a list of every
+    # valid name would bury the typo.
+    unknown = sorted(key for key in table if key not in known)
     if unknown:
-        names, valid = ", ".join(unknown), ", ".join(sorted(known))
-        raise ConfigFileError(
-            f"[{name}]: Unknown key(s): {names}. Valid: {valid}.", path
-        )
+        raise ConfigFileError(f"{where}: Unknown key(s): {', '.join(unknown)}.", path)
+
+
+_TABLES = frozenset({"league", "solver", "phase1", "phase2", "rivalries", "renames"})
 
 
 def _phase2(table: Mapping[str, Any], path: Path) -> Phase2Config:
     defaults = Phase2Config()
-    _reject_unknown(table, {f.name for f in fields(defaults)}, "phase2", path)
+    _reject_unknown(table, {f.name for f in fields(defaults)}, "[phase2]", path)
     values = {}
     for f in fields(defaults):
         default = getattr(defaults, f.name)
@@ -310,7 +336,7 @@ def _phase2(table: Mapping[str, Any], path: Path) -> Phase2Config:
 
 
 def _league(table: Mapping[str, Any], path: Path) -> LeagueConfig:
-    _reject_unknown(table, {"weeks"}, "league", path)
+    _reject_unknown(table, {"weeks"}, "[league]", path)
     weeks = _int(table, "league", "weeks", DEFAULT_WEEKS, path)
     if weeks <= 0 or weeks % 2:
         raise ConfigFileError("[league] weeks: Must be a positive even integer.", path)
@@ -320,7 +346,7 @@ def _league(table: Mapping[str, Any], path: Path) -> LeagueConfig:
 def _rivalries(table: Mapping[str, Any] | None, path: Path) -> RivalriesConfig:
     if table is None:
         return RivalriesConfig()
-    _reject_unknown(table, {"pairs", "rotate_home_by_season"}, "rivalries", path)
+    _reject_unknown(table, {"pairs", "rotate_home_by_season"}, "[rivalries]", path)
     raw = table.get("pairs")
     if not isinstance(raw, list) or not raw:
         raise ConfigFileError("[rivalries] pairs: Must be a non-empty list.", path)

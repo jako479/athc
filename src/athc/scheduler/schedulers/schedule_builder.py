@@ -14,8 +14,8 @@ from ortools.sat.python import cp_model
 
 from athc.errors import ConfigFileError
 from athc.scheduler.config import (
+    DEFAULT_PHASE2_TIME_LIMIT,
     DEFAULT_SOLVER_WORKERS,
-    DEFAULT_TIME_LIMIT,
     DEFAULT_WEEKS,
     Phase2Config,
     SolverWorkers,
@@ -812,7 +812,7 @@ class ScheduleBuilder:
     def _solve_model(
         self,
         seed: int = 0,
-        time_limit: float = DEFAULT_TIME_LIMIT,
+        time_limit: float = DEFAULT_PHASE2_TIME_LIMIT,
         workers: SolverWorkers = DEFAULT_SOLVER_WORKERS,
     ) -> Schedule:
         solver = make_solver(seed=seed, time_limit=time_limit, workers=workers)
@@ -834,7 +834,7 @@ class ScheduleBuilder:
         self,
         matchups: Matchups,
         seed: int = 0,
-        time_limit: float = DEFAULT_TIME_LIMIT,
+        time_limit: float = DEFAULT_PHASE2_TIME_LIMIT,
         workers: SolverWorkers = DEFAULT_SOLVER_WORKERS,
     ) -> Schedule:
         self._populate_model(matchups=matchups)

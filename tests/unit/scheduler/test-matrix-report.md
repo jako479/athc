@@ -8,6 +8,7 @@ Cases for `writers/report.py` (`build_schedule_report` + `HtmlReportWriter`). In
 | Scheduler description | "two-phase CP-SAT" | `test_html_report_shows_scheduler_description` | ☑ |
 | Title carries the league name | `<name> Schedule Report` in title and heading | `test_html_report_title_carries_the_league_name` | ☑ |
 | CPU, threads and seed | shows the CPU name, solver thread count and seed | `test_html_report_shows_cpu_threads_and_seed` | ☑ |
-| Difficulty knob | shows Difficulty spread | `test_html_report_shows_difficulty_knob` | ☑ |
+| Difficulty slope | `Difficulty slope: <value>` | `test_html_report_shows_difficulty_slope` | ☑ |
+| Random non-conference | `Non-conference: random` in place of the slope line | `test_html_report_shows_random_nonconference` | ☑ |
 | Columns render (Conf Rank after Avg NC SOS 1-18) | headers, order, formatted values | `test_html_report_has_new_columns_and_values` | ☑ |
 | Sortable headers | `data-sort` (order/num), row `data-index`, embedded script | `test_html_report_marks_sortable_headers` | ☑ |

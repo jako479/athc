@@ -5,19 +5,21 @@ league with divisions) and every other conference team once. The rest of each
 team's `weeks` are non-conference games. Some are fixed -- the same-place pairs
 (each division place plays the same place in every other-conference division
 that has that place) and any cross-conference rivalry -- and one CP-SAT solve
-picks the remainder, tilting each team's average opponent conference rank (1-9,
-whole slate) by `spread`: best team hardest, worst easiest, linear between.
+picks the remainder along the difficulty line: each team's opponent conference
+ranks (1-9) add up close to a target tilted by `difficulty_slope`, best team
+hardest, worst easiest, linear between. With `random_nonconference` the
+remainder is random from the run's seed instead.
 """
 
 from __future__ import annotations
 
-import math
+import random
 from collections.abc import Mapping, Sequence
 
 from ortools.sat.python import cp_model
 
 from athc.scheduler.config import (
-    DEFAULT_DIFFICULTY_SPREAD,
+    DEFAULT_DIFFICULTY_SLOPE,
     DEFAULT_PHASE1_TIME_LIMIT,
     DEFAULT_SOLVER_WORKERS,
     DEFAULT_WEEKS,
@@ -34,27 +36,33 @@ from athc.scheduler.schedulers.errors import SchedulerError
 from athc.scheduler.schedulers.types import Matchup, MatchupPlan, make_matchup
 from athc.scheduler.schedulers.utils import make_solver, run_solver
 
-TOP_HALF_MAX_RANK = 5
-BOTTOM_HALF_MIN_RANK = 5
-
-# Difficulty line: target average opponent conference rank (1-9). spread
-# tilts it (0 = flat at 5; 2.5 = max useful tilt).
+# Difficulty line: a team's target sum of opponent conference ranks (1-9). The
+# slope tilts the per-game target (0 = flat at 5) over the league's smallest
+# non-conference count; each game past that adds a neutral 5, so a team with
+# an extra game gets no extra tilt.
 CONF_RANK_CENTER = 5
 CONF_RANK_HALF_RANGE = 4
 
-# Deviations are scored in 1/scale-rank units. The scale is the LCM of this and
-# every non-conference game count, so opponent_rank_sum * (scale / games) is an
-# exact integer for every team (20 for both leagues' 4- and 5-game teams).
+# Misses are scored in 1/DIFFICULTY_SCALE-rank units, the target rounded to
+# the unit.
 DIFFICULTY_SCALE = 20
+
+# Random non-conference games: each pairing's weight is drawn from the seed in
+# 0..RANDOM_WEIGHT_RANGE-1, and the solve keeps the heaviest set.
+RANDOM_WEIGHT_RANGE = 1_000_000
 
 
 def difficulty_target(
-    conf_rank: int, spread: float = DEFAULT_DIFFICULTY_SPREAD
+    conf_rank: int,
+    games: int,
+    tilted_games: int,
+    slope: float = DEFAULT_DIFFICULTY_SLOPE,
 ) -> float:
-    """Target average opponent conference rank for a team of `conf_rank` (1-9)."""
-    return CONF_RANK_CENTER + spread * (conf_rank - CONF_RANK_CENTER) / (
-        CONF_RANK_HALF_RANGE
-    )
+    """Target sum of opponent conference ranks for a team of `conf_rank` (1-9)
+    with `games` non-conference games: `tilted_games` of them (the league's
+    smallest non-conference count) tilted by `slope`, the rest a neutral 5."""
+    tilt = slope * (conf_rank - CONF_RANK_CENTER) / CONF_RANK_HALF_RANGE
+    return CONF_RANK_CENTER * games + tilted_games * tilt
 
 
 class _NonConferenceModel:
@@ -62,8 +70,8 @@ class _NonConferenceModel:
 
     `rows` are the first conference's teams and `columns` the second's, both in
     conference-rank order (the grid order is part of the pinned models).
-    `fixed_pairs` are pinned to 1 before solving, so the line objective only
-    chooses the remaining slots around them.
+    `fixed_pairs` are pinned to 1; `build_line` or `build_random` then sets the
+    objective that chooses the remaining slots around them.
     """
 
     def __init__(
@@ -73,18 +81,15 @@ class _NonConferenceModel:
         conf_rank: Mapping[Team, int],
         nonconference_games: Mapping[Team, int],
         fixed_pairs: frozenset[Matchup],
-        spread: float = DEFAULT_DIFFICULTY_SPREAD,
     ) -> None:
         self.model = cp_model.CpModel()
         self.conf_rank = conf_rank
         self.nonconference_games = nonconference_games
         self.fixed_pairs = fixed_pairs
-        self.spread = spread
         self.rows = list(rows)
         self.columns = list(columns)
         self.row_conference = self.rows[0].conference
         self.teams = tuple(self.rows + self.columns)
-        self.scale = math.lcm(DIFFICULTY_SCALE, *nonconference_games.values())
         # Name "x" is OR-Tools convention; key is [row team, column team].
         self.x: dict[tuple[Team, Team], cp_model.IntVar] = {}
         self.opponent_rank_sum: dict[Team, cp_model.IntVar] = {}
@@ -128,22 +133,6 @@ class _NonConferenceModel:
                 == self.nonconference_games[column]
             )
 
-    def _add_top_bottom_constraints(self) -> None:
-        for team in self.teams:
-            opponents = self._opponents_for(team)
-            top_half_vars = [
-                self._var_for_pair(team, opponent)
-                for opponent in opponents
-                if self.conf_rank[opponent] <= TOP_HALF_MAX_RANK
-            ]
-            bottom_half_vars = [
-                self._var_for_pair(team, opponent)
-                for opponent in opponents
-                if self.conf_rank[opponent] >= BOTTOM_HALF_MIN_RANK
-            ]
-            self.model.add(sum(top_half_vars) >= 1)
-            self.model.add(sum(bottom_half_vars) >= 1)
-
     def _add_opponent_rank_sum_constraints(self) -> None:
         for team in self.teams:
             opponents = self._opponents_for(team)
@@ -160,35 +149,59 @@ class _NonConferenceModel:
             )
             self.opponent_rank_sum[team] = score
 
-    def _set_line_objective(self) -> None:
-        # Score each team's deviation from its line target in 1/scale-rank
-        # units, then minimize the largest deviation (minimax) and, as a
-        # tie-break, the total (minisum). The tie-break weight exceeds any
-        # possible total, so the largest is minimized first.
-        deviations: list[cp_model.IntVar] = []
-        max_dev = self.scale * TEAMS_PER_CONFERENCE
+    def _set_line_objective(self, slope: float) -> None:
+        # Score each team's miss (its opponent rank sum minus its target) in
+        # 1/DIFFICULTY_SCALE-rank units, then minimize the largest miss
+        # (minimax) and, as a tie-break, the total (minisum). The tie-break
+        # weight exceeds any possible total, so the largest is minimized first.
+        tilted_games = min(self.nonconference_games.values())
+        misses: list[cp_model.IntVar] = []
+        bounds: list[int] = []
         for team in self.teams:
             games = self.nonconference_games[team]
-            scaled_sum = self.opponent_rank_sum[team] * (self.scale // games)
             target = round(
-                difficulty_target(self.conf_rank[team], self.spread) * self.scale
+                difficulty_target(self.conf_rank[team], games, tilted_games, slope)
+                * DIFFICULTY_SCALE
             )
-            dev = self.model.new_int_var(0, max_dev, f"nc_dev_{team.metro}")
-            self.model.add(dev >= scaled_sum - target)
-            self.model.add(dev >= target - scaled_sum)
-            deviations.append(dev)
-        worst = self.model.new_int_var(0, max_dev, "nc_worst_dev")
-        for dev in deviations:
-            self.model.add(worst >= dev)
-        tie_break = len(self.teams) * max_dev + 1
-        self.model.minimize(tie_break * worst + sum(deviations))
+            # The rank sum spans games..9 x games, so this bounds the miss
+            # whatever the slope.
+            bound = max(
+                abs(DIFFICULTY_SCALE * games - target),
+                abs(DIFFICULTY_SCALE * TEAMS_PER_CONFERENCE * games - target),
+            )
+            scaled_sum = self.opponent_rank_sum[team] * DIFFICULTY_SCALE
+            miss = self.model.new_int_var(0, bound, f"nc_miss_{team.metro}")
+            self.model.add(miss >= scaled_sum - target)
+            self.model.add(miss >= target - scaled_sum)
+            misses.append(miss)
+            bounds.append(bound)
+        worst = self.model.new_int_var(0, max(bounds), "nc_worst_miss")
+        for miss in misses:
+            self.model.add(worst >= miss)
+        tie_break = sum(bounds) + 1
+        self.model.minimize(tie_break * worst + sum(misses))
 
-    def build(self) -> None:
+    def build_line(self, slope: float) -> None:
+        """The difficulty line: each team's opponent rank sum near its target."""
         self._add_fixed_pair_constraints()
         self._add_degree_constraints()
-        self._add_top_bottom_constraints()
         self._add_opponent_rank_sum_constraints()
-        self._set_line_objective()
+        self._set_line_objective(slope)
+
+    def _set_random_objective(self, seed: int) -> None:
+        # Seeded weights make a seed repeat its games on any machine; their own
+        # stream keeps them apart from the standings coin toss, which shuffles
+        # with random.Random(seed).
+        rng = random.Random(f"random_nonconference {seed}")
+        self.model.maximize(
+            sum(rng.randrange(RANDOM_WEIGHT_RANGE) * var for var in self.x.values())
+        )
+
+    def build_random(self, seed: int) -> None:
+        """Random games: the heaviest set under seeded random pair weights."""
+        self._add_fixed_pair_constraints()
+        self._add_degree_constraints()
+        self._set_random_objective(seed)
 
     def solve(
         self,
@@ -219,7 +232,8 @@ class MatchupBuilder:
         *,
         weeks: int = DEFAULT_WEEKS,
         rivalries: Sequence[RivalryPair] = (),
-        spread: float = DEFAULT_DIFFICULTY_SPREAD,
+        difficulty_slope: float = DEFAULT_DIFFICULTY_SLOPE,
+        random_nonconference: bool = False,
         phase1_time_limit: float = DEFAULT_PHASE1_TIME_LIMIT,
         workers: SolverWorkers = DEFAULT_SOLVER_WORKERS,
         seed: int = 0,
@@ -229,7 +243,8 @@ class MatchupBuilder:
         self.rankings = league.rankings
         self.weeks = weeks
         self.rivalries = tuple(rivalries)
-        self.spread = spread
+        self.difficulty_slope = difficulty_slope
+        self.random_nonconference = random_nonconference
         self.phase1_time_limit = phase1_time_limit
         self.workers: SolverWorkers = workers
         self.seed = seed
@@ -310,9 +325,11 @@ class MatchupBuilder:
             conf_rank=self.conf_rank,
             nonconference_games=self.nonconference_games,
             fixed_pairs=frozenset(fixed_pairs),
-            spread=self.spread,
         )
-        model.build()
+        if self.random_nonconference:
+            model.build_random(self.seed)
+        else:
+            model.build_line(self.difficulty_slope)
         return model
 
     def build_matchup_plan(self) -> MatchupPlan:

@@ -43,7 +43,7 @@ def generate_schedule(
     upcoming_file: StrPath,
     output_dir: StrPath,
     seed: int,
-    time_limit: int | None,
+    phase2_time_limit: int | None,
     command_line: str,
     progress: Callable[[str], None] | None = None,
     warn: Callable[[str], None] | None = None,
@@ -64,10 +64,12 @@ def generate_schedule(
     say = progress or (lambda _: None)
     complain = warn or (lambda _: None)
     scheduler_config = load_scheduler_config(config_path, required=False)
-    if time_limit is not None:  # CLI --time-limit overrides the configured value
+    if phase2_time_limit is not None:  # --phase2-time-limit replaces the file's
         scheduler_config = replace(
             scheduler_config,
-            solver=replace(scheduler_config.solver, time_limit=time_limit),
+            solver=replace(
+                scheduler_config.solver, phase2_time_limit=phase2_time_limit
+            ),
         )
     one_file = Path(previous_file) == Path(upcoming_file)
     structure = load_league(
@@ -110,7 +112,8 @@ def generate_schedule(
             config_path=config_path,
             elapsed_time_seconds=elapsed,
             command_line=command_line,
-            difficulty_spread=scheduler_config.difficulty.spread,
+            difficulty_slope=scheduler_config.phase1.difficulty_slope,
+            random_nonconference=scheduler_config.phase1.random_nonconference,
             cpu=cpu_name(),
             threads=result.workers,
         )

@@ -71,52 +71,58 @@ def test_load_scheduler_config_reads_values(config_dir: Path) -> None:
     _write_scheduler_toml(
         config_dir,
         """
-        [difficulty]
-        spread = 2.5
         [solver]
-        time_limit = 120
         phase1_time_limit = 30
+        phase2_time_limit = 120
         solver_workers = 12
+        [phase1]
+        difficulty_slope = 1.5
+        random_nonconference = true
         """,
     )
     cfg = _load()
-    assert cfg.difficulty.spread == 2.5
-    assert cfg.solver.time_limit == 120.0
     assert cfg.solver.phase1_time_limit == 30.0
+    assert cfg.solver.phase2_time_limit == 120.0
     assert cfg.solver.solver_workers == 12
+    assert cfg.phase1.difficulty_slope == 1.5
+    assert cfg.phase1.random_nonconference is True
 
 
 def test_load_scheduler_config_defaults_when_no_file(config_dir: Path) -> None:
     _league_folder(config_dir)  # league exists, scheduler.toml does not
     cfg = _load()
-    assert cfg.difficulty.spread == config.DEFAULT_DIFFICULTY_SPREAD
-    assert cfg.solver.time_limit == config.DEFAULT_TIME_LIMIT
     assert cfg.solver.phase1_time_limit == config.DEFAULT_PHASE1_TIME_LIMIT
+    assert cfg.solver.phase2_time_limit == config.DEFAULT_PHASE2_TIME_LIMIT
     assert cfg.solver.solver_workers == config.DEFAULT_SOLVER_WORKERS
+    assert cfg.phase1.difficulty_slope == config.DEFAULT_DIFFICULTY_SLOPE
+    assert cfg.phase1.random_nonconference is False
     assert cfg.phase2 == config.Phase2Config()
 
 
 def test_load_scheduler_config_defaults_when_keys_missing(config_dir: Path) -> None:
-    _write_scheduler_toml(config_dir, "[difficulty]\nspread = 2.0\n")
+    _write_scheduler_toml(config_dir, "[phase1]\ndifficulty_slope = 2.0\n")
     cfg = _load()
-    assert cfg.difficulty.spread == 2.0
-    assert cfg.solver.time_limit == config.DEFAULT_TIME_LIMIT
+    assert cfg.phase1.difficulty_slope == 2.0
+    assert cfg.phase1.random_nonconference is False
+    assert cfg.solver.phase2_time_limit == config.DEFAULT_PHASE2_TIME_LIMIT
 
 
 def test_load_scheduler_config_errors_on_invalid_value(config_dir: Path) -> None:
-    _write_scheduler_toml(config_dir, '[solver]\ntime_limit = "fast"\n')
+    _write_scheduler_toml(config_dir, '[solver]\nphase2_time_limit = "fast"\n')
     with pytest.raises(ConfigFileError):
         _load()
 
 
 def test_solver_time_limit_must_be_positive(tmp_path: Path) -> None:
-    # One validator for time_limit and phase1_time_limit, tested once.
-    path = _write(tmp_path / "s.toml", "[solver]\ntime_limit = 1\n")
-    assert load_scheduler_config(path).solver.time_limit == 1.0
-    _write(path, "[solver]\ntime_limit = 0\n")
+    # One validator for phase1_time_limit and phase2_time_limit, tested once.
+    path = _write(tmp_path / "s.toml", "[solver]\nphase2_time_limit = 1\n")
+    assert load_scheduler_config(path).solver.phase2_time_limit == 1.0
+    _write(path, "[solver]\nphase2_time_limit = 0\n")
     with pytest.raises(ConfigFileError) as exc:
         load_scheduler_config(path)
-    assert str(exc.value) == f"{path}: [solver] time_limit: Must be a positive number."
+    assert str(exc.value) == (
+        f"{path}: [solver] phase2_time_limit: Must be a positive number."
+    )
 
 
 def test_load_scheduler_config_errors_on_non_integer_workers(config_dir: Path) -> None:
@@ -153,8 +159,8 @@ def test_solver_workers_rejects_other_text(config_dir: Path) -> None:
         _load()
 
 
-def test_load_scheduler_config_errors_on_invalid_spread(config_dir: Path) -> None:
-    _write_scheduler_toml(config_dir, '[difficulty]\nspread = "steep"\n')
+def test_load_scheduler_config_errors_on_invalid_slope(config_dir: Path) -> None:
+    _write_scheduler_toml(config_dir, '[phase1]\ndifficulty_slope = "steep"\n')
     with pytest.raises(ConfigFileError):
         _load()
 
@@ -168,8 +174,8 @@ def test_load_scheduler_config_errors_on_invalid_toml(config_dir: Path) -> None:
 def test_load_scheduler_config_skips_bom(config_dir: Path) -> None:
     """A UTF-8 byte-order mark (Notepad, Excel) is dropped, not a parse error."""
     path = _league_folder(config_dir) / "scheduler.toml"
-    path.write_text("[difficulty]\nspread = 2.0\n", encoding="utf-8-sig")
-    assert _load().difficulty.spread == 2.0
+    path.write_text("[phase1]\ndifficulty_slope = 2.0\n", encoding="utf-8-sig")
+    assert _load().phase1.difficulty_slope == 2.0
 
 
 def test_load_scheduler_config_reads_phase2_amounts(config_dir: Path) -> None:
@@ -228,6 +234,27 @@ def test_load_scheduler_config_rejects_unknown_phase2_key(config_dir: Path) -> N
     _write_scheduler_toml(config_dir, "[phase2]\nbogus = 1\n")
     with pytest.raises(ConfigFileError):
         _load()
+
+
+def test_load_scheduler_config_rejects_unknown_phase1_key(tmp_path: Path) -> None:
+    path = _write(tmp_path / "s.toml", "[phase1]\nspread = 2.5\n")
+    with pytest.raises(ConfigFileError) as exc:
+        load_scheduler_config(path)
+    assert str(exc.value) == f"{path}: [phase1]: Unknown key(s): spread."
+
+
+def test_load_scheduler_config_rejects_unknown_solver_key(tmp_path: Path) -> None:
+    path = _write(tmp_path / "s.toml", "[solver]\ntime_limit = 600\n")
+    with pytest.raises(ConfigFileError) as exc:
+        load_scheduler_config(path)
+    assert str(exc.value) == f"{path}: [solver]: Unknown key(s): time_limit."
+
+
+def test_load_scheduler_config_rejects_unknown_table(tmp_path: Path) -> None:
+    path = _write(tmp_path / "s.toml", "[difficulty]\nspread = 2.5\n")
+    with pytest.raises(ConfigFileError) as exc:
+        load_scheduler_config(path)
+    assert str(exc.value) == f"{path}: (top): Unknown key(s): difficulty."
 
 
 def test_load_scheduler_config_errors_on_non_integer_phase2(config_dir: Path) -> None:
@@ -298,9 +325,7 @@ def test_unknown_key_names_the_table_and_the_keys(tmp_path: Path) -> None:
     path = _write(tmp_path / "s.toml", "[league]\nweeks = 12\nbogus = 1\nzap = 2\n")
     with pytest.raises(ConfigFileError) as exc:
         load_scheduler_config(path)
-    assert str(exc.value) == (
-        f"{path}: [league]: Unknown key(s): bogus, zap. Valid: weeks."
-    )
+    assert str(exc.value) == f"{path}: [league]: Unknown key(s): bogus, zap."
 
 
 def test_a_bad_rivalry_pair_shows_plain_names(tmp_path: Path) -> None:
@@ -360,10 +385,10 @@ def test_load_scheduler_config_bad_toml_names_the_file(tmp_path: Path) -> None:
 
 
 def test_load_scheduler_config_bad_value_names_the_file(tmp_path: Path) -> None:
-    path = _write(tmp_path / "bad.toml", "[difficulty]\nspread = 'x'\n")
+    path = _write(tmp_path / "bad.toml", "[phase1]\ndifficulty_slope = 'x'\n")
     with pytest.raises(ConfigFileError) as exc:
         load_scheduler_config(path)
-    assert str(exc.value) == f"{path}: [difficulty] spread: Must be a number."
+    assert str(exc.value) == f"{path}: [phase1] difficulty_slope: Must be a number."
 
 
 @pytest.mark.parametrize(
@@ -708,7 +733,8 @@ def test_shipped_conference_league_rules_match_the_test_league() -> None:
     for path in matches:
         config = load_scheduler_config(path)
         assert config.league.weeks == 12
-        assert config.difficulty.spread == 0.0
+        assert config.phase1.difficulty_slope == 0.0
+        assert config.phase1.random_nonconference is False
         assert config.phase2.max_consecutive_conference_home_or_away == 2
         assert config.phase2.opening_nonconference_weeks == 3
         assert config.phase2.require_home_balance_per_six_weeks is False
