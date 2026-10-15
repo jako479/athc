@@ -365,3 +365,59 @@ def test_warnings_are_returned_not_logged(
     assert said == [f"Creating {out}"]
     assert creator.warnings == ["Play 'GHOST' is not in the play pool."]
     assert rows == 1
+
+
+# ── filters cover every data row ──────────────────────────────────────────────
+
+FILTERED_SHEETS = (
+    "Run Plays",
+    "Pass Plays",
+    "Def Plays",
+    "Tendencies",
+    "Run Categories",
+    "Pass Categories",
+    "Def Categories",
+)
+
+
+def _filter_refs(wb: openpyxl.Workbook) -> dict[str, str | None]:
+    return {name: wb[name].auto_filter.ref for name in FILTERED_SHEETS}
+
+
+def test_filters_run_from_the_header_to_the_last_row(tmp_path: Path) -> None:
+    plays = [
+        _run_play("RUN1", play_count=1, total_yards=1),
+        _run_play("RUN1", team="Jets", play_count=1, total_yards=1),
+        make_play_data(PASS, "Jets", "PASS1", play_count=1),
+        make_play_data(DEFENSE, "Vikes", "DEF1", run_plays_against=1),
+    ]
+    records = [
+        make_record("RUN1", play_category=0x01, user_category=RUN_MIDDLE),
+        make_record("PASS1", play_category=0x01, user_category=0x03),
+        make_record("DEF1", play_category=0x00, user_category=0x00),
+    ]
+    config = _config(include_category_worksheets=True)
+    tendencies = [make_tendency("Bears")]  # 16 rows: 4 downs x 4 buckets
+    wb = _build(tmp_path, plays, records, config=config, tendencies=tendencies)
+    assert _filter_refs(wb) == {
+        "Run Plays": "A1:D3",
+        "Pass Plays": "A1:D2",
+        "Def Plays": "A1:D2",
+        "Tendencies": "A1:B17",
+        "Run Categories": "A1:B3",
+        "Pass Categories": "A1:B2",
+        "Def Categories": "A1:B2",
+    }
+
+
+def test_filters_stay_on_the_header_of_an_empty_sheet(tmp_path: Path) -> None:
+    config = _config(include_category_worksheets=True)
+    assert _filter_refs(_build(tmp_path, [], [], config=config)) == {
+        "Run Plays": "A1:D1",
+        "Pass Plays": "A1:D1",
+        "Def Plays": "A1:D1",
+        "Tendencies": "A1:B1",
+        "Run Categories": "A1:B1",
+        "Pass Categories": "A1:B1",
+        "Def Categories": "A1:B1",
+    }

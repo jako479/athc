@@ -237,7 +237,7 @@ option is a usage error.
 - `tests/unit/pdbtoexcel/` — PDB parsing (real fixture + snapshot), config
   (`pdbtoexcel.toml` on both sides of every rule, the shipped files), workbook
   creation (synthetic PDB + injected pool, read back with openpyxl: labels,
-  order, unlisted and deleted plays, Slot columns by presence).
+  order, unlisted and deleted plays, Slot columns by presence, filter ranges).
 - `tests/integration/test_convert_pdb.py` — CLI end-to-end (the default
   output, the options, the team's game plans from each source, the setting
   errors), plus a golden workbook: the real `.pdb` converted against the

@@ -24,6 +24,7 @@ from athc.playpool import DefensivePlay, OffensivePlay, Play
 @dataclass
 class _WorksheetState:
     worksheet: Worksheet
+    filter_last_col: int  # zero-based; the filter spans column A to this one
     rows: int = 1
 
 
@@ -95,6 +96,7 @@ class ExcelPdbWorkbook:
 
     def __exit__(self, *args):
         if self.workbook:
+            self._add_autofilters()
             if self.macros_are_enabled:
                 self._add_conditional_format()
                 if self.config.include_category_worksheets:
@@ -286,8 +288,7 @@ class ExcelPdbWorkbook:
             ws.set_column_pixels(12, 12, None, self.fmt.percent_1)
         ws.write_row(0, 0, header)
         ws.freeze_panes(1, 0)
-        ws.autofilter("A1:D1")  # pyright: ignore[reportCallIssue]
-        return _WorksheetState(ws)
+        return _WorksheetState(ws, filter_last_col=3)
 
     def _create_pass_worksheet(self) -> _WorksheetState:
         ws = self.workbook.add_worksheet("Pass Plays")
@@ -332,8 +333,7 @@ class ExcelPdbWorkbook:
             ws.set_column_pixels(18, 18, None, self.fmt.percent_1)
         ws.write_row(0, 0, header)
         ws.freeze_panes(1, 0)
-        ws.autofilter("A1:D1")  # pyright: ignore[reportCallIssue]
-        return _WorksheetState(ws)
+        return _WorksheetState(ws, filter_last_col=3)
 
     def _create_def_worksheet(self) -> _WorksheetState:
         ws = self.workbook.add_worksheet("Def Plays")
@@ -382,8 +382,7 @@ class ExcelPdbWorkbook:
             ws.set_column_pixels(22, 22, None, self.fmt.percent_1)
         ws.write_row(0, 0, header)
         ws.freeze_panes(1, 0)
-        ws.autofilter("A1:D1")  # pyright: ignore[reportCallIssue]
-        return _WorksheetState(ws)
+        return _WorksheetState(ws, filter_last_col=3)
 
     def _create_tendencies_worksheet(self) -> _WorksheetState:
         ws = self.workbook.add_worksheet("Tendencies")
@@ -395,8 +394,7 @@ class ExcelPdbWorkbook:
         ws.set_column_pixels(3, 3, 56)
         ws.write_row(0, 0, header)
         ws.freeze_panes(1, 0)
-        ws.autofilter("A1:B1")  # pyright: ignore[reportCallIssue]
-        return _WorksheetState(ws)
+        return _WorksheetState(ws, filter_last_col=1)
 
     def _create_run_categories_worksheet(self) -> _WorksheetState:
         ws = self.workbook.add_worksheet("Run Categories")
@@ -412,8 +410,7 @@ class ExcelPdbWorkbook:
             ws.set_column_pixels(8, 8, None, self.fmt.percent_1)
         ws.write_row(0, 0, header)
         ws.freeze_panes(1, 0)
-        ws.autofilter("A1:B1")  # pyright: ignore[reportCallIssue]
-        return _WorksheetState(ws)
+        return _WorksheetState(ws, filter_last_col=1)
 
     def _create_pass_categories_worksheet(self) -> _WorksheetState:
         ws = self.workbook.add_worksheet("Pass Categories")
@@ -446,8 +443,7 @@ class ExcelPdbWorkbook:
             ws.set_column_pixels(14, 14, None, self.fmt.percent_1)
         ws.write_row(0, 0, header)
         ws.freeze_panes(1, 0)
-        ws.autofilter("A1:B1")  # pyright: ignore[reportCallIssue]
-        return _WorksheetState(ws)
+        return _WorksheetState(ws, filter_last_col=1)
 
     def _create_def_categories_worksheet(self) -> _WorksheetState:
         ws = self.workbook.add_worksheet("Def Categories")
@@ -484,8 +480,7 @@ class ExcelPdbWorkbook:
             ws.set_column_pixels(18, 18, None, self.fmt.percent_1)
         ws.write_row(0, 0, header)
         ws.freeze_panes(1, 0)
-        ws.autofilter("A1:B1")  # pyright: ignore[reportCallIssue]
-        return _WorksheetState(ws)
+        return _WorksheetState(ws, filter_last_col=1)
 
     # -- Row writers ----------------------------------------------------------
 
@@ -819,7 +814,20 @@ class ExcelPdbWorkbook:
         self.def_categories.worksheet.write_row(self.def_categories.rows, 0, row_data)
         self.def_categories.rows += 1
 
-    # -- Conditional formatting -----------------------------------------------
+    # -- Filters and conditional formatting -----------------------------------
+
+    def _data_sheets(self) -> list[_WorksheetState]:
+        """Every worksheet but Options."""
+        sheets = [self.run, self.pass_, self.def_, self.tendencies]
+        for state in (self.run_categories, self.pass_categories, self.def_categories):
+            if state is not None:
+                sheets.append(state)
+        return sheets
+
+    def _add_autofilters(self) -> None:
+        # Set at close, once every row is written, so each filter covers them all.
+        for state in self._data_sheets():
+            state.worksheet.autofilter(0, 0, state.rows - 1, state.filter_last_col)
 
     def _add_conditional_format(self):
         border_format = self.workbook.add_format()
@@ -835,19 +843,5 @@ class ExcelPdbWorkbook:
             "format": border_format,
         }
 
-        sheets: list[_WorksheetState] = [
-            self.run,
-            self.pass_,
-            self.def_,
-            self.tendencies,
-        ]
-        if self.config.include_category_worksheets:
-            assert self.run_categories is not None
-            assert self.pass_categories is not None
-            assert self.def_categories is not None
-            sheets.extend(
-                [self.run_categories, self.pass_categories, self.def_categories]
-            )
-
-        for state in sheets:
+        for state in self._data_sheets():
             state.worksheet.conditional_format(1, 0, 1048575, 16383, formula)

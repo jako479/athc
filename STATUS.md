@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-14. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-15. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -372,6 +372,8 @@ Open: `replace-play` should take a list of plays for bulk swaps.
 Working. Extracts a WinLogStats database into an Excel workbook. Docs:
 [pdbtoexcel.md](docs/pdbtoexcel.md)
 
+- Each sheet's filter covers the header and every row written; it is set when
+  the workbook closes, once the row count is known.
 - The Type column's QB run and defensive front come from each play file, not
   its folder.
 - Everything league-specific comes from the league folder: the play pool, the

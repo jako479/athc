@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- convert-pdb: each sheet's filter covers all its rows, not just the header
 - generate-schedule: an unknown table or `[solver]` key in `scheduler.toml` is an error, like an unknown key in the other tables; the error names only the unknown ones, not every valid name
 - generate-schedule: every team's non-conference difficulty covers the same number of games, so an extra game is no harder or easier than average; no team has to draw a top-half and a bottom-half opponent
 - generate-schedule: `random_nonconference` picks the non-conference games at random from the run's seed (the PCFL's option, off)
