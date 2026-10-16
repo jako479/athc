@@ -86,6 +86,9 @@ def load_config() -> dict[str, dict[str, str]]:
                 cp.read_file(handle)
         except OSError as e:
             raise ConfigFileError(reason_of(e), path) from e
+        except UnicodeDecodeError as e:
+            # Saved as ANSI by an editor, an accent in a comment is enough.
+            raise ConfigFileError("Not UTF-8 text. Save it as UTF-8.", path) from e
         except configparser.Error as e:
             raise ConfigFileError(ini_reason(e), path) from e
     return {section: dict(cp[section]) for section in cp.sections()}

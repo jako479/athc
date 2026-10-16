@@ -58,10 +58,13 @@ class AthcConsole:
         self.err.print(message)
         logger.info("%s", message)
 
-    def warn(self, message: str) -> None:
-        """Noted, nothing failed. One labeled line per line of `message`."""
+    def warn(self, message: str, *, exc_info: bool = False) -> None:
+        """Noted, nothing failed. One labeled line per line of `message`.
+        `exc_info`: called inside an `except`, the traceback goes to the log."""
         for line in _lines(message):
-            self._status(self.err, "WARN", "yellow", line, logging.WARNING)
+            self._status(
+                self.err, "WARN", "yellow", line, logging.WARNING, exc_info=exc_info
+            )
 
     def fail(self, message: str) -> None:
         """One item, or the run, failed. One labeled line per line of `message`."""

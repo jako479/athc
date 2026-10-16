@@ -356,16 +356,14 @@ Usage: athc autocontinue [OPTIONS]
 
   Click the game's Continue button between plays.
 
-  Watches the primary monitor while the game is the active window and clicks
-  Continue each time it appears, after a short delay. Runs until you press
-  Ctrl+C or move the mouse to the top-left corner of the screen.
+  Clicks Return at halftime and stops at the end of the game.
 
 Options:
-  --delay SECONDS                 Seconds to wait before each click. Overrides
-                                  delay_before_continue in athc.ini (1.0 by
+  --continue-pause SECONDS        Seconds to wait before each Continue click.
+                                  Overrides continue_pause in athc.ini (1.0 by
                                   default).
-  -n, --dry-run                   Report the button each time it is found;
-                                  never move the mouse or click.
+  -n, --dry-run                   Report what it finds each time; never move
+                                  the mouse or click.
   --hot-corner / --no-hot-corner  Stop when the mouse hits the top-left
                                   corner. Overrides hot_corner in athc.ini (on
                                   by default).
@@ -374,7 +372,7 @@ Options:
   Examples:
 
     athc autocontinue
-    athc autocontinue --delay 3
+    athc autocontinue --continue-pause 3
     athc autocontinue --dry-run
 """,
     ("gameplan",): """\

@@ -38,6 +38,8 @@
 
 ## 2.0.0
 
+- [x] autocontinue: full test set (real screens with the pointer off, on and lit; a test per setting; a pointer helper in the sandbox game; a test matrix)
+- athc: tests: remove the help description length test (`test_description_fits_the_range`)
 - view-standings: provide the official NFL tie-breaking rules (needs total TDs, etc.)
 - view-standings: add a playoff race setting that describes what needs to happen for a team to make the playoffs
 - [x] autocontinue: CLI plan and improvements (every setting optional with shipped defaults, `--delay`, `-n/--dry-run`, window lines, click on the button)
@@ -51,7 +53,7 @@
 - libraries: game-specific library under gameplan, profile, play, etc. with common categories??
 - athc: tests: add ruff's `PT` rule group (pytest style); 117 findings today, 111 auto-fixable under `--unsafe-fixes`
 - autocontinue: work with Dean to determine usability requirements
-- autocontinue: add halftime
+- [x] autocontinue: add halftime and end of game
 - gameplan: replace play (single and bulk) - list of plays as input??
 - profile: revisit edit\copy options
 - generate-schedule: generate schedules for PCFL

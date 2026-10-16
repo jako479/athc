@@ -833,59 +833,7 @@ In [test_playpool_check.py](test_playpool_check.py). Loads the pool the way the 
 
 # `athc autocontinue`
 
-In [test_autocontinue.py](test_autocontinue.py). Config-driven (`athc.ini [autocontinue]`, every key optional); the CLI is tested with `auto_continue` stubbed, and the loop on a stand-in desktop (`Desktop`: the game window, the screen, pyautogui's mouse calls and the clock), so nothing touches the screen or the mouse. `config_dir` fixture isolates `ATHC_CONFIG_DIR`. Exit 0 stopped (Ctrl+C or the hot corner) / 2 error.
-
-## config / signature
-| Case | Input | Expected | Test | Status |
-|---|---|---|---|---|
-| Valid INI loads both settings | tmp ini | `Config(0.5, 2.5)` | `test_load_config_reads_valid_section` | ☑ |
-| No file / no section | config_dir; `[other]` only | the defaults, `Config(0.0, 1.0, True)` | `test_load_config_defaults_when_no_config` / `..._when_section_missing` | ☑ |
-| One key each | `[autocontinue]` with one key | that key; the others defaulted | `test_load_config_fills_missing_settings` `[P]` | ☑ |
-| Timing not a number | `mouse_move_duration = fast` | `ConfigFileError`: `... mouse_move_duration: Must be a number, 0 or more, got 'fast'.` | `test_load_config_errors_on_invalid_value` | ☑ |
-| Timing at 0 | `delay_before_continue = 0` | `0.0` | `test_timing_accepts_zero` | ☑ |
-| Timing below 0, NaN, infinity | `-0.1`, `nan`, `inf` | `ConfigFileError`: `... delay_before_continue: Must be a number, 0 or more, got '-0.1'.` | `test_timing_rejects_a_value_below_zero_or_not_finite` `[P]` | ☑ |
-| `hot_corner`: missing → on / parses bools / bad value | tmp ini | enabled / parsed / `ConfigFileError` | `test_hot_corner_defaults_enabled_when_missing` / `..._parses_boolean` `[P]` / `..._invalid_value_errors` | ☑ |
-| Signature: missing / tuple / stable / changes | tmp | per change-detection | `test_signature_*` | ☑ |
-
-## CLI
-| Case | Input | Expected | Test | Status |
-|---|---|---|---|---|
-| `--help` | — | exit 0; stdout: "Continue" | `test_cli_help_describes_continue` | ☑ |
-| `--help` options | — | `--delay SECONDS`, `-n, --dry-run`; no `[x>=0]` | `test_cli_help_shows_the_options` | ☑ |
-| An argument | `x` | exit 2; stderr ends `Error: Got unexpected extra argument (x).` | `test_cli_rejects_an_argument` | ☑ |
-| No config | config_dir; stand-in desktop | exit 0; stderr: the start lines with the defaults, then `Waiting for the game window.`; stdout: `Stopped.` | `test_cli_runs_on_the_defaults_with_no_config` | ☑ |
-| Missing dependency (pyautogui) | `sys.modules` stub | exit 2; stderr: `FAIL Missing pyautogui. Reinstall athc.` | `test_cli_missing_dependency_exits_2` | ☑ |
-| Runs (stubbed) | tmp ini | exit 0; stub called | `test_cli_runs_with_config` | ☑ |
-| `--hot-corner/--no-hot-corner` forwarded (else None) | tmp ini | value passed to the loop | `test_cli_forwards_hot_corner_override` `[P]` | ☑ |
-| `--delay` forwarded (else None) | absent, `0`, `2.5` | `None`, `0.0`, `2.5` passed to the loop | `test_cli_forwards_the_delay` `[P]` | ☑ |
-| `--delay` rejected | `-0.1`, `nan`, `inf`, `fast` | exit 2; stderr ends `Error: Invalid value for '--delay': must be 0 or more, got -0.1.` (`fast`: Click's `'fast' is not a valid float.`) | `test_cli_rejects_a_bad_delay` `[P]` | ☑ |
-| `-n/--dry-run` forwarded (else False) | absent, `--dry-run`, `-n` | `False`, `True`, `True` | `test_cli_forwards_dry_run` `[P]` | ☑ |
-| Ctrl+C exits clean (stubbed) | tmp ini | exit 0; stdout: `Stopped.` | `test_cli_keyboard_interrupt_exits_clean` | ☑ |
-| Loop status through the callbacks | stub calls `progress` and `warn` | exit 0; stderr: the status line, then `WARN ...`; stdout: `Stopped.` | `test_loop_status_goes_to_stderr_through_the_callbacks` | ☑ |
-| Dry-run sightings on stdout | stub calls `report` | stdout: the sighting, then `Stopped.` | `test_dry_run_sightings_go_to_stdout` | ☑ |
-| Missing button image | tmp ini; image path in an empty folder | exit 2 before watching; stderr: `FAIL <image>: The system cannot find the file specified. Reinstall athc.` | `test_cli_missing_button_image_exits_2_before_watching` | ☑ |
-
-## button image and screen
-| Case | Input | Expected | Test | Status |
-|---|---|---|---|---|
-| Shipped image loads | `continue_button.png` | one-channel (grayscale) image | `test_the_shipped_button_image_loads_in_grayscale` | ☑ |
-| Missing image | tmp path | `AthcError`: `<image>: The system cannot find the file specified. Reinstall athc.` | `test_a_missing_button_image_fails_and_says_to_reinstall` | ☑ |
-| Unreadable image | tmp file, not an image | `AthcError`: `<image>: Cannot read the image. Reinstall athc.` | `test_an_unreadable_button_image_fails_and_says_to_reinstall` | ☑ |
-| The loaded image is searched for | stub matcher | gets the loaded image | `test_the_loaded_button_image_is_what_the_screen_is_searched_for` | ☑ |
-| Screen hidden | stub matcher raises `OSError` | `The screen is locked, a screensaver is on, or Remote Desktop is disconnected. Retrying in 60 seconds.`; sleeps 60 | `test_screen_grab_failure_warns_and_backs_off` | ☑ |
-| Config changes are said once each | first config, then one changed value | `mouse_move_duration = …`, `delay_before_continue = …` | `test_config_changes_are_said_through_the_callback` | ☑ |
-| Focus gating | window titles | the game title matches, case-insensitive substring | `test_game_has_focus_matches_title` `[P]` | ☑ |
-
-## the watch loop, on the stand-in desktop
-| Case | Input | Expected | Test | Status |
-|---|---|---|---|---|
-| Start lines in order | no athc.ini; plain, `--no-hot-corner`, `--dry-run`, `--dry-run --hot-corner` | the start line, the two settings, the hot-corner line (off in a dry run), the dry-run line, `Waiting for the game window.` | `test_loop_start_lines_in_order` `[P]` | ☑ |
-| Window lines | the game active or not at the first check, then a change each way | one line at the first check and one per change, not per pass; 1 s between scans, 2 s between window checks | `test_loop_says_the_game_window_at_the_first_check_and_each_change` `[P]` | ☑ |
-| `--delay` wins and holds | athc.ini delay 2.5, changed to 30.0 after a click; `--delay 0.5` | both clicks wait 0.5 s; no settings line on the reload | `test_loop_delay_option_wins_and_holds_across_a_reload` | ☑ |
-| athc.ini deleted mid-run | deleted during the first pause | the defaults said and applied (an instant move, a 1.0 s delay); no `WARN` | `test_loop_a_deleted_athc_ini_means_the_defaults` | ☑ |
-| Click on the button itself | the button on screen | `leftClick` gets the button's position, not the mouse's | `test_loop_clicks_on_the_button_itself` | ☑ |
-| Fail-safe from the click | stubbed `leftClick` raises `FailSafeException` | the loop stops (KeyboardInterrupt) | `test_loop_a_fail_safe_from_the_click_stops_the_watcher` | ☑ |
-| Dry run | the button on screen; `--dry-run --delay 3` | the sighting through `report`, then an 8 s wait; no move, no click | `test_dry_run_reports_the_button_and_never_moves_or_clicks` | ☑ |
+Its cases are in [test-matrix-autocontinue.md](test-matrix-autocontinue.md).
 
 ---
 
@@ -1004,6 +952,7 @@ In [test_config.py](test_config.py). Direct tests of `load_league_config()` / `l
 | `resolve_league()` returns the name | arg / key; none; unknown | name; `LeagueError` | `test_resolve_league_returns_the_explicit_name` / `test_resolve_league_falls_back_to_configured` / `test_resolve_league_errors_*` | ☑ |
 | Blank `--league` arg | `"   "` + `[athc] league` | configured league used | `test_resolve_league_blank_arg_is_no_arg` | ☑ |
 | Malformed `athc.ini` / `league.toml` | bad INI / bad TOML | `ConfigFileError` names the file | `test_malformed_athc_ini_errors` / `test_malformed_league_toml_errors` | ☑ |
+| `athc.ini` that is not UTF-8 | saved as ANSI with an accent | `<athc.ini>: Not UTF-8 text. Save it as UTF-8.`, not a crash | `test_an_athc_ini_that_is_not_utf8_names_the_file` | ☑ |
 | `athc.ini` that cannot be opened | a folder named `athc.ini` | `<athc.ini>: Access is denied.`, never read as empty | `test_an_athc_ini_that_cannot_be_opened_fails_in_windows_words` | ☑ |
 | UTF-8 BOM in `league.toml` | BOM-prefixed file | skipped; values read | `test_bom_in_league_toml_is_skipped` | ☑ |
 | `%` in `league.toml` | `'%LOCALAPPDATA%\plays'` | loads literally (no interpolation) | `test_percent_in_league_toml_is_literal` / `test_no_interpolation_in_league_toml` | ☑ |

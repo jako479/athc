@@ -16,7 +16,7 @@ EXAMPLES = """Examples:
 
 \b
   athc autocontinue
-  athc autocontinue --delay 3
+  athc autocontinue --continue-pause 3
   athc autocontinue --dry-run
 """
 
@@ -37,21 +37,21 @@ def _zero_or_more(
     epilog=EXAMPLES,
 )
 @click.option(
-    "--delay",
+    "--continue-pause",
     type=float,
     default=None,
     metavar="SECONDS",
     callback=_zero_or_more,
     help=(
-        "Seconds to wait before each click. Overrides delay_before_continue in "
-        "athc.ini (1.0 by default)."
+        "Seconds to wait before each Continue click. Overrides "
+        "continue_pause in athc.ini (1.0 by default)."
     ),
 )
 @click.option(
     "-n",
     "--dry-run",
     is_flag=True,
-    help="Report the button each time it is found; never move the mouse or click.",
+    help="Report what it finds each time; never move the mouse or click.",
 )
 @click.option(
     "--hot-corner/--no-hot-corner",
@@ -61,30 +61,36 @@ def _zero_or_more(
         "Overrides hot_corner in athc.ini (on by default)."
     ),
 )
-def autocontinue(delay: float | None, dry_run: bool, hot_corner: bool | None) -> None:
+def autocontinue(
+    continue_pause: float | None, dry_run: bool, hot_corner: bool | None
+) -> None:
     """Click the game's Continue button between plays.
 
-    Watches the primary monitor while the game is the active window and clicks
-    Continue each time it appears, after a short delay. Runs until you press
-    Ctrl+C or move the mouse to the top-left corner of the screen.
+    Clicks Return at halftime and stops at the end of the game.
     """
     try:
         # Lazy import: pulls in pyautogui only when the watcher actually runs.
-        from athc.autocontinue.main import auto_continue
+        from athc.autocontinue.main import HotCornerStop, auto_continue
     except ImportError as error:
         raise AthcError(
             f"Missing {error.name or 'pyautogui'}. Reinstall athc."
         ) from error
 
+    # Ctrl+C and the top-left hot corner raise; the end of the game returns.
+    # All three are the normal stop; the first two say which it was, the end
+    # of the game has said so already.
     try:
         auto_continue(
             hot_corner=hot_corner,
-            delay=delay,
+            continue_pause=continue_pause,
             dry_run=dry_run,
             progress=console.progress,
             warn=console.warn,
+            warn_traced=lambda message: console.warn(message, exc_info=True),
             report=console.result,
         )
+    except HotCornerStop:
+        console.progress("Hot corner hit.")
     except KeyboardInterrupt:
-        # Ctrl+C and the top-left hot corner both land here: the normal stop.
-        console.result("Stopped.")
+        console.progress("Ctrl+C pressed.")
+    console.result("Stopped.")

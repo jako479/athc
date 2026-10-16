@@ -2,7 +2,8 @@
 
 Settings live in the `[autocontinue]` section of `athc.ini` (found via
 `athc.config.config_dir()` / `ATHC_CONFIG_DIR`). Every key is optional: a
-missing file, section or key means the defaults on `Config`.
+missing file, section or key means the defaults on `Config`. The shipped
+athc.ini turns drive_league_pregame on; missing, it is off.
 """
 
 from __future__ import annotations
@@ -27,8 +28,14 @@ _BOOLEAN_STATES = configparser.RawConfigParser.BOOLEAN_STATES
 @dataclass(frozen=True, slots=True)
 class Config:
     mouse_move_duration: float = 0.0
-    delay_before_continue: float = 1.0
+    continue_pause: float = 1.0
+    halftime_pause: float = 8.0
     hot_corner: bool = True
+    drive_league_pregame: bool = False
+    # Seconds after each pre-game click; 0 skips the click.
+    plans_profiles_pause: float = 1.5  # after Plans/Profiles, and after Visitor
+    conditions_pause: float = 2.5
+    venues_pause: float = 1.5
 
 
 # What a missing key means; slots leave no class attributes to read them from.
@@ -47,10 +54,23 @@ def load_config() -> Config:
         mouse_move_duration=_timing(
             section, "mouse_move_duration", default=_DEFAULTS.mouse_move_duration
         ),
-        delay_before_continue=_timing(
-            section, "delay_before_continue", default=_DEFAULTS.delay_before_continue
+        continue_pause=_timing(
+            section, "continue_pause", default=_DEFAULTS.continue_pause
+        ),
+        halftime_pause=_timing(
+            section, "halftime_pause", default=_DEFAULTS.halftime_pause
         ),
         hot_corner=_optional_bool(section, "hot_corner", default=_DEFAULTS.hot_corner),
+        drive_league_pregame=_optional_bool(
+            section, "drive_league_pregame", default=_DEFAULTS.drive_league_pregame
+        ),
+        plans_profiles_pause=_timing(
+            section, "plans_profiles_pause", default=_DEFAULTS.plans_profiles_pause
+        ),
+        conditions_pause=_timing(
+            section, "conditions_pause", default=_DEFAULTS.conditions_pause
+        ),
+        venues_pause=_timing(section, "venues_pause", default=_DEFAULTS.venues_pause),
     )
 
 

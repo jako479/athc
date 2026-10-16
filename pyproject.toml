@@ -26,6 +26,7 @@ dependencies = [
     "configupdater>=3.2",
     "rich>=15.0.0",
     "tomlkit>=0.15.1",
+    "numpy>=2.4.6",
 ]
 
 # Dev tooling is a dependency group, not an extra: extras ship to whoever
@@ -69,7 +70,7 @@ filterwarnings = ["error"]
 # A parametrize list built from files on disk must never come up empty and skip.
 empty_parameter_set_mark = "fail_at_collect"
 markers = [
-    "slow: long-running scheduler solver tests; opt-in via `pytest -m slow` or `pytest -m ''`",
+    "slow: long-running tests (scheduler solver, autocontinue in the real game); opt-in via `pytest -m slow` or `pytest -m ''`",
 ]
 
 [tool.coverage.run]

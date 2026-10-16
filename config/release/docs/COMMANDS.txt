@@ -349,19 +349,28 @@ A file or folder that exists by that name wins over the key.
 14) autocontinue  --  auto-click the FbPro '98 'Continue' button between plays
     --------------------------------------------------------------------------
 
-   Watches for the 'Continue' button and clicks it between plays. Settings
-   live in athc.ini ([autocontinue] mouse_move_duration, delay_before_continue,
-   hot_corner); every one is optional (a missing one uses the shipped value),
-   and the file is re-read whenever it changes. It only clicks while the game
-   is the active window, so switching to another app is safe. Run the game on
-   your primary monitor (autocontinue only watches that display; a
-   single-display VM works too). Stop it with Ctrl+C, or by moving the mouse to
-   the top-left screen corner (the "hot corner", on by default). Run one copy
-   at a time; two copies both click.
+   Watches for the 'Continue' button and clicks it between plays. At halftime
+   it moves the mouse to Return, waits halftime_pause seconds (8 by default)
+   and clicks; at the end of the game it moves the mouse to Return and stops.
+   With drive_league_pregame on (as shipped), it clicks through the league
+   play pre-game screen (Plans/Profiles, Visitor, Conditions, Venues) and
+   clicks Game; a pause of 0 skips its click. Settings live in athc.ini
+   ([autocontinue] mouse_move_duration, continue_pause, halftime_pause,
+   hot_corner, drive_league_pregame, plans_profiles_pause, conditions_pause,
+   venues_pause); every one is optional (a missing one uses the shipped value,
+   except drive_league_pregame, which is off when missing), and the file is
+   re-read whenever it changes. It only clicks while the game is the active
+   window, so switching to another app is safe, and it checks a button is
+   still there just before clicking it, so clicking one yourself is safe too. Run the game on your
+   primary monitor (autocontinue only watches that display; a single-display
+   VM works too). Stop it with Ctrl+C, or by moving the mouse to the top-left
+   screen corner (the "hot corner", on by default). Run one copy at a time;
+   two copies both click.
 
-   --delay SECONDS sets the wait before each click for one run. -n, --dry-run
-   reports the button each time it is found and never moves the mouse or
-   clicks: a way to check a new monitor or display scaling.
+   --continue-pause SECONDS sets the wait before each Continue click for one
+   run; it does not change halftime_pause. -n, --dry-run reports what it finds
+   each time and never moves the mouse or clicks: a way to check a new monitor
+   or display scaling.
 
    Set hot_corner = false (or pass --no-hot-corner) to turn the corner off and
    use Ctrl+C only; --hot-corner forces it on for one run.
@@ -371,7 +380,7 @@ A file or folder that exists by that name wins over the key.
 
    Example terminal calls:
       athc autocontinue
-      athc autocontinue --delay 3
+      athc autocontinue --continue-pause 3
       athc autocontinue --dry-run
       athc autocontinue --no-hot-corner
 

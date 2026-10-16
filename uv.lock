@@ -44,6 +44,7 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "configupdater" },
+    { name = "numpy" },
     { name = "opencv-python" },
     { name = "ortools" },
     { name = "pillow" },
@@ -71,6 +72,7 @@ dev = [
 requires-dist = [
     { name = "click", specifier = ">=8.5" },
     { name = "configupdater", specifier = ">=3.2" },
+    { name = "numpy", specifier = ">=2.4.6" },
     { name = "opencv-python", specifier = ">=4.7" },
     { name = "ortools", specifier = ">=9.10" },
     { name = "pillow", specifier = ">=10" },

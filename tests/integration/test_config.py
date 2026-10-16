@@ -238,6 +238,17 @@ def test_load_config_wraps_configparser_errors(write_config: WriteConfig) -> Non
     assert exc.value.path == ini
 
 
+def test_an_athc_ini_that_is_not_utf8_names_the_file(config_dir: Path) -> None:
+    """Saved as ANSI with an accent in it: a config error naming the file, not
+    a crash."""
+    ini = config_dir / "athc.ini"
+    ini.parent.mkdir(parents=True, exist_ok=True)
+    ini.write_bytes(b"[athc]\n; caf\xe9\nleague = PNFL\n")
+    with pytest.raises(ConfigFileError) as exc:
+        load_config()
+    assert str(exc.value) == f"{ini}: Not UTF-8 text. Save it as UTF-8."
+
+
 def test_an_athc_ini_that_cannot_be_opened_fails_in_windows_words(
     config_dir: Path,
 ) -> None:

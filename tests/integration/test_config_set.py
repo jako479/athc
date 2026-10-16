@@ -33,7 +33,7 @@ league = {LEAGUE}
 
 [autocontinue]
 ; seconds before clicking
-delay_before_continue = 1.0
+continue_pause = 1.0
 """
 
 
@@ -48,7 +48,7 @@ def test_set_updates_value_and_keeps_comments(write_config: WriteConfig) -> None
     assert "; athc settings -- edit to taste" in text
     assert "; the league the tools use" in text
     assert "; seconds before clicking" in text
-    assert "delay_before_continue = 1.0" in text
+    assert "continue_pause = 1.0" in text
 
 
 def test_set_adds_missing_key(write_config: WriteConfig) -> None:

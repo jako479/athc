@@ -7,6 +7,16 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- autocontinue: the installer no longer carries the game test's menu images
+- autocontinue: tested on real game screens with the pointer off, on and lighting every button it clicks, and with each setting at its default, -1 and 0
+- autocontinue: finds Venues on the league play pre-game screen even with the game's pointer resting on it
+- autocontinue: finds Return at halftime and Game on the pre-game screen even with the game's own pointer on them
+- autocontinue: clicks through the league play pre-game screen and starts the game (`drive_league_pregame`, on in the shipped athc.ini); a pause of 0 skips its click
+- athc: an athc.ini saved as something other than UTF-8 is a config error naming the file, not a crash
+- autocontinue: a one-off failure mid-game warns and retries instead of ending the run; a button that moved, or the game losing focus, just before a click means no click
+- autocontinue: checks a button is still on screen just before clicking it, so one the coach already clicked is left alone
+- autocontinue: clicks Return at halftime after `halftime_pause` seconds (8 by default) and stops at the end of the game
+- autocontinue: every setting is optional, with the shipped defaults; `--continue-pause` sets the wait before each Continue click for one run; `-n/--dry-run` reports the button and never clicks; it says when it has the game window; the click lands on the button itself
 - generate-schedule: takes an output folder, the current folder by default
 - convert-pdb, gameplan list-normals and list-specials: the output can be a folder, and a name with no extension gets the command's own
 - convert-pdb: each sheet's filter covers all its rows, not just the header
@@ -14,7 +24,6 @@ high-level change completed alongside it gets its own line.
 - generate-schedule: every team's non-conference difficulty covers the same number of games, so an extra game is no harder or easier than average; no team has to draw a top-half and a bottom-half opponent
 - generate-schedule: `random_nonconference` picks the non-conference games at random from the run's seed (the PCFL's option, off)
 - generate-schedule: `--phase2-time-limit` replaces `--time-limit`; `scheduler.toml` puts `[solver]` first with `phase1_time_limit` and `phase2_time_limit`, and `[phase1] difficulty_slope` replaces `[difficulty] spread`
-- autocontinue: every setting is optional, with the shipped defaults; `--delay` sets the wait before each click for one run; `-n/--dry-run` reports the button and never clicks; it says when it has the game window; the click lands on the button itself
 - gameplan: find-play prints hits only when searching a set; a single game plan still says when the play is not in it
 - athc: messages say "game plan", "special-teams" and "is not in the play pool" everywhere, and every command hint reads `Run 'athc ...'`
 - athc: set-normals says `updated`, generate-schedule says `written`, and no line quotes a path

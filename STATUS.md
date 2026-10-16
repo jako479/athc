@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-15. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-16. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -199,17 +199,39 @@ athc.
 
 Working. Docs: [autocontinue.md](docs/autocontinue.md)
 
+- With `drive_league_pregame` on (shipped on, off when missing), it clicks
+  through the league play pre-game screen (Plans/Profiles, Visitor,
+  Conditions, Venues) and clicks Game; each pause setting at 0 skips its
+  click.
+- Return and Game are matched at 0.6, and Venues at 0.7, so the game's own
+  pointer on them does not hide them.
+- Tests: real game screenshots of every button it acts on, with the pointer
+  elsewhere, resting on it and lighting it, where the game has that look;
+  the league pre-game driven with
+  the pointer on each button, and the exhibition pre-game left alone; a test
+  per setting at its default, `-1` and `0`; each match cutoff from both
+  sides. Slow Windows Sandbox tests play an exhibition game while a helper
+  lights, moves off or leaves the pointer on each button, and drive a league
+  pre-game screen on and off. The game test's menu images live with the
+  test, not in the package. Every case is
+  in [the test matrix](tests/integration/test-matrix-autocontinue.md).
+- Just before each click it checks the button is still on screen, still under
+  the spot found, and the game still in front; otherwise no click, with a
+  `... gone` or `... moved; not clicked.` line. Any other failure in a pass
+  is a `WARN` and a retry, never the end of the run.
+- At halftime it moves the mouse to Return, waits `halftime_pause` seconds
+  (8 by default) and clicks; at the end of the game it moves the mouse to
+  Return and stops. One screenshot a second, checked for the Results label,
+  the Halftime label, then the Continue button.
 - Every `[autocontinue]` setting is optional, with the shipped defaults.
-  `--delay SECONDS` overrides the delay for one run; `-n, --dry-run` reports
-  the button and never clicks. The status lines name the `athc.ini` keys and
-  say when the game window is active; the click lands on the button itself.
-- The Continue button image loads once at start; a missing or unreadable one
-  stops the run (`Reinstall athc.`). A locked screen, screensaver or
-  disconnected Remote Desktop is a `WARN` naming those causes, retried every
-  60 seconds.
+  `--continue-pause SECONDS` overrides `continue_pause` for one run;
+  `-n, --dry-run` reports the button and never clicks. The status lines name
+  the `athc.ini` keys and say when the game window is active; the click lands
+  on the button itself.
+- Its images load once at start; a missing or unreadable one stops the run
+  (`Reinstall athc.`). A locked screen, screensaver or disconnected Remote
+  Desktop is a `WARN` naming those causes, retried every 60 seconds.
 - Hot-corner toggle, focus checks and halftime assets added.
-
-Open: halftime handling itself.
 
 ## check-ppp
 
