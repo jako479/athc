@@ -19,7 +19,7 @@ import athc.cli.generate_schedule as cli_module
 import athc.scheduler.main as main_module
 from athc.cli import cli
 from athc.cli.generate_schedule import generate_schedule
-from athc.errors import AthcError
+from athc.errors import DIRECTORY_INVALID, AthcError
 from athc.scheduler.config import SchedulerConfig
 from athc.scheduler.domain.league import Conference, Team
 from athc.scheduler.domain.schedule import Game, Schedule
@@ -36,11 +36,15 @@ from .test_utils import FakeKernel32
 
 RENAMES_TOML = '[renames.2048]\nBaltimore = "Los Angeles"\n'
 
-HELP = r"""Usage: athc generate-schedule [OPTIONS]
+HELP = r"""Usage: athc generate-schedule [OPTIONS] [OUTPUT_FOLDER]
 
   Generate a league's season schedule and report.
 
-  Writes a .txt and .html schedule and a report to the current folder.
+  Writes a .txt and .html schedule and a report to OUTPUT_FOLDER.
+
+Positional arguments:
+  OUTPUT_FOLDER  Folder for the schedule and report (default: the current
+                 folder).
 
 Options:
   --season YEAR              Season to schedule, e.g. 2048.  [required]
@@ -61,6 +65,7 @@ Options:
 
     athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge
     athc generate-schedule --season 2030 --league PCFL --previous PCFL.lge
+    athc generate-schedule --season 2050 E:\PNFL\Schedules
 """
 
 
@@ -485,6 +490,38 @@ def test_upcoming_option_overrides_the_league_path(
     assert captured["upcoming_file"] == other
 
 
+def test_output_folder_is_forwarded_whatever_its_name(
+    runner, monkeypatch, tmp_path: Path
+) -> None:
+    # A name like a file's is still a folder: the run creates it.
+    output = tmp_path / "output.txt"
+    captured, result = _invoke_captured(runner, monkeypatch, tmp_path, str(output))
+    assert result.exit_code == 0, result.stderr
+    assert captured["output_dir"] == output
+
+
+def test_output_folder_that_is_a_file_fails_before_the_run(
+    runner, monkeypatch, tmp_path: Path
+) -> None:
+    output = tmp_path / "output.txt"
+    output.write_text("x", encoding="utf-8")
+    captured, result = _invoke_captured(runner, monkeypatch, tmp_path, str(output))
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {output}: {DIRECTORY_INVALID}\n"
+    assert captured == {}
+
+
+def test_output_folder_dash_is_a_usage_error(
+    runner, monkeypatch, tmp_path: Path
+) -> None:
+    captured, result = _invoke_captured(runner, monkeypatch, tmp_path, "-")
+    assert result.exit_code == 2
+    assert result.stderr.endswith(
+        "Error: Invalid value for 'OUTPUT_FOLDER': must be a folder, not -.\n"
+    )
+    assert captured == {}
+
+
 def test_errors_when_the_league_has_no_path(
     runner, folders, league_folder: Path
 ) -> None:
@@ -598,6 +635,45 @@ def test_main_says_generating_and_forwards_progress_to_the_solver(
         _run_main(previous, upcoming, tmp_path, progress=said.append)
     assert said == ["Generating the 2048 schedule"]
     assert seen["progress"] == said.append
+
+
+def test_main_creates_a_missing_output_folder(
+    tmp_path: Path, monkeypatch, folders
+) -> None:
+    # The output folder may not be there yet, a few levels deep: the run
+    # creates it and writes the three files inside.
+    previous, upcoming = folders
+    monkeypatch.setattr(utils, "_kernel32", FakeKernel32())
+    solved = _generated(tmp_path).result
+    monkeypatch.setattr(main_module, "get_scheduler", lambda: lambda **_: solved)
+    monkeypatch.setattr(main_module, "cpu_name", lambda: "CPU")
+    monkeypatch.setattr(main_module, "build_schedule_report", lambda **_: None)
+
+    class Writer:
+        def __init__(self, path: Path, **_: object) -> None:
+            self.path = Path(path)
+
+        def write(self, _: object) -> None:
+            self.path.write_text("written", encoding="utf-8")
+
+    for name in ("TxtScheduleWriter", "HtmlScheduleWriter", "HtmlReportWriter"):
+        monkeypatch.setattr(main_module, name, Writer)
+    output = tmp_path / "schedules" / "2048"
+    _run_main(previous, upcoming, tmp_path, output_dir=output)
+    assert len(list(output.iterdir())) == 3
+
+
+def test_main_output_folder_that_cannot_be_made_fails_before_the_solver(
+    tmp_path: Path, monkeypatch, folders
+) -> None:
+    # A folder under a file cannot be made: the run fails before a long solve,
+    # never after it.
+    previous, upcoming = folders
+    _stub_solver(monkeypatch)
+    notes = tmp_path / "notes.txt"
+    notes.write_text("x", encoding="utf-8")
+    with pytest.raises(OSError):
+        _run_main(previous, upcoming, tmp_path, output_dir=notes / "2048")
 
 
 # ── Ctrl+C while the files are written ────────────────────────────────────────

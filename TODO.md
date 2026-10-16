@@ -2,6 +2,7 @@
 
 ## 1.0.0
 
+- [x] athc: an output folder for convert-pdb, list-normals, list-specials and generate-schedule
 - [x] profile: CLI plan (profile keys `off1 def1 off2 def2` on check, diff and copy, `--team`, `copy SOURCE TARGET...`, `--substitutions`)
 - [x] playpool: CLI plan (`check [FOLDER]`, `athc config set play_path` in its not-set lines)
 - [x] generate-schedule: CLI plan (`--previous FILE` optional and `--upcoming FILE`, an unfinished season warns, coin-toss and division-finish tiebreaks, seed and time-limit bounds, Ctrl+C handling)

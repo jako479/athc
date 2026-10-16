@@ -10,6 +10,7 @@ from pathlib import Path
 import click
 
 from athc.cli import CONTEXT_SETTINGS, AthcCommand, league_option
+from athc.cli._files import resolve_output_folder
 from athc.config import (
     LEAGUE_FILE,
     LEAGUE_PATH_KEY,
@@ -35,6 +36,7 @@ EXAMPLES = """Examples:
 \b
   athc generate-schedule --season 2050 --previous E:\\PNFL\\2049\\PNFL.lge
   athc generate-schedule --season 2030 --league PCFL --previous PCFL.lge
+  athc generate-schedule --season 2050 E:\\PNFL\\Schedules
 """
 
 
@@ -54,12 +56,33 @@ def _time_limit_in_range(
     return value
 
 
+def _not_the_console(
+    ctx: click.Context, param: click.Parameter, value: str | None
+) -> str | None:
+    """OUTPUT_FOLDER takes no `-`: the run writes three files, never the
+    console. The hint is the bare name, never Click's `'[OUTPUT_FOLDER]'`."""
+    if value == "-":
+        raise click.BadParameter(
+            "must be a folder, not -.",
+            ctx,
+            param,
+            param_hint=f"'{param.human_readable_name}'",
+        )
+    return value
+
+
 @click.command(
     name="generate-schedule",
     cls=AthcCommand,
     hidden=True,
     context_settings=CONTEXT_SETTINGS,
     epilog=EXAMPLES,
+)
+@click.argument(
+    "output_folder",
+    required=False,
+    callback=_not_the_console,
+    help="Folder for the schedule and report (default: the current folder).",
 )
 @click.option(
     "--season",
@@ -109,6 +132,7 @@ def _time_limit_in_range(
 )
 @league_option
 def generate_schedule(
+    output_folder: str | None,
     season: int,
     previous_file: str | None,
     upcoming_file: str | None,
@@ -118,8 +142,9 @@ def generate_schedule(
 ) -> None:
     """Generate a league's season schedule and report.
 
-    Writes a .txt and .html schedule and a report to the current folder.
+    Writes a .txt and .html schedule and a report to OUTPUT_FOLDER.
     """
+    folder = resolve_output_folder(output_folder)
     chosen_seed = seed if seed is not None else random.randint(0, RANDOM_SEED_MAX)
     config = load_league_config(league)
     config_path = scheduler_rules_path(config.name)
@@ -132,7 +157,7 @@ def generate_schedule(
             config_path=config_path,
             previous_file=previous,
             upcoming_file=upcoming,
-            output_dir=Path.cwd(),
+            output_dir=folder,
             seed=chosen_seed,
             phase2_time_limit=phase2_time_limit,
             # argv[1:] already starts with the subcommand name.

@@ -64,8 +64,10 @@ def test_normals_rejects_invalid_sort(runner) -> None:
 def test_normals_help_uses_uppercase_names(runner) -> None:
     result = runner.invoke(list_normals, ["--help"])
     assert result.exit_code == 0
-    assert "[OPTIONS] GAME_PLAN [OUTPUT_FILE]" in " ".join(result.stdout.split())
-    assert "GAMEPLAN" not in result.stdout and "OUTPUT_PATH" not in result.stdout
+    assert "[OPTIONS] GAME_PLAN [OUTPUT]" in " ".join(result.stdout.split())
+    assert all(
+        name not in result.stdout for name in ("GAMEPLAN", "OUTPUT_PATH", "OUTPUT_FILE")
+    )
 
 
 @pytest.mark.parametrize("option", ["--force", "--output"])
@@ -301,8 +303,10 @@ def test_specials_requires_path(runner) -> None:
 def test_specials_help_uses_uppercase_names(runner) -> None:
     result = runner.invoke(list_specials, ["--help"])
     assert result.exit_code == 0
-    assert "[OPTIONS] GAME_PLAN [OUTPUT_FILE]" in " ".join(result.stdout.split())
-    assert "GAMEPLAN" not in result.stdout and "OUTPUT_PATH" not in result.stdout
+    assert "[OPTIONS] GAME_PLAN [OUTPUT]" in " ".join(result.stdout.split())
+    assert all(
+        name not in result.stdout for name in ("GAMEPLAN", "OUTPUT_PATH", "OUTPUT_FILE")
+    )
 
 
 @pytest.mark.parametrize("option", ["--force", "--output"])
@@ -414,6 +418,41 @@ def test_team_with_a_path_is_a_usage_error(runner, command: click.Command) -> No
         "Error: --team requires a game plan key (off1, def1, off2 or def2).\n"
     )
     assert result.stdout == ""
+
+
+OUTPUTS = [(list_normals, ".normals.txt"), (list_specials, ".specials.txt")]
+OUTPUT_IDS = ["list-normals", "list-specials"]
+
+
+@pytest.mark.parametrize(("command", "suffix"), OUTPUTS, ids=OUTPUT_IDS)
+def test_output_folder_gets_the_default_name(
+    runner, tmp_path: Path, command: click.Command, suffix: str
+) -> None:
+    lists = tmp_path / "lists"
+    lists.mkdir()
+    result = runner.invoke(command, [str(GP_OFFENSE), str(lists)])
+    assert result.exit_code == 0
+    assert (lists / f"{GP_OFFENSE.stem}{suffix}").is_file()
+
+
+@pytest.mark.parametrize(("command", "suffix"), OUTPUTS, ids=OUTPUT_IDS)
+def test_output_ending_in_a_backslash_is_a_new_folder(
+    runner, tmp_path: Path, command: click.Command, suffix: str
+) -> None:
+    lists = tmp_path / "lists"
+    result = runner.invoke(command, [str(GP_OFFENSE), f"{lists}\\"])
+    assert result.exit_code == 0
+    assert (lists / f"{GP_OFFENSE.stem}{suffix}").is_file()
+
+
+@pytest.mark.parametrize("command", [list_normals, list_specials], ids=OUTPUT_IDS)
+def test_output_without_an_extension_gets_txt(
+    runner, tmp_path: Path, command: click.Command
+) -> None:
+    result = runner.invoke(command, [str(GP_OFFENSE), str(tmp_path / "plays")])
+    assert result.exit_code == 0
+    assert (tmp_path / "plays.txt").is_file()
+    assert not (tmp_path / "plays").exists()
 
 
 # ── --league on list-specials: resolved, read only for a key ──────────────────

@@ -54,9 +54,10 @@ def generate_schedule(
     upcoming season's, `upcoming_file`, the conferences, divisions and teams;
     one file can be both, and then no team is renamed. `config_path` is the
     rules file (optional; its `[renames.<season>]` maps the teams that changed
-    name). Writes a `.txt` and `.html` schedule plus an `.html` report, all
-    named `schedule_<season>_<YYYYMMDD_HHMM>` (the report adds a `_report`
-    suffix); the league name titles the HTML files. A Ctrl+C press while they
+    name). Writes a `.txt` and `.html` schedule plus an `.html` report into
+    `output_dir` (created in full if missing), all named
+    `schedule_<season>_<YYYYMMDD_HHMM>` (the report adds a `_report` suffix);
+    the league name titles the HTML files. A Ctrl+C press while they
     are written waits until all three are. `progress` hears each progress
     line, the solver's phases included, and `warn` each noted oddity (an
     unfinished season); nothing is printed or logged here.
@@ -82,6 +83,8 @@ def generate_schedule(
         warn=complain,
     )
 
+    # Before the solve, so a folder that cannot be made never costs one.
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     say(f"Generating the {season} schedule")
     started = time.perf_counter()
     result = get_scheduler()(

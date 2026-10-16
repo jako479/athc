@@ -15,7 +15,7 @@ from pathlib import Path
 import click
 
 from athc.cli import CONTEXT_SETTINGS, AthcCommand, league_option, team_option
-from athc.cli._files import named_file
+from athc.cli._files import is_folder, named_file, resolve_output
 from athc.cli._team import (
     LEAGUE_PATH_KEY,
     PPP_PATH_KEY,
@@ -104,8 +104,8 @@ SLOTS = (
 
 def _ext(*extensions: str):
     """Click callback that rejects a path without one of `extensions`. An
-    argument's hint is its bare name (`'OUTPUT_FILE'`), never Click's
-    `'[OUTPUT_FILE]'` for an optional one."""
+    argument's hint is its bare name (`'PDB_FILE'`), never Click's
+    `'[OUTPUT]'` for an optional one."""
 
     def callback(ctx: click.Context, param: click.Parameter, value):
         if value is None:
@@ -125,6 +125,24 @@ def _ext(*extensions: str):
         return value
 
     return callback
+
+
+WORKBOOK = (".xlsx", ".xlsm")
+
+
+def _workbook(
+    ctx: click.Context, param: click.Parameter, value: str | None
+) -> str | None:
+    """Click callback for OUTPUT: a folder, or a name with no extension (it
+    gets `.xlsm`), passes as given; anything else, `-` included, must be a
+    workbook."""
+    if (
+        value is not None
+        and value != "-"
+        and (is_folder(value) or not Path(value).suffix)
+    ):
+        return value
+    return _ext(*WORKBOOK)(ctx, param, value)
 
 
 def _plan_option(*names: str, help: str):
@@ -152,13 +170,12 @@ def _plan_option(*names: str, help: str):
     help="WinLogStats .pdb file.",
 )
 @click.argument(
-    "output_file",
-    type=click.Path(path_type=Path),
+    "output",
     required=False,
-    callback=_ext(".xlsx", ".xlsm"),
+    callback=_workbook,
     help=(
-        ".xlsx, or .xlsm to include sorting macros (default: PDB_FILE with "
-        ".xlsm, beside it)."
+        ".xlsx, or .xlsm to include sorting macros, or a folder (default: "
+        "PDB_FILE with .xlsm, beside it)."
     ),
 )
 @_plan_option("-o", "--pln-off", help="Offense Slot 1.")
@@ -186,7 +203,7 @@ def _plan_option(*names: str, help: str):
 def convert_pdb(
     ctx: click.Context,
     pdb_file: Path,
-    output_file: Path | None,
+    output: str | None,
     pln_off: Path | None,
     pln_off_2: Path | None,
     pln_def: Path | None,
@@ -210,6 +227,7 @@ def convert_pdb(
     for file in (pdb_file, *named):
         if file is not None:
             named_file(file)
+    workbook = resolve_output(output, pdb_file.with_suffix(".xlsm"), ".xlsm")
     config = load_config(league)
     play_dir(config.play_path)
     if given:
@@ -222,11 +240,10 @@ def convert_pdb(
     else:
         plans = team_plans(path, team, league)
 
-    output = output_file if output_file is not None else pdb_file.with_suffix(".xlsm")
     result = run_conversion(
         config=config,
         pdb_path=pdb_file,
-        output_path=output,
+        output_path=workbook,
         pln_offense=plans.offense,
         pln_offense_2=plans.offense_2,
         pln_defense=plans.defense,
@@ -236,7 +253,7 @@ def convert_pdb(
     )
     for warning in result.warnings:
         console.warn(warning)
-    console.ok(f"{output}: {result.plays} play(s)")
+    console.ok(f"{workbook}: {result.plays} play(s)")
 
 
 def named_plan(path: Path | None, *, offense: bool) -> GamePlan | None:

@@ -150,7 +150,7 @@ In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `d
 |---|---|---|---|---|
 | No PATH given | — | usage error on stderr, exit 2 | `test_normals_requires_path` | ☑ |
 | Invalid `--sort` | data | usage error on stderr, exit 2 | `test_normals_rejects_invalid_sort` | ☑ |
-| Help uses uppercase names | `--help` | stdout: `[OPTIONS] GAME_PLAN [OUTPUT_FILE]`; no `GAMEPLAN` / `OUTPUT_PATH` | `test_normals_help_uses_uppercase_names` | ☑ |
+| Help uses uppercase names | `--help` | stdout: `[OPTIONS] GAME_PLAN [OUTPUT]`; no `GAMEPLAN` / `OUTPUT_PATH` / `OUTPUT_FILE` | `test_normals_help_uses_uppercase_names` | ☑ |
 | `--force` / `--output` removed | option | exit 2; stderr: Click's "No such option" | `test_normals_removed_options_rejected` `[P]` | ☑ |
 | Default: `<name>.normals.txt` next to the `.pln` | tmp copy | header + plays | `test_normals_default_writes_next_to_gameplan` | ☑ |
 | `-` prints, slot order | data | stdout: 64 lines match fixture | `test_normals_dash_offense_slot` / `..._defense_slot` | ☑ |
@@ -177,7 +177,7 @@ In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `d
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | No PATH given | — | usage error on stderr, exit 2 | `test_specials_requires_path` | ☑ |
-| Help uses uppercase names | `--help` | stdout: `[OPTIONS] GAME_PLAN [OUTPUT_FILE]`; no `GAMEPLAN` / `OUTPUT_PATH` | `test_specials_help_uses_uppercase_names` | ☑ |
+| Help uses uppercase names | `--help` | stdout: `[OPTIONS] GAME_PLAN [OUTPUT]`; no `GAMEPLAN` / `OUTPUT_PATH` / `OUTPUT_FILE` | `test_specials_help_uses_uppercase_names` | ☑ |
 | `--force` / `--output` removed | option | exit 2; stderr: Click's "No such option" | `test_specials_removed_options_rejected` `[P]` | ☑ |
 | Default: `<name>.specials.txt` next to the `.pln` | tmp copy | header + plays | `test_specials_default_writes_next_to_gameplan` | ☑ |
 | `-` prints (source order) | data | stdout: lines match fixture | `test_specials_dash_offense` / `..._defense` | ☑ |
@@ -192,6 +192,9 @@ In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `d
 ## arguments, `--league` and game plan keys
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
+| `OUTPUT` an existing folder | `lists` there | exit 0; `lists\<name>.normals.txt` / `.specials.txt` | `test_output_folder_gets_the_default_name` `[P]` | ☑ |
+| `OUTPUT` ending in `\` | `lists\`, no `lists\` | exit 0; folder created; the default name inside | `test_output_ending_in_a_backslash_is_a_new_folder` `[P]` | ☑ |
+| `OUTPUT` without an extension | `plays` | exit 0; `plays.txt` written | `test_output_without_an_extension_gets_txt` `[P]` | ☑ |
 | No GAME_PLAN | — (both) | exit 2; stderr ends `Error: Missing argument 'GAME_PLAN'.` | `test_bare_is_missing_game_plan` `[P]` | ☑ |
 | Extra argument | `list-normals <pln> out.txt extra` | exit 2; stderr ends `Error: Got unexpected extra argument (extra).`; nothing written | `test_normals_extra_argument_rejected` | ☑ |
 | `--team` with a path | `<pln> - --team Denver` (both) | exit 2; stderr ends `Error: --team requires a game plan key (off1, def1, off2 or def2).` | `test_team_with_a_path_is_a_usage_error` `[P]` | ☑ |
@@ -896,7 +899,7 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`.
 | No arguments | none | exit 2; stderr ends `Error: Missing argument 'PDB_FILE'.` | `test_no_arguments_is_missing_pdb_file` | ☑ |
 | Bad pdb / output extension | args | usage error on stderr, exit 2 | `test_bad_extension_exit_2` `[P]` | ☑ |
 | Extension error is a sentence | `in.txt` | stderr ends `Error: Invalid value for 'PDB_FILE': must have a .pdb extension.` | `test_bad_extension_is_a_sentence` | ☑ |
-| `OUTPUT_FILE` not a workbook | `-`, a folder, a second `.pdb` | exit 2; stderr ends `Error: Invalid value for 'OUTPUT_FILE': must have a .xlsx or .xlsm extension.` | `test_output_file_must_be_a_workbook` `[P]` | ☑ |
+| `OUTPUT` not a workbook | `-`, a second `.pdb` | exit 2; stderr ends `Error: Invalid value for 'OUTPUT': must have a .xlsx or .xlsm extension.` | `test_output_must_be_a_workbook` `[P]` | ☑ |
 | Bad `.pln` extension | `-o plan.txt` | usage error on stderr, exit 2 | `test_bad_pln_extension_exit_2` | ☑ |
 | `-o2` / `-d2` not `.pln` | `-o2 plan.txt`, `-d2 plan.txt` | exit 2; hint `'-o2' / '--pln-off-2'` (`'-d2' / '--pln-def-2'`) | `test_second_plan_option_takes_a_pln_only` `[P]` | ☑ |
 | Game plan key under `-o` | `-o off1` | exit 2; the `.pln` extension error | `test_plan_option_takes_no_game_plan_key` | ☑ |
@@ -911,14 +914,17 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`.
 | Output folder missing, one level | `reports\w1.xlsx`, no `reports\` | exit 0; folder created; file written | `test_missing_output_folder_created` | ☑ |
 | Output folders missing, several levels | `reports\2049\w1.xlsx`, no `reports\` | exit 0; whole chain created; file written | `test_missing_output_folders_created_in_full` | ☑ |
 | Output folder is a file | `reports` is a file | exit 2; stderr: `FAIL ...`; nothing written | `test_output_folder_is_a_file_exit_2` | ☑ |
-| Workbook can't be written | output path is a folder | exit 2; last stderr line `FAIL <file>: ...`; no "unexpected error" | `test_unwritable_workbook_is_a_fail_line_not_a_bug` | ☑ |
+| Workbook can't be written | a folder holds the default name | exit 2; last stderr line `FAIL <file>: ...`; no "unexpected error" | `test_unwritable_workbook_is_a_fail_line_not_a_bug` | ☑ |
 | Invalid PDB content | tmp | exit 2; stderr: `FAIL <file>: invalid data type ...` | `test_invalid_pdb_content_exit_2` | ☑ |
 | Produces `.xlsx` + sheets + tendencies | data + dir | exit 0; 5 sheets; 23x16 tendency rows | `test_produces_xlsx_with_sheets` | ☑ |
 | Produces `.xlsm` | data + dir | exit 0; file written | `test_produces_xlsm` | ☑ |
 | Default output | `GameLogs\49W6.pdb` alone | exit 0; `GameLogs\49W6.xlsm` written; `Creating` and `OK` name it | `test_default_output_is_beside_the_pdb` | ☑ |
 | Default output replaced | `49W6.xlsm` already there | exit 0; a workbook again | `test_default_output_replaces_an_existing_one` | ☑ |
 | Bare PDB name | `49W6.pdb` in the current folder | exit 0; `49W6.xlsm` there; stdout: `OK   49W6.xlsm: 0 play(s)` | `test_bare_pdb_name_writes_into_the_current_folder` | ☑ |
-| `OUTPUT_FILE` wins | `reports\week6.xlsx` | exit 0; that file; no `.xlsm` beside the PDB | `test_output_file_given_wins` | ☑ |
+| `OUTPUT` wins | `reports\week6.xlsx` | exit 0; that file; no `.xlsm` beside the PDB | `test_output_file_given_wins` | ☑ |
+| `OUTPUT` an existing folder | `reports` there | exit 0; `reports\49W6.xlsm`; stdout names it | `test_output_folder_gets_the_default_name` | ☑ |
+| `OUTPUT` ending in `\` | `reports\`, no `reports\` | exit 0; folder created; `49W6.xlsm` inside | `test_output_ending_in_a_backslash_is_a_new_folder` | ☑ |
+| `OUTPUT` without an extension | `week6` | exit 0; `week6.xlsm` written | `test_output_without_an_extension_gets_xlsm` | ☑ |
 | Percentages over the setting | `calculate_percentages` true / false × no flag, `--percentages`, `--no-percentages` | exit 0; "Fumble %" header when the flag, else the setting, says so | `test_percentages_override_the_setting` `[P]` | ☑ |
 | Progress, warnings and the OK line | golden league + `-o`/`-d` | exit 0; stderr: `Creating <file>`, then only `WARN` lines; stdout: `OK   <file>: <n> play(s)`, n from the golden | `test_progress_on_stderr_warnings_and_ok_line` | ☑ |
 | Empty pool | league with no plays | exit 0; stderr: `WARN Play '...' is not in the play pool.` per play; stdout: `OK   <file>: 0 play(s)` | `test_empty_pool_warns_per_play_and_writes_no_play_rows` | ☑ |
@@ -933,6 +939,7 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`.
 | `--team` / `--path` with a plan option | each flag alone, then with `-o` | alone exit 0; with `-o` exit 2, `Error: --team cannot be used with -o, -o2, -d or -d2.` (`--path` the same) | `test_team_and_path_never_mix_with_a_plan_option` `[P]` | ☑ |
 | Both flags with a plan option | `--path`, `--team`, `-d2` | exit 2; the `--team` line | `test_team_is_checked_before_path` | ☑ |
 | Team plans at the league location | `team = 'Denver'`, four plans there | exit 0; four `<path>: Denver 1st-half offense, Slot 1` lines in `.lg2` order; every Slot column shown and filled | `test_team_plans_fill_every_slot` | ☑ |
+| `OUTPUT` on a file, team plans in place | `notes.xlsx\`, `notes.xlsx` a file | exit 2; stderr only `FAIL <notes.xlsx>: The directory name is invalid.`, before any plan line | `test_output_on_a_file_fails_before_the_game_plans_are_read` | ☑ |
 | Real league file | `pnfl_league`, `team = 'Denver'` | Denver's four lines from its 2049 folder | `test_team_plans_from_the_real_league` | ☑ |
 | Shared plan | `--team "Las Vegas"` (one plan per side) | `<path>: Las Vegas offense, both halves, Slot 1` (defense too); Slot 2 hidden | `test_shared_plan_fills_slot_1_alone` | ☑ |
 | Missing plan | `DEN-OGP2.pln` gone | exit 0; `WARN <path>: The system cannot find the file specified. Offense Slot 2 is hidden. Run 'athc config set ppp_path FOLDER' or pass --path.`; that column hidden | `test_missing_plan_warns_with_the_hint` | ☑ |
@@ -1024,7 +1031,7 @@ In [test_cli_root.py](test_cli_root.py). `--league` is an option on each league-
 | `-h` on every command and group | `-h` per command | exit 0; stdout: "Usage:" | `test_short_help_option_on_every_command` `[P]` | ☑ |
 | Usage line is Click's own | `-h` on the root, a group and several commands | exact usage line: `[OPTIONS]`, then the arguments; a group ends in `COMMAND [ARGS]...` | `test_usage_is_clicks_own` `[P]` | ☑ |
 | Help uses uppercase names | `--help` on `convert-pdb`, `gameplan check`, `find-play`, `replace-play`, `list-normals`, `set-normals`, `set-specials`, `generate-schedule`, `playpool check`, `profile check`, `profile copy`, `profile diff`, `check-ppp` | stdout: UPPERCASE placeholders (generate-schedule: `--season YEAR`, `--previous FILE`, `--upcoming FILE`, `--seed NUMBER`, `--phase2-time-limit LIMIT`); not the old names (generate-schedule: `INTEGER`, `--season year`) | `test_help_uses_uppercase_names` `[P]` | ☑ |
-| One positional past the last | `convert-pdb`, `list-normals`, `list-specials`, `set-normals`, `set-specials`, `profile diff`, `config set`, `config get`, `config path`, `playpool check`, each with all its positionals + `x` | exit 2; stderr ends `Error: Got unexpected extra argument (x).` (the last positional accepted: each command's own tests) | `test_one_positional_past_the_last_is_rejected` `[P]` | ☑ |
+| One positional past the last | `convert-pdb`, `list-normals`, `list-specials`, `set-normals`, `set-specials`, `profile diff`, `config set`, `config get`, `config path`, `playpool check`, `generate-schedule` (with `--season 2048`), each with all its positionals + `x` | exit 2; stderr ends `Error: Got unexpected extra argument (x).` (the last positional accepted: each command's own tests) | `test_one_positional_past_the_last_is_rejected` `[P]` | ☑ |
 | `-r` reads the same | `--help` on every command with `-r` | stdout: `-r, --recursive  Include subfolders.` | `test_recursive_option_reads_the_same` `[P]` | ☑ |
 | Each command passes `--league` on | `--league NOPE` per command | exit 2; stderr: `FAIL League 'NOPE' not found ...` | `test_league_flag_reaches_the_command` `[P]` | ☑ |
 | `--league` after the command reaches `profile check` | two leagues | exit 1 (the other league's rules used) | `test_league_flag_picks_profile_rules` | ☑ |

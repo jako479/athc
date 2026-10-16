@@ -17,8 +17,10 @@ for %f in (*.pdb) do athc convert-pdb "%f"
 ```
 
 - One PDB per run; the Windows `for` loop above converts several.
-- The workbook is `OUTPUT_FILE`, else the PDB's name with `.xlsm`, beside the
-  PDB. Missing folders are created; an existing file is replaced.
+- The workbook is `OUTPUT`, else the PDB's name with `.xlsm`, beside the PDB.
+  A folder (one that exists, or a path ending in `\`) gets that name inside
+  it; a name with no extension gets `.xlsm`. Missing folders are created; an
+  existing file is replaced.
 - `.xlsm` has the sorting macros; `.xlsx` is plain. Excel opens an `.xlsm`
   with its macros disabled until you click Enable Content, and a copy sent by
   email opens with them blocked (unblock it in the file's Properties, or send
@@ -213,11 +215,12 @@ check-ppp does.
 
 ### CLI
 
-`athc convert-pdb [OPTIONS] PDB_FILE [OUTPUT_FILE]` with `-o`, `-o2`, `-d`,
+`athc convert-pdb [OPTIONS] PDB_FILE [OUTPUT]` with `-o`, `-o2`, `-d`,
 `-d2 GAME_PLAN`, `--path FOLDER`, `--team NAME`,
 `--percentages/--no-percentages` and `--league NAME`. Extensions are validated
 (`.pdb` / `.xlsx`,`.xlsm` / `.pln`); `--team` or `--path` with a game plan
-option is a usage error.
+option is a usage error. `OUTPUT` follows the rules in
+[architecture.md](architecture.md#output-files).
 
 ### Exit codes
 

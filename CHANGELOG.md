@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- generate-schedule: takes an output folder, the current folder by default
+- convert-pdb, gameplan list-normals and list-specials: the output can be a folder, and a name with no extension gets the command's own
 - convert-pdb: each sheet's filter covers all its rows, not just the header
 - generate-schedule: an unknown table or `[solver]` key in `scheduler.toml` is an error, like an unknown key in the other tables; the error names only the unknown ones, not every valid name
 - generate-schedule: every team's non-conference difficulty covers the same number of games, so an extra game is no harder or easier than average; no team has to draw a top-half and a bottom-half opponent

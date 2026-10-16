@@ -41,6 +41,18 @@ Default location for a produced file when no path is given.
 
 **Adaptation for athc**: produced output (schedule, report, convert-pdb `.xlsx`, diff export) stays CWD-relative or explicit, like CLI paths in [config.py](../src/athc/config.py). `platformdirs` is config-only; fixed dirs are for state, not output ([clig.dev](https://clig.dev/)). Rules in [architecture.md](architecture.md#output-files).
 
+## Output argument (a file or a folder)
+
+One optional output argument that takes a file or a folder, and where the output goes when it is left out. Checked against the sources on 2026-10-15.
+
+- `cp` ([POSIX](https://pubs.opengroup.org/onlinepubs/9799919799/utilities/cp.html)) and Windows [`copy`](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/copy) — an existing folder takes the file under its own name; any other name is a file.
+- [unoconv](https://github.com/unoconv/unoconv) — `-o`: a folder gets the converted file inside it, else it is the file name; left out, the output goes beside the input.
+- [pdf2docx](https://github.com/ArtifexSoftware/pdf2docx), [rst2pdf](https://github.com/rst2pdf/rst2pdf) — left out, `<input>.docx` / `<input>.pdf` beside the input.
+- [subliminal](https://github.com/Diaoul/subliminal) — subtitles go next to the video unless `--directory` says otherwise.
+- [whisper](https://github.com/openai/whisper), [docling](https://github.com/docling-project/docling) — several output files: an output folder, the current folder by default.
+
+**Adaptation for athc**: `OUTPUT` takes a file or a folder (an existing one, or a path ending in `\`) and is left out beside the input; `OUTPUT_FOLDER` holds several files, the current folder by default. A name with no extension gets the command's, so Windows can open the file. Rules in [architecture.md](architecture.md#output-files).
+
 ## Missing output folders (created in full)
 
 What happens when the folder of a user-named output file does not exist. Modern end-user tools create the whole chain; C-era tools and raw file primitives (ffmpeg, curl `-o` without `--create-dirs`, wget `-O`, ImageMagick, PowerShell `Out-File`) stop with an error. Nobody creates one level only. Checked against the sources on 2026-10-08.
@@ -110,6 +122,7 @@ athc's own discipline (golden input→expected-output fixtures with a regen scri
 | Config dir override (`ATHC_CONFIG_DIR` env var) | httpie (`HTTPIE_CONFIG_DIR`), llm (`LLM_USER_PATH`), tmuxp |
 | Output → CWD/explicit, never a fixed app dir | yt-dlp, cookiecutter, ffmpeg; clig.dev |
 | Missing output folders created in full | pandoc, 7-Zip, yt-dlp |
+| One `OUTPUT` for a file or a folder, beside the input by default | cp, Windows copy, unoconv; pdf2docx, rst2pdf |
 | Folder per league, fixed inner file names | OBS Studio, Kodi, Hugo |
 | Current league as a key in the main settings file | Calibre |
 | `config set KEY VALUE` | pip, gcloud, poetry |

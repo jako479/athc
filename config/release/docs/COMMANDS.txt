@@ -54,7 +54,8 @@ A file or folder that exists by that name wins over the key.
    ------------------------------------------------------------------
 
    Default writes <name>.normals.txt next to the .pln, replacing any existing
-   copy; pass an output file to write elsewhere, or - to print to the screen.
+   copy; pass an output file or folder to write elsewhere (a name with no
+   extension gets .txt), or - to print to the screen.
    The game plan is a .pln file or a game plan key. A file's first line is a
    `::` comment with the absolute path of the source .pln. --sort name lists
    alphabetically (default keeps slot order). --sort category groups the
@@ -69,6 +70,7 @@ A file or folder that exists by that name wins over the key.
    Example terminal calls:
       athc gameplan list-normals off1
       athc gameplan list-normals DEN-OGP1.pln plays.txt --sort category
+      athc gameplan list-normals off1 lists\
       athc gameplan list-normals offense.pln -
 
 
@@ -76,10 +78,10 @@ A file or folder that exists by that name wins over the key.
    -----------------------------------------------------------------------
 
    Lists them in game plan order. Default writes <name>.specials.txt next to
-   the .pln, replacing any existing copy; pass an output file to write
-   elsewhere, or - to print to the screen. The game plan is a .pln file or a
-   game plan key. A file's first line is a `::` comment with the absolute
-   source path.
+   the .pln, replacing any existing copy; pass an output file or folder to
+   write elsewhere (a name with no extension gets .txt), or - to print to
+   the screen. The game plan is a .pln file or a game plan key. A file's
+   first line is a `::` comment with the absolute source path.
 
    Show help:
       athc gameplan list-specials -h
@@ -305,7 +307,8 @@ A file or folder that exists by that name wins over the key.
    summing every team), a Tendencies sheet (run/pass counts by down and
    distance) and an Options sheet. With no output file it writes
    <name>.xlsm beside the PDB, replacing any existing copy; name an .xlsx or
-   .xlsm output file to write elsewhere. An .xlsm has the built-in sorting:
+   .xlsm output file, or a folder, to write elsewhere (a name with no
+   extension gets .xlsm). An .xlsm has the built-in sorting:
    double-click a column to sort by it (stat columns toggle between
    descending and ascending; Team, Category, Slot, Play and Type sort
    ascending only). Excel opens an .xlsm with its macros disabled until you
@@ -335,6 +338,7 @@ A file or folder that exists by that name wins over the key.
    Example terminal calls:
       athc convert-pdb 49W6.pdb
       athc convert-pdb 49W6.pdb reports\week6.xlsx
+      athc convert-pdb 49W6.pdb reports\
       athc convert-pdb 49W6.pdb --team Broncos
       athc convert-pdb 49W6.pdb -o try3.pln -o2 plans\DEN-OGP1.pln
       athc convert-pdb 49W5.pdb --path plans\wk5

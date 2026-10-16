@@ -53,6 +53,10 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
 ### CLI and help (1.0.0)
 
+- `OUTPUT` (`convert-pdb`, `list-normals`, `list-specials`) takes a file or a
+  folder, and a name with no extension gets the command's; `generate-schedule`
+  takes `OUTPUT_FOLDER`. Rules:
+  [docs/architecture.md](docs/architecture.md#output-files).
 - Every command's help is in one style, Click's own (8.5): `[OPTIONS]` then
   UPPERCASE placeholders, a line per argument, a summary of 55 characters or
   fewer, a description of one to four lines, one to six examples. Rules:
@@ -382,7 +386,8 @@ Working. Extracts a WinLogStats database into an Excel workbook. Docs:
   way and sorts them in the league's order. The workbook always has the Total
   Stats team; the workbook options stay in `[convert-pdb]`
   (`include_category_worksheets` is no longer shipped in `athc.ini`).
-- The output is optional: `<name>.xlsm` beside the PDB by default.
+- The output is optional: `<name>.xlsm` beside the PDB by default, or inside a
+  folder given.
 - The Slot columns come from your team's four game plans (`--path FOLDER`,
   else `ppp_path`, else where the league file puts them; `--team NAME` for
   another team), or from `-o`, `-o2`, `-d`, `-d2` alone; a missing defaulted
@@ -526,8 +531,8 @@ Working. Docs: [scheduler.md](docs/scheduler.md) ·
 - Past PNFL seasons were re-ranked from real results using SOS tiebreaks, which
   gave a real-schedule baseline to measure generated seasons against and the
   ranking rule the loader now applies.
-- Every run writes three files named to the minute in the current folder; a
-  rerun in the same minute replaces them.
+- Every run writes three files named to the minute in `OUTPUT_FOLDER`, else the
+  current folder; a rerun in the same minute replaces them.
 
 Open: simplify the ruleset — 50 `[phase2]` keys, some redundant by
 construction, never pruned · then the quirk budget in

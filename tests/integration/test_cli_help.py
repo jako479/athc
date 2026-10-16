@@ -171,9 +171,9 @@ ARGUMENT_HELP = [
     (("convert-pdb",), "PDB_FILE", "WinLogStats .pdb file."),
     (
         ("convert-pdb",),
-        "OUTPUT_FILE",
-        ".xlsx, or .xlsm to include sorting macros (default: PDB_FILE with .xlsm, "
-        "beside it).",
+        "OUTPUT",
+        ".xlsx, or .xlsm to include sorting macros, or a folder (default: "
+        "PDB_FILE with .xlsm, beside it).",
     ),
     (
         ("gameplan", "check"),
@@ -188,9 +188,9 @@ ARGUMENT_HELP = [
     ),
     (
         ("gameplan", "list-normals"),
-        "OUTPUT_FILE",
-        "Where to write the list (default: GAME_PLAN with .normals.txt, beside "
-        "it; - prints it).",
+        "OUTPUT",
+        "File or folder for the list (default: GAME_PLAN with .normals.txt, "
+        "beside it; - prints it).",
     ),
     (
         ("gameplan", "list-specials"),
@@ -199,9 +199,9 @@ ARGUMENT_HELP = [
     ),
     (
         ("gameplan", "list-specials"),
-        "OUTPUT_FILE",
-        "Where to write the list (default: GAME_PLAN with .specials.txt, beside "
-        "it; - prints it).",
+        "OUTPUT",
+        "File or folder for the list (default: GAME_PLAN with .specials.txt, "
+        "beside it; - prints it).",
     ),
     (("gameplan", "replace-play"), "PLAY", "Play to replace (any case)."),
     (
@@ -482,16 +482,16 @@ Options:
     athc gameplan set-specials spec.txt --path plans -r
 """,
     ("gameplan", "list-normals"): f"""\
-Usage: athc gameplan list-normals [OPTIONS] GAME_PLAN [OUTPUT_FILE]
+Usage: athc gameplan list-normals [OPTIONS] GAME_PLAN [OUTPUT]
 
   List the 64 normal plays in a game plan.
 
   An existing output file is replaced.
 
 Positional arguments:
-  GAME_PLAN    A .pln file or a game plan key.
-  OUTPUT_FILE  Where to write the list (default: GAME_PLAN with .normals.txt,
-               beside it; - prints it).
+  GAME_PLAN  A .pln file or a game plan key.
+  OUTPUT     File or folder for the list (default: GAME_PLAN with
+             .normals.txt, beside it; - prints it).
 
 Options:
   --sort [slot|name|category]  slot keeps slot order (empty slots blank); name
@@ -511,16 +511,16 @@ Options:
     athc gameplan list-normals DEN-OGP1.pln plays.txt --sort category
 """,
     ("gameplan", "list-specials"): f"""\
-Usage: athc gameplan list-specials [OPTIONS] GAME_PLAN [OUTPUT_FILE]
+Usage: athc gameplan list-specials [OPTIONS] GAME_PLAN [OUTPUT]
 
   List the special-teams plays in a game plan.
 
   Lists them in game plan order; an existing output file is replaced.
 
 Positional arguments:
-  GAME_PLAN    A .pln file or a game plan key.
-  OUTPUT_FILE  Where to write the list (default: GAME_PLAN with .specials.txt,
-               beside it; - prints it).
+  GAME_PLAN  A .pln file or a game plan key.
+  OUTPUT     File or folder for the list (default: GAME_PLAN with
+             .specials.txt, beside it; - prints it).
 
 Options:
   --team NAME    Team the game plan keys refer to (default: team in

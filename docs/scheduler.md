@@ -30,7 +30,7 @@ A file's season cannot be read from it, so a `--previous` of the wrong season sh
 
 Teams are matched by name. A team that changed its name between the two seasons is listed in the league's `scheduler.toml` (in the league's folder in the athc settings folder; find it with `athc config path`), one table per upcoming season: `[renames.2048]` with `Baltimore = "Los Angeles"` (previous name = new name). The same file holds the rule amounts and solver settings; every key defaults, and `phase1_time_limit` and `phase2_time_limit` must be positive numbers.
 
-It writes a `.txt` and `.html` schedule plus a sortable HTML report to the **current folder**, named `schedule_<season>_<timestamp>` (the report adds `_report.html`); a rerun in the same minute replaces them. Progress (`Generating the <season> schedule`, `Phase 1: ...`, `Phase 2: ...`) prints on stderr as it runs; then `OK   <file>: written` per file and `Generated <n> games (seed <s>)`. Exit `0` = written, `2` = an error (`FAIL <why>`: config, a league file, no feasible schedule, I/O, `Missing ortools. Reinstall athc.`) or bad arguments, `130` = Ctrl+C. Shared console and codes: [architecture](architecture.md#console-run-log-and-errors).
+It writes a `.txt` and `.html` schedule plus a sortable HTML report to `OUTPUT_FOLDER` (created if missing), else the **current folder**, named `schedule_<season>_<timestamp>` (the report adds `_report.html`); a rerun in the same minute replaces them. Progress (`Generating the <season> schedule`, `Phase 1: ...`, `Phase 2: ...`) prints on stderr as it runs; then `OK   <file>: written` per file and `Generated <n> games (seed <s>)`. Exit `0` = written, `2` = an error (`FAIL <why>`: config, a league file, no feasible schedule, I/O, `Missing ortools. Reinstall athc.`) or bad arguments, `130` = Ctrl+C. Shared console and codes: [architecture](architecture.md#console-run-log-and-errors).
 
 Ctrl+C stops the run with `FAIL Interrupted.` and nothing written; during a solve, the search stops at the press. A press while the three files are written takes effect once all three are written.
 
@@ -138,11 +138,11 @@ src/athc/cli/generate_schedule.py   # Click command (lazy solver import)
 
 ### What this package does
 
-- Provides a CLI: `athc generate-schedule [OPTIONS]`, with `--season YEAR` (required), `--previous FILE`, `--upcoming FILE`, `--seed NUMBER`, `--phase2-time-limit LIMIT` and `--league NAME`
+- Provides a CLI: `athc generate-schedule [OPTIONS] [OUTPUT_FOLDER]`, with `--season YEAR` (required), `--previous FILE`, `--upcoming FILE`, `--seed NUMBER`, `--phase2-time-limit LIMIT` and `--league NAME`
 - Resolves the league (`--league` → `[athc] league`) with the shared `athc.config.load_league_config`; `--upcoming` defaults to `<league>.lge` in the league's `path`, and `--previous` to the upcoming file
 - Reads the previous season's `.lge` file (standings), then the upcoming season's (conferences, divisions, names), through `fbpro98_lge`, matches the teams by name with `[renames.<season>]` (none when one file gives both), ranks the previous season and builds the `League` (`league_files.py`); loads `scheduler.toml` (optional amounts and the renames) from the league's folder first
 - Solves the schedule in two CP-SAT phases
-- Writes `schedule_<season>_<timestamp>.txt` / `.html` and `_report.html` to the current folder, titled by league
+- Writes `schedule_<season>_<timestamp>.txt` / `.html` and `_report.html` to `OUTPUT_FOLDER` (default: the current folder; created in full if missing), titled by league
 
 ### What this package enforces
 

@@ -162,13 +162,13 @@ def test_short_help_option_on_every_command(runner, path: tuple[str, ...]) -> No
         (
             ("convert-pdb",),
             [
-                "PDB_FILE [OUTPUT_FILE]",
+                "PDB_FILE [OUTPUT]",
                 "--pln-off GAME_PLAN",
                 "--path FOLDER",
                 "--team NAME",
                 "--percentages / --no-percentages",
             ],
-            ["PDBFILE", "OUTPUTFILE", "pdb_file", "pln_file"],
+            ["PDBFILE", "OUTPUTFILE", "pdb_file", "pln_file", "OUTPUT_FILE"],
         ),
         (
             ("gameplan", "check"),
@@ -187,8 +187,8 @@ def test_short_help_option_on_every_command(runner, path: tuple[str, ...]) -> No
         ),
         (
             ("gameplan", "list-normals"),
-            ["GAME_PLAN [OUTPUT_FILE]", "--team NAME"],
-            ["GAMEPLAN", "OUTPUT_PATH", "[output_file]"],
+            ["GAME_PLAN [OUTPUT]", "--team NAME"],
+            ["GAMEPLAN", "OUTPUT_PATH", "[output_file]", "OUTPUT_FILE"],
         ),
         (
             ("gameplan", "set-normals"),
@@ -208,6 +208,7 @@ def test_short_help_option_on_every_command(runner, path: tuple[str, ...]) -> No
                 "--upcoming FILE",
                 "--seed NUMBER",
                 "--phase2-time-limit LIMIT",
+                "[OUTPUT_FOLDER]",
             ],
             ["INTEGER", "--season year"],
         ),
@@ -253,16 +254,16 @@ USAGE_CASES = [
     (("gameplan",), "athc gameplan [OPTIONS] COMMAND [ARGS]..."),
     (
         ("gameplan", "list-normals"),
-        "athc gameplan list-normals [OPTIONS] GAME_PLAN [OUTPUT_FILE]",
+        "athc gameplan list-normals [OPTIONS] GAME_PLAN [OUTPUT]",
     ),
     (("gameplan", "find-play"), "athc gameplan find-play [OPTIONS] PLAY..."),
     (("profile", "diff"), "athc profile diff [OPTIONS] PROFILE1 PROFILE2"),
-    (("generate-schedule",), "athc generate-schedule [OPTIONS]"),
+    (("generate-schedule",), "athc generate-schedule [OPTIONS] [OUTPUT_FOLDER]"),
     (("autocontinue",), "athc autocontinue [OPTIONS]"),
     (("playpool",), "athc playpool [OPTIONS] COMMAND [ARGS]..."),
     (("playpool", "check"), "athc playpool check [OPTIONS] [FOLDER]"),
     (("check-ppp",), "athc check-ppp [OPTIONS] [PATH]..."),
-    (("convert-pdb",), "athc convert-pdb [OPTIONS] PDB_FILE [OUTPUT_FILE]"),
+    (("convert-pdb",), "athc convert-pdb [OPTIONS] PDB_FILE [OUTPUT]"),
     (("standings",), "athc standings [OPTIONS]"),
 ]
 
@@ -293,6 +294,7 @@ ALL_POSITIONALS = [
     (("config", "get"), ["team"]),
     (("config", "path"), ["athc.ini"]),
     (("playpool", "check"), ["plays"]),
+    (("generate-schedule",), ["--season", "2048", "out"]),
 ]
 
 

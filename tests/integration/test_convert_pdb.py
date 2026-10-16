@@ -88,16 +88,16 @@ def run(runner: CliRunner, *args: Path | str) -> Result:
 # ── help ──────────────────────────────────────────────────────────────────────
 
 HELP = """\
-Usage: athc convert-pdb [OPTIONS] PDB_FILE [OUTPUT_FILE]
+Usage: athc convert-pdb [OPTIONS] PDB_FILE [OUTPUT]
 
   Convert a WinLogStats PDB to an Excel workbook.
 
   Slot columns come from your team's game plans, or from -o, -o2, -d and -d2.
 
 Positional arguments:
-  PDB_FILE     WinLogStats .pdb file.
-  OUTPUT_FILE  .xlsx, or .xlsm to include sorting macros (default: PDB_FILE
-               with .xlsm, beside it).
+  PDB_FILE  WinLogStats .pdb file.
+  OUTPUT    .xlsx, or .xlsm to include sorting macros, or a folder (default:
+            PDB_FILE with .xlsm, beside it).
 
 Options:
   -o, --pln-off GAME_PLAN         Offense Slot 1.
@@ -160,17 +160,15 @@ def test_bad_extension_is_a_sentence(runner) -> None:
     )
 
 
-@pytest.mark.parametrize("output", ["-", "reports", "week6.pdb"])
-def test_output_file_must_be_a_workbook(runner, tmp_path: Path, output: str) -> None:
-    """`-` (the console), a folder and a second PDB are each the extension
-    error, with nothing more."""
-    (tmp_path / "reports").mkdir()
+@pytest.mark.parametrize("output", ["-", "week6.pdb"])
+def test_output_must_be_a_workbook(runner, tmp_path: Path, output: str) -> None:
+    """`-` (the console) and a second PDB are each the extension error, with
+    nothing more."""
     target = output if output == "-" else str(tmp_path / output)
     result = runner.invoke(convert_pdb, [str(PDB), target])
     assert result.exit_code == 2
     assert result.stderr.endswith(
-        "\nError: Invalid value for 'OUTPUT_FILE': must have a .xlsx or .xlsm "
-        "extension.\n"
+        "\nError: Invalid value for 'OUTPUT': must have a .xlsx or .xlsm extension.\n"
     )
 
 
@@ -359,7 +357,7 @@ def test_produces_xlsm(runner, tmp_path: Path) -> None:
     assert out.is_file()
 
 
-# ── the output: OUTPUT_FILE, else <PDB name>.xlsm beside the PDB ──────────────
+# ── the output: OUTPUT, else <PDB name>.xlsm beside the PDB ───────────────────
 
 
 def copy_pdb(folder: Path, name: str = "49W6.pdb") -> Path:
@@ -410,6 +408,35 @@ def test_output_file_given_wins(runner, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert out.is_file()
     assert not (tmp_path / "49W6.xlsm").exists()
+
+
+@pytest.mark.usefixtures("league")
+def test_output_folder_gets_the_default_name(runner, tmp_path: Path) -> None:
+    pdb = copy_pdb(tmp_path)
+    reports = tmp_path / "reports"
+    reports.mkdir()
+    result = run(runner, pdb, reports)
+    assert result.exit_code == 0
+    assert (reports / "49W6.xlsm").is_file()
+    assert result.stdout == f"OK   {reports / '49W6.xlsm'}: 0 play(s)\n"
+
+
+@pytest.mark.usefixtures("league")
+def test_output_ending_in_a_backslash_is_a_new_folder(runner, tmp_path: Path) -> None:
+    pdb = copy_pdb(tmp_path)
+    reports = tmp_path / "reports"
+    result = run(runner, pdb, f"{reports}\\")
+    assert result.exit_code == 0
+    assert (reports / "49W6.xlsm").is_file()
+
+
+@pytest.mark.usefixtures("league")
+def test_output_without_an_extension_gets_xlsm(runner, tmp_path: Path) -> None:
+    pdb = copy_pdb(tmp_path)
+    result = run(runner, pdb, tmp_path / "week6")
+    assert result.exit_code == 0
+    assert (tmp_path / "week6.xlsm").is_file()
+    assert not (tmp_path / "week6").exists()
 
 
 # ── --percentages / --no-percentages over calculate_percentages ───────────────
@@ -667,13 +694,14 @@ def test_play_path_not_a_directory_is_a_config_error(
 
 @pytest.mark.usefixtures("league")
 def test_unwritable_workbook_is_a_fail_line_not_a_bug(runner, tmp_path: Path) -> None:
-    """A workbook that cannot be written (here the path is a folder; for a user,
-    usually the old workbook still open in Excel) is a one-line failure."""
-    out = tmp_path / "w.xlsx"
-    out.mkdir()
-    result = runner.invoke(convert_pdb, [str(PDB), str(out)])
+    """A workbook that cannot be written (here a folder holds its name; for a
+    user, usually the old workbook still open in Excel) is a one-line failure."""
+    pdb = copy_pdb(tmp_path)
+    blocked = tmp_path / "49W6.xlsm"
+    blocked.mkdir()
+    result = run(runner, pdb)
     assert result.exit_code == 2
-    assert result.stderr.splitlines()[-1].startswith(f"FAIL {out}: ")
+    assert result.stderr.splitlines()[-1].startswith(f"FAIL {blocked}: ")
     assert "unexpected error" not in result.stderr
 
 
@@ -906,6 +934,17 @@ def test_team_plans_fill_every_slot(
     assert plan_lines(result) == progress(location)
     assert shown(out) == slots((True, True), (True, True))
     assert all(filled(out, sheet, column) for sheet in SHEETS for column in (3, 4))
+
+
+def test_output_on_a_file_fails_before_the_game_plans_are_read(
+    runner, denver_league: Callable[..., Path], tmp_path: Path
+) -> None:
+    denver_league()
+    notes = tmp_path / "notes.xlsx"
+    notes.write_text("x", encoding="utf-8")
+    result = run(runner, PDB, f"{notes}\\")
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {notes}: {DIRECTORY_INVALID}\n"
 
 
 def test_team_plans_from_the_real_league(

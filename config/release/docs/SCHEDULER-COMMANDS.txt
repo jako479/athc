@@ -13,8 +13,9 @@ generate-schedule  --  build the season schedule
 
    Reads two of the league's game files, solves the schedule, and writes a
    .txt and .html schedule plus a sortable HTML report (per-team strength of
-   schedule; click a column header to sort) to the current folder. Files are
-   named schedule_<season>_<timestamp>; the report adds a _report.html suffix.
+   schedule; click a column header to sort) to the output folder given,
+   else the current folder; a missing folder is created. Files are named
+   schedule_<season>_<timestamp>; the report adds a _report.html suffix.
    A rerun in the same minute replaces them.
 
    The previous season's .lge file (saved after its last playoff game)
@@ -29,6 +30,7 @@ generate-schedule  --  build the season schedule
    Example terminal calls:
       athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge
       athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge --seed 7
+      athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge E:\PNFL\Schedules
       athc generate-schedule --season 2030 --league PCFL --previous D:\PCFL\2029\PCFL.lge --upcoming D:\PCFL\2030\PCFL.lge
       athc generate-schedule --season 2050 --previous E:\PNFL\2049\PNFL.lge --phase2-time-limit 900
 
@@ -53,6 +55,9 @@ generate-schedule  --  build the season schedule
    With no --upcoming and no path in league.toml:
       FAIL <league.toml>: League files folder is not set. Run 'athc config
       set path FOLDER' or pass --upcoming.
+
+   An output folder that is a file:
+      FAIL <path>: The directory name is invalid.
 
    A file's season cannot be read from it, so a --previous of the wrong
    season shows only through its team names (Team(s) not in <file>: ...).

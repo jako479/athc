@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
 
-from athc.errors import ACCESS_DENIED, AthcError, missing_reason
+from athc.errors import ACCESS_DENIED, DIRECTORY_INVALID, AthcError, missing_reason
 
 _GLOB_CHARS = frozenset("*?[")
 
@@ -85,6 +85,47 @@ def named_file(raw: str | PathLike[str]) -> Path:
         raise AthcError(missing_reason(path), path)
     if not path.is_file():
         raise AthcError(ACCESS_DENIED, path)
+    return path
+
+
+def is_folder(raw: str) -> bool:
+    """Whether an output path names a folder: one that exists; any path
+    ending in a slash, or in the `"` Windows leaves in place of the final
+    backslash of a quoted path; or a bare drive (`Q:`), which has no name. A
+    `Path` drops a trailing slash, so this reads the string as given."""
+    return raw.endswith(("/", "\\", '"')) or not Path(raw).name or Path(raw).is_dir()
+
+
+def _unquoted(raw: str) -> Path:
+    """The path as typed: a quoted path that ended in a backslash arrives
+    ending in `"`, which no Windows name holds."""
+    return Path(raw.removesuffix('"'))
+
+
+def resolve_output(raw: str | None, default: Path, extension: str) -> Path:
+    """The file a command writes for its `OUTPUT`: `default` when none is
+    given; `default`'s name inside it when it is a folder (`is_folder`); else
+    the path itself, with `extension` added when it has none. A folder path
+    that names an existing file is an AthcError. `-` is the caller's."""
+    if raw is None:
+        return default
+    path = _unquoted(raw)
+    if is_folder(raw):
+        if path.is_file():
+            raise AthcError(DIRECTORY_INVALID, path)
+        return path / default.name
+    return path if path.suffix else path.with_suffix(extension)
+
+
+def resolve_output_folder(raw: str | None) -> Path:
+    """The folder a command writes into for its `OUTPUT_FOLDER`: the current
+    folder when none is given, else the path, whatever its name (whoever
+    writes creates it). An existing file there is an AthcError."""
+    if raw is None:
+        return Path.cwd()
+    path = _unquoted(raw)
+    if path.is_file():
+        raise AthcError(DIRECTORY_INVALID, path)
     return path
 
 

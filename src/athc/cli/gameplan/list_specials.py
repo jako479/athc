@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import click
 
 from athc.cli import CONTEXT_SETTINGS, league_option, team_option
+from athc.cli._files import resolve_output
 from athc.cli.gameplan import gameplan
 from athc.cli.gameplan._common import (
     TEAM_HELP,
@@ -30,19 +29,18 @@ from athc.fbpro98_gameplan import read_gameplan
 )
 @click.argument("game_plan", help="A .pln file or a game plan key.")
 @click.argument(
-    "output_file",
+    "output",
     required=False,
-    type=click.Path(path_type=Path, allow_dash=True),
     help=(
-        "Where to write the list (default: GAME_PLAN with .specials.txt, beside "
-        "it; - prints it)."
+        "File or folder for the list (default: GAME_PLAN with .specials.txt, "
+        "beside it; - prints it)."
     ),
 )
 @team_option(TEAM_HELP)
 @league_option
 def list_specials(
     game_plan: str,
-    output_file: Path | None,
+    output: str | None,
     team: str | None,
     league: str | None,
 ) -> None:
@@ -56,11 +54,10 @@ def list_specials(
     source = one_game_plan(game_plan, team, league)
     gp = read_gameplan(source)
     lines = special_play_lines(gp)
-    if output_file is None:
-        output_file = source.with_name(f"{source.stem}.specials.txt")
+    default = source.with_name(f"{source.stem}.specials.txt")
     emit_play_list(
         lines,
-        None if str(output_file) == "-" else output_file,
+        None if output == "-" else resolve_output(output, default, ".txt"),
         source,
         noun="special",
     )

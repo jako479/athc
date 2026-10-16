@@ -65,6 +65,11 @@ In `test_config.py`, `test_league_files.py` and `test_cli.py`. The test league i
 | No `--upcoming` and no `path` | exit 2: `League files folder is not set. Run 'athc config set path FOLDER' or pass --upcoming.` naming `league.toml` | `test_errors_when_the_league_has_no_path` | ☑ |
 | `--upcoming` | overrides `path` | `test_upcoming_option_overrides_the_league_path` | ☑ |
 | CLI resolves both files and the rules; output to cwd | league, files, cwd | `test_league_and_season_resolve_files_and_output_to_cwd`, `test_season_resolves_files_for_the_configured_league` | ☑ |
+| `OUTPUT_FOLDER` | forwarded as given, whatever its name (`output.txt`) | `test_output_folder_is_forwarded_whatever_its_name` | ☑ |
+| `OUTPUT_FOLDER` an existing file | exit 2: `FAIL <path>: The directory name is invalid.`, never reaching the run | `test_output_folder_that_is_a_file_fails_before_the_run` | ☑ |
+| `OUTPUT_FOLDER` of `-` | exit 2 with `must be a folder, not -.` | `test_output_folder_dash_is_a_usage_error` | ☑ |
+| Missing output folder (main) | created in full; the three files inside | `test_main_creates_a_missing_output_folder` | ☑ |
+| Output folder that cannot be made (main) | a folder under a file: `OSError` before the solver runs | `test_main_output_folder_that_cannot_be_made_fails_before_the_solver` | ☑ |
 | Previous season not finished (main / CLI) | `warn` hears the line / `WARN` naming the file; the run reaches the solver | `test_main_errors_when_the_previous_season_is_not_finished`, `test_cli_errors_when_the_previous_season_is_not_finished` | ☑ |
 | Renamed team not listed (CLI) | exit 2 with the `[renames.<season>]` hint | `test_cli_errors_when_a_renamed_team_is_not_listed` | ☑ |
 | League built (main) | pre-checks pass, solver reached with the season and league | `test_main_builds_the_league_and_reaches_the_solver` | ☑ |
