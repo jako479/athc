@@ -74,13 +74,28 @@ For one shell session:
 $env:ATHC_CONFIG_DIR = "$PWD\config\dev"
 ```
 
-## Tests
+### Tests
 
 ```
 uv run pytest
 ```
 
 Coverage runs with every test run and fails below 92%.
+
+The real-game tests are slow and skipped by default; they play the game in Windows Sandbox:
+
+```
+uv run pytest -m slow tests/integration/test_autocontinue_game.py --no-cov
+```
+
+They need:
+
+- Windows Sandbox, with its `wsb` command line.
+- The installer, built with `packaging/release-build.ps1`.
+- Football Pro '98 installed, and `ATHC_GAME_DIR` set once to the folder holding `FbPro98`: `setx ATHC_GAME_DIR E:\SIERRA`.
+- The PC unlocked while they run.
+
+Each test plays its own copy of the game, so your install, settings and leagues never change.
 
 ## License
 

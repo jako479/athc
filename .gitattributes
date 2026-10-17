@@ -14,6 +14,9 @@
 *.pdb binary
 *.bin binary
 
+# The Sandbox test game's files: exactly as the game reads them.
+tests/integration/data/autocontinue_game/SIERRA/** -text
+
 # Other binary assets
 *.png binary
 *.pdf binary

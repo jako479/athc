@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- autocontinue: the real-game tests build their own game from the dev's game install and the repo's test league
 - autocontinue: the installer no longer carries the game test's menu images
 - autocontinue: tested on real game screens with the pointer off, on and lighting every button it clicks, and with each setting at its default, -1 and 0
 - autocontinue: finds Venues on the league play pre-game screen even with the game's pointer resting on it

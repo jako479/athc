@@ -1,0 +1,11 @@
+:: C:\Users\Brian\Projects\PNFL\athc\tests\integration\data\autocontinue_game\SIERRA\FbPro98\PNFL\2049\Plans\Atlanta (Dean)\ATF-DP1.pln
+SFFFGXPD
+SKINKRW5
+SKINPRW1
+BC-ON-R
+
+SFFFGPas
+
+
+BCFREERT
+BCSQUIBR

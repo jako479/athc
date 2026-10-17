@@ -3,11 +3,19 @@ game with 6-minute quarters, through halftime to the end of the game; and a
 league game's pre-game screen, driven to Game with drive_league_pregame on and
 left alone with it off.
 
-Slow and manual: `uv run pytest -m slow tests/integration/test_autocontinue_game.py`.
+Slow and manual:
+`uv run pytest -m slow tests/integration/test_autocontinue_game.py --no-cov`
+(three tests alone fall under the coverage gate).
 It needs Windows Sandbox (with the `wsb` command line), a built installer
-(`packaging/release-build.ps1`), and a copy of the game install: the folder
-holding `FbPro98`, set by `ATHC_GAME_DIR` or at `SIERRA` in the project root.
-The sandbox works on its own copy of the game, so the folder never changes.
+(`packaging/release-build.ps1`), and the game installed: `ATHC_GAME_DIR` set
+to the folder holding `FbPro98`.
+
+Each test builds its own game in its temp folder: the game's own files, as
+`game-files.txt` lists them, from that install, then the test files in
+`data/autocontinue_game/SIERRA` laid over them (the PNFL league, each team's
+plans and profiles, SETUP.INI and an empty disc image). The sandbox plays
+that copy, so the install never changes and the dev's own settings and
+leagues never matter.
 
 The host drives the game's menus by image, through `agent.ps1` in the
 sandbox, then waits for autocontinue's lines. In the exhibition game,
@@ -31,10 +39,6 @@ import numpy
 import pytest
 from cv2.typing import MatLike
 
-from athc.fbpro98_lg2.reader import read_lg2
-
-pytestmark = pytest.mark.slow
-
 ROOT = Path(__file__).resolve().parents[2]
 DATA = Path(__file__).parent / "data" / "autocontinue_game"
 # The menus' images: the test's own, then the ones autocontinue ships.
@@ -45,7 +49,7 @@ SANDBOX_EXE = (
     Path(os.environ.get("WINDIR", r"C:\Windows")) / "System32" / "WindowsSandbox.exe"
 )
 
-SETUP_TIMEOUT = 20 * 60  # copy the game and install athc
+SETUP_TIMEOUT = 20 * 60  # install athc and start the game
 MENU_TIMEOUT = 2 * 60  # one menu screen
 MENU_PAUSE = 1.5  # after a click, and between looks for a button
 HALF_TIMEOUT = 45 * 60  # one half of 6-minute quarters, with time to spare
@@ -76,19 +80,41 @@ MIX_NEAR = 0.10
 IN_TIME_MS = 1000
 HELPER_LEAST = 40  # buttons the helper acts on in time in a game, at the least
 
-# Baltimore's test plans and profiles, in the league folder, by half and side:
-# (profile, game plan).
-TEST_SET = {
-    ("first", "offense"): ("PNFL\\BALTOFF1.prf", "PNFL\\RAVENOFF1.pln"),
-    ("first", "defense"): ("PNFL\\BALTDEF1.prf", "PNFL\\RAVENDEF1.pln"),
-    ("second", "offense"): ("PNFL\\BALTOFF2.prf", "PNFL\\RAVENOFF2.pln"),
-    ("second", "defense"): ("PNFL\\BALTDEF2.prf", "PNFL\\RAVENDEF2.pln"),
-}
+# The game's own files, from a clean install: one per line, relative to
+# FbPro98; a line ending in / is a folder. The game's CD image is left out.
+GAME_FILES = Path(__file__).parent / "game-files.txt"
+# Laid over the game: SETUP.INI, the PNFL league with each team's plans and
+# profiles, and an empty disc image.
+TEST_GAME = DATA / "SIERRA"
 
 
-def _game_dir() -> Path:
-    """The folder holding FbPro98: ATHC_GAME_DIR, else SIERRA in the project."""
-    return Path(os.environ.get("ATHC_GAME_DIR", ROOT / "SIERRA"))
+def _install() -> Path:
+    """The dev's game install, the folder holding FbPro98: ATHC_GAME_DIR."""
+    value = os.environ.get("ATHC_GAME_DIR")
+    if not value:
+        pytest.fail(
+            "Set ATHC_GAME_DIR to the folder holding FbPro98, e.g. "
+            "setx ATHC_GAME_DIR E:\\SIERRA, then open a new terminal."
+        )
+    install = Path(value)
+    if not (install / "FbPro98" / "Hike.exe").exists():
+        pytest.fail(
+            f"No game at {install}; set ATHC_GAME_DIR to the folder holding FbPro98."
+        )
+    return install
+
+
+def _build_game(install: Path, listed: Path, test_files: Path, into: Path) -> None:
+    """The game a test plays, at `into`\\FbPro98: the listed files from
+    `install`, then `test_files` laid over them."""
+    for line in listed.read_text(encoding="utf-8").splitlines():
+        target = into / "FbPro98" / line
+        if line.endswith("/"):
+            target.mkdir(parents=True, exist_ok=True)
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(install / "FbPro98" / line, target)
+    shutil.copytree(test_files, into, dirs_exist_ok=True)
 
 
 def _setup_exe() -> Path:
@@ -112,24 +138,6 @@ def _wsb(*args: str) -> str:
     return subprocess.run(
         ["wsb", *args], capture_output=True, text=True, check=True
     ).stdout.strip()
-
-
-def _copies(game: Path) -> list[str]:
-    """`source|target` for Baltimore's set under every team's .lg2 names, both
-    relative to the game folder; exhibition picks its teams at random."""
-    lines = []
-    for team in read_lg2("PNFL", game).teams:
-        for half_name, half in (
-            ("first", team.first_half),
-            ("second", team.second_half),
-        ):
-            for side_name, pair in (
-                ("offense", half.offense),
-                ("defense", half.defense),
-            ):
-                profile, plan = TEST_SET[(half_name, side_name)]
-                lines += [f"{profile}|{pair.profile}", f"{plan}|{pair.gameplan}"]
-    return lines
 
 
 def _mapping(host: Path, name: str, read_only: bool) -> str:
@@ -262,18 +270,14 @@ class Sandbox:
 
 @pytest.fixture
 def sandbox(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[Sandbox]:
-    """The sandbox, set up and running the game and autocontinue. A test's
-    parameter, when it gives one, is the athc.ini autocontinue runs with;
-    else the installed one."""
+    """The sandbox, set up and running the test's own game and autocontinue. A
+    test's parameter, when it gives one, is the athc.ini autocontinue runs
+    with; else the installed one."""
     settings: str | None = getattr(request, "param", None)
-    game = _game_dir()
     setup = _setup_exe()
     if not SANDBOX_EXE.exists() or shutil.which("wsb") is None:
         pytest.fail("Needs Windows Sandbox and its wsb command line (Windows 11 24H2).")
-    if not (game / "FbPro98" / "Hike.exe").exists():
-        pytest.fail(
-            f"No game at {game}; set ATHC_GAME_DIR to the folder holding FbPro98."
-        )
+    install = _install()
     if not setup.exists():
         pytest.fail(f"No {setup}; run packaging/release-build.ps1 first.")
     if _wsb("list"):
@@ -290,16 +294,15 @@ def sandbox(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[Sandbox]
     if settings is not None:
         (assets / "config").mkdir()
         (assets / "config" / "athc.ini").write_text(settings, encoding="utf-8")
-    (assets / "copies.txt").write_text(
-        "\n".join(_copies(game / "FbPro98")) + "\n", encoding="utf-8"
-    )
+    game = tmp_path / "SIERRA"
+    _build_game(install, GAME_FILES, TEST_GAME, game)
     agent = PureWindowsPath(DESK, "assets", "agent.ps1")
     config = tmp_path / "game-test.wsb"
     config.write_text(
         "<Configuration>\n"
         "  <Networking>Disable</Networking>\n"
         "  <MappedFolders>\n"
-        + _mapping(game, "SIERRA", True)
+        + _mapping(game, "SIERRA", False)
         + _mapping(setup.parent, "dist", True)
         + _mapping(assets, "assets", True)
         + _mapping(out, "out", False)
@@ -360,6 +363,7 @@ def _to_the_league_pregame(sandbox: Sandbox) -> None:
     _both_teams_on_computer(sandbox)
 
 
+@pytest.mark.slow
 def test_an_exhibition_game_through_halftime_to_the_end(sandbox: Sandbox) -> None:
     """The pointer lit on, moved off or left on each button as it shows, half,
     a quarter and a quarter: Return clicked at halftime, and the run stopped
@@ -416,6 +420,7 @@ def test_an_exhibition_game_through_halftime_to_the_end(sandbox: Sandbox) -> Non
     assert len([button for button, *_ in helped if button == "Return"]) >= 2
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("sandbox", [PREGAME_ON], indirect=True, ids=["on"])
 def test_a_league_pregame_driven_to_the_game(sandbox: Sandbox) -> None:
     """Every pre-game button clicked, in order, then Game, and the game gone
@@ -443,6 +448,7 @@ def test_a_league_pregame_driven_to_the_game(sandbox: Sandbox) -> None:
     assert not [line for line in lines if line.startswith("WARN")]
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("sandbox", [PREGAME_OFF], indirect=True, ids=["off"])
 def test_a_league_pregame_left_alone_when_off(sandbox: Sandbox) -> None:
     """The pre-game screen stays as it opened, on the home team's plans, with
@@ -458,3 +464,107 @@ def test_a_league_pregame_left_alone_when_off(sandbox: Sandbox) -> None:
     lines = sandbox.lines()
     assert not [line for line in lines if "League play" in line or "clicked" in line]
     assert not [line for line in lines if line.startswith("WARN")]
+
+
+# The game each Sandbox test builds, checked without a Sandbox.
+
+LISTED = ["Hike.exe", "SETUP.INI", "Stock/a.dat", "GameLogs/"]
+
+
+def _fake_install(root: Path) -> Path:
+    """A dev's game install at `root`: the game's own files, a folder it keeps
+    empty, and what the list leaves out (league data, a stray file)."""
+    game = root / "FbPro98"
+    for name, text in {
+        "Hike.exe": "game",
+        "SETUP.INI": "the dev's settings",
+        "Stock/a.dat": "game",
+        "extra.dat": "not listed",
+        "PNFL/real.pln": "a coach's plan",
+    }.items():
+        (game / name).parent.mkdir(parents=True, exist_ok=True)
+        (game / name).write_text(text, encoding="utf-8")
+    (game / "GameLogs").mkdir()
+    return root
+
+
+def _listed(path: Path) -> Path:
+    path.write_text("\n".join(LISTED) + "\n", encoding="utf-8")
+    return path
+
+
+def _files(root: Path) -> set[str]:
+    """Every file under `root`, relative to it, with `/`."""
+    return {p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()}
+
+
+def test_only_the_listed_game_files_are_copied(tmp_path: Path) -> None:
+    """The dev's league data and anything else the list leaves out stay
+    behind; a listed folder the game keeps empty is made."""
+    install = _fake_install(tmp_path / "install")
+    (tmp_path / "test-files").mkdir()
+    into = tmp_path / "SIERRA"
+
+    _build_game(install, _listed(tmp_path / "list.txt"), tmp_path / "test-files", into)
+
+    assert _files(into) == {
+        "FbPro98/Hike.exe",
+        "FbPro98/SETUP.INI",
+        "FbPro98/Stock/a.dat",
+    }
+    assert (into / "FbPro98" / "GameLogs").is_dir()
+
+
+def test_the_test_files_are_laid_over_the_game(tmp_path: Path) -> None:
+    """A test file replaces the game's own; the rest of the game stays."""
+    install = _fake_install(tmp_path / "install")
+    test_files = tmp_path / "test-files" / "FbPro98"
+    (test_files / "PNFL").mkdir(parents=True)
+    (test_files / "SETUP.INI").write_text("the test's settings", encoding="utf-8")
+    (test_files / "PNFL" / "team.pln").write_text("a test plan", encoding="utf-8")
+    into = tmp_path / "SIERRA"
+
+    _build_game(install, _listed(tmp_path / "list.txt"), test_files.parent, into)
+
+    assert (into / "FbPro98" / "SETUP.INI").read_text(encoding="utf-8") == (
+        "the test's settings"
+    )
+    assert _files(into) == {
+        "FbPro98/Hike.exe",
+        "FbPro98/SETUP.INI",
+        "FbPro98/Stock/a.dat",
+        "FbPro98/PNFL/team.pln",
+    }
+
+
+def test_the_game_dir_is_the_folder_holding_fbpro98(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    install = _fake_install(tmp_path / "install")
+    monkeypatch.setenv("ATHC_GAME_DIR", str(install))
+    assert _install() == install
+
+
+@pytest.mark.parametrize("value", [None, ""], ids=["unset", "empty"])
+def test_no_game_dir_fails_saying_how_to_set_it(
+    monkeypatch: pytest.MonkeyPatch, value: str | None
+) -> None:
+    if value is None:
+        monkeypatch.delenv("ATHC_GAME_DIR", raising=False)
+    else:
+        monkeypatch.setenv("ATHC_GAME_DIR", value)
+    with pytest.raises(pytest.fail.Exception, match=r"setx ATHC_GAME_DIR "):
+        _install()
+
+
+@pytest.mark.parametrize(
+    "folder", ["empty", "install/FbPro98"], ids=["an empty folder", "FbPro98 itself"]
+)
+def test_a_game_dir_with_no_game_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, folder: str
+) -> None:
+    _fake_install(tmp_path / "install")
+    (tmp_path / "empty").mkdir()
+    monkeypatch.setenv("ATHC_GAME_DIR", str(tmp_path / folder))
+    with pytest.raises(pytest.fail.Exception, match=r"^No game at .*; set ATHC_GAME"):
+        _install()

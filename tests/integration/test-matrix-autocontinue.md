@@ -1,6 +1,6 @@
 # autocontinue — Test Matrix
 
-Cases for `athc autocontinue`, in [test_autocontinue.py](test_autocontinue.py) and, slow, [test_autocontinue_game.py](test_autocontinue_game.py). Design: [autocontinue.md](../../docs/autocontinue.md).
+Cases for `athc autocontinue`, in [test_autocontinue.py](test_autocontinue.py) and [test_autocontinue_game.py](test_autocontinue_game.py) (the Sandbox tests slow). Design: [autocontinue.md](../../docs/autocontinue.md).
 
 Config is `athc.ini [autocontinue]`, every key optional; the `config_dir` fixture isolates `ATHC_CONFIG_DIR`. The CLI is tested with `auto_continue` stubbed, and the loop on a stand-in desktop (`Desktop`: the game window, the screen, pyautogui's mouse calls and the clock), so nothing touches the screen or the mouse; a pass that clicks takes two screenshots, the scan and the check just before the click. Exit 0 stopped (Ctrl+C, the hot corner or the end of the game) / 2 error. `[P]` parametrized. Status: ☑ covered · ☐ no test yet.
 
@@ -123,8 +123,19 @@ The matcher keeps only scores over its confidence. Each cutoff is tested on a sc
 | The scan's Return | Return, drawn or lit, at 0.6, under the Halftime label | halftime just over, at Return; nothing just under | `test_scan_finds_return_under_its_label_over_0_6` `[P]` | ☑ |
 | The scan's Game | Game, drawn or lit, at 0.6, under the League play label; the pre-game on | the pre-game screen just over; nothing just under | `test_scan_finds_the_pregame_with_game_over_0_6` `[P]` | ☑ |
 
+### The game each Sandbox test builds
+In [test_autocontinue_game.py](test_autocontinue_game.py), not slow, on a fake install in the temp folder. The real build copies the game's own files from `ATHC_GAME_DIR`, as [game-files.txt](game-files.txt) lists them (a clean install's files and empty folders, its CD image left out), then lays `data/autocontinue_game/SIERRA` over them: `SETUP.INI`, the PNFL league with each team's plans and profiles, and an empty disc image.
+
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Only the listed files | an install with the game's files, an empty `GameLogs`, a stray file and a coach's plan in `PNFL`; the list names the game's files and `GameLogs/` | only the listed files copied; `GameLogs` made | `test_only_the_listed_game_files_are_copied` | ☑ |
+| The test files laid over | the same install; test files `SETUP.INI` and `PNFL/team.pln` | the test's `SETUP.INI`; its plan added; the game's listed files kept | `test_the_test_files_are_laid_over_the_game` | ☑ |
+| `ATHC_GAME_DIR` set | the folder holding `FbPro98` | that folder | `test_the_game_dir_is_the_folder_holding_fbpro98` | ☑ |
+| `ATHC_GAME_DIR` unset or empty | — | fails with the `setx ATHC_GAME_DIR` line | `test_no_game_dir_fails_saying_how_to_set_it` `[P]` | ☑ |
+| No game there | an empty folder; the `FbPro98` folder itself | fails with `No game at ...` | `test_a_game_dir_with_no_game_fails` `[P]` | ☑ |
+
 ### The real game, in Windows Sandbox (slow, run on demand)
-In [test_autocontinue_game.py](test_autocontinue_game.py), marked `slow`: `uv run pytest -m slow tests/integration/test_autocontinue_game.py`. Needs Windows Sandbox, a built installer and a copy of the game install (`ATHC_GAME_DIR`, or `SIERRA` in the project root). The sandbox copies the game, puts Baltimore's test plans and profiles under every team's `.lg2` names, installs athc and starts autocontinue, with the test's own athc.ini when it gives one; the test drives the menus by image (`data/autocontinue_game/agent.ps1` takes the screenshots and clicks; the menu images the test alone needs are in `data/autocontinue_game/images/`). The mouse is parked at the top left of the game window before each screenshot, so the game's pointer covers no button. In the exhibition game, `data/autocontinue_game/pointer-helper.ps1` looks at the game window every 100 ms, between searches. As each Continue or Return shows, it lights half (a move onto it, then 1 px), moves the pointer away from a quarter and leaves it on a quarter, leaving it only on a button it is already on, unlit, so the share left falls short when the game gives too few; it logs each with at most how long the button had been up and whether the pointer is on it. Continue's box opens where the one before was about a quarter of the time (24 of 84 in a captured game).
+In [test_autocontinue_game.py](test_autocontinue_game.py), marked `slow`: `uv run pytest -m slow tests/integration/test_autocontinue_game.py --no-cov`. Needs Windows Sandbox, a built installer and the game installed (`ATHC_GAME_DIR`, the folder holding `FbPro98`). Each test builds its own game in its temp folder (above) and maps it writable; the sandbox mounts its empty disc image, installs athc and starts autocontinue, with the test's own athc.ini when it gives one; the test drives the menus by image (`data/autocontinue_game/agent.ps1` takes the screenshots and clicks; the menu images the test alone needs are in `data/autocontinue_game/images/`). The mouse is parked at the top left of the game window before each screenshot, so the game's pointer covers no button. In the exhibition game, `data/autocontinue_game/pointer-helper.ps1` looks at the game window every 100 ms, between searches. As each Continue or Return shows, it lights half (a move onto it, then 1 px), moves the pointer away from a quarter and leaves it on a quarter, leaving it only on a button it is already on, unlit, so the share left falls short when the game gives too few; it logs each with at most how long the button had been up and whether the pointer is on it. Continue's box opens where the one before was about a quarter of the time (24 of 84 in a captured game).
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|

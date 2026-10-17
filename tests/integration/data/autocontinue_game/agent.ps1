@@ -1,6 +1,6 @@
 # Runs INSIDE Windows Sandbox for test_autocontinue_game.py, started hidden by
-# the sandbox LogonCommand. Sets the game up, starts athc autocontinue and the
-# game, then takes screenshots and clicks for the host: the host writes
+# the sandbox LogonCommand. Starts athc autocontinue and the game the host
+# built, then takes screenshots and clicks for the host: the host writes
 # out\cmd.txt (a request id, then one command per line), the agent runs it,
 # writes out\done.txt (the id) and deletes cmd.txt.
 #
@@ -13,7 +13,6 @@
 $ErrorActionPreference = 'Continue'
 $desk  = 'C:\Users\WDAGUtilityAccount\Desktop'
 $out   = Join-Path $desk 'out'
-$game  = 'C:\SIERRA\FbPro98'
 Start-Transcript -Path (Join-Path $out 'agent.log') | Out-Null
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -28,23 +27,11 @@ public static class Native {
 '@
 [Native]::SetProcessDPIAware() | Out-Null
 
-# The game, writable, at the path its settings name (E:\SIERRA\FbPro98); the
-# copy keeps the host's folder untouched and goes when the sandbox closes.
-robocopy (Join-Path $desk 'SIERRA') 'C:\SIERRA' /E /XD CD /NFL /NDL /NJH /NJS /NP | Out-Null
-subst E: C:\
-# The game checks for its CD; the image stays on the read-only mapping.
-Mount-DiskImage -ImagePath (Join-Path $desk 'SIERRA\FbPro98\CD\FPSFB_98.ISO') | Out-Null
-
-# The test plans and profiles under every team's names: "source|target", both
-# relative to the game folder. A file already there is kept.
-foreach ($line in Get-Content (Join-Path $desk 'assets\copies.txt')) {
-    $source, $target = $line -split '\|'
-    $to = Join-Path $game $target
-    if (-not (Test-Path $to)) {
-        New-Item -ItemType Directory -Force (Split-Path $to) | Out-Null
-        Copy-Item (Join-Path $game $source) $to
-    }
-}
+# The game the host built, mapped writable to Desktop\SIERRA, at the path its
+# settings name (E:\SIERRA\FbPro98).
+subst E: $desk
+# The game needs a CD drive, not its own disc: an empty disc image gives it one.
+Mount-DiskImage -ImagePath (Join-Path $desk 'SIERRA\FbPro98\CD\empty.iso') | Out-Null
 
 $setup = Get-ChildItem (Join-Path $desk 'dist\athc-*-setup.exe') | Select-Object -First 1
 Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$out\install.log" -Wait

@@ -212,7 +212,9 @@ Working. Docs: [autocontinue.md](docs/autocontinue.md)
   per setting at its default, `-1` and `0`; each match cutoff from both
   sides. Slow Windows Sandbox tests play an exhibition game while a helper
   lights, moves off or leaves the pointer on each button, and drive a league
-  pre-game screen on and off. The game test's menu images live with the
+  pre-game screen on and off; each builds its own game from the dev's install
+  (`ATHC_GAME_DIR`) and the repo's test league, so the dev's own settings and
+  leagues never matter. The game test's menu images live with the
   test, not in the package. Every case is
   in [the test matrix](tests/integration/test-matrix-autocontinue.md).
 - Just before each click it checks the button is still on screen, still under
