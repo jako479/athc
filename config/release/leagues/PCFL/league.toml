@@ -1,8 +1,7 @@
 # Open this file with: athc config edit league.toml
 
 # PCFL league settings. Rules live here (gameplan.toml, profile.toml,
-# pdbtoexcel.toml, scheduler.toml). Reinstalling never
-# overwrites this file.
+# scheduler.toml). Reinstalling never overwrites this file.
 
 [league]
 # The folder that holds this league's files (PCFL.lg2, PCFL.lge and the rest).
@@ -18,6 +17,11 @@ play_path = 'E:\SIERRA\FbPro98\PCFL'
 # later files layer over earlier ones.
 # gameplan_rules = ['gameplan.toml']
 # profile_rules = ['profile.toml']
+# Optional: convert-pdb settings that differ from athc.toml's, a key at a time.
+# [convert-pdb]
+# deleted_plays = ['ATF0ELOB']
+# [convert-pdb.category_order]
+# run = ['RL', 'RM', 'RR', 'GLR']
 
 # The league's short names for the game's play categories. A category with no
 # league name is commented out and goes by its game name.

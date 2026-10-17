@@ -29,7 +29,7 @@ from athc.scheduler.schedulers import utils
 from athc.scheduler.schedulers.errors import SchedulerError
 from athc.scheduler.schedulers.types import MatchupPlan, SchedulerResult
 from athc.scheduler.schedulers.utils import CTRL_C_EVENT
-from tests.conftest import league_not_found, no_league_selected
+from tests.conftest import athc_toml, league_not_found, no_league_selected
 
 from .test_config import LEAGUE
 from .test_league_files import DATA, PREVIOUS_2047, UPCOMING_2048
@@ -90,7 +90,7 @@ def league_folder(config_dir: Path, write_config, folders) -> Path:
     (folder / "league.toml").write_text(
         f"[league]\npath = '{upcoming}'\n", encoding="utf-8"
     )
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml(LEAGUE))
     return folder
 
 
@@ -546,7 +546,7 @@ def test_errors_when_the_league_has_no_path(
 def test_season_resolves_files_for_the_configured_league(
     runner, monkeypatch, tmp_path: Path, folders
 ) -> None:
-    # No --league: the league named in athc.ini.
+    # No --league: the league named in athc.toml.
     previous, upcoming = folders
     captured: dict[str, object] = {}
     monkeypatch.setattr(cli_module, "run_generate", _capture(captured, tmp_path))

@@ -93,7 +93,8 @@ After install, your settings live at:
 
 That folder will contain:
 
-   athc.ini             your settings (edit to customize; the file
+   athc.toml            your settings, convert-pdb's category order and
+                        deleted plays included (edit to customize; the file
                         documents every setting inline)
    leagues\PNFL\        the PNFL league:
       league.toml          your play pool folder (play_path), league files
@@ -101,10 +102,11 @@ That folder will contain:
                            check-ppp, gameplan, profile and
                            convert-pdb), your profiles and game plans
                            folder (ppp_path, optional) and the
-                           league's category names
+                           league's category names; a league that
+                           differs can override athc.toml's
+                           convert-pdb settings here
       gameplan.toml        league rules, one file per tool
       profile.toml
-      pdbtoexcel.toml      convert-pdb's category order and deleted plays
       scheduler.toml       the scheduler's settings and renamed teams
    leagues\PCFL\        the PCFL league, same layout
 
@@ -112,14 +114,14 @@ To open this folder, run 'athc config reveal' (or paste
 %LOCALAPPDATA%\athc into File Explorer's address bar).
 
 Upgrading or reinstalling never overwrites a file in this folder: your
-edits to athc.ini, league.toml and the rule files are kept.
+edits to athc.toml, league.toml and the rule files are kept.
 It only adds files that are missing, so to get a fresh copy of a shipped
 file, delete it and run the setup.exe again.
 
 When a new version adds a tool with new settings:
    The new tool runs with sensible defaults out of the box -- you do
-   not have to edit anything. To customize it, add its section to your
-   athc.ini.
+   not have to edit anything. To customize it, add its table to your
+   athc.toml.
 
 
 UNINSTALLING
@@ -151,12 +153,6 @@ the play sheets are empty:
     play_path in leagues\<NAME>\league.toml is not your play pool folder.
     Run athc config get play_path to see it, and athc config edit
     league.toml to fix it.
-
-convert-pdb says "pdbtoexcel.toml: The system cannot find the file
-specified.":
-    The league folder has no pdbtoexcel.toml. For PNFL or PCFL, run the
-    setup.exe again to add it back; for another league, copy the one from
-    leagues\PNFL\ and edit it.
 
 convert-pdb says "The system cannot find the file specified." for a game
 plan:

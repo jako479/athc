@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import configparser
 import errno
 import tomllib
 from pathlib import Path
@@ -22,7 +21,6 @@ from athc.errors import (
     LeagueError,
     RulesFileError,
     error_line,
-    ini_reason,
     missing_reason,
     reason_of,
     sentence,
@@ -280,32 +278,6 @@ def test_athc_error_takes_any_path_like() -> None:
             return "x.pln"
 
     assert str(AthcError("bad", Location())) == "x.pln: bad"
-
-
-def _ini_error(text: str) -> configparser.Error:
-    with pytest.raises(configparser.Error) as exc:
-        configparser.ConfigParser(interpolation=None).read_string(text)
-    return exc.value
-
-
-@pytest.mark.parametrize(
-    ("text", "reason"),
-    [
-        ("garbage\n", "Not valid INI: No [section] header above it (at line 1)."),
-        ("[a]\nbroken\n", "Not valid INI: Not a 'key = value' line (at line 2)."),
-        (
-            "[a]\nbroken\nworse\n",
-            "Not valid INI: Not a 'key = value' line (at lines 2, 3).",
-        ),
-        ("[a]\n[a]\n", "Not valid INI: Section [a] repeats (at line 2)."),
-        (
-            "[a]\nx = 1\nx = 2\n",
-            "Not valid INI: Option 'x' in [a] repeats (at line 3).",
-        ),
-    ],
-)
-def test_ini_reason_is_one_line_without_the_path(text: str, reason: str) -> None:
-    assert ini_reason(_ini_error(text)) == reason
 
 
 def test_toml_reason() -> None:

@@ -1,5 +1,5 @@
 """`athc config set` -- write one setting, keeping the file's comments:
-`league` into athc.ini, the other keys into the league's league.toml."""
+`league` into athc.toml, the other keys into the league's league.toml."""
 
 from __future__ import annotations
 
@@ -30,9 +30,9 @@ EXAMPLES = """Examples:
 @click.argument("value", help="New value.")
 @league_option
 def set_(key: str, value: str, league: str | None) -> None:
-    """Set a value in athc.ini or league.toml.
+    """Set a value in athc.toml or league.toml.
 
-    league goes in athc.ini, the other keys in the league's league.toml.
+    league goes in athc.toml, the other keys in the league's league.toml.
     """
     if key == "league":
         written = _set_league(value, league)
@@ -54,4 +54,4 @@ def _set_league(value: str, league: str | None) -> Path:
         raise click.BadParameter(
             text[:1].lower() + text[1:], param_hint="'VALUE'"
         ) from error
-    return set_config_value("league", value)  # an unreadable athc.ini is a FAIL
+    return set_config_value("league", value)  # an unreadable athc.toml is a FAIL

@@ -44,7 +44,7 @@ def _zero_or_more(
     callback=_zero_or_more,
     help=(
         "Seconds to wait before each Continue click. Overrides "
-        "continue_pause in athc.ini (1.0 by default)."
+        "continue_pause in athc.toml (1.0 by default)."
     ),
 )
 @click.option(
@@ -58,7 +58,7 @@ def _zero_or_more(
     default=None,
     help=(
         "Stop when the mouse hits the top-left corner. "
-        "Overrides hot_corner in athc.ini (on by default)."
+        "Overrides hot_corner in athc.toml (on by default)."
     ),
 )
 def autocontinue(

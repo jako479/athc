@@ -67,7 +67,7 @@ athc playpool check --league PCFL
 ```
 
 With no FOLDER, it checks the league's `play_path` (from `--league`, or
-`[athc] league` in `athc.ini`). A `play_path` that is missing on disk ends its
+`[athc] league` in `athc.toml`). A `play_path` that is missing on disk ends its
 line with `Run 'athc config set play_path FOLDER'.`; no `play_path` at all says
 `Play pool folder is not set. Run 'athc config set play_path FOLDER' or pass the
 folder.`

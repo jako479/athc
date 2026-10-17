@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: settings file is athc.toml (TOML, like every other settings file); a league's league.toml overrides a tool's settings a key at a time
+- convert-pdb: the category order and deleted plays live in athc.toml, overridable per league; pdbtoexcel.toml is gone
 - athc: every library test of an add, update or remove now checks the whole result, not just the changed item
 - autocontinue: the real-game tests build their own game from the dev's game install and the repo's test league
 - autocontinue: the installer no longer carries the game test's menu images

@@ -12,7 +12,7 @@ from athc.cli.standings import standings
 from athc.errors import FILE_NOT_FOUND
 from athc.fbpro98_lge import LgeFile, parse_lge
 from athc.fbpro98_standings import Method, Standings
-from tests.conftest import LEAGUE, OTHER_LEAGUE, no_league_selected
+from tests.conftest import LEAGUE, OTHER_LEAGUE, athc_toml, no_league_selected
 from tests.integration.conftest import EXPECTED
 
 MakeLeague = Callable[..., Path]
@@ -35,7 +35,7 @@ def _install(make_league: MakeLeague, tmp_path: Path, name: str, source: Path) -
 @pytest.fixture(autouse=True)
 def league(make_league: MakeLeague, write_config: WriteConfig, tmp_path: Path) -> Path:
     """The selected league, its `.lge` the mid-season PNFL file."""
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     return _install(make_league, tmp_path, LEAGUE, MID_SEASON)
 
 

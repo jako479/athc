@@ -16,6 +16,7 @@ from athc.fbpro98_gameplan import ProfileType, write_gameplan
 from tests.conftest import (
     LEAGUE,
     OTHER_LEAGUE,
+    athc_toml,
     league_not_found,
     league_toml,
     no_league_selected,
@@ -40,7 +41,7 @@ WriteConfig = Callable[..., Path]
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league, carrying the PNFL category labels; list-normals
     needs nothing else from it."""
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     return make_league(LEAGUE, league_toml())
 
 
@@ -481,7 +482,7 @@ def test_specials_league_that_does_not_exist_fails_even_with_a_path(
 
 
 def test_specials_path_without_any_settings(runner, config_dir: Path) -> None:
-    (config_dir / "athc.ini").unlink()
+    (config_dir / "athc.toml").unlink()
     result = runner.invoke(list_specials, [str(GP_OFFENSE), "-"])
     assert result.exit_code == 0
 

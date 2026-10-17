@@ -33,7 +33,7 @@ athc check-ppp DEN-OFF1.prf DEN-OGP1.pln
 - `--team` or `--all-teams` with two files, or both flags together, is a
   usage error. `-r` with two files, or at the league locations, is ignored.
 
-The rules come from `--league NAME`, or from `[athc] league` in `athc.ini`.
+The rules come from `--league NAME`, or from `[athc] league` in `athc.toml`.
 `athc check-ppp --help` gives the short form; the rules are below.
 
 ## Finding the files

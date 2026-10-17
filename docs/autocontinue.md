@@ -13,7 +13,7 @@ uv sync
 ## Usage
 
 ```bash
-athc autocontinue                     # settings from athc.ini [autocontinue], or the defaults
+athc autocontinue                     # settings from athc.toml [autocontinue], or the defaults
 athc autocontinue --continue-pause 3  # wait 3 s before each Continue click, this run only
 athc autocontinue --dry-run           # report what it finds, never click
 ```
@@ -30,7 +30,7 @@ Run the game on your **primary monitor** — autocontinue only watches that disp
 
 ## Config
 
-Reads `[autocontinue]` from `athc.ini`, found via `ATHC_CONFIG_DIR` / the default config dir (see [architecture.md](architecture.md#config)) — there is no `--config` flag. Every key is optional: a missing file, section or key means the default, the value the shipped `athc.ini` has, except `drive_league_pregame`, which the shipped file turns on. A key that is present but wrong is an error.
+Reads `[autocontinue]` from `athc.toml`, found via `ATHC_CONFIG_DIR` / the default config dir (see [architecture.md](architecture.md#config)) — there is no `--config` flag. Every key is optional: a missing file, section or key means the default, the value the shipped `athc.toml` has, except `drive_league_pregame`, which the shipped file turns on. A key that is present but wrong is an error.
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -67,15 +67,15 @@ Status lines go to stderr and the run log; a dry run's sightings and `Stopped.` 
 | just before a pre-game click, the screen gone (the coach clicked Game) or the button not found | `League play label gone; Visitor button not clicked.` or `Visitor button not found; not clicked.` | |
 | just before a click, the button already gone (the coach clicked it) | `Continue button gone; not clicked.`; at halftime `Halftime label gone; Return not clicked.` or `Return button gone; not clicked.` | |
 | just before a click, the button no longer under the spot found (the window was dragged) | `Continue button moved; not clicked.` or `Return button moved; not clicked.` | |
-| a reload that fails | `WARN <athc.ini>: <why> Keeping the previous settings.` | |
+| a reload that fails | `WARN <athc.toml>: <why> Keeping the previous settings.` | |
 | the screen hidden | `WARN The screen is locked, a screensaver is on, or Remote Desktop is disconnected. Retrying in 60 seconds.` | |
 | any other failure in a pass, the first of its kind | `WARN Unexpected <error type>: <why>. See <athc.log> for details. Retrying in 5 seconds.`, the traceback in the run log | |
 | the same failure again | `WARN Unexpected <error type>: <why>. Retrying in 5 seconds.` | |
 | stop by Ctrl+C | `Ctrl+C pressed.`, then `Stopped.` | 0 |
 | stop by the hot corner | `Hot corner hit.`, then `Stopped.` | 0 |
 | stop at the end of the game | `Stopped.` (the Results lines say why) | 0 |
-| a bad timing at start | `FAIL <athc.ini>: [autocontinue] continue_pause: Must be a number, 0 or more, got '-1.0'.` | 2 |
-| a bad `hot_corner` at start | `FAIL <athc.ini>: [autocontinue] hot_corner: Must be true or false, got 'maybe'.` | 2 |
+| a bad timing at start | `FAIL <athc.toml>: [autocontinue] continue_pause: Must be a number, 0 or more, got -1.0.` | 2 |
+| a bad `hot_corner` at start | `FAIL <athc.toml>: [autocontinue] hot_corner: Must be true or false, got 'maybe'.` | 2 |
 | pyautogui missing | `FAIL Missing pyautogui. Reinstall athc.` | 2 |
 | an image missing or unreadable | `FAIL <image>: <why> Reinstall athc.` | 2 |
 | an argument, or a `--continue-pause` that is not a number 0 or more | Click's `Error: ...` | 2 |
@@ -97,7 +97,7 @@ Status lines go to stderr and the run log; a dry run's sightings and `Stopped.` 
 - At halftime, moves the mouse instantly to Return, so it is clear of the halftime stats, waits `halftime_pause` seconds, checks the game is still the active window, takes a fresh screenshot to check the Halftime label and Return are still there, clicks Return, then waits 4 s. A dry run reports it instead and waits 8 s.
 - The check before a click is there because the coach may have clicked the button himself, or dragged the window, during the wait: a button that is gone, or no longer under the spot the scan found, is never clicked; it says so and goes back to scanning. The game window is checked once more right before the click, so a click never lands in another app. The game draws its own mouse pointer over the button; this check matches as the scan does (0.8 for Continue, 0.6 for Return), since the mouse also stays on Continue for the next scan after every click.
 - At the end of the game, moves the mouse instantly to Return and stops, without a click. A dry run reports it and stops too.
-- Re-reads the INI only when the file changes on disk (`config_signature` fingerprints path/mtime/size), so settings tune live; a reload that fails validation is a `WARN` and the old settings are kept.
+- Re-reads athc.toml only when the file changes on disk (`config_signature` fingerprints path/mtime/size), so settings tune live; a reload that fails validation is a `WARN` and the old settings are kept.
 - When Windows hides the screen (locked, screensaver, disconnected Remote Desktop) the grab fails; it warns and backs off 60 s so the log doesn't flood.
 - Any other failure in a pass is a `WARN` and a retry 5 s later, for as long as it lasts, never the end of the run: an unattended game would otherwise sit at the next Continue. The first failure of each kind writes its traceback to the run log and names the log; a repeat is one line.
 - Each search covers the whole screenshot, so a change of screen size while it runs (the game going full screen) needs nothing.
@@ -131,8 +131,8 @@ src/athc/cli/autocontinue.py  # Click command; lazy-imports main so pyautogui lo
 
 - **Windows-only** — reads the foreground window's title via `ctypes.windll.user32`; pyautogui makes the process DPI-aware when it loads.
 - **Primary monitor only** — pyautogui/`ImageGrab` captures the primary display, so the game must run there. A single-display VM sidesteps this (the guest has one monitor, freeing the host's other monitors). Full multi-monitor support is out of scope (PIL has known multi-monitor/negative-coordinate bugs).
-- No `--config` flag — config is `config_dir()/athc.ini` (`ATHC_CONFIG_DIR`), per [architecture.md](architecture.md#config); tests isolate by setting that env var.
-- `--continue-pause` and `--hot-corner/--no-hot-corner` (default unset) override their `athc.ini` values; unset, the config wins. The overrides hold across live reloads.
+- No `--config` flag — config is `config_dir()/athc.toml` (`ATHC_CONFIG_DIR`), per [architecture.md](architecture.md#config); tests isolate by setting that env var.
+- `--continue-pause` and `--hot-corner/--no-hot-corner` (default unset) override their `athc.toml` values; unset, the config wins. The overrides hold across live reloads.
 - pyautogui (+ opencv-python, which backs the confidence-based image match) is a **required dependency**, but the CLI still lazy-imports `main` so discovery and `--help` work even on a broken install; running without it then prints `FAIL Missing pyautogui. Reinstall athc.` and exits 2.
 - Sees pixels only — never inspects or edits game files.
 - No single-instance guard: run one copy at a time.

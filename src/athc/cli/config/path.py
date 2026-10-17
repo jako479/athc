@@ -1,4 +1,4 @@
-"""`athc config path` -- print the path of athc.ini or league.toml."""
+"""`athc config path` -- print the path of athc.toml or league.toml."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ EXAMPLES = """Examples:
 @click.argument("file", required=False, callback=file_callback, help=FILE_HELP)
 @league_option
 def path(file: str | None, league: str | None) -> None:
-    """Print the path of athc.ini or league.toml.
+    """Print the path of athc.toml or league.toml.
 
     The file need not exist yet.
     """

@@ -22,7 +22,7 @@ DATA = Path(__file__).resolve().parent / "data"
 REAL_PDB = DATA / "2045-2047.pdb"
 PLAYS_SNAPSHOT = DATA / "2045-2047.plays.json"
 
-# The PNFL category order (what tests/conftest.py's PDBTOEXCEL_TOML resolves to).
+# The PNFL category order (what tests/conftest.py's CONVERT_PDB_TOML resolves to).
 PNFL_ORDER: CategoryOrder = {
     PLAY_DATA.PLAY_TYPE.RUN: (O.RUN_LEFT, O.RUN_MIDDLE, O.RUN_RIGHT, O.GOAL_LINE_RUN),
     PLAY_DATA.PLAY_TYPE.PASS: (

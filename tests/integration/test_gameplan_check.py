@@ -21,6 +21,7 @@ from tests.conftest import (
     CATEGORIES_TOML,
     LEAGUE,
     PNFL_LABELS,
+    athc_toml,
     league_toml,
     no_league_selected,
     no_rules_configured,
@@ -46,7 +47,7 @@ def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league: the test pool and gameplan rules."""
     folder = make_league(LEAGUE, league_toml(PLAYS))
     shutil.copy(GP_RULES, folder / "gameplan.toml")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     return folder
 
 
@@ -445,10 +446,10 @@ def test_cli_no_league(runner, config_dir: Path) -> None:
 def test_cli_resolves_from_league_folder(
     runner, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
-    # No flags: league from athc.ini, everything else from its league folder.
+    # No flags: league from athc.toml, everything else from its league folder.
     folder = make_league(LEAGUE, league_toml(PLAYS))
     shutil.copy(GP_RULES, folder / "gameplan.toml")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 1
     assert "violation(s)" in result.stdout

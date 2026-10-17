@@ -18,7 +18,7 @@ from athc.fbpro98_gameplan import (
 )
 from athc.fbpro98_lg2.schema import FILENAME_SIZE, FOLDER_SIZE, TEAM_TRAILER_SIZE
 from athc.fbpro98_lge.schema import ID_C03, ID_D03, ID_L03, ID_R03, ID_S03, ID_T03
-from tests.conftest import CATEGORIES_TOML, LEAGUE
+from tests.conftest import CATEGORIES_TOML, LEAGUE, athc_toml
 from tests.unit.fbpro98_lge.conftest import (
     build_chunk,
     build_conference_data,
@@ -148,7 +148,7 @@ def lg2_league(
     write_config: Callable[..., Path],
     tmp_path: Path,
 ) -> Callable[..., Path]:
-    """A league selected in athc.ini whose `path` folder holds its .lg2 and
+    """A league selected in athc.toml whose `path` folder holds its .lg2 and
     .lge (named after the league): the .lg2 built from `teams`, the .lge with
     real team names, `names` or the first of TEAM_NAMES. Keyword arguments go
     to `build_league`. Returns the .lg2 path."""
@@ -164,7 +164,7 @@ def lg2_league(
             names = TEAM_NAMES[: len(teams)]
         (lg2_dir / f"{LEAGUE}.lge").write_bytes(lge(*names))
         build_league(path=lg2_dir, **kwargs)
-        write_config(f"[athc]\nleague = {LEAGUE}\n")
+        write_config(athc_toml())
         return lg2
 
     return _build
@@ -183,7 +183,7 @@ def pnfl_league(
     shutil.copy2(PNFL_LGE, lg2_dir / f"{LEAGUE}.lge")
     shutil.copytree(PPP_TREE, lg2_dir / "PNFL")
     folder = build_league(path=lg2_dir)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     return folder
 
 

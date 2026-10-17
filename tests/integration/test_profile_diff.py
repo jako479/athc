@@ -158,7 +158,7 @@ def test_cli_team_option_with_two_files(runner) -> None:
 def test_cli_league_option_with_two_files_reads_nothing_else(
     runner, make_league: Callable[..., Path], write_config: Callable[..., Path]
 ) -> None:
-    """The league is resolved, but neither athc.ini nor its league.toml is
+    """The league is resolved, but neither athc.toml nor its league.toml is
     read: both are broken here."""
     make_league(LEAGUE, "not = valid = toml")
     write_config("[athc\nbroken\n")

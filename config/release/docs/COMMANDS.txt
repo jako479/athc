@@ -13,11 +13,12 @@ Run tools from any terminal (Command Prompt or PowerShell):
 USAGE_ORIGINAL.txt in this same folder keeps each command's help as it was
 before 1.0, for reference; run --help for the current help.
 
-Settings live in athc.ini (the file documents every option inline). Each league
+Settings live in athc.toml (the file documents every option inline). Each league
 is a folder under leagues\ next to it: league.toml (path, play_path, team,
-ppp_path, category names) and rule files (gameplan.toml, profile.toml,
-pdbtoexcel.toml, scheduler.toml). League-aware tools use the league named by
-[athc] league unless the command is given --league NAME.
+ppp_path, category names, and any convert-pdb settings that differ from
+athc.toml's) and rule files (gameplan.toml, profile.toml, scheduler.toml).
+League-aware tools use the league named by [athc] league unless the command is
+given --league NAME.
 
 Game plan and profile keys: off1, def1, off2 and def2 name your team's
 1st-half offense, 1st-half defense, 2nd-half offense and 2nd-half defense
@@ -324,13 +325,14 @@ A file or folder that exists by that name wins over the key.
    must be the right side, and the league file is not read. Without a team
    and with no game plan option, the Slot columns are hidden.
 
-   Per league, in leagues\<NAME>\: league.toml names the categories (RL,
-   PSL, RunLeft, ...) and pdbtoexcel.toml sets the order they sort in and lists
-   deleted plays to skip. The Type column's QB run and defensive front come
-   from each play file. The workbook options (percentage columns, sacks
-   excluded from pass attempts) live in athc.ini under [convert-pdb];
-   --percentages / --no-percentages override the percentage columns for one
-   run.
+   league.toml names the league's categories (RL, PSL, RunLeft, ...). The
+   settings live in athc.toml under [convert-pdb]: the workbook options
+   (percentage columns, sacks excluded from pass attempts), the order the
+   categories sort in ([convert-pdb.category_order]) and the deleted plays to
+   skip. A league that differs puts the same tables in its league.toml with
+   only the keys that differ. The Type column's QB run and defensive front
+   come from each play file. --percentages / --no-percentages override the
+   percentage columns for one run.
 
    Show help:
       athc convert-pdb --help
@@ -354,7 +356,7 @@ A file or folder that exists by that name wins over the key.
    and clicks; at the end of the game it moves the mouse to Return and stops.
    With drive_league_pregame on (as shipped), it clicks through the league
    play pre-game screen (Plans/Profiles, Visitor, Conditions, Venues) and
-   clicks Game; a pause of 0 skips its click. Settings live in athc.ini
+   clicks Game; a pause of 0 skips its click. Settings live in athc.toml
    ([autocontinue] mouse_move_duration, continue_pause, halftime_pause,
    hot_corner, drive_league_pregame, plans_profiles_pause, conditions_pause,
    venues_pause); every one is optional (a missing one uses the shipped value,
@@ -385,20 +387,20 @@ A file or folder that exists by that name wins over the key.
       athc autocontinue --no-hot-corner
 
 
-15) config  --  show or change athc settings (athc.ini, league.toml)
+15) config  --  show or change athc settings (athc.toml, league.toml)
     ---------------------------------------------------------------
 
-   Helpers for the settings files: athc.ini, and a league's league.toml.
-   `path`, `edit` and `reveal` take FILE, athc.ini (the default) or
+   Helpers for the settings files: athc.toml, and a league's league.toml.
+   `path`, `edit` and `reveal` take FILE, athc.toml (the default) or
    league.toml, and --league NAME (which makes league.toml the default).
    `path` prints the file's full path; `edit` opens it in its default app
-   (a missing athc.ini is created empty; a missing league.toml is a FAIL);
+   (a missing athc.toml is created empty; a missing league.toml is a FAIL);
    `reveal` shows the file in File Explorer (selected), or its folder if it
    doesn't exist yet.
 
-   `get KEY` prints a setting: league from athc.ini; path, play_path, team
+   `get KEY` prints a setting: league from athc.toml; path, play_path, team
    and ppp_path from the league's league.toml (--league NAME picks another
-   league). `set KEY VALUE` writes one: league to athc.ini (the value must be
+   league). `set KEY VALUE` writes one: league to athc.toml (the value must be
    a folder under leagues\), the other four to the league's league.toml. It
    keeps your comments in both files and prints an OK line naming the file
    it wrote, e.g. OK   <league.toml>: team = Denver.

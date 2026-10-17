@@ -141,13 +141,14 @@ class PdbWorkbookCreator:
         return len(resolved_plays)
 
     def _warn_stale_deleted_plays(self) -> None:
-        """A `[deleted_plays]` entry that is still in the pool is stale; say so
+        """A `deleted_plays` entry that is still in the pool is stale; say so
         (its stats are skipped all the same)."""
         for name in sorted(self.config.deleted_plays):
             if self.play_pool.find_by_name(name) is not None:
                 self.warnings.append(
-                    f"{self.config.pdbtoexcel_file}: '{name}' is listed in "
-                    "[deleted_plays] but is in the play pool. Its stats are skipped."
+                    f"{self.config.deleted_plays_file}: '{name}' is listed in "
+                    "[convert-pdb] deleted_plays but is in the play pool. Its stats "
+                    "are skipped."
                 )
 
     def _category_rank(self, play_record: Play, play_type: PLAY_DATA.PLAY_TYPE) -> int:

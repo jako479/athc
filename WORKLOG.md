@@ -4,6 +4,17 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-17 — **athc**: PNFL and PCFL are clones, so each league carried the
+  same convert-pdb settings twice in its own `pdbtoexcel.toml`, while the rest
+  of convert-pdb's settings sat in `athc.ini`. Settings now have one home and
+  one format: `athc.toml` replaces `athc.ini` (TOML like every other settings
+  file, tomlkit for `config set`), and a league overrides a tool's table key by
+  key in its `league.toml`, through one shared merge that remembers which file
+  set each key so every message names it. convert-pdb is the first tool on it;
+  `pdbtoexcel.toml` went. The branch review found `config set league` could
+  pull a key written above the first table into a new `[athc]`, and a
+  non-UTF-8 `league.toml` crashed; both fixed with tests.
+
 - 2026-10-14 — **scheduler**: phase 1's difficulty line aimed each team's
   average opponent conference rank, so a 4-team-division team had all five
   non-conference games tilted where a 5-team-division team had four. The

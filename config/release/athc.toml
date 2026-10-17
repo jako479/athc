@@ -1,0 +1,66 @@
+# athc settings -- a ready-to-run PNFL setup. This file is yours: edit values to
+# taste; reinstalling never overwrites it (delete it to get a fresh copy).
+#
+# Each league is a folder under leagues\ next to this file, holding its
+# league.toml (path, play_path, team, the league's category names) and rule
+# files (gameplan.toml, profile.toml, scheduler.toml).
+# Set play_path and path in leagues\PNFL\league.toml (athc config edit
+# league.toml opens it): the folders that hold the league's plays and its
+# files. For check-ppp, gameplan, profile and convert-pdb, also set team: your
+# team.
+#
+# Every table/key is optional and falls back to a sensible default. This file
+# itself documents every setting; 'athc <command> --help' covers the rest.
+
+[athc]
+# league used when --league is not given; change it with
+#   athc config set league NAME
+league = "PNFL"
+
+# autocontinue: every key is optional; a missing one uses the value shown,
+# except drive_league_pregame, which is off when missing.
+[autocontinue]
+# seconds to move the mouse to the button (0.0 = instant)
+mouse_move_duration = 0.0
+# seconds to wait before each Continue click (0.0 = instant); --continue-pause overrides it for one run
+continue_pause = 1.0
+# seconds to wait at halftime before clicking Return (0.0 = instant)
+halftime_pause = 8.0
+# stop the watcher when the mouse hits the top-left corner (default on)
+hot_corner = true
+# click through the league play pre-game screen, then Game (off when missing)
+drive_league_pregame = true
+# seconds to wait after clicking Plans/Profiles, and again after Visitor
+# (0 = skip both clicks)
+plans_profiles_pause = 1.5
+# seconds to wait after clicking Conditions (0 = skip the click)
+conditions_pause = 2.5
+# seconds to wait after clicking Venues (0 = skip the click)
+venues_pause = 1.5
+
+# convert-pdb settings, for every league. A league that differs puts the same
+# tables in its leagues\<NAME>\league.toml with only the keys that differ; its
+# play_path and category names are there too.
+[convert-pdb]
+# add the percentage columns (--percentages / --no-percentages override this
+# for one run)
+calculate_percentages = true
+# leave sacks out of pass attempts
+exclude_sacks_from_pass_attempts = false
+# Plays removed from the league's play pool: their stat lines are skipped
+# quietly instead of warning "Play file not found".
+deleted_plays = ["ATF0ELOB"]
+
+# The order of the play categories in the workbook: the row order within each
+# team on the Run, Pass and Def Plays sheets, and the CATEGORY ORDER lists on
+# the Options sheet that the sort macros use. Names are the league's category
+# names from league.toml (the game name for a category the league leaves
+# unnamed). A category not listed stays out of the workbook.
+[convert-pdb.category_order]
+run = ["RL", "RM", "RR", "GLR"]
+pass = ["PSL", "PSM", "PSR", "PML", "PMM", "PMR", "PLR", "PRD", "GLP"]
+defense = [
+    "RunLeft", "RunMiddle", "RunRight", "RunDazzle",
+    "PassShort", "PassMedium", "PassLong", "PassDazzle",
+    "GLrun", "GLpass",
+]

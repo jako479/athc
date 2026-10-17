@@ -271,7 +271,7 @@ class Sandbox:
 @pytest.fixture
 def sandbox(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[Sandbox]:
     """The sandbox, set up and running the test's own game and autocontinue. A
-    test's parameter, when it gives one, is the athc.ini autocontinue runs
+    test's parameter, when it gives one, is the athc.toml autocontinue runs
     with; else the installed one."""
     settings: str | None = getattr(request, "param", None)
     setup = _setup_exe()
@@ -293,7 +293,7 @@ def sandbox(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[Sandbox]
         shutil.copy(IMAGES / f"{name}.png", assets / "images")
     if settings is not None:
         (assets / "config").mkdir()
-        (assets / "config" / "athc.ini").write_text(settings, encoding="utf-8")
+        (assets / "config" / "athc.toml").write_text(settings, encoding="utf-8")
     game = tmp_path / "SIERRA"
     _build_game(install, GAME_FILES, TEST_GAME, game)
     agent = PureWindowsPath(DESK, "assets", "agent.ps1")

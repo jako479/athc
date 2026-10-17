@@ -1,33 +1,34 @@
-"""convert-pdb config: the workbook options from `[convert-pdb]` in `athc.ini`
-(app-wide, not league data) and, from the league folder, `play_path`, the
-category labels and `pdbtoexcel.toml`.
+"""convert-pdb config: `[convert-pdb]` in `athc.toml`, laid over key by key by
+the same table in the league's `league.toml` (`layered_settings`), and, from
+the league folder, `play_path` and the category labels.
 
-`play_path` locates the play pool used to classify and tag plays.
-`pdbtoexcel.toml` is required: `[category_order]` lists,
-per side, the categories the workbook shows and the order they sort in (the row
+`play_path` locates the play pool used to classify and tag plays. The settings
+are the three workbook options; `[convert-pdb.category_order]`, which lists per
+side the categories the workbook shows and the order they sort in (the row
 order within each team and the Options sheet lists the sort macros use), named
 by the league's labels from `league.toml` (the game name where the league has
-none); `[deleted_plays]` names plays removed from the pool whose stat lines are
-skipped quietly instead of warning "Play file not found".
+none); and `deleted_plays`, plays removed from the pool whose stat lines are
+skipped quietly instead of warning "Play file not found". Every key is
+optional: a missing list is empty (nothing of that type exported).
 """
 
 from __future__ import annotations
 
-import tomllib
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from athc.config import (
+    CONFIG_FILE,
     LEAGUE_FILE,
     ConfigFileError,
+    Layered,
     config_file,
+    layered_settings,
     load_league_config,
     not_set_line,
 )
-from athc.config import load_config as load_athc_config
-from athc.errors import missing_reason, reason_of, toml_reason
 from athc.fbpro98_play import (
     CategoryLabels,
     DefensiveCategory,
@@ -37,22 +38,24 @@ from athc.fbpro98_play import (
 from athc.pdbtoexcel.pdb import PLAY_DATA
 
 PACKAGE_DIR = Path(__file__).resolve().parent
-PDBTOEXCEL_FILE = "pdbtoexcel.toml"  # in the league folder
 SECTION = "convert-pdb"
 
 ORDER_TABLE = "category_order"
-DELETED_TABLE = "deleted_plays"
-DELETED_KEY = "names"
-# [category_order] key -> the PDB play type its list orders.
+DELETED_KEY = "deleted_plays"
+# The workbook options and what a missing one is.
+_OPTIONS: Mapping[str, bool] = {
+    "calculate_percentages": True,
+    "include_category_worksheets": False,
+    "exclude_sacks_from_pass_attempts": True,
+}
+_KEYS = (*_OPTIONS, ORDER_TABLE, DELETED_KEY)
+# [convert-pdb.category_order] key -> the PDB play type its list orders.
 _ORDER_KEYS: Mapping[str, PLAY_DATA.PLAY_TYPE] = {
     "run": PLAY_DATA.PLAY_TYPE.RUN,
     "pass": PLAY_DATA.PLAY_TYPE.PASS,
     "defense": PLAY_DATA.PLAY_TYPE.DEFENSE,
 }
-
-# The configparser boolean spellings (case-insensitive).
-_TRUE = frozenset({"1", "yes", "true", "on"})
-_FALSE = frozenset({"0", "no", "false", "off"})
+_ORDER_WHERE = f"[{SECTION}.{ORDER_TABLE}]"
 
 type CategoryOrder = Mapping[PLAY_DATA.PLAY_TYPE, tuple[PlayCategory, ...]]
 
@@ -65,7 +68,8 @@ def empty_category_order() -> CategoryOrder:
 @dataclass(frozen=True, slots=True)
 class Config:
     play_path: str = ""
-    pdbtoexcel_file: Path = Path(PDBTOEXCEL_FILE)  # for its warnings
+    # The file deleted_plays came from, for the stale-entry warning.
+    deleted_plays_file: Path = Path(CONFIG_FILE)
     calculate_percentages: bool = True
     include_category_worksheets: bool = False
     exclude_sacks_from_pass_attempts: bool = True
@@ -81,98 +85,72 @@ def get_runtime_path(filename: str) -> Path:
 
 
 def load_config(league: str | None = None) -> Config:
-    """Locate the play pool and read the workbook options.
+    """Locate the play pool and read the settings.
 
-    `play_path`, the category labels and `pdbtoexcel.toml` come from the league
-    folder (LeagueError when no league can be resolved). A league folder
-    without `play_path` or without `pdbtoexcel.toml` is a ConfigFileError. The
-    workbook options come from `[convert-pdb]` in `athc.ini`; a missing key
-    keeps its default, a non-boolean value is a ConfigFileError."""
+    `play_path` and the category labels come from the league folder
+    (LeagueError when no league can be resolved); a league without `play_path`
+    is a ConfigFileError. The settings are `[convert-pdb]` of `athc.toml` with
+    the league's `[convert-pdb]` laid over it; a missing key keeps its default.
+    An unknown key, a wrong type or a bad category name is a ConfigFileError
+    naming the file the key came from."""
     cfg = load_league_config(league)
     play_path = cfg.path("play_path")
     if play_path is None:
         raise ConfigFileError(not_set_line("play_path"), cfg.dir / LEAGUE_FILE)
-    raw = load_athc_config().get(SECTION, {})
-    pdbtoexcel_file = cfg.rules_file_path(PDBTOEXCEL_FILE)
-    category_order, deleted_plays = read_pdbtoexcel_toml(
-        pdbtoexcel_file, cfg.categories
-    )
+    settings = layered_settings(SECTION, cfg)
+    _check_keys(settings, settings.values, (), _KEYS, f"[{SECTION}]")
+    options = {key: _bool(settings, key, default) for key, default in _OPTIONS.items()}
     return Config(
         play_path=str(play_path),
-        pdbtoexcel_file=pdbtoexcel_file,
-        calculate_percentages=_bool(raw, "calculate_percentages", True),
-        include_category_worksheets=_bool(raw, "include_category_worksheets", False),
-        exclude_sacks_from_pass_attempts=_bool(
-            raw, "exclude_sacks_from_pass_attempts", True
-        ),
-        category_order=category_order,
+        deleted_plays_file=settings.sources.get((DELETED_KEY,), config_file()),
+        calculate_percentages=options["calculate_percentages"],
+        include_category_worksheets=options["include_category_worksheets"],
+        exclude_sacks_from_pass_attempts=options["exclude_sacks_from_pass_attempts"],
+        category_order=_category_order(settings, cfg.categories),
         categories=cfg.categories,
-        deleted_plays=deleted_plays,
+        deleted_plays=_deleted_plays(settings),
     )
 
 
-def read_pdbtoexcel_toml(
-    path: Path, labels: CategoryLabels
-) -> tuple[CategoryOrder, frozenset[str]]:
-    """The category order and the deleted plays of a league's `pdbtoexcel.toml`.
-
-    `[category_order]` needs all three of `run`, `pass` and `defense`, each an
-    array of that side's category names under `labels` (a labeled category by
-    its label, an unlabeled one by its game name), none repeated; an empty array
-    exports nothing of that type. `[deleted_plays] names` is optional, an array
-    of play names, matched case-insensitively. A missing file, bad TOML, an
-    unknown key, a wrong type or a bad name is a ConfigFileError."""
-    if not path.is_file():
-        raise ConfigFileError(
-            f"{missing_reason(path)} convert-pdb needs this file in the league folder.",
-            path,
-        )
-    try:
-        data = tomllib.loads(path.read_text(encoding="utf-8-sig"))
-    except OSError as e:
-        raise ConfigFileError(reason_of(e), path) from e
-    except tomllib.TOMLDecodeError as e:
-        raise ConfigFileError(toml_reason(e), path) from e
-    _check_keys(data, (ORDER_TABLE, DELETED_TABLE), "(top)", path)
-    if ORDER_TABLE not in data:
-        raise ConfigFileError(f"Missing the [{ORDER_TABLE}] table.", path)
-    order = _category_order(_table(data, ORDER_TABLE, path), labels, path)
-    deleted = _deleted_plays(_table(data, DELETED_TABLE, path), path)
-    return order, deleted
-
-
-def _table(data: Mapping[str, Any], key: str, path: Path) -> Mapping[str, Any]:
-    value = data.get(key, {})
-    if not isinstance(value, Mapping):
-        raise ConfigFileError(f"[{key}]: Must be a table.", path)
-    return value
-
-
-def _string_array(
-    table: Mapping[str, Any], key: str, section: str, path: Path
-) -> list[str]:
-    value = table[key]
+def _string_array(value: Any, where: str, path: Path) -> list[str]:
     if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
-        raise ConfigFileError(f"[{section}] {key}: Expected an array of strings.", path)
+        raise ConfigFileError(f"{where}: Expected an array of strings.", path)
     return value
 
 
 def _check_keys(
-    table: Mapping[str, Any], expected: Iterable[str], where: str, path: Path
+    settings: Layered,
+    table: Mapping[str, Any],
+    prefix: tuple[str, ...],
+    expected: Iterable[str],
+    where: str,
 ) -> None:
+    """Unknown keys in `table` (at `prefix` in `settings`), by the file each
+    came from; one file's keys per message, the first file's in path order."""
     allowed = sorted(expected)
-    unknown = sorted(set(table) - set(allowed))
+    unknown: dict[Path, list[str]] = {}
+    for key in table:
+        if key not in allowed:
+            unknown.setdefault(settings.source(*prefix, key), []).append(key)
     if unknown:
-        names, valid = ", ".join(unknown), ", ".join(allowed)
+        path = min(unknown)
+        names, valid = ", ".join(sorted(unknown[path])), ", ".join(allowed)
         raise ConfigFileError(
             f"{where}: Unknown key(s): {names}. Valid: {valid}.", path
         )
 
 
-def _category_order(
-    table: Mapping[str, Any], labels: CategoryLabels, path: Path
-) -> CategoryOrder:
-    _check_keys(table, _ORDER_KEYS, f"[{ORDER_TABLE}]", path)
+def _category_order(settings: Layered, labels: CategoryLabels) -> CategoryOrder:
+    """`[convert-pdb.category_order]`: each of `run`, `pass` and `defense` an
+    array of that side's category names under `labels` (a labeled category by
+    its label, an unlabeled one by its game name), none repeated; a missing
+    list is empty."""
+    table = settings.values.get(ORDER_TABLE, {})
+    if not isinstance(table, Mapping):
+        raise ConfigFileError(
+            f"{_ORDER_WHERE}: Must be a table.", settings.source(ORDER_TABLE)
+        )
+    _check_keys(settings, table, (ORDER_TABLE,), _ORDER_KEYS, _ORDER_WHERE)
     offense = {labels.label(c): c for c in OffensiveCategory}
     defense = {labels.label(c): c for c in DefensiveCategory}
     # Per key: the names that belong in its list, and the whole side for the
@@ -185,9 +163,12 @@ def _category_order(
     order: dict[PLAY_DATA.PLAY_TYPE, tuple[PlayCategory, ...]] = {}
     for key, play_type in _ORDER_KEYS.items():
         if key not in table:
-            raise ConfigFileError(f"[{ORDER_TABLE}] {key}: Missing.", path)
-        names = _string_array(table, key, ORDER_TABLE, path)
-        order[play_type] = tuple(_resolve(names, key, *valid[key], path))
+            order[play_type] = ()
+            continue
+        where = f"{_ORDER_WHERE} {key}"
+        path = settings.source(ORDER_TABLE, key)
+        names = _string_array(table[key], where, path)
+        order[play_type] = tuple(_resolve(names, key, *valid[key], where, path))
     return order
 
 
@@ -196,9 +177,9 @@ def _resolve(
     key: str,
     valid: Mapping[str, PlayCategory],
     side: Mapping[str, PlayCategory],
+    where: str,
     path: Path,
 ) -> list[PlayCategory]:
-    where = f"[{ORDER_TABLE}] {key}"
     members: list[PlayCategory] = []
     for name in names:
         member = valid.get(name)
@@ -225,25 +206,20 @@ def _resolve(
     return members
 
 
-def _deleted_plays(table: Mapping[str, Any], path: Path) -> frozenset[str]:
-    _check_keys(table, (DELETED_KEY,), f"[{DELETED_TABLE}]", path)
-    if DELETED_KEY not in table:
+def _deleted_plays(settings: Layered) -> frozenset[str]:
+    """`deleted_plays`, an array of play names; missing is none."""
+    if DELETED_KEY not in settings.values:
         return frozenset()
-    return frozenset(_string_array(table, DELETED_KEY, DELETED_TABLE, path))
+    where = f"[{SECTION}] {DELETED_KEY}"
+    path = settings.source(DELETED_KEY)
+    return frozenset(_string_array(settings.values[DELETED_KEY], where, path))
 
 
-def _bool(raw: Mapping[str, str], key: str, default: bool) -> bool:
-    """`raw[key]` as a configparser-style boolean; a missing key is `default`."""
-    value = raw.get(key)
-    if value is None:
-        return default
-    lowered = value.strip().lower()
-    if lowered in _TRUE:
-        return True
-    if lowered in _FALSE:
-        return False
-    raise ConfigFileError(
-        f"[{SECTION}] {key}: Must be true or false (yes/no, on/off and 1/0 also "
-        f"work), got {value!r}.",
-        config_file(),
-    )
+def _bool(settings: Layered, key: str, default: bool) -> bool:
+    """`key`, a TOML boolean; a missing key is `default`."""
+    value = settings.values.get(key, default)
+    if not isinstance(value, bool):
+        raise ConfigFileError(
+            f"[{SECTION}] {key}: Expected true or false.", settings.source(key)
+        )
+    return value

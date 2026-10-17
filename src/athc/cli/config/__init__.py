@@ -13,9 +13,9 @@ from athc.config import config_file, league_file, resolve_league
 # The settings `get` prints and `set` writes, in their canonical spelling.
 KEYS = ("league", "path", "play_path", "team", "ppp_path")
 # The files `path`, `edit` and `reveal` take.
-FILE_NAMES = ("athc.ini", "league.toml")
+FILE_NAMES = ("athc.toml", "league.toml")
 FILE_HELP = (
-    "athc.ini or league.toml (default: athc.ini, or league.toml when --league "
+    "athc.toml or league.toml (default: athc.toml, or league.toml when --league "
     "is given)."
 )
 
@@ -30,7 +30,7 @@ EXAMPLES = """Examples:
 
 @click.group(cls=CommandGroup, context_settings=CONTEXT_SETTINGS, epilog=EXAMPLES)
 def config() -> None:
-    """Show or change athc settings (athc.ini, league.toml).
+    """Show or change athc settings (athc.toml, league.toml).
 
     Both live in your settings folder, %LOCALAPPDATA%\\athc.
     """
@@ -73,16 +73,16 @@ def file_callback(
 
 def settings_file(file: str | None, league: str | None) -> Path:
     """The file `path`, `edit` and `reveal` act on: FILE, else `league.toml`
-    when `--league` names a league, else `athc.ini`. A named league must exist
-    even with `athc.ini`; a blank `--league` counts as not given, as in
+    when `--league` names a league, else `athc.toml`. A named league must exist
+    even with `athc.toml`; a blank `--league` counts as not given, as in
     `resolve_league`."""
     named = bool((league or "").strip())
     if file is None:
-        file = "league.toml" if named else "athc.ini"
+        file = "league.toml" if named else "athc.toml"
     if file == "league.toml":
         return league_file(league)
     if named:
-        resolve_league(league)  # checked only: athc.ini has nothing per league
+        resolve_league(league)  # checked only: athc.toml has nothing per league
     return config_file()
 
 

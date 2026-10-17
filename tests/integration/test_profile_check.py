@@ -20,6 +20,7 @@ from athc.profile import load_rules
 from tests.conftest import (
     LEAGUE,
     OTHER_LEAGUE,
+    athc_toml,
     no_league_selected,
     no_rules_configured,
     toml_error,
@@ -44,6 +45,9 @@ from tests.integration.conftest import (
 RULES = load_rules([RULES_TOML])
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
+
+# An athc.toml that is not valid TOML.
+BROKEN = "[athc\nbroken\n"
 Lg2League = Callable[..., Path]
 
 HELP = """\
@@ -82,7 +86,7 @@ def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league, with the test rules as its profile.toml."""
     folder = make_league()
     shutil.copy(RULES_TOML, folder / "profile.toml")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     return folder
 
 
@@ -509,7 +513,7 @@ def test_cli_rules_from_league_folder(
 ) -> None:
     folder = make_league()
     shutil.copy(RULES_TOML, folder / "profile.toml")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     assert runner.invoke(check, [str(OFF1)]).exit_code == 1
 
 
@@ -556,13 +560,11 @@ def test_cli_missing_rules(runner, make_league: MakeLeague, tmp_path: Path) -> N
     assert result.stderr == (f"FAIL {missing}: {FILE_NOT_FOUND}\n")
 
 
-def test_cli_malformed_ini(runner, write_config: WriteConfig) -> None:
-    ini = write_config("[profile\nbroken\n")
+def test_cli_malformed_toml(runner, write_config: WriteConfig) -> None:
+    toml = write_config(BROKEN)
     result = runner.invoke(check, [str(OFF1)])
     assert result.exit_code == 2
-    assert result.stderr == (
-        f"FAIL {ini}: Not valid INI: No [section] header above it (at line 1).\n"
-    )
+    assert result.stderr == (f"FAIL {toml}: {toml_error(BROKEN)}\n")
 
 
 # ── --gameplan is gone (check-ppp replaces it) ────────────────────────────────

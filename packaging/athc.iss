@@ -82,7 +82,7 @@ Source: "{#AdminDocsDir}\COMMANDS.txt"; DestDir: "{app}"; \
 ; User-owned config, in the folder athc reads it from: each file seeded only if
 ; it is missing, so edits survive an upgrade and a file new in a release is
 ; still added.
-Source: "{#ConfigDir}\athc.ini"; DestDir: "{localappdata}\athc"; \
+Source: "{#ConfigDir}\athc.toml"; DestDir: "{localappdata}\athc"; \
     Flags: onlyifdoesntexist
 Source: "{#ConfigDir}\leagues\*"; DestDir: "{localappdata}\athc\leagues"; \
     Flags: recursesubdirs createallsubdirs onlyifdoesntexist

@@ -1,7 +1,7 @@
 """Tests for `athc autocontinue`: config loading, change detection, the CLI and
 the watch loop.
 
-Config is resolved from `config_dir()/athc.ini` (isolated per-test via the autouse
+Config is resolved from `config_dir()/athc.toml` (isolated per-test via the autouse
 `config_dir` fixture, which sets `ATHC_CONFIG_DIR`). There is no `--config` flag.
 The CLI is exercised with `auto_continue` stubbed, and the loop on a stand-in
 desktop (`Desktop`), so nothing touches the screen or the mouse.
@@ -38,7 +38,7 @@ SCREENS = Path(__file__).parent / "data" / "autocontinue_screens"
 NEAR = 3
 
 # The defaults, spelled out: what a missing file, section or key means. The
-# shipped athc.ini has them all but drive_league_pregame, which it turns on.
+# shipped athc.toml has them all but drive_league_pregame, which it turns on.
 DEFAULTS = config.Config(
     mouse_move_duration=0.0,
     continue_pause=1.0,
@@ -112,7 +112,7 @@ PREGAME_CLICKED = {
 
 @pytest.fixture
 def valid(write_config: WriteConfig) -> Callable[..., Path]:
-    """Write a valid [autocontinue] athc.ini; override mouse/pause per test."""
+    """Write a valid [autocontinue] athc.toml; override mouse/pause per test."""
 
     def _valid(mouse: str = "0.5", pause: str = "2.5") -> Path:
         return write_config(
@@ -267,11 +267,11 @@ def test_load_config_defaults_when_section_missing(write_config: WriteConfig) ->
 
 
 def test_load_config_errors_on_invalid_value(valid: Callable[..., Path]) -> None:
-    ini = valid(mouse="fast")
+    toml = valid(mouse='"fast"')
     with pytest.raises(ConfigFileError) as exc:
         config.load_config()
     assert str(exc.value) == (
-        f"{ini}: [autocontinue] mouse_move_duration: Must be a number, 0 or more, "
+        f"{toml}: [autocontinue] mouse_move_duration: Must be a number, 0 or more, "
         "got 'fast'."
     )
 
@@ -279,26 +279,42 @@ def test_load_config_errors_on_invalid_value(valid: Callable[..., Path]) -> None
 # ── the timings: one validator for every timing key, 0 or more ────────────────
 
 
-@pytest.mark.parametrize("raw", ["-0.1", "nan", "inf"])
-def test_timing_rejects_a_value_below_zero_or_not_finite(
-    write_config: WriteConfig, raw: str
+@pytest.mark.parametrize(
+    ("raw", "shown"),
+    [
+        ('"1.0"', "'1.0'"),
+        ("true", "true"),
+        ("1979-05-27", "1979-05-27"),
+        ("-1.0", "-1.0"),
+        ("nan", "nan"),
+        ("inf", "inf"),
+    ],
+)
+def test_timing_must_be_a_number_zero_or_more(
+    write_config: WriteConfig, raw: str, shown: str
 ) -> None:
-    ini = write_config(f"[autocontinue]\ncontinue_pause = {raw}\n")
+    """A string, a boolean or a date is not a number, even one that reads as
+    one; below zero, NaN and infinity are not 0 or more. The value is shown as
+    TOML spells it."""
+    toml = write_config(f"[autocontinue]\ncontinue_pause = {raw}\n")
     with pytest.raises(ConfigFileError) as exc:
         config.load_config()
     assert str(exc.value) == (
-        f"{ini}: [autocontinue] continue_pause: Must be a number, 0 or more, "
-        f"got '{raw}'."
+        f"{toml}: [autocontinue] continue_pause: Must be a number, 0 or more, "
+        f"got {shown}."
     )
 
 
-# ── hot_corner: the usual INI spellings ───────────────────────────────────────
+def test_integers_are_numbers(write_config: WriteConfig) -> None:
+    write_config("[autocontinue]\ncontinue_pause = 2\n")
+    pause = config.load_config().continue_pause
+    assert pause == 2.0 and isinstance(pause, float)
 
 
-@pytest.mark.parametrize(
-    "raw,expected",
-    [("true", True), ("false", False), ("yes", True), ("off", False)],
-)
+# ── hot_corner: a TOML boolean ────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("raw,expected", [("true", True), ("false", False)])
 def test_hot_corner_parses_boolean(
     write_config: WriteConfig, raw: str, expected: bool
 ) -> None:
@@ -309,32 +325,49 @@ def test_hot_corner_parses_boolean(
     assert config.load_config().hot_corner is expected
 
 
+@pytest.mark.parametrize(
+    ("raw", "shown"), [('"maybe"', "'maybe'"), ("1", "1"), ('"true"', "'true'")]
+)
+def test_hot_corner_must_be_a_toml_boolean(
+    write_config: WriteConfig, raw: str, shown: str
+) -> None:
+    """TOML's ints and strings are not booleans, even 1 or "true"."""
+    toml = write_config(f"[autocontinue]\nhot_corner = {raw}\n")
+    with pytest.raises(ConfigFileError) as exc:
+        config.load_config()
+    assert str(exc.value) == (
+        f"{toml}: [autocontinue] hot_corner: Must be true or false, got {shown}."
+    )
+
+
 # ── a test per setting: missing (its default), -1 and 0 ───────────────────────
 
 # Why -1 fails at start, by kind of setting.
 TIMING = "Must be a number, 0 or more"
 BOOLEAN = "Must be true or false"
-# Each setting test's cases: the key missing, -1 and 0.
+# Each setting test's cases: the key missing, -1 and 0 (false for an on/off
+# setting, which takes no number).
 SETTING_IDS = ["default", "-1", "0"]
+SWITCH_IDS = ["default", "-1", "false"]
 
 
 def _run_with(
     runner, write_config: WriteConfig, key: str, value: str, base: str = ""
 ) -> tuple[Result, Path]:
-    """The command run with athc.ini's `[autocontinue]` holding `base`'s
+    """The command run with athc.toml's `[autocontinue]` holding `base`'s
     lines and `key = value`, or no line for the key when `value` is
-    "default". Returns the result and athc.ini."""
+    "default". Returns the result and athc.toml."""
     line = "" if value == "default" else f"{key} = {value}\n"
-    ini = write_config(f"[autocontinue]\n{base}{line}")
-    return runner.invoke(autocontinue, []), ini
+    toml = write_config(f"[autocontinue]\n{base}{line}")
+    return runner.invoke(autocontinue, []), toml
 
 
 def _fails_at_start(
-    result: Result, desktop: Desktop, ini: Path, key: str, why: str
+    result: Result, desktop: Desktop, toml: Path, key: str, why: str
 ) -> None:
     """Exit 2 with the FAIL line naming the key, before any watching."""
     assert result.exit_code == 2
-    assert result.stderr == f"FAIL {ini}: [autocontinue] {key}: {why}, got '-1'.\n"
+    assert result.stderr == f"FAIL {toml}: [autocontinue] {key}: {why}, got -1.\n"
     assert desktop.slept == [] and desktop.moves == [] and desktop.clicks == []
 
 
@@ -350,9 +383,9 @@ def test_setting_mouse_move_duration(
     0.5 shows the setting is the one used, the other two being 0."""
     desktop.focus = CLICKING_PASS
     desktop.screens = [CONTINUE, CONTINUE]
-    result, ini = _run_with(runner, write_config, "mouse_move_duration", value)
+    result, toml = _run_with(runner, write_config, "mouse_move_duration", value)
     if seconds is None:
-        _fails_at_start(result, desktop, ini, "mouse_move_duration", TIMING)
+        _fails_at_start(result, desktop, toml, "mouse_move_duration", TIMING)
         return
     assert result.exit_code == 0
     assert config.load_config() == replace(DEFAULTS, mouse_move_duration=seconds)
@@ -372,9 +405,9 @@ def test_setting_continue_pause(
     """The wait before the Continue click: 1 s by default, none at 0."""
     desktop.focus = CLICKING_PASS
     desktop.screens = [CONTINUE, CONTINUE]
-    result, ini = _run_with(runner, write_config, "continue_pause", value)
+    result, toml = _run_with(runner, write_config, "continue_pause", value)
     if seconds is None:
-        _fails_at_start(result, desktop, ini, "continue_pause", TIMING)
+        _fails_at_start(result, desktop, toml, "continue_pause", TIMING)
         return
     assert result.exit_code == 0
     assert config.load_config() == replace(DEFAULTS, continue_pause=seconds)
@@ -404,9 +437,9 @@ def test_setting_halftime_pause(
     at 0."""
     desktop.focus = CLICKING_PASS
     desktop.screens = [HALFTIME, HALFTIME]
-    result, ini = _run_with(runner, write_config, "halftime_pause", value)
+    result, toml = _run_with(runner, write_config, "halftime_pause", value)
     if seconds is None:
-        _fails_at_start(result, desktop, ini, "halftime_pause", TIMING)
+        _fails_at_start(result, desktop, toml, "halftime_pause", TIMING)
         return
     assert result.exit_code == 0
     assert config.load_config() == replace(DEFAULTS, halftime_pause=seconds)
@@ -418,19 +451,19 @@ def test_setting_halftime_pause(
 
 @pytest.mark.parametrize(
     ("value", "on"),
-    [("default", True), ("-1", None), ("0", False)],
-    ids=SETTING_IDS,
+    [("default", True), ("-1", None), ("false", False)],
+    ids=SWITCH_IDS,
 )
 def test_setting_hot_corner(
     runner, desktop: Desktop, write_config: WriteConfig, value: str, on
 ) -> None:
-    """pyautogui's fail-safe, the hot corner: on by default, off at 0."""
+    """pyautogui's fail-safe, the hot corner: on by default, off at false."""
     from athc.autocontinue import main
 
     desktop.focus = [False]
-    result, ini = _run_with(runner, write_config, "hot_corner", value)
+    result, toml = _run_with(runner, write_config, "hot_corner", value)
     if on is None:
-        _fails_at_start(result, desktop, ini, "hot_corner", BOOLEAN)
+        _fails_at_start(result, desktop, toml, "hot_corner", BOOLEAN)
         return
     assert result.exit_code == 0
     assert config.load_config() == replace(DEFAULTS, hot_corner=on)
@@ -438,17 +471,17 @@ def test_setting_hot_corner(
     assert main.pyautogui.FAILSAFE is on
 
 
-@pytest.mark.parametrize("value", SETTING_IDS)
+@pytest.mark.parametrize("value", SWITCH_IDS)
 def test_setting_drive_league_pregame(
     runner, desktop: Desktop, write_config: WriteConfig, value: str
 ) -> None:
-    """Off by default (the code's default, a missing key) and at 0: the league
+    """Off by default (the code's default, a missing key) and at false: the league
     play screen is left alone, and the next scan comes a second later."""
     desktop.focus = [True]
     desktop.screens = [LEAGUE_PLAY]
-    result, ini = _run_with(runner, write_config, "drive_league_pregame", value)
+    result, toml = _run_with(runner, write_config, "drive_league_pregame", value)
     if value == "-1":
-        _fails_at_start(result, desktop, ini, "drive_league_pregame", BOOLEAN)
+        _fails_at_start(result, desktop, toml, "drive_league_pregame", BOOLEAN)
         return
     assert result.exit_code == 0
     assert config.load_config() == replace(DEFAULTS, drive_league_pregame=False)
@@ -477,11 +510,11 @@ def _pregame_pause(
     clicked = {name: at for name, at in PREGAME_CLICKED.items() if name not in skipped}
     desktop.focus = _pregame_focus(len(clicked))
     desktop.screens = [LEAGUE_PLAY] * (1 + len(clicked))
-    result, ini = _run_with(
+    result, toml = _run_with(
         runner, write_config, key, value, base="drive_league_pregame = true\n"
     )
     if seconds is None:
-        _fails_at_start(result, desktop, ini, key, TIMING)
+        _fails_at_start(result, desktop, toml, key, TIMING)
         return
     assert result.exit_code == 0
     expected = replace(DEFAULTS, drive_league_pregame=True, **{key: seconds})
@@ -578,9 +611,9 @@ def test_signature_none_when_file_missing() -> None:
 
 
 def test_signature_returns_tuple_for_existing_file(valid: Callable[..., Path]) -> None:
-    ini = valid()
+    toml = valid()
     sig = config.config_signature()
-    assert sig is not None and sig[0] == str(ini)
+    assert sig is not None and sig[0] == str(toml)
 
 
 def test_signature_stable_when_unchanged(valid: Callable[..., Path]) -> None:
@@ -1103,7 +1136,7 @@ def test_loop_says_the_game_window_at_the_first_check_and_each_change(
 def test_loop_continue_pause_option_wins_and_holds_across_a_reload(
     desktop: Desktop, valid: Callable[..., Path]
 ) -> None:
-    """--continue-pause beats continue_pause in athc.ini, and a reload that
+    """--continue-pause beats continue_pause in athc.toml, and a reload that
     changes the key neither applies nor says it."""
     valid(mouse="0.0", pause="2.5")
 
@@ -1127,12 +1160,12 @@ def test_loop_continue_pause_option_wins_and_holds_across_a_reload(
     ]
 
 
-def test_loop_a_deleted_athc_ini_means_the_defaults(
+def test_loop_a_deleted_athc_toml_means_the_defaults(
     desktop: Desktop, valid: Callable[..., Path]
 ) -> None:
     """The defaults apply and the settings lines say what changed; no WARN."""
-    ini = valid()  # 0.5 s move, 2.5 s delay
-    desktop.on_sleep = lambda seconds: ini.unlink(missing_ok=True)
+    toml = valid()  # 0.5 s move, 2.5 s delay
+    desktop.on_sleep = lambda seconds: toml.unlink(missing_ok=True)
     desktop.focus = [True, *CLICKING_PASS]  # a pass with no button, then a click
     desktop.screens = [{}, CONTINUE, CONTINUE]
     desktop.run()
@@ -1185,7 +1218,7 @@ def test_loop_halftime_moves_to_return_waits_then_clicks(
     desktop: Desktop, write_config: WriteConfig
 ) -> None:
     """An instant move whatever mouse_move_duration says, the pause from
-    athc.ini whatever --continue-pause says, then the click on Return, said."""
+    athc.toml whatever --continue-pause says, then the click on Return, said."""
     write_config("[autocontinue]\nmouse_move_duration = 0.5\nhalftime_pause = 2.5\n")
     desktop.focus = CLICKING_PASS
     desktop.screens = [HALFTIME, HALFTIME]
@@ -1301,20 +1334,20 @@ def test_loop_focus_lost_just_before_the_click_means_no_click(
 def test_loop_a_reload_that_fails_warns_and_keeps_the_settings(
     desktop: Desktop, config_dir: Path, valid: Callable[..., Path]
 ) -> None:
-    """The coach saves athc.ini as ANSI with an accent mid-run: a WARN, the
+    """The coach saves athc.toml as ANSI with an accent mid-run: a WARN, the
     old settings, and the watcher carries on."""
-    ini = valid(mouse="0.0", pause="2.5")
+    toml = valid(mouse="0.0", pause="2.5")
 
     def edit(seconds: float) -> None:
         if seconds == 2.0:  # once, while the game window is away
-            ini.write_bytes(b"[autocontinue]\n; caf\xe9\ncontinue_pause = 9\n")
+            toml.write_bytes(b"[autocontinue]\n# caf\xe9\ncontinue_pause = 9\n")
 
     desktop.on_sleep = edit
     desktop.focus = [False, *CLICKING_PASS]
     desktop.screens = [CONTINUE, CONTINUE]
     desktop.run()
     assert desktop.warned == [
-        f"{ini}: Not UTF-8 text. Save it as UTF-8. Keeping the previous settings."
+        f"{toml}: Not UTF-8 text. Save it as UTF-8. Keeping the previous settings."
     ]
     assert desktop.slept == [2.0, 2.5, 4.0] and desktop.clicks == [BUTTON_AT]
 
@@ -1515,7 +1548,7 @@ def test_dry_run_reports_the_pregame_and_never_clicks(
 
 # Only the screenshot is stood in for: the images load, the screen turns gray
 # and the matcher searches it as in a run, with drive_league_pregame on, as the
-# shipped athc.ini has it.
+# shipped athc.toml has it.
 
 
 def _scan_real(

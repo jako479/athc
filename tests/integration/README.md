@@ -62,7 +62,7 @@ The "league" input is a selected league folder whose `profile.toml` is the test 
 | `profile_rules` layering | base + overlay | later overrides earlier | `test_cli_rules_layering` | ☑ |
 | Bad rules TOML | league `profile.toml` bad | exit 2; stderr: `FAIL <file>: Not valid TOML: ...` | `test_cli_bad_rules_toml` | ☑ |
 | Missing listed rules file | `profile_rules` → absent file | exit 2; stderr: `FAIL` naming the path | `test_cli_missing_rules` | ☑ |
-| Malformed `athc.ini` | bad ini | exit 2; stderr: `FAIL` naming athc.ini | `test_cli_malformed_ini` | ☑ |
+| Malformed `athc.toml` | bad TOML | exit 2; stderr: `FAIL <athc.toml>: Not valid TOML: ...` | `test_cli_malformed_toml` | ☑ |
 
 ## `athc profile check` — Packaging check (real subprocess)
 | Case | Input | Expected | Test | Status |
@@ -159,7 +159,7 @@ In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `d
 | `--sort category`: no league label | tmp (constructed) | game-name headers; Pass Long L/M before PLR, Razzle Dazzle Run before PRD, User Specific last; no header for an empty category; slot order within | `test_normals_sort_category_game_name_without_label` | ☑ |
 | `--sort category`: league without labels | league.toml rewritten | every header a game name | `test_normals_sort_category_without_league_labels` | ☑ |
 | `--league` picks the league | second league | that league's labels | `test_normals_league_option_picks_league` | ☑ |
-| No league set | athc.ini without league | exit 2; stderr: `FAIL League is not set ...`; stdout empty | `test_normals_no_league_exit_2` | ☑ |
+| No league set | athc.toml without league | exit 2; stderr: `FAIL League is not set ...`; stdout empty | `test_normals_no_league_exit_2` | ☑ |
 | Malformed league.toml | bad TOML | exit 2; stderr: `FAIL <league.toml>: ...` | `test_normals_bad_league_toml_exit_2` | ☑ |
 | Output file: header + plays | data + out | line 1 `::`, rest match | `test_normals_file_writes_header_and_plays` | ☑ |
 | Output file: `--sort name` | data + out | rest match name fixture | `test_normals_file_sort_name` | ☑ |
@@ -200,7 +200,7 @@ In [test_gameplan_list.py](test_gameplan_list.py). Reads `data/offense.pln` / `d
 | `--team` with a path | `<pln> - --team Denver` (both) | exit 2; stderr ends `Error: --team requires a game plan key (off1, def1, off2 or def2).` | `test_team_with_a_path_is_a_usage_error` `[P]` | ☑ |
 | list-specials `--league` with a path | that league's league.toml broken | exit 0; nothing read from it | `test_specials_league_with_a_path_reads_nothing_from_it` | ☑ |
 | list-specials `--league NOPE` with a path | — | exit 2; stderr: `FAIL League 'NOPE' not found ...`; stdout empty | `test_specials_league_that_does_not_exist_fails_even_with_a_path` | ☑ |
-| list-specials, a path, no athc.ini | — | exit 0 | `test_specials_path_without_any_settings` | ☑ |
+| list-specials, a path, no athc.toml | — | exit 0 | `test_specials_path_without_any_settings` | ☑ |
 | list-specials, a key, no league selected | `off1` | exit 2; stderr: `FAIL League is not set ...` | `test_specials_key_needs_a_league` | ☑ |
 | Each key, any case | `off1` / `def1` / `off2` / `DEF2` | `<name>.normals.txt` beside the game plan; stdout `OK   <full path>: N normal play(s)` | `test_normals_key_writes_beside_the_game_plan` `[P]` | ☑ |
 | A key to the console | `list-specials def1 -` | stdout: the defense fixture | `test_specials_key_to_the_console` | ☑ |
@@ -256,7 +256,7 @@ In [test_gameplan_find_play.py](test_gameplan_find_play.py). Pure helpers (`find
 |---|---|---|---|---|
 | With a path: resolved, nothing read | `--path <pln> --league <other>`, its league.toml broken | exit 0; the hit | `test_league_with_a_path_reads_nothing_from_it` | ☑ |
 | `--league NOPE` with a path | — | exit 2; stderr: `FAIL League 'NOPE' not found ...`; stdout empty | `test_league_that_does_not_exist_fails_even_with_a_path` | ☑ |
-| A path, no settings at all | no athc.ini | exit 0 | `test_path_without_any_settings` | ☑ |
+| A path, no settings at all | no athc.toml | exit 0 | `test_path_without_any_settings` | ☑ |
 | Default scope, no league selected | — | exit 2; stderr: `FAIL League is not set ...` | `test_default_scope_needs_a_league` | ☑ |
 
 ## your team's game plans (the three batch commands)
@@ -491,7 +491,7 @@ In [test_profile_diff.py](test_profile_diff.py). Inputs: real `TST-OFF1/OFF2/DEF
 | Key and a file | `off1 <OFF2>` | exit 1; the report names the key's file | `test_cli_key_and_a_file` | ☑ |
 | Missing key file | `off1 off2`, DEN-OFF2 deleted | exit 2; stderr: `FAIL <file>: The system cannot find the file specified. Run 'athc config set ppp_path FOLDER' or pass a .prf file.`; stdout empty | `test_cli_missing_key_file` | ☑ |
 | `--team` with two files | OFF1 OFF2 `--team Denver` | exit 2; stderr ends `Error: --team requires a profile key (off1, def1, off2 or def2).`; stdout empty | `test_cli_team_option_with_two_files` | ☑ |
-| `--league` with two files | broken athc.ini and league.toml | exit 0; neither read | `test_cli_league_option_with_two_files_reads_nothing_else` | ☑ |
+| `--league` with two files | broken athc.toml and league.toml | exit 0; neither read | `test_cli_league_option_with_two_files_reads_nothing_else` | ☑ |
 
 ## `--output`
 | Case | Input | Expected | Test | Status |
@@ -617,7 +617,7 @@ In [test_team.py](test_team.py). `build_teams` in [conftest.py](conftest.py) bui
 |---|---|---|---|---|
 | `--team` with no key | check: no PATH / a path / a wildcard; diff; copy | exit 2; stderr ends `Error: --team requires a profile key (off1, def1, off2 or def2).`; stdout empty | `test_team_option_needs_a_key` `[P]` | ☑ |
 | `--league NOPE` | plain and key runs of check / diff / copy | exit 2; the league-not-found line | `test_unknown_league` `[P]` | ☑ |
-| No league, plain files | no athc.ini, no league folder | diff and copy run, exit 0 | `test_plain_files_need_no_league` | ☑ |
+| No league, plain files | no athc.toml, no league folder | diff and copy run, exit 0 | `test_plain_files_need_no_league` | ☑ |
 
 ---
 
@@ -672,7 +672,7 @@ Argument errors check nothing, since both files are required.
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | No league | empty config | exit 2; stderr: `FAIL League is not set ...`, once | `test_cli_no_league` | ☑ |
-| Rules from `[athc] league` | league folder | exit 1 | `test_cli_rules_from_league_set_in_athc_ini` | ☑ |
+| Rules from `[athc] league` | league folder | exit 1 | `test_cli_rules_from_league_set_in_athc_toml` | ☑ |
 | No profile / gameplan rules | league folder | exit 2; stderr: `FAIL No rules configured ...`; no `--rules` hint; neither file checked | `test_cli_no_profile_rules_in_league` / `test_cli_no_gameplan_rules_in_league` | ☑ |
 | Rules error stops before the files | no profile rules; OFF1 + defense.pln | exit 2; stderr: `FAIL No rules configured ...` only, no mismatch line; stdout empty | `test_cli_rules_error_stops_before_the_files` | ☑ |
 | Config error stops before the files | no league; OFF1 + broken.pln | exit 2; stderr: `FAIL League is not set ...` only; stdout empty | `test_cli_config_error_stops_before_the_files` / `test_cli_first_config_error_stops_the_run` | ☑ |
@@ -680,7 +680,7 @@ Argument errors check nothing, since both files are required.
 | Bad rules TOML | profile / gameplan | exit 2; stderr: `FAIL <file>: Not valid TOML: ...`; neither file checked | `test_cli_bad_rules_toml` `[P]` | ☑ |
 | Rule lists in `league.toml` | `profile_rules` + `gameplan_rules` arrays | exit 1 | `test_cli_rule_lists_in_league_toml` | ☑ |
 | Listed rules file missing | `*_rules` → absent file | exit 2; stderr: `FAIL` naming the path | `test_cli_missing_listed_rules_file` `[P]` | ☑ |
-| Malformed `athc.ini` | bad ini | exit 2; stderr: `FAIL` naming athc.ini | `test_cli_malformed_ini` | ☑ |
+| Malformed `athc.toml` | bad TOML | exit 2; stderr: `FAIL <athc.toml>: Not valid TOML: ...` | `test_cli_malformed_toml` | ☑ |
 | Two files need no `path` | `full_league` (none set) | every two-file case above | — | ☑ |
 
 ## a directory: the league file's pairs
@@ -788,7 +788,7 @@ Every case passes `--all-teams` unless it says otherwise; the tally adds `missin
 ## --league and registration
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| `--league` beats `athc.ini` | two leagues | exit 1 | `test_league_flag_beats_athc_ini` | ☑ |
+| `--league` beats `athc.toml` | two leagues | exit 1 | `test_league_flag_beats_athc_toml` | ☑ |
 | `--league` picks the league files too | two leagues, one folder, a `.lg2` and `.lge` named after each; `--all-teams` | the other league's pairs | `test_league_flag_picks_the_league_file` | ☑ |
 | `ATHC_LEAGUE` is ignored | env + folder, no `[athc] league` | exit 2; stderr: `FAIL League is not set ...` | `test_athc_league_env_is_ignored` | ☑ |
 | Unknown league | `--league NOPE` | exit 2; stderr: `FAIL League 'NOPE' not found ...` | `test_league_flag_unknown_folder` | ☑ |
@@ -815,7 +815,7 @@ In [test_playpool_check.py](test_playpool_check.py). Loads the pool the way the 
 | No league: folder names mean nothing | misfiled play, no league | exit 0; 0 issues | `test_dir_without_league_knows_no_category_folders` | ☑ |
 | Invalid file is an issue | bad `.ply` | exit 1; stdout: "<path>: <reason> Skipped." | `test_invalid_file_is_an_issue` | ☑ |
 | Issues are results, not warnings | `labeled_league` + misfiled | exit 1; issues on stdout; stderr empty | `test_issues_are_results_not_warnings` | ☑ |
-| Folder needs no league | no athc.ini, no leagues | exit 0 | `test_play_dir_needs_no_league` | ☑ |
+| Folder needs no league | no athc.toml, no leagues | exit 0 | `test_play_dir_needs_no_league` | ☑ |
 | Default is the league's `play_path` | `[athc] league` | exit 0; path in summary | `test_default_is_current_league_play_path` | ☑ |
 | `--league` picks another league | two leagues | other league's path | `test_league_option_picks_another_league` | ☑ |
 | A FOLDER never reads `play_path` | league `play_path` missing on disk / an array + clean FOLDER | exit 0; no `FAIL`; the FOLDER in the summary | `test_folder_run_never_reads_play_path` `[P]` | ☑ |
@@ -839,7 +839,7 @@ Its cases are in [test-matrix-autocontinue.md](test-matrix-autocontinue.md).
 
 # `athc convert-pdb`
 
-In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`. Most cases use a selected league with the PNFL labels and order (`league_toml()` + `write_pdbtoexcel_toml`), whose `play_path` is an empty `tmp_path` folder, so the workbook builds with populated Tendencies and empty play sheets. **Golden regression**: the real `.pdb` converted against the curated `data/plays/` pool, the PNFL labels and order, both game plans (`-o`/`-d`) and the category worksheets on; every sheet's cells (read back with openpyxl, floats rounded to 6 places) must equal `expected/2045-2047.workbook.json`, one row per line. Regenerate with `python -m tests.integration.test_convert_pdb --bless`. Per-row behavior on constructed data is in `tests/unit/pdbtoexcel/test_workbook_creation.py`. Slot-column cases use `lg2_league` (a built `.lg2` and `.lge` with `offense.pln` and `defense.pln` as Denver's four game plans) or `pnfl_league` (the real 2049 league file and plans). Exit 0 done (warnings keep 0) / 2 usage or error.
+In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`. Most cases use a selected league with the PNFL labels and order (`league_toml()`, and `CONVERT_PDB_TOML` in athc.toml), whose `play_path` is an empty `tmp_path` folder, so the workbook builds with populated Tendencies and empty play sheets. **Golden regression**: the real `.pdb` converted against the curated `data/plays/` pool, the PNFL labels and order, both game plans (`-o`/`-d`) and the category worksheets on; every sheet's cells (read back with openpyxl, floats rounded to 6 places) must equal `expected/2045-2047.workbook.json`, one row per line. Regenerate with `python -m tests.integration.test_convert_pdb --bless`. Per-row behavior on constructed data is in `tests/unit/pdbtoexcel/test_workbook_creation.py`. Slot-column cases use `lg2_league` (a built `.lg2` and `.lge` with `offense.pln` and `defense.pln` as Denver's four game plans) or `pnfl_league` (the real 2049 league file and plans). Exit 0 done (warnings keep 0) / 2 usage or error.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -858,7 +858,8 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`.
 | Play path not a directory | league `play_path` is a file | exit 2; stderr: `FAIL <path>: The directory name is invalid. Run 'athc config set play_path FOLDER'.`; `play_dir`, called by the command, raises `ConfigFileError` | `test_play_path_not_a_directory_exit_2` / `test_play_path_not_a_directory_is_a_config_error` | ☑ |
 | Play path missing | `play_path` names no folder | exit 2; stderr: `FAIL <path>: The system cannot find the path specified. Run 'athc config set play_path FOLDER'.` | `test_play_path_missing_exit_2` | ☑ |
 | No `play_path` | league folder without it | exit 2; stderr: `FAIL <league.toml>: Play pool folder is not set. Run 'athc config set play_path FOLDER'.`; no workbook | `test_no_play_path_exit_2` | ☑ |
-| Missing `pdbtoexcel.toml` | league folder without it | exit 2; stderr: `FAIL` "pdbtoexcel.toml: The system cannot find the file specified." | `test_missing_pdbtoexcel_toml_exit_2` | ☑ |
+| No category order | no `category_order` in athc.toml or league.toml; the curated pool | exit 0; `OK <workbook>: 0 play(s)`; no play rows on the play sheets | `test_no_category_order_exports_nothing` | ☑ |
+| League overrides the order | league.toml `[convert-pdb.category_order] run = ["RM", "RL"]` over athc.toml's | within each team RM rows before RL; RR and GLR left out | `test_league_override_changes_the_order` | ☑ |
 | Output folder missing, one level | `reports\w1.xlsx`, no `reports\` | exit 0; folder created; file written | `test_missing_output_folder_created` | ☑ |
 | Output folders missing, several levels | `reports\2049\w1.xlsx`, no `reports\` | exit 0; whole chain created; file written | `test_missing_output_folders_created_in_full` | ☑ |
 | Output folder is a file | `reports` is a file | exit 2; stderr: `FAIL ...`; nothing written | `test_output_folder_is_a_file_exit_2` | ☑ |
@@ -876,7 +877,7 @@ In [test_convert_pdb.py](test_convert_pdb.py). Input: real `data/2045-2047.pdb`.
 | Percentages over the setting | `calculate_percentages` true / false × no flag, `--percentages`, `--no-percentages` | exit 0; "Fumble %" header when the flag, else the setting, says so | `test_percentages_override_the_setting` `[P]` | ☑ |
 | Progress, warnings and the OK line | golden league + `-o`/`-d` | exit 0; stderr: `Creating <file>`, then only `WARN` lines; stdout: `OK   <file>: <n> play(s)`, n from the golden | `test_progress_on_stderr_warnings_and_ok_line` | ☑ |
 | Empty pool | league with no plays | exit 0; stderr: `WARN Play '...' is not in the play pool.` per play; stdout: `OK   <file>: 0 play(s)` | `test_empty_pool_warns_per_play_and_writes_no_play_rows` | ☑ |
-| No league set | no athc.ini | exit 2; stderr: `FAIL League is not set ...`, one line; stdout empty | `test_cli_no_league_is_one_line_error` | ☑ |
+| No league set | no athc.toml | exit 2; stderr: `FAIL League is not set ...`, one line; stdout empty | `test_cli_no_league_is_one_line_error` | ☑ |
 | Config from the league folder | `league.toml` | `play_path` resolved; a missing `play_path` is a `ConfigFileError` naming `league.toml` | `test_config_play_path_from_league_folder` / `test_config_missing_play_path_is_an_error` | ☑ |
 | Real subprocess `athc convert-pdb` | data + dir | exit 0; stdout: `OK   <file>: 0 play(s)`; stderr: `Creating <file>`, then `WARN` lines | `test_entry_point_subprocess` | ☑ |
 | Workbook matches golden | `.pdb` + `data/plays/` + `-o`/`-d` + category sheets | every cell equal to `expected/2045-2047.workbook.json` | `test_workbook_matches_golden` | ☑ |
@@ -935,7 +936,7 @@ In [test_generate_schedule.py](test_generate_schedule.py). Slow (a full solve pe
 
 # `athc.config` — league resolution (shared)
 
-In [test_config.py](test_config.py). Direct tests of `load_league_config()` / `load_league()`, the shared resolver every `--league` tool calls. Reads an isolated `athc.ini` and `leagues/<NAME>/league.toml` (the `config_dir` / `make_league` fixtures) → integration tier, not unit. A league is a folder under `leagues/`; `[athc] league` names the default. `gameplan` / `profile` also exercise resolution through their CLIs.
+In [test_config.py](test_config.py). Direct tests of `load_league_config()` / `load_league()`, the shared resolver every `--league` tool calls. Reads an isolated `athc.toml` and `leagues/<NAME>/league.toml` (the `config_dir` / `make_league` fixtures) → integration tier, not unit. A league is a folder under `leagues/`; `[athc] league` names the default. `gameplan` / `profile` also exercise resolution through their CLIs.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -946,15 +947,19 @@ In [test_config.py](test_config.py). Direct tests of `load_league_config()` / `l
 | Fixed rules file / rule list | `gameplan.toml`, `gameplan_rules` array | fixed file when present, else `()`; array replaces it in order | `test_rules_file_only_when_present` / `test_rule_files_*` | ☑ |
 | None resolvable → lists folders | two folders | `LeagueError`; names `athc config set league`; "Available: <both names, sorted>" | `test_no_league_resolvable_lists_available` / `test_no_league_and_no_folders` | ☑ |
 | Unknown league name | ask missing | `LeagueError` "not found"; lists folders | `test_unknown_league_errors` | ☑ |
-| Blank `league =` | key empty | "League is not set" | `test_empty_league_key_is_no_league` | ☑ |
+| Blank `league = ""` | key empty | "League is not set" | `test_empty_league_key_is_no_league` | ☑ |
 | Path segments in a name (`..`, `a\b`) | bad names | `LeagueError` "not found" | `test_league_dir_rejects_path_segments` `[P]` | ☑ |
 | Blank name (`""`, `"   "`) | blank | `LeagueError` "not found" (never the `leagues/` folder itself) | `test_league_dir_rejects_blank_names` `[P]` | ☑ |
 | `resolve_league()` returns the name | arg / key; none; unknown | name; `LeagueError` | `test_resolve_league_returns_the_explicit_name` / `test_resolve_league_falls_back_to_configured` / `test_resolve_league_errors_*` | ☑ |
 | Blank `--league` arg | `"   "` + `[athc] league` | configured league used | `test_resolve_league_blank_arg_is_no_arg` | ☑ |
-| Malformed `athc.ini` / `league.toml` | bad INI / bad TOML | `ConfigFileError` names the file | `test_malformed_athc_ini_errors` / `test_malformed_league_toml_errors` | ☑ |
-| `athc.ini` that is not UTF-8 | saved as ANSI with an accent | `<athc.ini>: Not UTF-8 text. Save it as UTF-8.`, not a crash | `test_an_athc_ini_that_is_not_utf8_names_the_file` | ☑ |
-| `athc.ini` that cannot be opened | a folder named `athc.ini` | `<athc.ini>: Access is denied.`, never read as empty | `test_an_athc_ini_that_cannot_be_opened_fails_in_windows_words` | ☑ |
+| Malformed `athc.toml` / `league.toml` | bad TOML | `ConfigFileError` names the file | `test_malformed_athc_toml_errors` / `test_malformed_league_toml_errors` | ☑ |
+| `athc.toml` that is not UTF-8 | saved as ANSI with an accent | `<athc.toml>: Not UTF-8 text. Save it as UTF-8.`, not a crash | `test_an_athc_toml_that_is_not_utf8_names_the_file` | ☑ |
+| `athc.toml` that cannot be opened | a folder named `athc.toml` | `<athc.toml>: Access is denied.`, never read as empty | `test_an_athc_toml_that_cannot_be_opened_fails_in_windows_words` | ☑ |
+| UTF-8 BOM in `athc.toml` | BOM-prefixed file (Notepad) | skipped; the league read | `test_an_athc_toml_with_a_bom_loads` | ☑ |
+| `[athc] league` not a string | `league = 1` | `<athc.toml>: [athc] league: Expected a string.`, not a crash | `test_league_must_be_a_string` | ☑ |
+| `[athc]` written as a value | `athc = 1` | `<athc.toml>: [athc]: Must be a table.` | `test_a_section_written_as_a_value_is_an_error` | ☑ |
 | UTF-8 BOM in `league.toml` | BOM-prefixed file | skipped; values read | `test_bom_in_league_toml_is_skipped` | ☑ |
+| `league.toml` that is not UTF-8 | saved as ANSI with an accent | `<league.toml>: Not UTF-8 text. Save it as UTF-8.`, not a crash | `test_a_league_toml_that_is_not_utf8_names_the_file` | ☑ |
 | `%` in `league.toml` | `'%LOCALAPPDATA%\plays'` | loads literally (no interpolation) | `test_percent_in_league_toml_is_literal` / `test_no_interpolation_in_league_toml` | ☑ |
 | `[league]` strings vs arrays | string + array | `values` / `lists` | `test_league_list_is_kept_apart_from_values` | ☑ |
 | `[league]` wrong value type | int, array with int, inline table | `ConfigFileError` "expected a string or an array of strings", names the file | `test_league_value_wrong_type_errors` `[P]` | ☑ |
@@ -967,6 +972,29 @@ In [test_config.py](test_config.py). Direct tests of `load_league_config()` / `l
 | `[categories]` errors | unknown key, empty / non-string label, duplicate, game-name label, non-table | `ConfigFileError` names the file | `test_categories_errors_name_the_file` `[P]` | ☑ |
 | `play_dir()` of a folder | folder | the folder | `test_play_dir_is_the_folder` | ☑ |
 | `play_dir()` missing / a file | no such folder; a file | `ConfigFileError` `<path>: <Windows' phrase> Run 'athc config set play_path FOLDER'.` | `test_play_dir_missing` / `test_play_dir_is_a_file` | ☑ |
+
+## Layered settings (shared)
+
+In [test_layered_settings.py](test_layered_settings.py). `layered_settings(section, league)` on a throwaway `[tool]` table: `athc.toml`'s table with the league's `league.toml` table laid over it key by key, and the file each key came from (`source`). convert-pdb's own keys are in [tests/unit/pdbtoexcel](../unit/pdbtoexcel/README.md).
+
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Base alone | `athc.toml` only | its values; `source` is `athc.toml` | `test_base_alone` | ☑ |
+| League alone | `league.toml` only | its values; `source` is `league.toml` | `test_league_alone` | ☑ |
+| Neither file / neither has the table | none; other tables only | `{}`, no sources | `test_no_file_anywhere_is_empty` / `test_neither_file_has_the_table` | ☑ |
+| League key replaces base key | `a` in both | the league's | `test_league_key_replaces_base_key` | ☑ |
+| Base key kept | `a` base, `b` league | both, each from its file | `test_base_key_kept_when_league_leaves_it_out` | ☑ |
+| Nested table key by key | `[tool.t]` `x`, `y` base; `x` league | `x` the league's, `y` the base's, each from its file | `test_nested_table_merges_key_by_key` | ☑ |
+| Every depth | `[tool.t.u]` | merged at the third level | `test_tables_merge_at_every_depth` | ☑ |
+| Inline table | `t = { x = 3 }` over `[tool.t]` | merged like a table | `test_inline_table_merges_like_a_table` | ☑ |
+| Array replaces whole | `[1, 2]` base, `[3]` / `[]` league | `[3]` / `[]` | `test_array_replaces_whole` / `test_empty_array_replaces_too` | ☑ |
+| Scalar replaces table / table replaces scalar | `t = 5` over `[tool.t]`, and back | the league's; the replaced table's keys have no source | `test_scalar_replaces_table` / `test_table_replaces_scalar` | ☑ |
+| Empty league table | `[tool]`, `[tool.t]` empty | the base unchanged | `test_empty_league_table_changes_nothing` | ☑ |
+| Unset key | `source("b")` | `KeyError` | `test_source_of_an_unset_key_is_key_error` | ☑ |
+| TOML types | bool, int, float, string, array | the same types back | `test_values_are_the_toml_types` | ☑ |
+| Inputs untouched | read twice | the same values; the league's table as read | `test_the_files_are_left_as_read` | ☑ |
+| Table written as a value | `tool = 1` in `league.toml` / `athc.toml` | `ConfigFileError` `<that file>: [tool]: Must be a table.` | `test_league_table_written_as_a_value_is_an_error` / `test_base_table_written_as_a_value_is_an_error` | ☑ |
+| `LeagueConfig.tables` / `table()` | a file with two tables; no file | the whole file, one table, `{}` when absent; `{}` without a file | `test_league_tables_hold_the_whole_file` / `test_league_tables_empty_without_a_file` | ☑ |
 
 ## `--league` (per command)
 
@@ -1006,23 +1034,27 @@ In [test_cli_help.py](test_cli_help.py). The ranges are checked on constructed t
 
 ## `athc config set`
 
-In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.ini` through ConfigUpdater and `set_league_value` the league's `league.toml` through tomlkit; the CLI matches the key without case and checks the league folder.
+In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.toml` and `set_league_value` the league's `league.toml`, both through tomlkit; the CLI matches the key without case and checks the league folder.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Update keeps comments | commented ini | value changed; every comment kept | `test_set_updates_value_and_keeps_comments` | ☑ |
-| Missing key / section / file | partial or no ini | created in place | `test_set_adds_missing_key` / `test_set_adds_missing_section` / `test_set_creates_missing_file` | ☑ |
-| CLI sets league | folder exists | exit 0; stdout: `OK   <athc.ini>: league = <NAME>` | `test_cli_sets_league` | ☑ |
+| Update keeps comments | commented `athc.toml` | value changed; every comment kept | `test_set_updates_value_and_keeps_comments` | ☑ |
+| Missing key / table / file | partial or no `athc.toml` | created in place; a missing `[athc]` leads the file | `test_set_adds_missing_key` / `test_set_adds_missing_section` / `test_set_creates_missing_file` | ☑ |
+| Empty file | `athc.toml` with nothing in it | `[athc]` and the key, nothing else | `test_set_fills_an_empty_file` | ☑ |
+| Key above the first table, no `[athc]` | `league = "PCFL"` above `[autocontinue]`; a top-level inline table | the file kept as written, `[athc]` added at the end | `test_set_leaves_top_level_keys_where_they_are` `[P]` | ☑ |
+| Inline `athc` table | `athc = { league = "x" }` | the value changed in it | `test_set_keeps_an_inline_athc_table` | ☑ |
+| `athc` not a table | `athc = 1` | `ConfigFileError` `[athc]: Must be a table.`; file left as written | `test_set_refuses_an_athc_value_that_is_not_a_table` | ☑ |
+| CLI sets league | folder exists | exit 0; stdout: `OK   <athc.toml>: league = <NAME>` | `test_cli_sets_league` | ☑ |
 | CLI unknown league | no folder | usage error on stderr, exit 2; "not found"; file untouched | `test_cli_rejects_unknown_league` | ☑ |
 | CLI blank league | `""` | usage error on stderr, exit 2; "not found"; file untouched | `test_cli_rejects_blank_league` | ☑ |
-| CLI malformed `athc.ini` | `[athc` broken | exit 2; stderr: `FAIL` naming athc.ini, no traceback; stdout empty; file left as written | `test_cli_malformed_ini_is_clean_error` | ☑ |
+| CLI malformed `athc.toml` | `[athc` broken | exit 2; stderr: `FAIL <athc.toml>: Not valid TOML: ...`, no traceback; stdout empty; file left as written | `test_cli_malformed_toml_is_clean_error` | ☑ |
 | CLI unknown key | `colour` | exit 2; stderr: `Error: Invalid value for 'KEY': 'colour' is not one of 'league', 'path', 'play_path', 'team', 'ppp_path'.`; file untouched | `test_cli_rejects_unknown_key` | ☑ |
 | Help / group listing | `--help` | stdout lists `league` / `set` | `test_cli_help_lists_known_keys` / `test_group_lists_set` | ☑ |
-| CLI key in any case | `League <NAME>` | exit 0; `league = <NAME>` written once; stdout: `OK   <athc.ini>: league = <NAME>` | `test_cli_sets_league_in_its_canonical_spelling` | ☑ |
+| CLI key in any case | `League <NAME>` | exit 0; `league = <NAME>` written once; stdout: `OK   <athc.toml>: league = <NAME>` | `test_cli_sets_league_in_its_canonical_spelling` | ☑ |
 | CLI league without VALUE | `league` | exit 2; stderr: `Error: Missing argument 'VALUE'.`; file untouched | `test_cli_league_needs_a_value` | ☑ |
 | CLI no KEY | nothing | exit 2; stderr: `Error: Missing argument 'KEY'.` | `test_cli_needs_a_key` | ☑ |
 | CLI a word too many | `league <NAME> x` | exit 2; stderr: `Error: Got unexpected extra argument (x).`; file untouched | `test_cli_a_word_too_many` | ☑ |
-| CLI `set league` with `--league` | `league <A> --league <B>` | exit 2; stderr: `Error: --league cannot be used with set league.`; `athc.ini` untouched | `test_cli_set_league_refuses_a_named_league` | ☑ |
+| CLI `set league` with `--league` | `league <A> --league <B>` | exit 2; stderr: `Error: --league cannot be used with set league.`; `athc.toml` untouched | `test_cli_set_league_refuses_a_named_league` | ☑ |
 | CLI sets a `league.toml` key | `path`, `play_path`, `team`, `ppp_path` + value | exit 0; stdout: `OK   <league.toml>: <key> = <value>`; written under `[league]`; every other line kept | `test_cli_sets_a_league_key` `[P]` | ☑ |
 | CLI new key after its example | the shipped `config/release/leagues/PNFL/league.toml`; `team Denver`, then `ppp_path D:\PNFL\Denver` | each line right after its `# <key> = ...` example; every old line kept, in order | `test_cli_adds_a_key_after_its_example` | ☑ |
 | CLI new key, no example | `[league]` with a key, or with comments only, then a comment and the next table | the line after the last key line, or after the header; never under the next table's comment | `test_cli_adds_a_key_with_no_example` `[P]` | ☑ |
@@ -1030,15 +1062,16 @@ In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.i
 | CLI `league.toml` key in any case | `Play_Path` | `play_path` written | `test_cli_writes_the_canonical_key` | ☑ |
 | CLI folder as supplied | relative `ppp_path`; `path` that does not exist | exit 0; written as given | `test_cli_writes_a_folder_as_supplied` `[P]` | ☑ |
 | CLI `--league NAME` | two leagues | that league's `league.toml` written; the other unchanged | `test_cli_league_key_in_the_named_league` | ☑ |
-| CLI league key, no league set | no athc.ini | exit 2; stderr: `FAIL League is not set ...`; file unchanged | `test_cli_league_key_with_no_league_set` | ☑ |
+| CLI league key, no league set | no athc.toml | exit 2; stderr: `FAIL League is not set ...`; file unchanged | `test_cli_league_key_with_no_league_set` | ☑ |
 | CLI league key, `--league NOPE` | no such folder | exit 2; stderr: `FAIL League 'NOPE' not found ...` | `test_cli_league_key_with_an_unknown_league` | ☑ |
 | CLI `league.toml` missing / no `[league]` | folder only; other tables only | exit 2; stderr: `FAIL <league.toml>: The system cannot find the file specified.`; nothing created or changed | `test_cli_league_key_with_no_league_toml` / `test_cli_league_key_with_no_league_section` | ☑ |
 | CLI malformed `league.toml` | `[league` broken | exit 2; stderr: `FAIL <league.toml>: Not valid TOML: ...`; file unchanged | `test_cli_league_key_with_a_malformed_league_toml` | ☑ |
+| CLI `league.toml` not UTF-8 | saved as ANSI with an accent | exit 2; stderr: `FAIL <league.toml>: Not UTF-8 text. Save it as UTF-8.`; file unchanged | `test_cli_league_key_with_a_league_toml_that_is_not_utf8` | ☑ |
 | Help screen | `config set --help` | stdout: the agreed screen, 78 wide; KEY lists the five keys; `--league NAME` | `test_help_screen` | ☑ |
 
 ## shipped `config/release/`
 
-`ATHC_CONFIG_DIR` is pointed at `config/release/` itself (the `release_config_dir` fixture), so `athc.ini` and every `leagues/<NAME>/` are read exactly as installed. Every league folder runs the same tests: each loader must load, and every rule file it resolves must exist.
+`ATHC_CONFIG_DIR` is pointed at `config/release/` itself (the `release_config_dir` fixture), so `athc.toml` and every `leagues/<NAME>/` are read exactly as installed. Every league folder runs the same tests: each loader must load, and every rule file it resolves must exist.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
@@ -1048,40 +1081,40 @@ In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.i
 | `[autocontinue]` | config/release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
 | gameplan, every league | config/release/ | loads; rule files exist | `test_release_gameplan_config_loads` `[P]` | ☑ |
 | profile, every league | config/release/ | loads; rule files exist | `test_release_profile_config_loads` `[P]` | ☑ |
-| convert-pdb, every league | config/release/ | loads; reads the league's `pdbtoexcel.toml` | `test_release_convert_pdb_config_loads` `[P]` | ☑ |
-| `[convert-pdb]` options | config/release/ | spelled out in `athc.ini`; sacks counted as attempts | `test_release_convert_pdb_defaults` | ☑ |
+| convert-pdb, every league | config/release/ | loads; the order (4/9/10) and deleted plays from `athc.toml` | `test_release_convert_pdb_config_loads` `[P]` | ☑ |
+| `[convert-pdb]` options | config/release/ | spelled out in `athc.toml`; sacks counted as attempts | `test_release_convert_pdb_defaults` | ☑ |
 | scheduler, every league | config/release/ | the rules path is the league folder's `scheduler.toml`; it loads | `test_release_scheduler_files_load` `[P]` | ☑ |
-| `config/dev/` mirrors `config/release/` | both | same `athc.ini`, `league.toml` and rules files | `test_dev_mirrors_release_layout` | ☑ |
+| `config/dev/` mirrors `config/release/` | both | same `athc.toml`, `league.toml` and rules files | `test_dev_mirrors_release_layout` | ☑ |
 
 ---
 
 # `athc config`
 
-In [test_config.py](test_config.py) (alongside the resolver tests above). Thin commands over the settings files, `athc.ini` and a league's `league.toml`; app / Explorer launches are mocked.
+In [test_config.py](test_config.py) (alongside the resolver tests above). Thin commands over the settings files, `athc.toml` and a league's `league.toml`; app / Explorer launches are mocked.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Group lists subcommands | `--help` | stdout: path / edit / reveal / get listed | `test_group_lists_subcommands` | ☑ |
-| `path` prints the file path | config_dir | stdout: the full `athc.ini` path | `test_path_prints_config_file` | ☑ |
-| `reveal` selects the file | existing ini | `launch(<athc.ini>, locate=True)` | `test_reveal_selects_existing_file` | ☑ |
+| `path` prints the file path | config_dir | stdout: the full `athc.toml` path | `test_path_prints_config_file` | ☑ |
+| `reveal` selects the file | existing `athc.toml` | `launch(<athc.toml>, locate=True)` | `test_reveal_selects_existing_file` | ☑ |
 | `reveal` opens the folder if absent | config_dir | `launch(<dir>)` | `test_reveal_opens_folder_when_absent` | ☑ |
-| `edit` opens the default app | config_dir | file created; `os.startfile(<athc.ini>)` | `test_edit_opens_associated_app` | ☑ |
-| `edit` ignores `$VISUAL`/`$EDITOR` | both set | `os.startfile(<athc.ini>)`; no `edit` | `test_edit_ignores_editor_env` | ☑ |
-| `edit` keeps existing file | existing ini | content unchanged | `test_edit_preserves_existing_file` | ☑ |
-| `edit`, no app for the file | `os.startfile` raises winerror 1155 | exit 2; stderr: `FAIL <athc.ini>: No application is associated with the specified file for this operation.` | `test_edit_reports_a_file_windows_cannot_open` | ☑ |
+| `edit` opens the default app | config_dir | file created; `os.startfile(<athc.toml>)` | `test_edit_opens_associated_app` | ☑ |
+| `edit` ignores `$VISUAL`/`$EDITOR` | both set | `os.startfile(<athc.toml>)`; no `edit` | `test_edit_ignores_editor_env` | ☑ |
+| `edit` keeps existing file | existing `athc.toml` | content unchanged | `test_edit_preserves_existing_file` | ☑ |
+| `edit`, no app for the file | `os.startfile` raises winerror 1155 | exit 2; stderr: `FAIL <athc.toml>: No application is associated with the specified file for this operation.` | `test_edit_reports_a_file_windows_cannot_open` | ☑ |
 | `edit league.toml`, file missing | league folder only | exit 2; stderr: `FAIL <league.toml>: The system cannot find the file specified.`; nothing created or opened | `test_edit_league_toml_missing_fails` | ☑ |
 | `edit league.toml` | file present | exit 0; `os.startfile(<league.toml>)`; content kept | `test_edit_league_toml_opens_it` | ☑ |
 | `reveal league.toml` | file present / missing | `launch(<league.toml>, locate=True)` / `launch(<league folder>)` | `test_reveal_league_toml_selects_it` / `test_reveal_league_toml_missing_opens_the_league_folder` | ☑ |
 | FILE `league.toml`, any case | `league.toml` / `League.TOML`, league set | stdout: that league's `league.toml` path | `test_league_toml_is_the_league_in_use` `[P]` | ☑ |
 | `path league.toml`, file missing | league folder only | exit 0; stdout: the path; nothing created | `test_path_league_toml_missing_prints_the_path` | ☑ |
-| FILE neither name | `PCFL` | exit 2; stderr: `Error: Invalid value for 'FILE': 'PCFL' is not one of 'athc.ini', 'league.toml'.` | `test_file_rejects_another_word` | ☑ |
+| FILE neither name | `PCFL` | exit 2; stderr: `Error: Invalid value for 'FILE': 'PCFL' is not one of 'athc.toml', 'league.toml'.` | `test_file_rejects_another_word` | ☑ |
 | A word too many | `path`, `edit`, `reveal`, `get` + `x` | exit 2; stderr: `Error: Got unexpected extra argument (x).`; nothing launched | `test_a_word_too_many` `[P]` | ☑ |
 | `--league NAME`, no FILE or `league.toml` | `--league <OTHER>` | stdout: that league's `league.toml` path | `test_named_league_is_its_league_toml` `[P]` | ☑ |
-| `athc.ini --league NAME` | a league / `NOPE` | stdout: the `athc.ini` path / exit 2; stderr: `FAIL League 'NOPE' not found ...` | `test_athc_ini_with_a_named_league_is_athc_ini` / `test_athc_ini_with_an_unknown_league_fails` | ☑ |
+| `athc.toml --league NAME` | a league / `NOPE` | stdout: the `athc.toml` path / exit 2; stderr: `FAIL League 'NOPE' not found ...` | `test_athc_toml_with_a_named_league_is_athc_toml` / `test_athc_toml_with_an_unknown_league_fails` | ☑ |
 | `league.toml`, no league set | empty config | exit 2; stderr: `FAIL League is not set ...` | `test_league_toml_with_no_league_set` | ☑ |
 | `--league NOPE` | no such folder | exit 2; stderr: `FAIL League 'NOPE' not found ...` | `test_unknown_named_league` | ☑ |
 | `--league` without a name | `--league` | exit 2; stderr: `Error: Option '--league' requires an argument.` | `test_league_without_a_name` | ☑ |
-| `league.toml`, malformed `athc.ini` | `[athc` broken | exit 2; stderr: `FAIL <athc.ini>: Not valid INI: ...` | `test_league_toml_with_a_malformed_athc_ini` | ☑ |
+| `league.toml`, malformed `athc.toml` | `[athc` broken | exit 2; stderr: `FAIL <athc.toml>: Not valid TOML: ...` | `test_league_toml_with_a_malformed_athc_toml` | ☑ |
 | Help screens | `--help` on `config`, `path`, `edit`, `reveal`, `get` | stdout: the agreed screen, 78 wide; the group lists `get`; `--league NAME` on every verb, FILE on `path`, `edit`, `reveal` | `test_help_screen` `[P]` | ☑ |
 
 ## `athc config get`
@@ -1092,10 +1125,10 @@ In [test_config.py](test_config.py). `league` through `resolve_league()`; the ot
 |---|---|---|---|---|
 | `get league`, any case | `league` / `League` / `LEAGUE`, league set | exit 0; stdout: the name; stderr empty | `test_get_league_prints_the_league_in_use` `[P]` | ☑ |
 | `get league --league NAME` | two leagues | stdout: that name | `test_get_league_named` | ☑ |
-| `get league`, unset or blank | no key / `league =` | exit 2; stderr: `FAIL League is not set ...`, the folders listed; stdout empty | `test_get_league_not_set` `[P]` | ☑ |
+| `get league`, unset, empty or blank | no key / `league = ""` / `league = "  "` | exit 2; stderr: `FAIL League is not set ...`, the folders listed; stdout empty | `test_get_league_not_set` `[P]` | ☑ |
 | `get league`, folder gone | key names a missing folder | exit 2; stderr: `FAIL League '<NAME>' not found ...` | `test_get_league_folder_gone` | ☑ |
 | `get league --league NOPE` | no such folder | exit 2; stderr: `FAIL League 'NOPE' not found ...` | `test_get_league_named_unknown` | ☑ |
-| `get league`, malformed `athc.ini` | `[athc` broken | exit 2; stderr: `FAIL <athc.ini>: Not valid INI: ...` | `test_get_league_malformed_athc_ini` | ☑ |
+| `get league`, malformed `athc.toml` | `[athc` broken | exit 2; stderr: `FAIL <athc.toml>: Not valid TOML: ...` | `test_get_league_malformed_athc_toml` | ☑ |
 | Unknown KEY | `colour` | exit 2; stderr: `Error: Invalid value for 'KEY': 'colour' is not one of 'league', 'path', 'play_path', 'team', 'ppp_path'.` | `test_get_rejects_an_unknown_key` | ☑ |
 | No KEY | nothing | exit 2; stderr: `Error: Missing argument 'KEY'.` | `test_get_needs_a_key` | ☑ |
 | `get path` / `play_path` | absolute folder | stdout: as written | `test_get_absolute_folder_as_written` `[P]` | ☑ |
@@ -1105,7 +1138,7 @@ In [test_config.py](test_config.py). `league` through `resolve_league()`; the ot
 | `get ppp_path`, not set | no value; no `league.toml` | exit 0; stdout empty; stderr: `WARN <league.toml>: Game plan and profile folder is not set. The folders the league file names are used.` | `test_get_ppp_path_not_set_is_a_warning` `[P]` | ☑ |
 | Key written as an array | `play_path` / `team` = `['x']` | exit 2; stderr: `FAIL <league.toml>: [league] <key>: Expected a string, got an array.` | `test_get_array_value_fails` `[P]` | ☑ |
 | `--league NAME` | two leagues | stdout: that league's value | `test_get_reads_the_named_league` | ☑ |
-| League key, no league set | no athc.ini | exit 2; stderr: `FAIL League is not set ...`; stdout empty | `test_get_league_key_with_no_league_set` | ☑ |
+| League key, no league set | no athc.toml | exit 2; stderr: `FAIL League is not set ...`; stdout empty | `test_get_league_key_with_no_league_set` | ☑ |
 
 ---
 
@@ -1124,7 +1157,7 @@ In [test_standings.py](test_standings.py). The selected league's `path` holds `t
 | Before week 1 | before week 1 | every row 0, `.000`, `0-0`, `0`, `-` | `test_before_week_one_shows_every_team_at_zero` | ☑ |
 | Same file, same order | before week 1 | five runs alike | `test_same_file_same_order` | ☑ |
 | `--league` picks the league | second league | its name as the title | `test_league_option_picks_the_league` | ☑ |
-| No league selected | athc.ini without league | exit 2; stderr: `FAIL League is not set ...`; stdout empty | `test_no_league_selected` | ☑ |
+| No league selected | athc.toml without league | exit 2; stderr: `FAIL League is not set ...`; stdout empty | `test_no_league_selected` | ☑ |
 | No `path` | league.toml without `path` | exit 2; stderr: `FAIL <league.toml>: League files folder is not set. Run 'athc config set path FOLDER'.` | `test_no_path` | ☑ |
 | Missing `.lge` | file removed | exit 2; stderr: `FAIL <file>: The system cannot find the file specified.` | `test_missing_lge` | ☑ |
 | Broken `.lge` | empty file | exit 2; stderr: `FAIL <file>: Empty file.` | `test_broken_lge` | ☑ |

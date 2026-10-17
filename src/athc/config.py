@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import configparser
 import os
 import re
 import tomllib
@@ -18,13 +17,12 @@ from athc.errors import (
     ConfigFileError,
     LeagueError,
     StrPath,
-    ini_reason,
     reason_of,
     toml_reason,
 )
 from athc.fbpro98_play import CategoryLabels
 
-CONFIG_FILE = "athc.ini"
+CONFIG_FILE = "athc.toml"
 LEAGUES_DIR = "leagues"
 LEAGUE_FILE = "league.toml"
 LEAGUE_SECTION = "league"
@@ -61,10 +59,10 @@ def config_file() -> Path:
 
 
 def resolve_path(value: str | os.PathLike[str]) -> Path:
-    """Resolve a path read from `athc.ini` against the config file's directory.
+    """Resolve a path read from `athc.toml` against the config file's directory.
 
-    Relative paths are taken under `config_dir()` (where `athc.ini` lives), so one
-    `athc.ini` works unchanged in dev (`ATHC_CONFIG_DIR` -> repo `config/dev/`) and
+    Relative paths are taken under `config_dir()` (where `athc.toml` lives), so one
+    `athc.toml` works unchanged in dev (`ATHC_CONFIG_DIR` -> repo `config/dev/`) and
     after install (`%LOCALAPPDATA%\\athc`); absolute paths are used as-is. This is
     the mainstream config idiom (ruff, mypy): config-relative, not CWD-relative.
     Paths passed on the CLI stay CWD-relative and must not go through here.
@@ -73,38 +71,55 @@ def resolve_path(value: str | os.PathLike[str]) -> Path:
     return p if p.is_absolute() else config_dir() / p
 
 
-def load_config() -> dict[str, dict[str, str]]:
-    """`athc.ini` as `{section: {key: value}}`; `{}` when the file is absent.
-    ConfigFileError, naming the file, when it cannot be opened or parsed."""
-    path = config_dir() / CONFIG_FILE
-    cp = configparser.ConfigParser(interpolation=None)
-    if path.exists():
-        # Opened here: ConfigParser.read skips a file it cannot open, which
-        # would read as an empty athc.ini.
-        try:
-            with path.open(encoding="utf-8") as handle:
-                cp.read_file(handle)
-        except OSError as e:
-            raise ConfigFileError(reason_of(e), path) from e
-        except UnicodeDecodeError as e:
-            # Saved as ANSI by an editor, an accent in a comment is enough.
-            raise ConfigFileError("Not UTF-8 text. Save it as UTF-8.", path) from e
-        except configparser.Error as e:
-            raise ConfigFileError(ini_reason(e), path) from e
-    return {section: dict(cp[section]) for section in cp.sections()}
+def load_config() -> dict[str, Any]:
+    """`athc.toml` as parsed; `{}` when the file is absent. ConfigFileError,
+    naming the file, when it cannot be opened or parsed."""
+    path = config_file()
+    if not path.exists():
+        return {}
+    try:
+        return tomllib.loads(_read_text(path))
+    except tomllib.TOMLDecodeError as e:
+        raise ConfigFileError(toml_reason(e), path) from e
+
+
+def _read_text(path: Path) -> str:
+    """A settings file's text, a UTF-8 byte-order mark (Notepad) dropped.
+    ConfigFileError, naming the file, when it cannot be opened or is not
+    UTF-8."""
+    try:
+        return path.read_text(encoding="utf-8-sig")
+    except OSError as e:
+        raise ConfigFileError(reason_of(e), path) from e
+    except UnicodeDecodeError as e:
+        # Saved as ANSI by an editor, an accent in a comment is enough.
+        raise ConfigFileError("Not UTF-8 text. Save it as UTF-8.", path) from e
+
+
+def config_table(section: str) -> Mapping[str, Any]:
+    """`[section]` of `athc.toml`; `{}` when the file or the table is absent.
+    ConfigFileError when the file cannot be read or `section` is not a table."""
+    return _table(load_config(), section, config_file())
 
 
 @dataclass(frozen=True, slots=True)
 class LeagueConfig:
     """One league folder: its name, path and the `[league]` table of its
     `league.toml` — string values in `values`, arrays of strings in `lists`
-    (missing file -> empty) — plus the league's category labels."""
+    (missing file -> empty) — plus the league's category labels and the whole
+    parsed file in `tables`, for the tools' own tables."""
 
     name: str
     dir: Path
     values: dict[str, str]
     lists: dict[str, tuple[str, ...]] = field(default_factory=dict)
     categories: CategoryLabels = field(default_factory=CategoryLabels)
+    tables: Mapping[str, Any] = field(default_factory=dict)
+
+    def table(self, section: str) -> Mapping[str, Any]:
+        """`[section]` of `league.toml`; `{}` when absent. ConfigFileError
+        when it is not a table."""
+        return _table(self.tables, section, self.dir / LEAGUE_FILE)
 
     def string(self, key: str) -> str | None:
         """`values[key]` without its outer spaces; None when absent or blank.
@@ -114,7 +129,7 @@ class LeagueConfig:
 
     def path(self, key: str) -> Path | None:
         """`values[key]` as a path; relative values resolve against the league
-        folder (the file that names them), like `resolve_path` for `athc.ini`.
+        folder (the file that names them), like `resolve_path` for `athc.toml`.
         ConfigFileError when the key was written as an array."""
         self._not_an_array(key)
         raw = self.values.get(key)
@@ -191,9 +206,15 @@ def league_dir(name: str) -> Path:
 
 
 def configured_league() -> str | None:
-    """`[athc] league` from `athc.ini`, or None when absent or blank.
-    ConfigFileError when `athc.ini` cannot be parsed."""
-    return load_config().get("athc", {}).get("league", "").strip() or None
+    """`[athc] league` from `athc.toml`, or None when absent or blank.
+    ConfigFileError when `athc.toml` cannot be parsed or the value is not a
+    string."""
+    value = config_table("athc").get("league")
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ConfigFileError("[athc] league: Expected a string.", config_file())
+    return value.strip() or None
 
 
 def resolve_league(league: str | None = None) -> str:
@@ -219,16 +240,74 @@ def load_league_config(league: str | None = None) -> LeagueConfig:
     if not path.is_file():
         return LeagueConfig(name=name, dir=folder, values={})
     try:
-        data = tomllib.loads(path.read_text(encoding="utf-8-sig"))
-    except OSError as e:
-        raise ConfigFileError(reason_of(e), path) from e
+        data = tomllib.loads(_read_text(path))
     except tomllib.TOMLDecodeError as e:
         raise ConfigFileError(toml_reason(e), path) from e
     values, lists = _league_values(_table(data, LEAGUE_SECTION, path), path)
     categories = _category_labels(_table(data, CATEGORIES_SECTION, path), path)
     return LeagueConfig(
-        name=name, dir=folder, values=values, lists=lists, categories=categories
+        name=name,
+        dir=folder,
+        values=values,
+        lists=lists,
+        categories=categories,
+        tables=data,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class Layered:
+    """A tool's settings: its `athc.toml` table with the league's `league.toml`
+    table laid over it, in `values`, and the file that set each key, by key
+    path, in `sources`, so a message names the file its value came from."""
+
+    values: Mapping[str, Any]
+    sources: Mapping[tuple[str, ...], Path]
+
+    def source(self, *keys: str) -> Path:
+        """The file that set the key at path `keys`; KeyError when none did."""
+        return self.sources[keys]
+
+
+def layered_settings(section: str, league: LeagueConfig) -> Layered:
+    """`[section]` of `athc.toml` with the league's `[section]` laid over it key
+    by key: a key the league sets replaces the base's, except that two tables
+    merge the same way, a key at a time; an array or a scalar replaces whole.
+    Either table may be absent. ConfigFileError, naming its file, when either
+    is not a table."""
+    sources: dict[tuple[str, ...], Path] = {}
+    base = _merge({}, config_table(section), config_file(), (), sources)
+    over = league.table(section)
+    values = _merge(base, over, league.dir / LEAGUE_FILE, (), sources)
+    return Layered(values=values, sources=sources)
+
+
+def _merge(
+    base: Mapping[str, Any],
+    over: Mapping[str, Any],
+    path: Path,
+    prefix: tuple[str, ...],
+    sources: dict[tuple[str, ...], Path],
+) -> dict[str, Any]:
+    """`base` with `over`, read from `path`, laid over it; each key `over`
+    sets is recorded in `sources` under `prefix`. New tables are built, so
+    neither input changes."""
+    merged = dict(base)
+    for key, value in over.items():
+        keys = (*prefix, key)
+        old = merged.get(key)
+        if not (isinstance(value, Mapping) and isinstance(old, Mapping)):
+            # Replaced whole: the keys of a table it replaces go with it.
+            for stale in [
+                k for k in sources if len(k) > len(keys) and k[: len(keys)] == keys
+            ]:
+                del sources[stale]
+            old = {}
+        if isinstance(value, Mapping):
+            value = _merge(old, value, path, keys, sources)
+        merged[key] = value
+        sources[keys] = path
+    return merged
 
 
 def _table(
@@ -276,29 +355,38 @@ def load_league(league: str | None = None) -> dict[str, str]:
 
 
 def set_config_value(key: str, value: str) -> Path:
-    """Write `[athc] key = value` into `athc.ini`, keeping every comment and the
-    file's layout (ConfigUpdater). Creates the file, section or key as needed.
-    Returns the path written; ConfigFileError when the file cannot be parsed."""
-    # Imported here: only this writer needs it. The submodule path is used because
-    # pyright cannot see the package's star re-export.
-    from configupdater.configupdater import ConfigUpdater
+    """Write `[athc] key = value` into `athc.toml`, keeping every comment and
+    the file's layout (tomlkit). Creates the file, table or key as needed.
+    Returns the path written; ConfigFileError when the file cannot be read or
+    parsed, or `athc` is not a table."""
+    import tomlkit  # only this writer needs it
+    from tomlkit.items import AoT, Table
 
     path = config_file()
-    updater = ConfigUpdater()
-    if path.is_file():
-        try:
-            updater.read(path, encoding="utf-8")
-        except configparser.Error as e:  # ConfigUpdater raises configparser's classes
-            raise ConfigFileError(ini_reason(e), path) from e
-    if not updater.has_section("athc"):
-        if updater.sections():
-            updater[updater.sections()[0]].add_before.section("athc").space(1)
-        else:
-            updater.add_section("athc")
-    updater["athc"][key] = value
+    item = tomlkit.string(value)
+    line = f"{tomlkit.key(key).as_string()} = {item.as_string()}\n"
+    # Read through load_config, so a file it cannot read fails the same way.
+    exists = "athc" in load_config()
+    old = _read_text(path) if path.exists() else ""
+    document = tomlkit.parse(old)
+    if not exists and all(isinstance(document[k], Table | AoT) for k in document):
+        # tomlkit would add the table at the end; [athc] leads the file.
+        text = f"[athc]\n{line}" + (f"\n{old}" if old.strip() else "")
+    elif not exists:
+        # A key above the first table belongs to no table, and an [athc]
+        # put above it would take it in: the table goes at the end.
+        table = tomlkit.table()
+        table[key] = item
+        document.append("athc", table)
+        text = tomlkit.dumps(document)
+    else:
+        table = document["athc"]
+        if not isinstance(table, MutableMapping):
+            raise ConfigFileError("[athc]: Must be a table.", path)
+        table[key] = item
+        text = tomlkit.dumps(document)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        updater.write(handle)
+    path.write_text(text, encoding="utf-8")
     return path
 
 
@@ -322,10 +410,7 @@ def set_league_value(league: str | None, key: str, value: str) -> Path:
     import tomlkit  # only this writer needs it
 
     path = league_file(league)
-    try:
-        text = path.read_text(encoding="utf-8-sig")
-    except OSError as e:
-        raise ConfigFileError(reason_of(e), path) from e
+    text = _read_text(path)
     try:
         # Parsed by tomllib first so a malformed file gets the readers' wording.
         tomllib.loads(text)

@@ -28,7 +28,7 @@ from athc.fbpro98_gameplan import (
 from athc.gameplan import OffenseCategoryRule, Rules
 from athc.gameplan.writer import build_custom_play
 from athc.playpool import PlayPool, read_play_pool
-from tests.conftest import LEAGUE, PNFL_LABELS, league_toml, toml_error
+from tests.conftest import LEAGUE, PNFL_LABELS, athc_toml, league_toml, toml_error
 from tests.integration.conftest import (
     GP_DEFENSE,
     GP_OFFENSE,
@@ -50,7 +50,7 @@ WriteConfig = Callable[..., Path]
 @pytest.fixture(autouse=True)
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league; its play_path is the curated test pool."""
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     return make_league(LEAGUE, league_toml(PLAYS))
 
 

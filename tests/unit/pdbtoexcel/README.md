@@ -17,33 +17,49 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 | `convert_invalid_play_data` | synth + pool | misclassified run → pass; yards → sacks | `test_convert_invalid_moves_misclassified_run_to_pass` | ☑ |
 
 ## config.py
+
+`[convert-pdb]` in athc.toml (the base) with the league's league.toml table laid over it key by key; the `base` and `override` fixtures rewrite one file each.
+
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Defaults (league folder with labels + order only) | folder | play_path ""; options True; no deleted plays | `test_load_config_defaults` | ☑ |
+| Defaults (base with the PNFL order only) | folder | play_path the folder; options at their defaults; no deleted plays | `test_load_config_defaults` | ☑ |
 | From the league folder | `league.toml` | play_path resolved | `test_load_config_from_league_folder` | ☑ |
 | Needs a league | no league selected | `LeagueError` | `test_load_config_needs_a_league` | ☑ |
-| Category order in file order | PNFL `pdbtoexcel.toml` | run/pass/defense enum members as listed | `test_category_order_in_file_order` | ☑ |
+| Missing `play_path` | league without it | "Play pool folder is not set" naming `league.toml` | `test_missing_play_path_is_an_error` | ☑ |
+| Category order in file order | the PNFL order in athc.toml | run/pass/defense enum members as listed | `test_category_order_in_file_order` | ☑ |
 | Unlabeled category by game name | `"Razzle Dazzle Run"` | resolves | `test_unlabeled_category_goes_by_its_game_name` | ☑ |
 | Labeled category by game name | `"Run Left"` with RL labeled | `ConfigFileError` "not a run category" | `test_labeled_category_by_game_name_is_unknown` | ☑ |
-| Unknown name lists the valid ones | `"Nope"` | error with sorted valid names | `test_unknown_name_lists_the_valid_ones` | ☑ |
+| Unknown name lists the valid ones | `"Nope"` | the whole line, sorted valid names, naming athc.toml | `test_unknown_name_lists_the_valid_ones` | ☑ |
 | Empty list allowed | `run = []` | `()` | `test_empty_list_is_allowed` | ☑ |
 | Wrong side | pass label under run / run under pass / offense under defense | error says which | `test_wrong_side_is_an_error` `[P]` | ☑ |
 | Repeated name | `RL` twice | "listed twice" | `test_repeated_name_is_an_error` | ☑ |
-| Missing key / table | no `defense` / no `[category_order]` | "missing" | `test_missing_key_is_an_error` / `test_missing_table_is_an_error` | ☑ |
-| Table written as a value | `category_order = 1` / `deleted_plays = 1` | "Must be a table." | `test_table_written_as_a_value_is_an_error` `[P]` | ☑ |
-| Not an array of strings | string, `[1]`, mixed | "expected an array of strings" | `test_list_must_be_an_array_of_strings` `[P]` | ☑ |
-| Unknown key / table | `special`, `[filters]` | "unknown key" | `test_unknown_key_is_an_error` / `test_unknown_table_is_an_error` | ☑ |
-| Missing `play_path` | league without it | "no play_path for the league" naming `league.toml` | `test_missing_play_path_is_an_error` | ☑ |
-| Missing file | no `pdbtoexcel.toml` | "The system cannot find the file specified." | `test_missing_file_is_an_error` | ☑ |
-| Bad TOML / BOM | malformed; `utf-8-sig` | error names the file; BOM loads | `test_bad_toml_is_an_error` / `test_bom_is_skipped` | ☑ |
-| Deleted plays | `[deleted_plays] names` | names as written; absent → empty | `test_deleted_plays_read_as_written` / `test_deleted_plays_table_without_names_is_empty` | ☑ |
-| Deleted plays wrong type / key | string, `[1]`; `plays` | error | `test_deleted_plays_must_be_an_array_of_strings` `[P]` / `test_deleted_plays_unknown_key_is_an_error` | ☑ |
-| Every shipped league loads | `config/{dev,release}` × PNFL/PCFL | 4/9/10 categories; ATF0ELOB deleted | `test_shipped_league_loads` `[P]` | ☑ |
-| Workbook options from `[convert-pdb]` | athc.ini + folder | all three flipped | `test_load_config_reads_workbook_options` | ☑ |
-| Workbook options without the section | folder | True / False / True | `test_workbook_options_default_without_section` | ☑ |
-| configparser booleans accepted | `1/yes/true/on`, `0/no/false/off`, any case | parsed | `test_workbook_option_accepts_configparser_booleans` `[P]` | ☑ |
-| Other boolean spelling | `maybe` | `ConfigFileError` names the key | `test_workbook_option_rejects_other_values` | ☑ |
-| `calculate_total_stats` no longer read | leftover key, bad value | ignored; no such option | `test_calculate_total_stats_is_no_longer_read` | ☑ |
+| Not an array of strings | string, `[1]`, mixed | `[convert-pdb.category_order] run: Expected an array of strings.` | `test_list_must_be_an_array_of_strings` `[P]` | ☑ |
+| Unknown key in the order / in `[convert-pdb]` | `special`, `zap`; `[convert-pdb.filters]`, `[convert-pdb.zap]` | `Unknown key(s): ... Valid: ...` naming athc.toml | `test_unknown_key_is_an_error` / `test_unknown_top_level_key_is_an_error` | ☑ |
+| Every key from the base | options flipped, lists, `deleted_plays` in athc.toml only | all read; `deleted_plays_file` athc.toml | `test_every_key_from_the_base` | ☑ |
+| No order anywhere / one list missing | no `category_order`; no `run` | every list `()`; that list `()` | `test_missing_lists_default_to_empty` / `test_a_missing_list_is_empty` | ☑ |
+| No `deleted_plays` | none | empty; `deleted_plays_file` athc.toml | `test_missing_deleted_plays_is_empty` | ☑ |
+| Options without / with the table | none; all three flipped | True / False / True; flipped | `test_workbook_options_default_without_section` / `test_load_config_reads_workbook_options` | ☑ |
+| Every key from the league | nothing in athc.toml, everything in league.toml | all read; `deleted_plays_file` league.toml | `test_every_key_from_the_league` | ☑ |
+| No athc.toml at all | league.toml only | the league's keys and the defaults | `test_league_alone_without_athc_toml` | ☑ |
+| League overrides one option | each of the three options, base flipped | that option the league's, the other two the base's | `test_league_overrides_one_option_and_keeps_the_rest` `[P]` | ☑ |
+| League overrides one list | `run`, `pass`, `defense` | that list the league's, the other two the base's | `test_league_overrides_one_list_and_keeps_the_rest` `[P]` | ☑ |
+| League empty list | `run = []` | no run categories; pass and defense the base's | `test_league_empty_list_overrides_the_base` | ☑ |
+| League `deleted_plays` | base `["A", "C"]`, league `["B"]` | `{"B"}`, replaced whole | `test_league_overrides_deleted_plays_whole` | ☑ |
+| League option, base lists | one option in league.toml | both apply | `test_league_options_and_base_lists` | ☑ |
+| Empty league tables | `[convert-pdb]`, `[convert-pdb.category_order]`, both | the base unchanged | `test_empty_league_table_keeps_the_base` `[P]` | ☑ |
+| Overridden base value not checked | bad base list / option, league replaces it | loads with the league's | `test_overridden_base_list_is_not_checked` / `test_overridden_base_option_is_not_checked` | ☑ |
+| Not a TOML boolean | `"true"`, `1`, `"maybe"` | `[convert-pdb] calculate_percentages: Expected true or false.` naming athc.toml | `test_workbook_option_rejects_non_booleans` `[P]` | ☑ |
+| Bad option names its file | `"true"` in athc.toml / league.toml | the line names that file | `test_bad_option_names_the_base_file` / `test_bad_option_names_the_league_file` | ☑ |
+| Bad list / unknown name names its file | `run = "RL"`; `"Nope"` in league.toml | the line names league.toml | `test_bad_list_names_its_file` / `test_unknown_name_names_its_file` | ☑ |
+| Unknown key names its file | `zap` in `[convert-pdb]`; `special` in the order, league.toml | the line names league.toml | `test_unknown_key_names_its_file` / `test_unknown_order_key_names_its_file` | ☑ |
+| Unknown keys in both files | `aaa` in athc.toml, `zap` in league.toml | one line: athc.toml and `aaa` only | `test_unknown_keys_in_both_files_name_one_file` | ☑ |
+| Order written as a value | `category_order = 1` in league.toml / athc.toml | `[convert-pdb.category_order]: Must be a table.` naming that file | `test_order_written_as_a_value_names_its_file` / `test_order_written_as_a_value_in_the_base` | ☑ |
+| `[convert-pdb]` written as a value | `convert-pdb = 1` in league.toml / athc.toml | `[convert-pdb]: Must be a table.` naming that file | `test_section_written_as_a_value_in_the_league_file` / `test_section_written_as_a_value_in_the_base` | ☑ |
+| Deleted plays | `deleted_plays = ["atf0elob", "XY"]` | names as written | `test_deleted_plays_read_as_written` | ☑ |
+| Deleted plays wrong type | string, `[1]`; a string in league.toml | `[convert-pdb] deleted_plays: Expected an array of strings.` naming its file | `test_deleted_plays_must_be_an_array_of_strings` `[P]` / `test_bad_deleted_plays_names_the_league_file` | ☑ |
+| Deleted plays' file | from athc.toml, then from league.toml | `deleted_plays_file` is that file | `test_deleted_plays_file_is_where_the_list_came_from` | ☑ |
+| `calculate_total_stats` | the old key | unknown key | `test_calculate_total_stats_is_an_unknown_key` | ☑ |
+| Every shipped league loads | `config/{dev,release}` × PNFL/PCFL | 4/9/10 categories; ATF0ELOB deleted; from athc.toml | `test_shipped_league_loads` `[P]` | ☑ |
 
 ## workbook_creator + excel_workbook (read back with openpyxl)
 | Case | Input | Expected | Test | Status |

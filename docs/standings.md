@@ -11,7 +11,7 @@ athc standings --view division --method nfl --league PCFL
 ```
 
 The league comes from `--league name`, or from `[athc] league` in
-`athc.ini`. Its `.lge`, named after the league, is read from the folder
+`athc.toml`. Its `.lge`, named after the league, is read from the folder
 `path` names in its `league.toml`.
 
 ## Views

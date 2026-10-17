@@ -26,7 +26,7 @@ from athc.errors import (
     FILE_NOT_FOUND,
     PATH_NOT_FOUND,
 )
-from tests.conftest import LEAGUE, league_not_found
+from tests.conftest import LEAGUE, athc_toml, league_not_found
 from tests.integration.conftest import (
     DENVER,
     HINT,
@@ -352,7 +352,7 @@ def test_team_not_set_shows_before_path(
     runner, build_league: BuildLeague, write_config: WriteConfig, config_dir: Path
 ) -> None:
     build_league()
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = runner.invoke(check, ["off1"])
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {league_toml(config_dir)}: {TEAM_NOT_SET}\n"
@@ -385,7 +385,7 @@ def test_path_not_set(
     args: list[str],
 ) -> None:
     build_league(team="Denver")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, *args)
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {league_toml(config_dir)}: {PATH_NOT_SET}\n"
@@ -478,7 +478,7 @@ def test_unknown_league(
 
 
 def test_plain_files_need_no_league(runner, work: Path) -> None:
-    """No athc.ini and no league folder: diff and copy of plain files run."""
+    """No athc.toml and no league folder: diff and copy of plain files run."""
     target = shutil.copy2(OFF1, work / "target.prf")
     assert run(runner, "diff", str(OFF1), str(OFF1)).exit_code == 0
     result = run(runner, "copy", str(OFF1), str(target), "--stop-clock")

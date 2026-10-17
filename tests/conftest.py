@@ -1,7 +1,7 @@
 """Shared fixtures for the whole suite.
 
 `config_dir` isolates config lookup (env `ATHC_CONFIG_DIR`) for every test; `write_config`
-writes raw INI into that dir. Tests that exercise the platformdirs default must
+writes raw TOML into that dir. Tests that exercise the platformdirs default must
 `monkeypatch.delenv("ATHC_CONFIG_DIR", raising=False)` themselves.
 """
 
@@ -68,18 +68,20 @@ CATEGORIES_TOML = _categories_table("offense", PNFL_OFFENSE) + _categories_table
 )
 
 
-def league_toml(play_path: Path | str | None = None, *, labels: bool = True) -> str:
-    """A league.toml body: `play_path` when given and, by default, the PNFL
-    category labels."""
+def league_toml(
+    play_path: Path | str | None = None, *, labels: bool = True, convert_pdb: str = ""
+) -> str:
+    """A league.toml body: `play_path` when given, by default the PNFL
+    category labels, then `convert_pdb`, the league's convert-pdb tables."""
     body = "[league]\n"
     if play_path is not None:
         body += f"play_path = '{play_path}'\n"
-    return body + (CATEGORIES_TOML if labels else "")
+    return body + (CATEGORIES_TOML if labels else "") + convert_pdb
 
 
-# A test league's pdbtoexcel.toml: the PNFL category order over the labels above.
-PDBTOEXCEL_TOML = (
-    "[category_order]\n"
+# The PNFL category order over the labels above, as athc.toml gives it.
+CONVERT_PDB_TOML = (
+    "[convert-pdb.category_order]\n"
     'run = ["RL", "RM", "RR", "GLR"]\n'
     'pass = ["PSL", "PSM", "PSR", "PML", "PMM", "PMR", "PLR", "PRD", "GLP"]\n'
     'defense = ["RunLeft", "RunMiddle", "RunRight", "RunDazzle", "PassShort", '
@@ -124,11 +126,6 @@ def toml_error(text: str) -> str:
     return toml_reason(exc.value)
 
 
-def write_pdbtoexcel_toml(folder: Path, body: str = PDBTOEXCEL_TOML) -> Path:
-    """Write a league folder's `pdbtoexcel.toml` (the PNFL order by default)."""
-    return write_config_file(folder, body, "pdbtoexcel.toml")
-
-
 def shipped_files(pattern: str) -> list[Path]:
     """Every shipped `leagues/<pattern>` file, in both `config/dev/` and `config/release/`
     (e.g. `*/gameplan.toml`)."""
@@ -163,7 +160,12 @@ def log_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return d
 
 
-def write_config_file(config_dir: Path, body: str, name: str = "athc.ini") -> Path:
+def athc_toml(league: str = LEAGUE) -> str:
+    """An athc.toml body that selects `league`."""
+    return f'[athc]\nleague = "{league}"\n'
+
+
+def write_config_file(config_dir: Path, body: str, name: str = "athc.toml") -> Path:
     """Write a raw config file (dedented, leading newline stripped) to `config_dir/name`.
     Plain function so golden `--bless` scripts can use it outside pytest."""
     path = config_dir / name

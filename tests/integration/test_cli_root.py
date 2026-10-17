@@ -292,7 +292,7 @@ ALL_POSITIONALS = [
     (("profile", "diff"), ["a.prf", "b.prf"]),
     (("config", "set"), ["team", "Denver"]),
     (("config", "get"), ["team"]),
-    (("config", "path"), ["athc.ini"]),
+    (("config", "path"), ["athc.toml"]),
     (("playpool", "check"), ["plays"]),
     (("generate-schedule",), ["--season", "2048", "out"]),
 ]

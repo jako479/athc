@@ -11,7 +11,7 @@ import pytest
 from athc.cli.gameplan.set_specials import set_specials
 from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_gameplan import PlayRef, read_gameplan, write_gameplan
-from tests.conftest import LEAGUE, league_toml
+from tests.conftest import LEAGUE, athc_toml, league_toml
 from tests.integration.conftest import (
     GP_DEFENSE,
     GP_OFFENSE,
@@ -31,7 +31,7 @@ WriteConfig = Callable[..., Path]
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league: the curated test pool."""
     folder = make_league(LEAGUE, league_toml(PLAYS))
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     return folder
 
 

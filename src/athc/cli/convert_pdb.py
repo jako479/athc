@@ -196,7 +196,7 @@ def _plan_option(*names: str, help: str):
 @click.option(
     "--percentages/--no-percentages",
     default=None,
-    help="Overrides calculate_percentages in athc.ini (on by default).",
+    help="Overrides calculate_percentages in athc.toml (on by default).",
 )
 @league_option
 @click.pass_context

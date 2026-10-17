@@ -36,7 +36,7 @@ EXAMPLES = """Examples:
 def get(key: str, league: str | None) -> None:
     """Print a setting.
 
-    league comes from athc.ini, the other keys from the league's league.toml.
+    league comes from athc.toml, the other keys from the league's league.toml.
     """
     if key == "league":
         console.print(resolve_league(league))

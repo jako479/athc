@@ -19,7 +19,7 @@ The shape athc aims for: a normal installable CLI for non-dev users.
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) — optional config, inline `#` comments, options documented in `--help`/README.
 - [httpie](https://github.com/httpie/cli) — small `config.json`, defaults in code, documented online.
 
-**Adaptation for athc**: in-code defaults are authoritative (every section/key optional; missing → default), so a config file is never required. The shipped `athc.ini` is a single self-documenting PNFL starter — no `.example` twin.
+**Adaptation for athc**: in-code defaults are authoritative (every section/key optional; missing → default), so a config file is never required. The shipped `athc.toml` is a single self-documenting PNFL starter — no `.example` twin.
 
 ## Config dir override (env var)
 
@@ -74,7 +74,7 @@ For athc's `leagues\<NAME>\` folders and the stored current league.
 - **pip / gcloud / poetry** — `config set KEY VALUE` writes one setting; precedent for `athc config set league NAME`.
 - **AWS CLI / kubectl** — the profile flag goes after the command: `aws s3 ls --profile x` ([docs](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-options.html)), `kubectl get --context x` ([docs](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_get/)). Precedent for `--league` after the command name.
 
-**Adaptation for athc**: fixed file names inside each league folder; `[athc] league` in `athc.ini`; `--league` on each league-aware command (`athc <command> --league NAME`); priority `--league` → `[athc] league` → error. Rules in [architecture.md](architecture.md#config); the option in [architecture.md](architecture.md#cli).
+**Adaptation for athc**: fixed file names inside each league folder; `[athc] league` in `athc.toml`; `--league` on each league-aware command (`athc <command> --league NAME`); priority `--league` → `[athc] league` → error. Rules in [architecture.md](architecture.md#config); the option in [architecture.md](architecture.md#cli).
 
 ## Plugins via entry points
 
@@ -116,8 +116,8 @@ athc's own discipline (golden input→expected-output fixtures with a regen scri
 | Runtime plugin discovery via entry points | Flask; llm, sqlite-utils (`pluggy` ecosystems) |
 | Project layout (`<pkg>/cli/` for CLI, `<pkg>/<tool>/` for logic) | pnfl predecessor |
 | Tool vs library distinction (`py.typed`) | pnfl predecessor |
-| INI format over TOML | Non-dev user familiarity (no specific precedent) |
-| Single self-documenting `athc.ini`, no `.example` | pgcli, mycli |
+| TOML for every settings file | ruff (`ruff.toml`), uv (`uv.toml`) |
+| Single self-documenting `athc.toml`, no `.example` | pgcli, mycli |
 | In-code defaults; missing section/key → no error | pgcli, mycli, yt-dlp |
 | Config dir override (`ATHC_CONFIG_DIR` env var) | httpie (`HTTPIE_CONFIG_DIR`), llm (`LLM_USER_PATH`), tmuxp |
 | Output → CWD/explicit, never a fixed app dir | yt-dlp, cookiecutter, ffmpeg; clig.dev |

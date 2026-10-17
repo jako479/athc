@@ -34,12 +34,13 @@ from athc.errors import (
 from athc.pdbtoexcel import config as pdbtoexcel_config
 from athc.pdbtoexcel.pdb import PLAY_DATA
 from tests.conftest import (
+    CONVERT_PDB_TOML,
     LEAGUE,
+    athc_toml,
     league_toml,
     make_league_dir,
     no_league_selected,
     write_config_file,
-    write_pdbtoexcel_toml,
 )
 from tests.integration.conftest import (
     DATA,
@@ -75,10 +76,8 @@ def league(
     empty folder."""
     plays = tmp_path / "plays"
     plays.mkdir()
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
-    folder = make_league(LEAGUE, league_toml(plays))
-    write_pdbtoexcel_toml(folder)
-    return folder
+    write_config(athc_toml() + CONVERT_PDB_TOML)
+    return make_league(LEAGUE, league_toml(plays))
 
 
 def run(runner: CliRunner, *args: Path | str) -> Result:
@@ -110,7 +109,7 @@ Options:
   --team NAME                     Team whose game plans fill the Slot columns
                                   (default: team in league.toml).
   --percentages / --no-percentages
-                                  Overrides calculate_percentages in athc.ini
+                                  Overrides calculate_percentages in athc.toml
                                   (on by default).
   --league NAME                   League to use (default: the one set with
                                   athc config set league).
@@ -243,9 +242,8 @@ def test_play_path_not_a_directory_exit_2(
 ) -> None:
     not_a_dir = tmp_path / "notdir.txt"
     not_a_dir.write_text("x", encoding="utf-8")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
-    folder = make_league(LEAGUE, league_toml(not_a_dir))
-    write_pdbtoexcel_toml(folder)
+    write_config(athc_toml() + CONVERT_PDB_TOML)
+    make_league(LEAGUE, league_toml(not_a_dir))
     result = runner.invoke(convert_pdb, [str(PDB), str(tmp_path / "o.xlsx")])
     assert result.exit_code == 2
     assert result.stderr == (
@@ -261,9 +259,8 @@ def test_play_path_missing_exit_2(
     tmp_path: Path,
 ) -> None:
     missing = tmp_path / "gone"
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
-    folder = make_league(LEAGUE, league_toml(missing))
-    write_pdbtoexcel_toml(folder)
+    write_config(athc_toml() + CONVERT_PDB_TOML)
+    make_league(LEAGUE, league_toml(missing))
     result = runner.invoke(convert_pdb, [str(PDB), str(tmp_path / "o.xlsx")])
     assert result.exit_code == 2
     assert result.stderr == (
@@ -305,20 +302,50 @@ def test_output_folder_is_a_file_exit_2(runner, tmp_path: Path) -> None:
     assert not out.exists()
 
 
-def test_missing_pdbtoexcel_toml_exit_2(
+def test_no_category_order_exports_nothing(
     runner,
     make_league: MakeLeague,
     write_config: Callable[..., Path],
     tmp_path: Path,
 ) -> None:
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
-    folder = make_league(LEAGUE, league_toml(tmp_path))
-    result = runner.invoke(convert_pdb, [str(PDB), str(tmp_path / "o.xlsx")])
-    assert result.exit_code == 2
-    assert result.stderr == (
-        f"FAIL {folder / 'pdbtoexcel.toml'}: {FILE_NOT_FOUND} "
-        "convert-pdb needs this file in the league folder.\n"
-    )
+    """No category_order in athc.toml or league.toml: every list is empty, so
+    the pool the golden workbook fills gives no play rows."""
+    write_config(athc_toml())
+    make_league(LEAGUE, league_toml(PLAYS))
+    out = tmp_path / "o.xlsx"
+    result = runner.invoke(convert_pdb, [str(PDB), str(out)])
+    assert result.exit_code == 0
+    assert result.stdout == f"OK   {out}: 0 play(s)\n"
+    workbook = openpyxl.load_workbook(out)
+    for name in ("Run Plays", "Pass Plays", "Def Plays"):
+        rows = workbook[name].iter_rows(min_row=2, values_only=True)
+        assert [row for row in rows if any(v is not None for v in row)] == [], name
+
+
+def test_league_override_changes_the_order(
+    runner,
+    make_league: MakeLeague,
+    write_config: Callable[..., Path],
+    tmp_path: Path,
+) -> None:
+    """The league's run list replaces athc.toml's: within each team RM rows
+    sort before RL, and RR and GLR are left out."""
+    write_config(athc_toml() + CONVERT_PDB_TOML)
+    body = '[convert-pdb.category_order]\nrun = ["RM", "RL"]\n'
+    make_league(LEAGUE, league_toml(PLAYS, convert_pdb=body))
+    out = tmp_path / "o.xlsx"
+    result = runner.invoke(convert_pdb, [str(PDB), str(out)])
+    assert result.exit_code == 0, result.stderr
+    sheet = openpyxl.load_workbook(out)["Run Plays"]
+    header = next(sheet.iter_rows(values_only=True))
+    team, category = header.index("Team"), header.index("Category")
+    by_team: dict[object, list[str]] = {}
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+        if row[category] is not None:
+            by_team.setdefault(row[team], []).append(str(row[category]))
+    assert {c for cats in by_team.values() for c in cats} == {"RM", "RL"}
+    for cats in by_team.values():
+        assert cats == sorted(cats, key=["RM", "RL"].index)
 
 
 @pytest.mark.usefixtures("league")
@@ -464,7 +491,9 @@ def test_percentages_override_the_setting(
 ) -> None:
     """The setting alone decides, and either flag overrides it both ways."""
     write_config(
-        f"[athc]\nleague = {LEAGUE}\n[convert-pdb]\ncalculate_percentages = {setting}\n"
+        athc_toml()
+        + CONVERT_PDB_TOML
+        + f"[convert-pdb]\ncalculate_percentages = {setting}\n"
     )
     out = tmp_path / "out.xlsx"
     result = run(runner, PDB, out, *([flag] if flag else []))
@@ -477,9 +506,14 @@ def test_percentages_override_the_setting(
 
 
 def test_entry_point_subprocess(
-    make_league: MakeLeague, config_dir: Path, log_dir: Path, tmp_path: Path
+    make_league: MakeLeague,
+    write_config: WriteConfig,
+    config_dir: Path,
+    log_dir: Path,
+    tmp_path: Path,
 ) -> None:
-    write_pdbtoexcel_toml(make_league(LEAGUE, league_toml(tmp_path)))
+    make_league(LEAGUE, league_toml(tmp_path))
+    write_config(CONVERT_PDB_TOML)
     env = {
         **os.environ,
         "ATHC_CONFIG_DIR": str(config_dir),
@@ -513,13 +547,12 @@ def test_entry_point_subprocess(
 
 def test_config_play_path_from_league_folder(make_league: MakeLeague) -> None:
     folder = make_league(LEAGUE, league_toml("plays"))
-    write_pdbtoexcel_toml(folder)
     cfg = pdbtoexcel_config.load_config(LEAGUE)
     assert cfg.play_path == str(folder / "plays")
 
 
 def test_config_missing_play_path_is_an_error(make_league: MakeLeague) -> None:
-    folder = write_pdbtoexcel_toml(make_league(LEAGUE, league_toml())).parent
+    folder = make_league(LEAGUE, league_toml())
     with pytest.raises(ConfigFileError) as exc:
         pdbtoexcel_config.load_config(LEAGUE)
     assert str(exc.value) == (
@@ -546,9 +579,8 @@ def test_no_play_path_exit_2(
 ) -> None:
     """A league without a play pool converts nothing: an error, not an empty
     workbook."""
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml() + CONVERT_PDB_TOML)
     folder = make_league(LEAGUE, league_toml())
-    write_pdbtoexcel_toml(folder)
     result = runner.invoke(convert_pdb, [str(PDB), str(tmp_path / "o.xlsx")])
     assert result.exit_code == 2
     assert result.stderr == (
@@ -566,11 +598,12 @@ def test_no_play_path_exit_2(
 def _golden_league(config_dir: Path) -> None:
     """Select a league under `config_dir` whose pool is `data/plays/`, with the
     PNFL labels and order, and turn the category worksheets on."""
-    folder = make_league_dir(config_dir, LEAGUE, league_toml(PLAYS))
-    write_pdbtoexcel_toml(folder)
+    make_league_dir(config_dir, LEAGUE, league_toml(PLAYS))
     write_config_file(
         config_dir,
-        f"[athc]\nleague = {LEAGUE}\n[convert-pdb]\ninclude_category_worksheets = true\n",
+        athc_toml()
+        + CONVERT_PDB_TOML
+        + "[convert-pdb]\ninclude_category_worksheets = true\n",
     )
 
 
@@ -684,8 +717,8 @@ def test_play_path_not_a_directory_is_a_config_error(
     """The command loads the config and checks the pool's folder itself."""
     not_a_dir = tmp_path / "notdir.txt"
     not_a_dir.write_text("x", encoding="utf-8")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
-    write_pdbtoexcel_toml(make_league(LEAGUE, league_toml(not_a_dir)))
+    write_config(athc_toml() + CONVERT_PDB_TOML)
+    make_league(LEAGUE, league_toml(not_a_dir))
     config = pdbtoexcel_config.load_config(LEAGUE)
     with pytest.raises(ConfigFileError) as exc:
         play_dir(config.play_path)
@@ -753,7 +786,7 @@ def denver_league(lg2_league, config_dir: Path, tmp_path: Path) -> Callable[...,
     def _build(*, plans: bool = True, **settings: object) -> Path:
         settings.setdefault("team", "Denver")
         lg2_league(denver(), **settings)
-        write_pdbtoexcel_toml(config_dir / "leagues" / LEAGUE)
+        write_config_file(config_dir, athc_toml() + CONVERT_PDB_TOML)
         folder = tmp_path / "lg2" / "PNFL" / "2049" / "Plans" / "Team"
         return put_plans(folder) if plans else folder
 
@@ -761,9 +794,9 @@ def denver_league(lg2_league, config_dir: Path, tmp_path: Path) -> Callable[...,
 
 
 @pytest.fixture
-def real_league(pnfl_league: Path) -> Path:
+def real_league(pnfl_league: Path, write_config: WriteConfig) -> Path:
     """`pnfl_league` (the real 2049 league file and plans) able to convert."""
-    write_pdbtoexcel_toml(pnfl_league)
+    write_config(athc_toml() + CONVERT_PDB_TOML)
     return pnfl_league
 
 
@@ -847,8 +880,8 @@ def test_plan_option_reads_no_league_file(
     runner, build_league: BuildLeague, write_config: WriteConfig, tmp_path: Path
 ) -> None:
     """`team` set and no `path`: a run with a game plan option still converts."""
-    write_pdbtoexcel_toml(build_league(team="Denver"))
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    build_league(team="Denver")
+    write_config(athc_toml() + CONVERT_PDB_TOML)
     result = run(runner, PDB, tmp_path / "w.xlsx", "-d", GP_DEFENSE)
     assert result.exit_code == 0
 
@@ -1011,7 +1044,7 @@ def test_shared_plan_missing_is_one_warning(
         def2=("D2.prf", "DEN-DGP2.pln"),
     )
     lg2_league(record, team="Denver")
-    write_pdbtoexcel_toml(config_dir / "leagues" / LEAGUE)
+    write_config_file(config_dir, athc_toml() + CONVERT_PDB_TOML)
     location = put_plans(
         tmp_path / "lg2" / "PNFL" / "2049" / "Plans" / "Team", ["DEN-DGP1.pln"]
     )
@@ -1302,7 +1335,7 @@ def test_team_option_matches_two_teams(
 ) -> None:
     """A --team typo shows before the pool's WARN lines, and nothing else."""
     lg2_league(team(), team(), names=[("New York", "Giants"), ("New York", "Jets")])
-    write_pdbtoexcel_toml(config_dir / "leagues" / LEAGUE)
+    write_config_file(config_dir, athc_toml() + CONVERT_PDB_TOML)
     result = run(runner, PDB, tmp_path / "w.xlsx", "--team", "New York")
     assert result.exit_code == 2
     assert "WARN" not in result.stderr
@@ -1352,8 +1385,7 @@ def test_team_in_play_needs_path(
     line: str,
 ) -> None:
     folder = build_league(**settings)
-    write_pdbtoexcel_toml(folder)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml() + CONVERT_PDB_TOML)
     (tmp_path / "plans").mkdir()
     result = run(runner, PDB, tmp_path / "w.xlsx", *args)
     assert result.exit_code == 2
@@ -1375,7 +1407,7 @@ def test_league_team_counts_differ(
     runner, lg2_league, config_dir: Path, tmp_path: Path
 ) -> None:
     lg2 = lg2_league(denver(), team(), team="Denver", names=TEAM_NAMES[:1])
-    write_pdbtoexcel_toml(config_dir / "leagues" / LEAGUE)
+    write_config_file(config_dir, athc_toml() + CONVERT_PDB_TOML)
     result = run(runner, PDB, tmp_path / "w.xlsx")
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {lg2}: Lists 2 team(s), but {LEAGUE}.lge has 1.\n"

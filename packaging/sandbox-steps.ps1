@@ -65,7 +65,7 @@ Check 'install: athc.exe present' (Test-Path $exe)
 foreach ($doc in 'README.txt', 'COMMANDS.txt', 'SCHEDULER-COMMANDS.txt', 'CHANGELOG.txt', 'LICENSE.txt') {
     Check "install: $doc in the install folder" (Test-Path (Join-Path $app $doc))
 }
-foreach ($file in 'athc.ini', 'leagues\PNFL\league.toml', 'leagues\PNFL\gameplan.toml',
+foreach ($file in 'athc.toml', 'leagues\PNFL\league.toml', 'leagues\PNFL\gameplan.toml',
                   'leagues\PNFL\scheduler.toml', 'leagues\PCFL\league.toml',
                   'leagues\PCFL\scheduler.toml') {
     Check "install: $file seeded" (Test-Path (Join-Path $cfgDir $file))
@@ -96,14 +96,13 @@ Set-Content (Join-Path $work 'specials.txt') 'LIONKICK'
 
 # League TEST: the seeded PNFL league.toml (its category labels are the ones
 # the goldens use) with play_path at the fixture pool, plus the tests' rule
-# files and the seeded PNFL pdbtoexcel.toml.
+# files. Its convert-pdb settings are the seeded athc.toml's.
 $testLeague = Join-Path $leagues 'TEST'
 New-Item -ItemType Directory -Force $testLeague | Out-Null
 (Get-Content (Join-Path $leagues 'PNFL\league.toml')) -replace '^play_path = .*', "play_path = '$data\plays'" |
     Set-Content (Join-Path $testLeague 'league.toml')
 Copy-Item (Join-Path $data 'profile_rules.toml') (Join-Path $testLeague 'profile.toml')
 Copy-Item (Join-Path $data 'gameplan_rules.toml') (Join-Path $testLeague 'gameplan.toml')
-Copy-Item (Join-Path $leagues 'PNFL\pdbtoexcel.toml') (Join-Path $testLeague 'pdbtoexcel.toml')
 
 # Leagues divisions and conferences: the scheduler goldens' rules and the two
 # league files each (previous season for the standings, upcoming for the teams).
@@ -147,11 +146,11 @@ Check 'config set league TEST' (($r.Code -eq 0) -and ($r.Out -match '^OK ') -and
 $r = Athc @('config', 'get', 'league')
 Check 'config get league prints TEST' (($r.Code -eq 0) -and ($r.Out.Trim() -eq 'TEST'))
 $r = Athc @('config', 'path')
-Check 'config path prints athc.ini' (($r.Code -eq 0) -and ($r.Out.Trim() -eq (Join-Path $cfgDir 'athc.ini')))
+Check 'config path prints athc.toml' (($r.Code -eq 0) -and ($r.Out.Trim() -eq (Join-Path $cfgDir 'athc.toml')))
 $r = Athc @('config', 'edit')
-Check 'config edit opens athc.ini' ($r.Code -eq 0)
+Check 'config edit opens athc.toml' ($r.Code -eq 0)
 $r = Athc @('config', 'reveal')
-Check 'config reveal shows athc.ini' ($r.Code -eq 0)
+Check 'config reveal shows athc.toml' ($r.Code -eq 0)
 
 # --- profile -------------------------------------------------------------
 foreach ($name in 'TST-OFF1', 'TST-DEF1') {
@@ -284,19 +283,19 @@ if (Test-Path $extra) { . $extra }
 
 # --- upgrade (same setup.exe over the install) -------------------------------
 $marker  = Join-Path $app '_internal\STALE_MARKER.txt'
-$ini     = Join-Path $cfgDir 'athc.ini'
+$settings = Join-Path $cfgDir 'athc.toml'
 $rules   = Join-Path $leagues 'PNFL\gameplan.toml'
-$deleted = Join-Path $leagues 'PCFL\pdbtoexcel.toml'
+$deleted = Join-Path $leagues 'PCFL\scheduler.toml'
 $readme  = Join-Path $app 'README.txt'
 $commands = Join-Path $app 'COMMANDS.txt'
 Set-Content $marker 'left over from an older bundle'
-Add-Content $ini '; user-edit-marker'
+Add-Content $settings '# user-edit-marker'
 Add-Content $rules '# user-edit-marker'
 Add-Content $commands 'old-doc-marker'
 Remove-Item $deleted, $readme
 Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$out\install2.log" -Wait
 Check 'upgrade: stale file wiped from _internal'  (-not (Test-Path $marker))
-Check 'upgrade: edited athc.ini left alone'       ((Get-Content $ini -Raw) -match 'user-edit-marker')
+Check 'upgrade: edited athc.toml left alone'      ((Get-Content $settings -Raw) -match 'user-edit-marker')
 Check 'upgrade: edited rule TOML left alone'      ((Get-Content $rules -Raw) -match 'user-edit-marker')
 Check 'upgrade: missing seeded file added back'   (Test-Path $deleted)
 Check 'upgrade: deleted README.txt added back'    (Test-Path $readme)

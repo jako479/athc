@@ -19,6 +19,7 @@ from athc.errors import DIRECTORY_INVALID, PATH_NOT_FOUND
 from tests.conftest import (
     LEAGUE,
     OTHER_LEAGUE,
+    athc_toml,
     league_not_found,
     league_toml,
     no_league_selected,
@@ -54,7 +55,7 @@ def league_with(make_league: MakeLeague, name: str, play_path: Path) -> Path:
 def labeled_league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league with the PNFL category names and no play_path: a given
     play_dir still gets its folders named by the league."""
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     return make_league(LEAGUE, league_toml())
 
 
@@ -97,7 +98,7 @@ def test_dir_with_malformed_league_toml_exit_2(
     runner, tmp_path: Path, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
     """A broken league file is reported even when a folder is given."""
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     folder = make_league(LEAGUE, "[league\nbroken")
     root = clean_tree(tmp_path / "plays")
     result = run(runner, root)
@@ -143,7 +144,7 @@ def test_issues_are_results_not_warnings(runner, tmp_path: Path) -> None:
 
 
 def test_play_dir_needs_no_league(runner, tmp_path: Path) -> None:
-    """No athc.ini and no leagues: a given play_dir still runs."""
+    """No athc.toml and no leagues: a given play_dir still runs."""
     assert run(runner, clean_tree(tmp_path / "plays")).exit_code == 0
 
 
@@ -152,7 +153,7 @@ def test_default_is_current_league_play_path(
 ) -> None:
     root = clean_tree(tmp_path / "plays")
     league_with(make_league, LEAGUE, root)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner)
     assert result.exit_code == 0
     assert result.stdout == f"{root}: 1 play(s) checked, 0 issue(s)\n"
@@ -165,7 +166,7 @@ def test_league_option_picks_another_league(
     other_plays = clean_tree(tmp_path / "other_plays")
     league_with(make_league, LEAGUE, league_plays)
     league_with(make_league, OTHER_LEAGUE, other_plays)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, "--league", OTHER_LEAGUE)
     assert result.exit_code == 0
     assert result.stdout == f"{other_plays}: 1 play(s) checked, 0 issue(s)\n"
@@ -185,7 +186,7 @@ def test_league_without_play_path_exit_2(
     runner, make_league: MakeLeague, write_config: WriteConfig
 ) -> None:
     folder = make_league()
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner)
     assert result.exit_code == 2
     assert result.stderr == (
@@ -213,7 +214,7 @@ def test_league_play_path_not_a_folder_gets_the_hint(
     if is_file:
         play_path.write_text("x", encoding="utf-8")
     league_with(make_league, LEAGUE, play_path)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner)
     assert result.exit_code == 2
     assert result.stdout == ""
@@ -238,7 +239,7 @@ def test_folder_run_never_reads_play_path(
     is never read."""
     missing = tmp_path / "gone"
     make_league(LEAGUE, f"[league]\nplay_path = {play_path.format(missing=missing)}\n")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     root = clean_tree(tmp_path / "plays")
     result = run(runner, root)
     assert result.exit_code == 0

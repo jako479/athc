@@ -27,7 +27,7 @@ for %f in (*.pdb) do athc convert-pdb "%f"
   an `.xlsx`).
 - The workbook always includes the Total Stats team.
 - `--percentages` / `--no-percentages` turn the percentage columns on or off
-  for one run, over `calculate_percentages` in `athc.ini`.
+  for one run, over `calculate_percentages` in `athc.toml`.
 
 Plays are grouped by their category, shown under the league's name for it
 (`PSL`, `RunLeft`) and sorted in the league's order.
@@ -65,12 +65,12 @@ game plans, per side.
 
 - Progress on stderr: the game plans' lines, then `Creating <workbook>`.
 - A `WARN` line per notice (a missing game plan, a play not in the
-  play pool, a stale `[deleted_plays]` entry, invalid PDB data, a play-pool
+  play pool, a stale `deleted_plays` entry, invalid PDB data, a play-pool
   issue), each naming its file first where one is to blame; then
   `OK   <workbook>: <n> play(s)`. `athc playpool check` lists the play-pool
   issues on their own, with an exit code.
-- A setting that is wrong (`team`, `path`, `ppp_path`, the league files) is a
-  `FAIL` naming the file, as in [check-ppp](check_ppp.md); without
+- A setting that is wrong (`team`, `path`, `ppp_path`, the league files, a
+  `[convert-pdb]` key) is a `FAIL` naming the file it came from, as in [check-ppp](check_ppp.md); without
   `path` the line suggests a game plan option instead.
 - Exit 0 done (warnings included), 2 on an error (a missing or bad file,
   config, no `play_path`, I/O) or usage (bad extension, `--team` with `-o`,
@@ -86,29 +86,35 @@ The league folder `leagues\<NAME>\` (picked by `--league` /
   category names (`[categories.*]`); for the Slot columns, `team` (your team),
   `path` (the folder with the league's `.lg2` and `.lge`) and, optionally,
   `ppp_path` (where you keep your game plans).
-- `pdbtoexcel.toml` (required): `[category_order]`, the `run`, `pass` and
-  `defense` lists of category names in the order the rows sort and the Options
-  sheet lists them (a category not listed stays out of the workbook);
-  `[deleted_plays] names`, plays removed from the pool, skipped quietly.
 
 The Type column comes from the play pool: QB run and the defensive front from
 each play file, Screen from a `Screens` folder.
 
+The settings are `[convert-pdb]` in `athc.toml`:
+
 ```toml
-# leagues\PNFL\pdbtoexcel.toml
-[category_order]
+[convert-pdb]
+calculate_percentages = true
+exclude_sacks_from_pass_attempts = false
+# Plays removed from the league's play pool: their stat lines are skipped
+# quietly instead of warning "Play file not found".
+deleted_plays = ["ATF0ELOB"]
+
+# The order of the play categories in the workbook, named by the league's
+# category names from league.toml (the game name for a category the league
+# leaves unnamed). A category not listed stays out of the workbook.
+[convert-pdb.category_order]
 run = ["RL", "RM", "RR", "GLR"]
 pass = ["PSL", "PSM", "PSR", "PML", "PMM", "PMR", "PLR", "PRD", "GLP"]
 defense = ["RunLeft", "RunMiddle", "RunRight", "RunDazzle", "PassShort", "PassMedium", "PassLong", "PassDazzle", "GLrun", "GLpass"]
-
-[deleted_plays]
-names = ["ATF0ELOB"]
 ```
 
-The workbook options are app-wide settings in `[convert-pdb]` in `athc.ini`
-(`calculate_percentages`, `include_category_worksheets`,
-`exclude_sacks_from_pass_attempts`); `--percentages` / `--no-percentages`
-override the first for one run.
+A league that differs puts the same tables in its `league.toml` with only the
+keys that differ; each key it sets replaces athc.toml's, a list whole (see
+[architecture.md](architecture.md#config)). Every key is optional: a missing
+option keeps its default (`include_category_worksheets` is off and left out of
+the shipped file), a missing list is empty. `--percentages` /
+`--no-percentages` override `calculate_percentages` for one run.
 
 ## How it works
 
@@ -117,7 +123,7 @@ override the first for one run.
 ```
 src/athc/pdbtoexcel/       # tool logic (no Click)
 ├── __init__.py          # public API
-├── config.py            # play_path, labels + pdbtoexcel.toml (order, deleted plays) from the league folder
+├── config.py            # play_path and labels from the league folder; [convert-pdb] from athc.toml under league.toml
 ├── pdb.py               # PDB binary format (ctypes) + parser
 ├── excel_workbook.py    # ExcelPdbWorkbook — xlsxwriter layouts + row writers
 ├── workbook_creator.py  # PdbWorkbookCreator — joins PDB stats to the play pool
@@ -139,12 +145,15 @@ src/athc/cli/_team.py         # shared team layer: league files, team, file loca
   category labels). Joins each PDB play to its pool record by name.
 - Groups / sorts plays by their category (`Play.category`), written as the
   league's label (`CategoryLabels.label`, the game name where the league has
-  none). The row order within each team and the Options sheet lists are the
-  league's `[category_order]` from `pdbtoexcel.toml`; a category not listed for
-  its PDB play type is left out of the workbook.
-- Skips a play named in `[deleted_plays]` quietly instead of the
+  none). The row order within each team and the Options sheet lists are
+  `[convert-pdb.category_order]`; a category not listed for its PDB play type
+  is left out of the workbook.
+- Skips a play named in `deleted_plays` quietly instead of the
   "is not in the play pool" warning; one still in the pool is also
-  skipped, with a warning, naming `pdbtoexcel.toml`, that the entry is stale.
+  skipped, with a warning, naming the file the list came from, that the
+  entry is stale.
+- Every message about a setting names the file its value came from
+  (`athc.toml` or the league's `league.toml`).
 - Fills the Slot columns from game plans: with no game plan option, your
   team's four from the league file (Slot 1 the 1st-half plan, Slot 2 the
   2nd-half plan, per side); with any of `-o`, `-o2`, `-d`, `-d2`, only the
@@ -175,8 +184,9 @@ src/athc/cli/_team.py         # shared team layer: league files, team, file loca
 
 ### League data, not code
 
-- The category names and their order and the deleted plays are the league's
-  files; nothing league-specific is in the code. The "Type" column reads the
+- The category names are the league's file and their order and the deleted
+  plays are settings, a league's own where it differs; nothing league-specific
+  is in the code. The "Type" column reads the
   typed playpool attributes (`qb_run`, `screen`, `defensive_front`): `screen`
   from the play's folder, the others from its play file; special-teams plays
   leave it blank.
@@ -185,14 +195,21 @@ src/athc/cli/_team.py         # shared team layer: league files, team, file loca
 
 ### Config
 
-- `[category_order]`: `run`, `pass` and `defense`, each an array of category
-  names for that side — a labeled category by its label, an unlabeled one by its
-  game name, like the gameplan rule files. A missing key, a name that is not a
+- `load_config` reads `layered_settings("convert-pdb", league)`: athc.toml's
+  `[convert-pdb]` with the league's laid over it a key at a time, and the file
+  each key came from, which every message names.
+- `[convert-pdb.category_order]`: `run`, `pass` and `defense`, each an array of
+  category names for that side — a labeled category by its label, an unlabeled
+  one by its game name, like the gameplan rule files. A missing list is empty
+  (nothing of that type exported, like an empty array); a name that is not a
   category of that side (a pass category under `run` says so), a repeat, or a
-  wrong type is a `ConfigFileError`; an empty array exports nothing of that
-  type.
-- `[deleted_plays] names`: optional array of play names, matched
-  case-insensitively.
+  wrong type is a `ConfigFileError`. A list the league replaces is never
+  checked.
+- `deleted_plays`: optional array of play names, matched case-insensitively;
+  `Config.deleted_plays_file` is the file it came from, for the stale-entry
+  warning.
+- An unknown key in `[convert-pdb]` or its `category_order` is a
+  `ConfigFileError` naming the file that has it.
 
 `Config.category_order` holds the resolved enum members per PDB play type;
 `Config.categories` the league's `CategoryLabels`; `Config.deleted_plays` the
@@ -200,13 +217,12 @@ names as written (matched case-insensitively, reported as written). The league
 is always resolved; no command-line option
 replaces its play pool. `play_path` must resolve to a real directory
 at runtime. The workbook options (`calculate_percentages`,
-`include_category_worksheets`, `exclude_sacks_from_pass_attempts`) are app-wide
-settings in `[convert-pdb]` in `athc.ini`, read through
-`athc.config.load_config()`; a missing key takes the `Config` default, a
-non-boolean value is a `ConfigFileError`.
+`include_category_worksheets`, `exclude_sacks_from_pass_attempts`) are TOML
+booleans; a missing key takes the `Config` default, any other value is a
+`ConfigFileError`.
 
 The command loads the config: `load_config(league)` and `play_dir` run before
-the team, so a bad `play_path` or `pdbtoexcel.toml` shows first; `convert_pdb()`
+the team, so a bad `play_path` or `[convert-pdb]` setting shows first; `convert_pdb()`
 takes the loaded `Config`, the four game plans already read (`GamePlan | None`)
 and `percentages` (None takes `calculate_percentages`). The `[league]` keys
 `team`, `path` and `ppp_path` come from `load_league_config(league)`, read by
@@ -227,7 +243,7 @@ option is a usage error. `OUTPUT` follows the rules in
 | Exit | Meaning |
 |---|---|
 | `0` | **OK** — workbook written (warnings included). |
-| `2` | **Error or usage** — a missing or invalid PDB or named game plan, a named plan on the wrong side, bad play path, a bad or missing `pdbtoexcel.toml`, a bad `team`, `path` or `ppp_path` or league file, an output that can't be written; bad arguments or extensions. |
+| `2` | **Error or usage** — a missing or invalid PDB or named game plan, a named plan on the wrong side, bad play path, a bad `[convert-pdb]` setting, a bad `team`, `path` or `ppp_path` or league file, an output that can't be written; bad arguments or extensions. |
 
 ### Out of scope
 
@@ -238,7 +254,8 @@ option is a usage error. `OUTPUT` follows the rules in
 ### Tests
 
 - `tests/unit/pdbtoexcel/` — PDB parsing (real fixture + snapshot), config
-  (`pdbtoexcel.toml` on both sides of every rule, the shipped files), workbook
+  (every key from athc.toml alone, from league.toml alone and mixed a key at
+  a time, each message naming its file, the shipped files), workbook
   creation (synthetic PDB + injected pool, read back with openpyxl: labels,
   order, unlisted and deleted plays, Slot columns by presence, filter ranges).
 - `tests/integration/test_convert_pdb.py` — CLI end-to-end (the default

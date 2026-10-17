@@ -10,7 +10,6 @@ each, whichever tool is asking.
 
 from __future__ import annotations
 
-import configparser
 import tomllib
 from collections.abc import Iterable
 from os import PathLike, fspath
@@ -85,29 +84,6 @@ def reason_of(error: OSError) -> str:
     return sentence(error.strerror or str(error)) or UNSPECIFIED_ERROR
 
 
-def ini_reason(error: configparser.Error) -> str:
-    """A configparser error as one line without the path, for an AthcError
-    that carries the path itself; configparser's own text names the file and
-    spans lines."""
-    match error:
-        case configparser.MissingSectionHeaderError():
-            reason = f"No [section] header above it (at line {error.lineno})"
-        case configparser.ParsingError():
-            numbers = [str(lineno) for lineno, _ in error.errors]
-            noun = "line" if len(numbers) == 1 else "lines"
-            reason = f"Not a 'key = value' line (at {noun} {', '.join(numbers)})"
-        case configparser.DuplicateSectionError():
-            reason = f"Section [{error.section}] repeats (at line {error.lineno})"
-        case configparser.DuplicateOptionError():
-            reason = (
-                f"Option '{error.option}' in [{error.section}] repeats "
-                f"(at line {error.lineno})"
-            )
-        case _:
-            reason = " ".join(error.message.split())
-    return sentence(f"Not valid INI: {reason}")
-
-
 def toml_reason(error: tomllib.TOMLDecodeError) -> str:
     """A TOML parse error as one sentence; tomllib's text already names the
     line and column."""
@@ -128,7 +104,7 @@ class AthcError(Exception):
 
 
 class ConfigFileError(AthcError):
-    """athc.ini, a league.toml, a tool's TOML file or a league setting cannot
+    """athc.toml, a league.toml, a tool's TOML file or a league setting cannot
     be read or is invalid: malformed file, wrong value type, bad label, a
     required setting missing."""
 

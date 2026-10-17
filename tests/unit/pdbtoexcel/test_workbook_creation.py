@@ -342,8 +342,8 @@ def test_deleted_play_still_in_the_pool_is_skipped_with_a_warning(
     )
     assert len(_rows(wb["Run Plays"])) == 1
     assert creator.warnings == [
-        "pdbtoexcel.toml: 'run1' is listed in [deleted_plays] but is in the play "
-        "pool. Its stats are skipped."
+        "athc.toml: 'run1' is listed in [convert-pdb] deleted_plays but is in the "
+        "play pool. Its stats are skipped."
     ]
 
 

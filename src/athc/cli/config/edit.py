@@ -1,4 +1,4 @@
-"""`athc config edit` -- open athc.ini or league.toml in its default app."""
+"""`athc config edit` -- open athc.toml or league.toml in its default app."""
 
 from __future__ import annotations
 
@@ -24,9 +24,9 @@ EXAMPLES = """Examples:
 @click.argument("file", required=False, callback=file_callback, help=FILE_HELP)
 @league_option
 def edit(file: str | None, league: str | None) -> None:
-    """Open athc.ini or league.toml in its default app.
+    """Open athc.toml or league.toml in its default app.
 
-    A missing athc.ini is created empty first.
+    A missing athc.toml is created empty first.
     """
     path = settings_file(file, league)
     if not path.exists():

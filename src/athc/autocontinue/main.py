@@ -3,8 +3,8 @@ click it; click Return at halftime, and stop at the end of the game. With
 drive_league_pregame on, click through the league play pre-game screens and
 start the game.
 
-Re-reads the INI when the config file changes on disk, so the settings can be
-tuned while the watcher is running.
+Re-reads athc.toml when it changes on disk, so the settings can be tuned
+while the watcher is running.
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ GAME_HIGHLIGHT_IMAGE = get_runtime_path("game_highlight_button.png")
 _HALFTIME = "Halftime"
 _RESULTS = "Results"
 
-# The pre-game settings, said by their athc.ini keys.
+# The pre-game settings, said by their athc.toml keys.
 _PREGAME_KEYS = (
     "drive_league_pregame",
     "plans_profiles_pause",
@@ -106,8 +106,8 @@ def auto_continue(
     `drive_league_pregame` on, the league play pre-game screen is clicked
     through to Game.
 
-    Reads `[autocontinue]` from `config_dir()/athc.ini`, every key optional. The
-    INI is re-read only when the file changes on disk, so edits apply while the
+    Reads `[autocontinue]` from `config_dir()/athc.toml`, every key optional. The
+    file is re-read only when it changes on disk, so edits apply while the
     watcher runs; a reload that fails validation goes to `warn` and the previous
     settings are kept. A wrong value at start raises ConfigFileError to the
     caller.
@@ -635,7 +635,7 @@ def _say_config_changes(
     prev: Config | None, current: Config, continue_pause: float | None, say: Say
 ) -> None:
     """Say each setting at start (no `prev`) and each one a reload changed, by
-    its athc.ini key; a pause held by --continue-pause is said once, at
+    its athc.toml key; a pause held by --continue-pause is said once, at
     start."""
     if prev is None or prev.mouse_move_duration != current.mouse_move_duration:
         say(f"mouse_move_duration = {current.mouse_move_duration}")
@@ -649,6 +649,6 @@ def _say_config_changes(
     for key in _PREGAME_KEYS:
         value = getattr(current, key)
         if prev is None or getattr(prev, key) != value:
-            # As athc.ini spells it: true, not Python's True.
+            # As athc.toml spells it: true, not Python's True.
             shown = str(value).lower() if isinstance(value, bool) else value
             say(f"{key} = {shown}")

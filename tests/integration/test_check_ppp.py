@@ -33,6 +33,7 @@ from tests.conftest import (
     CATEGORIES_TOML,
     LEAGUE,
     OTHER_LEAGUE,
+    athc_toml,
     league_not_found,
     no_league_selected,
     no_rules_configured,
@@ -61,6 +62,9 @@ from tests.integration.conftest import LAS_VEGAS_2049 as LAS_VEGAS
 
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
+
+# An athc.toml that is not valid TOML.
+BROKEN = "[athc\nbroken\n"
 PROFILE_FLAG_OFF_TOML = """[gameplan_compatibility]
 require_all_profile_categories_in_gameplan = false
 """
@@ -72,9 +76,9 @@ LEAGUE_LOCATION_HINT = "Run 'athc config set ppp_path FOLDER' or pass the folder
 
 @pytest.fixture
 def full_league(build_league: BuildLeague, write_config: WriteConfig) -> Path:
-    """A league with every rule file, selected by `[athc] league` in athc.ini."""
+    """A league with every rule file, selected by `[athc] league` in athc.toml."""
     folder = build_league()
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     return folder
 
 
@@ -310,7 +314,7 @@ def test_cli_unused_gameplan_categories_are_info(
     off, a gameplan category the profile never uses is only an info line and
     does not count; a profile category the gameplan lacks still fails."""
     build_league(gameplan_rules=gameplan_rules(tmp_path, reverse=False))
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, DEF1, GP_DEFENSE)
     assert result.exit_code == 1
     situations = golden("TST-DEF1").splitlines(keepends=True)[1:]
@@ -345,7 +349,7 @@ def test_cli_both_clean_exit_0(
         profile_rules=write_toml(tmp_path, PROFILE_FLAG_OFF_TOML),
         gameplan_rules=gameplan_rules(tmp_path, reverse=False),
     )
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     monkeypatch.setattr(
         "athc.cli.check_ppp.validate_gameplan", lambda gp, rules, pool: ()
     )
@@ -375,7 +379,7 @@ def test_cli_unused_gameplan_categories_alone_exit_0(
         profile_rules=write_toml(tmp_path, PROFILE_FLAG_OFF_TOML),
         gameplan_rules=gameplan_rules(tmp_path, reverse=False),
     )
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     monkeypatch.setattr(
         "athc.cli.check_ppp.validate_gameplan", lambda gp, rules, pool: ()
     )
@@ -427,7 +431,7 @@ def test_cli_cross_check_follows_league_settings(
         profile_rules=write_toml(tmp_path, settings),
         gameplan_rules=gameplan_rules(tmp_path, reverse=reverse),
     )
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, DEF1, GP_DEFENSE)
     assert result.exit_code == 1
     assert result.stdout.count("  game plan: ") == issues
@@ -625,7 +629,7 @@ def test_cli_no_league(runner, config_dir: Path) -> None:
     assert result.stdout == ""
 
 
-def test_cli_rules_from_league_set_in_athc_ini(runner, full_league: Path) -> None:
+def test_cli_rules_from_league_set_in_athc_toml(runner, full_league: Path) -> None:
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 1
     assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
@@ -638,7 +642,7 @@ def test_cli_no_profile_rules_in_league(
 ) -> None:
     """A rules error stops the rule checks for both files, not just its own."""
     build_league(profile_rules=None)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert result.stderr == no_rules_configured("profile.toml")
@@ -652,7 +656,7 @@ def test_cli_no_gameplan_rules_in_league(
 ) -> None:
     """A rules error stops the rule checks for both files, not just its own."""
     build_league(gameplan_rules=None)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert result.stderr == no_rules_configured("gameplan.toml")
@@ -665,7 +669,7 @@ def test_cli_rules_error_stops_before_the_files(
     """A setup problem stops the run before any file is read: no side-mismatch
     line, no report, no summary."""
     build_league(profile_rules=None)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, OFF1, GP_DEFENSE)
     assert result.exit_code == 2
     assert result.stderr == no_rules_configured("profile.toml")
@@ -688,7 +692,7 @@ def test_cli_first_config_error_stops_the_run(
     """No rules for either side and no play pool: the first problem found is
     the one reported."""
     build_league(profile_rules=None, gameplan_rules=None, play_path=tmp_path / "nope")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert result.stderr == no_rules_configured("profile.toml")
@@ -701,7 +705,7 @@ def test_cli_no_play_path(
     write_config: WriteConfig,
 ) -> None:
     folder = build_league(play_path=None)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert result.stderr == (
@@ -717,7 +721,7 @@ def test_cli_play_path_not_a_directory(
     tmp_path: Path,
 ) -> None:
     build_league(play_path=tmp_path / "nope")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert result.stderr == (
@@ -737,7 +741,7 @@ def test_cli_bad_rules_toml(
     """Bad rules for one side; neither file is checked."""
     bad = write_toml(tmp_path, "not = valid = toml")
     folder = build_league(**{f"{side}_rules": bad})  # copied in as <side>.toml
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     assert result.stderr == (
@@ -758,7 +762,7 @@ def test_cli_rule_lists_in_league_toml(
     )
     shutil.copy(RULES_TOML, folder / "my-profile.toml")
     shutil.copy(GP_RULES, folder / "my-gameplan.toml")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 1
     assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
@@ -776,24 +780,22 @@ def test_cli_missing_listed_rules_file(
         f"[league]\nplay_path = '{PLAYS}'\n{key} = ['gone.toml']\n" + CATEGORIES_TOML,
         encoding="utf-8",
     )
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
     gone = folder / "gone.toml"
     assert result.stderr == f"FAIL {gone}: {FILE_NOT_FOUND}\n"
 
 
-def test_cli_malformed_ini(
+def test_cli_malformed_toml(
     runner,
     full_league: Path,
     write_config: WriteConfig,
 ) -> None:
-    ini = write_config("[athc\nbroken\n")
+    toml = write_config(BROKEN)
     result = run(runner, OFF1, GP_OFFENSE)
     assert result.exit_code == 2
-    assert result.stderr == (
-        f"FAIL {ini}: Not valid INI: No [section] header above it (at line 1).\n"
-    )
+    assert result.stderr == (f"FAIL {toml}: {toml_error(BROKEN)}\n")
     assert result.stdout == ""
 
 
@@ -1158,7 +1160,7 @@ def test_dir_first_setup_error_stops_the_run(
 ) -> None:
     """No team, no `path` and no profile rules: `team` is read first."""
     folder = build_league(profile_rules=None)  # and no `path` or `team` either
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     plans = put(tmp_path / "plans", OFF1, GP_OFFENSE)
     result = run(runner, plans)
     assert result.exit_code == 2
@@ -1199,7 +1201,7 @@ def test_dir_league_file_missing(
     lg2_dir = tmp_path / "lg2"
     lg2_dir.mkdir()
     build_league(path=lg2_dir)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE)
     result = run(runner, "--all-teams", folder)
     assert result.exit_code == 2
@@ -1214,7 +1216,7 @@ def test_dir_relative_path_is_in_the_league_folder(
     (folder / "lg2").mkdir()
     (folder / "lg2" / f"{LEAGUE}.lg2").write_bytes(team(off1=OFF))
     (folder / "lg2" / f"{LEAGUE}.lge").write_bytes(lge(TEAM_NAMES[0]))
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     plans = put(tmp_path / "plans", OFF1, GP_OFFENSE)
     result = run(runner, "--all-teams", plans)
     assert result.exit_code == 1
@@ -1874,12 +1876,12 @@ def test_real_team_folder_alone(runner, pnfl_league: Path) -> None:
 # ── --league, ATHC_LEAGUE, registration ───────────────────────────────────────
 
 
-def test_league_flag_beats_athc_ini(
+def test_league_flag_beats_athc_toml(
     runner, build_league: BuildLeague, write_config: WriteConfig
 ) -> None:
     build_league(LEAGUE, profile_rules=None, gameplan_rules=None)  # would fail
     build_league(OTHER_LEAGUE)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = runner.invoke(
         cli, ["check-ppp", str(OFF1), str(GP_OFFENSE), "--league", OTHER_LEAGUE]
     )
@@ -1899,7 +1901,7 @@ def test_league_flag_picks_the_league_file(
         (lg2_dir / f"{name}.lge").write_bytes(lge(TEAM_NAMES[0]))
     build_league(LEAGUE, path=lg2_dir)
     build_league(OTHER_LEAGUE, path=lg2_dir)
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     folder = put(tmp_path / "plans", OFF1, GP_OFFENSE, DEF1, GP_DEFENSE)
     result = runner.invoke(
         cli, ["check-ppp", str(folder), "--all-teams", "--league", OTHER_LEAGUE]

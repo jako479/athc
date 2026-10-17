@@ -18,11 +18,11 @@ Build it with `packaging/release-build.ps1` and test it in Windows Sandbox with 
 
 ## Configuration
 
-`athc` reads `%LOCALAPPDATA%\athc\athc.ini` for app-wide settings and `leagues\<NAME>\` next to it for each league (`league.toml` and rule TOMLs); missing file or section falls back to defaults. `athc config set league NAME` picks the league.
+`athc` reads `%LOCALAPPDATA%\athc\athc.toml` for app-wide settings and `leagues\<NAME>\` next to it for each league (`league.toml` and rule TOMLs); missing file, table or key falls back to defaults. A league's `league.toml` can hold a tool's table too, with only the keys that differ (convert-pdb so far). `athc config set league NAME` picks the league.
 
-```ini
+```toml
 [toolname]
-setting = value
+setting = "value"
 ```
 
 ## Extending
@@ -46,7 +46,7 @@ Install the project and its dev tools:
 uv sync
 ```
 
-Source runs read the dev config in `config/dev/` (a full `athc.ini` plus league folders, shared with athc-admin) instead of the installed one: point `ATHC_CONFIG_DIR` at that folder. `ATHC_LOG_DIR` does the same for the run log (`athc.log`), so a dev run never writes the installed one; set it the same way. For the VS Code terminal, in `.vscode/settings.json` (in a multi-root workspace, in the `.code-workspace` `settings` with `${workspaceFolder:athc}`; open a new terminal to pick it up):
+Source runs read the dev config in `config/dev/` (a full `athc.toml` plus league folders, shared with athc-admin) instead of the installed one: point `ATHC_CONFIG_DIR` at that folder. `ATHC_LOG_DIR` does the same for the run log (`athc.log`), so a dev run never writes the installed one; set it the same way. For the VS Code terminal, in `.vscode/settings.json` (in a multi-root workspace, in the `.code-workspace` `settings` with `${workspaceFolder:athc}`; open a new terminal to pick it up):
 
 ```json
 "terminal.integrated.env.windows": {

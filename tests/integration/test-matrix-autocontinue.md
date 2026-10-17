@@ -2,27 +2,29 @@
 
 Cases for `athc autocontinue`, in [test_autocontinue.py](test_autocontinue.py) and [test_autocontinue_game.py](test_autocontinue_game.py) (the Sandbox tests slow). Design: [autocontinue.md](../../docs/autocontinue.md).
 
-Config is `athc.ini [autocontinue]`, every key optional; the `config_dir` fixture isolates `ATHC_CONFIG_DIR`. The CLI is tested with `auto_continue` stubbed, and the loop on a stand-in desktop (`Desktop`: the game window, the screen, pyautogui's mouse calls and the clock), so nothing touches the screen or the mouse; a pass that clicks takes two screenshots, the scan and the check just before the click. Exit 0 stopped (Ctrl+C, the hot corner or the end of the game) / 2 error. `[P]` parametrized. Status: ☑ covered · ☐ no test yet.
+Config is `athc.toml [autocontinue]`, every key optional; the `config_dir` fixture isolates `ATHC_CONFIG_DIR`. The CLI is tested with `auto_continue` stubbed, and the loop on a stand-in desktop (`Desktop`: the game window, the screen, pyautogui's mouse calls and the clock), so nothing touches the screen or the mouse; a pass that clicks takes two screenshots, the scan and the check just before the click. Exit 0 stopped (Ctrl+C, the hot corner or the end of the game) / 2 error. `[P]` parametrized. Status: ☑ covered · ☐ no test yet.
 
 ### Config and change detection
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | No file / no section | config_dir; `[other]` only | the defaults, `Config(0.0, 1.0, 8.0, True, False, 1.5, 2.5, 1.5)` | `test_load_config_defaults_when_no_config` / `test_load_config_defaults_when_section_missing` | ☑ |
-| Timing not a number | `mouse_move_duration = fast` | `ConfigFileError`: `... mouse_move_duration: Must be a number, 0 or more, got 'fast'.` | `test_load_config_errors_on_invalid_value` | ☑ |
-| Timing just below 0, NaN, infinity | `-0.1`, `nan`, `inf` | `ConfigFileError`: `... continue_pause: Must be a number, 0 or more, got '-0.1'.` | `test_timing_rejects_a_value_below_zero_or_not_finite` `[P]` | ☑ |
-| `hot_corner` spellings | `true`, `false`, `yes`, `off` | parsed | `test_hot_corner_parses_boolean` `[P]` | ☑ |
+| Timing not a number | `mouse_move_duration = "fast"` | `ConfigFileError`: `... mouse_move_duration: Must be a number, 0 or more, got 'fast'.` | `test_load_config_errors_on_invalid_value` | ☑ |
+| Timing a string, a boolean, a date, below 0, NaN, infinity | `"1.0"`, `true`, `1979-05-27`, `-1.0`, `nan`, `inf` | `ConfigFileError`: `... continue_pause: Must be a number, 0 or more, got <the value as TOML spells it>.` | `test_timing_must_be_a_number_zero_or_more` `[P]` | ☑ |
+| Timing an integer | `continue_pause = 2` | `2.0` | `test_integers_are_numbers` | ☑ |
+| `hot_corner` a TOML boolean | `true`, `false` | parsed | `test_hot_corner_parses_boolean` `[P]` | ☑ |
+| `hot_corner` not a boolean | `"maybe"`, `1`, `"true"` | `ConfigFileError`: `... hot_corner: Must be true or false, got <the value>.` | `test_hot_corner_must_be_a_toml_boolean` `[P]` | ☑ |
 | Signature: missing / tuple / stable / changes | tmp | None; `(path, mtime_ns, size)`; the same twice; different after a rewrite | `test_signature_none_when_file_missing` / `test_signature_returns_tuple_for_existing_file` / `test_signature_stable_when_unchanged` / `test_signature_changes_when_rewritten` | ☑ |
 
 ### A test per setting
-Each setting missing from athc.ini (its default, the code's), at `-1` and at `0`, through the command on the stand-in desktop. `-1`: exit 2, `FAIL <athc.ini>: [autocontinue] <key>: Must be a number, 0 or more, got '-1'.` (`Must be true or false` for `hot_corner` and `drive_league_pregame`), nothing watched. The default and `0`: the value read (`load_config`, and the key's start line) and its effect in a run.
+Each setting missing from athc.toml (its default, the code's), at `-1` and at `0` (`false` for `hot_corner` and `drive_league_pregame`), through the command on the stand-in desktop. `-1`: exit 2, `FAIL <athc.toml>: [autocontinue] <key>: Must be a number, 0 or more, got -1.` (`Must be true or false` for `hot_corner` and `drive_league_pregame`), nothing watched. The default and `0` / `false`: the value read (`load_config`, and the key's start line) and its effect in a run.
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | `mouse_move_duration` | Continue | the move to Continue over 0.0 s, by default and at 0; at 0.5, over 0.5 s, so the setting is the one used | `test_setting_mouse_move_duration` `[P]` | ☑ |
 | `continue_pause` | Continue | 1.0 s before the click by default; none at 0 | `test_setting_continue_pause` `[P]` | ☑ |
 | `halftime_pause` | halftime | `Waiting 8 seconds.`, 8 s, then `Return button clicked.`; `Waiting 0 seconds.`, none, at 0 | `test_setting_halftime_pause` `[P]` | ☑ |
-| `hot_corner` | — | the hot-corner-on line and pyautogui's fail-safe on by default; off at 0 | `test_setting_hot_corner` `[P]` | ☑ |
-| `drive_league_pregame` | the league play screen | off by default and at 0: nothing clicked, the next scan a second later | `test_setting_drive_league_pregame` `[P]` | ☑ |
+| `hot_corner` | — | the hot-corner-on line and pyautogui's fail-safe on by default; off at `false` | `test_setting_hot_corner` `[P]` | ☑ |
+| `drive_league_pregame` | the league play screen | off by default and at `false`: nothing clicked, the next scan a second later | `test_setting_drive_league_pregame` `[P]` | ☑ |
 | `plans_profiles_pause` | the league play screen, pre-game on | the five clicks, 1.5 s after Plans/Profiles and Visitor; both skipped at 0 | `test_setting_plans_profiles_pause` `[P]` | ☑ |
 | `conditions_pause` | the same | 2.5 s after Conditions; skipped at 0 | `test_setting_conditions_pause` `[P]` | ☑ |
 | `venues_pause` | the same | 1.5 s after Venues; skipped at 0 | `test_setting_venues_pause` `[P]` | ☑ |
@@ -34,7 +36,7 @@ Each setting missing from athc.ini (its default, the code's), at `-1` and at `0`
 | An argument | `x` | exit 2; stderr ends `Error: Got unexpected extra argument (x).` | `test_cli_rejects_an_argument` | ☑ |
 | No config | config_dir; stand-in desktop | exit 0; stderr: the start lines with the defaults, then `Waiting for the game window.`; stdout: `Stopped.` | `test_cli_runs_on_the_defaults_with_no_config` | ☑ |
 | Missing dependency (pyautogui) | `sys.modules` stub | exit 2; stderr: `FAIL Missing pyautogui. Reinstall athc.` | `test_cli_missing_dependency_exits_2` | ☑ |
-| `--hot-corner/--no-hot-corner` forwarded (else None) | tmp ini | value passed to the loop | `test_cli_forwards_hot_corner_override` `[P]` | ☑ |
+| `--hot-corner/--no-hot-corner` forwarded (else None) | tmp athc.toml | value passed to the loop | `test_cli_forwards_hot_corner_override` `[P]` | ☑ |
 | `--continue-pause` forwarded (else None) | absent, `0`, `2.5` | `None`, `0.0`, `2.5` passed to the loop | `test_cli_forwards_the_continue_pause` `[P]` | ☑ |
 | `--continue-pause` rejected | `-0.1`, `nan`, `inf`, `fast` | exit 2; stderr ends `Error: Invalid value for '--continue-pause': must be 0 or more, got -0.1.` (`fast`: Click's `'fast' is not a valid float.`) | `test_cli_rejects_a_bad_continue_pause` `[P]` | ☑ |
 | `-n/--dry-run` forwarded (else False) | absent, `--dry-run`, `-n` | `False`, `True`, `True` | `test_cli_forwards_dry_run` `[P]` | ☑ |
@@ -42,7 +44,7 @@ Each setting missing from athc.ini (its default, the code's), at `-1` and at `0`
 | End of the game exits clean (stubbed) | the loop returns | exit 0; no stop line; stdout: `Stopped.` | `test_cli_end_of_game_stops_clean` | ☑ |
 | Loop status through the callbacks | stub calls `progress` and `warn` | exit 0; stderr: the status line, then `WARN ...`; stdout: `Stopped.` | `test_loop_status_goes_to_stderr_through_the_callbacks` | ☑ |
 | Dry-run sightings on stdout | stub calls `report` | stdout: the sighting, then `Stopped.` | `test_dry_run_sightings_go_to_stdout` | ☑ |
-| Missing image | tmp ini; `continue_button.png`'s path in an empty folder (the real-screen tests load all twelve) | exit 2 before watching; stderr: `FAIL <image>: The system cannot find the file specified. Reinstall athc.` | `test_cli_a_missing_image_exits_2_before_watching` | ☑ |
+| Missing image | tmp athc.toml; `continue_button.png`'s path in an empty folder (the real-screen tests load all twelve) | exit 2 before watching; stderr: `FAIL <image>: The system cannot find the file specified. Reinstall athc.` | `test_cli_a_missing_image_exits_2_before_watching` | ☑ |
 
 ### Images and the screen
 | Case | Input | Expected | Test | Status |
@@ -62,10 +64,10 @@ Each setting missing from athc.ini (its default, the code's), at `-1` and at `0`
 ### The watch loop, on the stand-in desktop
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Start lines in order | no athc.ini; plain, `--no-hot-corner`, `--dry-run`, `--dry-run --hot-corner` | the start line, the seven settings, the hot-corner line (off in a dry run), the dry-run line, `Waiting for the game window.` | `test_loop_start_lines_in_order` `[P]` | ☑ |
+| Start lines in order | no athc.toml; plain, `--no-hot-corner`, `--dry-run`, `--dry-run --hot-corner` | the start line, the seven settings, the hot-corner line (off in a dry run), the dry-run line, `Waiting for the game window.` | `test_loop_start_lines_in_order` `[P]` | ☑ |
 | Window lines | the game active or not at the first check, then a change each way | one line at the first check and one per change, not per pass; 1 s between scans, 2 s between window checks | `test_loop_says_the_game_window_at_the_first_check_and_each_change` `[P]` | ☑ |
-| `--continue-pause` wins and holds | athc.ini `continue_pause` 2.5, changed to 30.0 after a click; `--continue-pause 0.5` | both clicks wait 0.5 s; no settings line on the reload | `test_loop_continue_pause_option_wins_and_holds_across_a_reload` | ☑ |
-| athc.ini deleted mid-run | deleted during the first pause | the defaults said and applied (an instant move, a 1.0 s delay); no `WARN` | `test_loop_a_deleted_athc_ini_means_the_defaults` | ☑ |
+| `--continue-pause` wins and holds | athc.toml `continue_pause` 2.5, changed to 30.0 after a click; `--continue-pause 0.5` | both clicks wait 0.5 s; no settings line on the reload | `test_loop_continue_pause_option_wins_and_holds_across_a_reload` | ☑ |
+| athc.toml deleted mid-run | deleted during the first pause | the defaults said and applied (an instant move, a 1.0 s delay); no `WARN` | `test_loop_a_deleted_athc_toml_means_the_defaults` | ☑ |
 | Fail-safe from the click | stubbed `leftClick` raises `FailSafeException` | the loop stops (`HotCornerStop`, a KeyboardInterrupt) | `test_loop_a_fail_safe_from_the_click_stops_the_watcher` | ☑ |
 | Dry run | the button on screen; `--dry-run --continue-pause 3` | the sighting through `report`, then an 8 s wait; no move, no click | `test_dry_run_reports_the_button_and_never_moves_or_clicks` | ☑ |
 | Halftime | the Halftime screen; `mouse_move_duration = 0.5`, `halftime_pause = 2.5`, `--continue-pause 0.5` | the label and Return lines, `Waiting 2.5 seconds.`, `Return button clicked.`; an instant move to Return, a 2.5 s wait, the click on Return, then 4 s | `test_loop_halftime_moves_to_return_waits_then_clicks` | ☑ |
@@ -76,7 +78,7 @@ Each setting missing from athc.ini (its default, the code's), at `-1` and at `0`
 | A button moved before the click | Continue, or Return at halftime, found 6 pixels off a 10-pixel stand-in button at the re-check | `Continue button moved; not clicked.` / `Return button moved; not clicked.`; no click | `test_loop_a_button_moved_before_the_click_is_not_clicked` `[P]` | ☑ |
 | A button moved but still under the spot | Continue found 5 pixels off at the re-check | the click, on the spot the scan found | `test_loop_a_button_still_under_the_old_spot_is_clicked` | ☑ |
 | Focus lost just before the click | the game inactive at the last check | no click; `Waiting for the game window.` | `test_loop_focus_lost_just_before_the_click_means_no_click` | ☑ |
-| A reload that fails mid-run | athc.ini rewritten as ANSI with an accent | `WARN <athc.ini>: Not UTF-8 text. Save it as UTF-8. Keeping the previous settings.`; the old delay; the click | `test_loop_a_reload_that_fails_warns_and_keeps_the_settings` | ☑ |
+| A reload that fails mid-run | athc.toml rewritten as ANSI with an accent | `WARN <athc.toml>: Not UTF-8 text. Save it as UTF-8. Keeping the previous settings.`; the old delay; the click | `test_loop_a_reload_that_fails_warns_and_keeps_the_settings` | ☑ |
 | Unexpected errors in passes | the screenshot raises `RuntimeError("driver hiccup")` twice, then `ValueError("bad pixels")` | the first of each kind through `warn_traced`, naming the run log; the repeat one `WARN` line; 5 s waits; then the next pass clicks | `test_loop_an_unexpected_error_is_traced_once_and_retried` | ☑ |
 | The traceback reaches the run log | the stub calls `warn_traced` inside an `except` | stderr: one `WARN` line; the run log: the line, then `Traceback (most recent call last):` | `test_cli_an_unexpected_error_puts_its_traceback_in_the_run_log` | ☑ |
 | Screen hidden before the click | Continue, then a hidden screen at the re-check | the locked-screen `WARN` and 60 s back-off; no line about the button; no click | `test_loop_a_hidden_screen_before_the_click_means_no_click` | ☑ |
@@ -107,7 +109,7 @@ Screenshots of the real game in `data/autocontinue_screens/`, cropped to the gam
 | Pointer on every button | each button under the pointer a click on the screen before left there: Continue (the play before's), Plans/Profiles, Conditions and Venues on the page their own click opens, Visitor after Home at its spot (lit), Game where Accept was clicked | each button found; Venues, 0.77 under the pointer, matched at 0.7 | `test_real_button_found` `[P]` (`pointer on it`) | ☑ |
 | Pointer on every button, lit | each button lit by the pointer moved onto it: Return at halftime and at the end, Plans/Profiles, Visitor, Conditions, Venues; Game with the hand at its corner | each button found | `test_real_button_found` `[P]` (`lit`) | ☑ |
 | League pre-game on, the pointer on each button | the scan and each step's screenshot with the pointer on the button it clicks: left there by a click / lit | the label line, then the five buttons clicked in order where the game draws them, with their pauses | `test_real_pregame_driven_to_game` `[P]` | ☑ |
-| League pre-game off | each pre-game page; no athc.ini | nothing said, moved or clicked | `test_real_pregame_left_alone_when_off` | ☑ |
+| League pre-game off | each pre-game page; no athc.toml | nothing said, moved or clicked | `test_real_pregame_left_alone_when_off` | ☑ |
 | Exhibition, league pre-game on / off | each exhibition pre-game page: as it opens with the pointer on Game, the home team's plans, the visitor's, Conditions, Venues, Difficulty Levels, Game Controls | nothing said, moved or clicked | `test_real_exhibition_pregame_left_alone` `[P]` | ☑ |
 | Nothing to act on | `coin_toss.png` (Receive, 0.76 like Continue); `league_play_schedule.png` (the League play label, no Game), `controllers.png` and `controllers_accept_lit.png` (Accept, unlit and lit, where Game shows next), the pre-game on | nothing found | `test_real_screen_with_nothing_to_act_on` `[P]` | ☑ |
 | The game full screen, not windowed | — | — | — | ☐ |
@@ -135,7 +137,7 @@ In [test_autocontinue_game.py](test_autocontinue_game.py), not slow, on a fake i
 | No game there | an empty folder; the `FbPro98` folder itself | fails with `No game at ...` | `test_a_game_dir_with_no_game_fails` `[P]` | ☑ |
 
 ### The real game, in Windows Sandbox (slow, run on demand)
-In [test_autocontinue_game.py](test_autocontinue_game.py), marked `slow`: `uv run pytest -m slow tests/integration/test_autocontinue_game.py --no-cov`. Needs Windows Sandbox, a built installer and the game installed (`ATHC_GAME_DIR`, the folder holding `FbPro98`). Each test builds its own game in its temp folder (above) and maps it writable; the sandbox mounts its empty disc image, installs athc and starts autocontinue, with the test's own athc.ini when it gives one; the test drives the menus by image (`data/autocontinue_game/agent.ps1` takes the screenshots and clicks; the menu images the test alone needs are in `data/autocontinue_game/images/`). The mouse is parked at the top left of the game window before each screenshot, so the game's pointer covers no button. In the exhibition game, `data/autocontinue_game/pointer-helper.ps1` looks at the game window every 100 ms, between searches. As each Continue or Return shows, it lights half (a move onto it, then 1 px), moves the pointer away from a quarter and leaves it on a quarter, leaving it only on a button it is already on, unlit, so the share left falls short when the game gives too few; it logs each with at most how long the button had been up and whether the pointer is on it. Continue's box opens where the one before was about a quarter of the time (24 of 84 in a captured game).
+In [test_autocontinue_game.py](test_autocontinue_game.py), marked `slow`: `uv run pytest -m slow tests/integration/test_autocontinue_game.py --no-cov`. Needs Windows Sandbox, a built installer and the game installed (`ATHC_GAME_DIR`, the folder holding `FbPro98`). Each test builds its own game in its temp folder (above) and maps it writable; the sandbox mounts its empty disc image, installs athc and starts autocontinue, with the test's own athc.toml when it gives one; the test drives the menus by image (`data/autocontinue_game/agent.ps1` takes the screenshots and clicks; the menu images the test alone needs are in `data/autocontinue_game/images/`). The mouse is parked at the top left of the game window before each screenshot, so the game's pointer covers no button. In the exhibition game, `data/autocontinue_game/pointer-helper.ps1` looks at the game window every 100 ms, between searches. As each Continue or Return shows, it lights half (a move onto it, then 1 px), moves the pointer away from a quarter and leaves it on a quarter, leaving it only on a button it is already on, unlit, so the share left falls short when the game gives too few; it logs each with at most how long the button had been up and whether the pointer is on it. Continue's box opens where the one before was about a quarter of the time (24 of 84 in a captured game).
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|

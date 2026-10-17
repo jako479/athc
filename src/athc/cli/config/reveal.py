@@ -1,4 +1,4 @@
-"""`athc config reveal` -- show athc.ini or league.toml in File Explorer."""
+"""`athc config reveal` -- show athc.toml or league.toml in File Explorer."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ EXAMPLES = """Examples:
 @click.argument("file", required=False, callback=file_callback, help=FILE_HELP)
 @league_option
 def reveal(file: str | None, league: str | None) -> None:
-    """Show athc.ini or league.toml in File Explorer.
+    """Show athc.toml or league.toml in File Explorer.
 
     Selects the file, or opens its folder when the file is missing.
     """

@@ -1,28 +1,24 @@
 """Config dataclass, loader, and change detection for autocontinue.
 
-Settings live in the `[autocontinue]` section of `athc.ini` (found via
+Settings live in the `[autocontinue]` table of `athc.toml` (found via
 `athc.config.config_dir()` / `ATHC_CONFIG_DIR`). Every key is optional: a
-missing file, section or key means the defaults on `Config`. The shipped
-athc.ini turns drive_league_pregame on; missing, it is off.
+missing file, table or key means the defaults on `Config`. The shipped
+athc.toml turns drive_league_pregame on; missing, it is off.
 """
 
 from __future__ import annotations
 
-import configparser
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
-from athc.config import CONFIG_FILE, config_dir
-from athc.config import load_config as load_athc_config
+from athc.config import CONFIG_FILE, config_dir, config_file, config_table
 from athc.errors import ConfigFileError
 
 SECTION = "autocontinue"
-
-# Accept the usual INI truthy/falsy spellings (true/false, yes/no, on/off, 1/0).
-_BOOLEAN_STATES = configparser.RawConfigParser.BOOLEAN_STATES
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,13 +39,13 @@ _DEFAULTS = Config()
 
 
 def load_config() -> Config:
-    """Read and validate `[autocontinue]` from `config_dir()/athc.ini`.
+    """Read and validate `[autocontinue]` from `config_dir()/athc.toml`.
 
     Every key is optional: a missing file, section or key takes its default on
     `Config`. A value that is present but wrong raises ConfigFileError. Isolate
     the lookup in tests by setting `ATHC_CONFIG_DIR`.
     """
-    section = load_athc_config().get(SECTION, {})
+    section = config_table(SECTION)
     return Config(
         mouse_move_duration=_timing(
             section, "mouse_move_duration", default=_DEFAULTS.mouse_move_duration
@@ -75,8 +71,8 @@ def load_config() -> Config:
 
 
 def config_signature() -> tuple[str, int, int] | None:
-    """Cheap `(path, mtime_ns, size)` fingerprint of `config_dir()/athc.ini`, or None if
-    absent. Changes iff the file changes, gating watch-loop re-reads."""
+    """Cheap `(path, mtime_ns, size)` fingerprint of `config_dir()/athc.toml`, or
+    None if absent. Changes iff the file changes, gating watch-loop re-reads."""
     path = config_dir() / CONFIG_FILE
     if not path.is_file():
         return None
@@ -93,30 +89,39 @@ def get_runtime_path(filename: str) -> Path:
     return Path(str(resource))
 
 
-def _optional_bool(section: Mapping[str, str], key: str, *, default: bool) -> bool:
+def _optional_bool(section: Mapping[str, Any], key: str, *, default: bool) -> bool:
     if key not in section:
         return default
-    value = section[key].strip().lower()
-    if value not in _BOOLEAN_STATES:
+    value = section[key]
+    if not isinstance(value, bool):
         raise ConfigFileError(
-            f"[{SECTION}] {key}: Must be true or false, got {section[key]!r}.",
-            config_dir() / CONFIG_FILE,
-        )
-    return _BOOLEAN_STATES[value]
-
-
-def _timing(section: Mapping[str, str], key: str, *, default: float) -> float:
-    """Seconds, 0 or more. NaN and infinity are not, since time.sleep refuses
-    them."""
-    if key not in section:
-        return default
-    try:
-        value = float(section[key])
-    except ValueError:
-        value = None
-    if value is None or not 0 <= value < math.inf:
-        raise ConfigFileError(
-            f"[{SECTION}] {key}: Must be a number, 0 or more, got {section[key]!r}.",
-            config_dir() / CONFIG_FILE,
+            f"[{SECTION}] {key}: Must be true or false, got {_shown(value)}.",
+            config_file(),
         )
     return value
+
+
+def _shown(value: Any) -> str:
+    """`value` as TOML spells it (`true`, `1979-05-27`); a string quoted."""
+    if isinstance(value, bool):
+        return str(value).lower()
+    return repr(value) if isinstance(value, str) else str(value)
+
+
+def _timing(section: Mapping[str, Any], key: str, *, default: float) -> float:
+    """Seconds, 0 or more. NaN and infinity are not, since time.sleep refuses
+    them. A TOML integer counts; a boolean, though an int to Python, does
+    not."""
+    if key not in section:
+        return default
+    value = section[key]
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or not 0 <= value < math.inf
+    ):
+        raise ConfigFileError(
+            f"[{SECTION}] {key}: Must be a number, 0 or more, got {_shown(value)}.",
+            config_file(),
+        )
+    return float(value)

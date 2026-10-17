@@ -33,6 +33,7 @@ from athc.fbpro98_lge import read_lge
 from tests.conftest import (
     LEAGUE,
     OTHER_LEAGUE,
+    athc_toml,
     league_not_found,
     no_league_selected,
 )
@@ -441,8 +442,8 @@ def test_league_that_does_not_exist_fails_even_with_a_path(
 
 
 def test_path_without_any_settings(runner, config_dir: Path) -> None:
-    """No athc.ini, no league folder: a path needs neither."""
-    assert not (config_dir / "athc.ini").exists()
+    """No athc.toml, no league folder: a path needs neither."""
+    assert not (config_dir / "athc.toml").exists()
     result = run(runner, KNOWN_NORMAL, "--path", GP_OFFENSE)
     assert result.exit_code == 0
 
@@ -822,7 +823,7 @@ def test_team_not_set(
     """Neither `team` nor --team. `team` is read before `path`, which is not
     set either."""
     folder = build_league()
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, KNOWN_NORMAL, *args)
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {folder / 'league.toml'}: {TEAM_NOT_SET} {way}.\n"
@@ -841,7 +842,7 @@ def test_path_not_set(
     way: str,
 ) -> None:
     folder = build_league(team="Denver")
-    write_config(f"[athc]\nleague = {LEAGUE}\n")
+    write_config(athc_toml())
     result = run(runner, KNOWN_NORMAL, *args)
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {folder / 'league.toml'}: {PATH_NOT_SET} {way}\n"

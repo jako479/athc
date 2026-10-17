@@ -360,13 +360,13 @@ Usage: athc autocontinue [OPTIONS]
 
 Options:
   --continue-pause SECONDS        Seconds to wait before each Continue click.
-                                  Overrides continue_pause in athc.ini (1.0 by
-                                  default).
+                                  Overrides continue_pause in athc.toml (1.0
+                                  by default).
   -n, --dry-run                   Report what it finds each time; never move
                                   the mouse or click.
   --hot-corner / --no-hot-corner  Stop when the mouse hits the top-left
-                                  corner. Overrides hot_corner in athc.ini (on
-                                  by default).
+                                  corner. Overrides hot_corner in athc.toml
+                                  (on by default).
   -h, --help                      Show this message and exit.
 
   Examples:

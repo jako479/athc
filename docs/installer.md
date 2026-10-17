@@ -32,7 +32,7 @@ with a Python they already have.
 The build files live in a top-level `packaging/` folder, the most common home
 for them in Python apps that ship a Windows installer (Thonny, Rare, Cura,
 Gaphor). `config/release/` holds only the files that get installed:
-`athc.ini`, `docs\` and `leagues\`.
+`athc.toml`, `docs\` and `leagues\`.
 
 | File | What it does |
 |---|---|
@@ -72,12 +72,12 @@ feature with its `wsb` command line for the test.
   install: `README.txt`, `COMMANDS.txt`, `SCHEDULER-COMMANDS.txt`,
   `CHANGELOG.txt` and `LICENSE.txt`. Adds a Start-menu shortcut to the README
   and opens it after install.
-- Seeds every file in `%LOCALAPPDATA%\athc` only if it is missing: `athc.ini`,
+- Seeds every file in `%LOCALAPPDATA%\athc` only if it is missing: `athc.toml`,
   and each league's `league.toml` and rule TOMLs.
 - Uninstall removes the program, its PATH entry, the Start-menu shortcut and
   the whole `%LOCALAPPDATA%\athc` folder, user edits included.
 
-The seeded `athc.ini` selects PNFL; the only value a user must edit is
+The seeded `athc.toml` selects PNFL; the only value a user must edit is
 `play_path` in `leagues\PNFL\league.toml` (`athc config edit league.toml`
 opens it), plus `path` and `team` to work on your team's files (check-ppp,
 gameplan, profile, convert-pdb). Layout: [architecture.md](architecture.md#config).
@@ -99,13 +99,13 @@ one file its own overwrite entry.
 
 ## Config evolution
 
-In-code defaults are authoritative. Every section and key in `athc.ini` is
+In-code defaults are authoritative. Every table and key in `athc.toml` is
 optional; a missing one uses the tool's default.
 
-A release that adds a tool's section:
+A release that adds a tool's table:
 
 1. The tool runs on its defaults; the user does nothing.
-2. To customize, the user adds the section to their own `athc.ini`.
+2. To customize, the user adds the table to their own `athc.toml`.
 
 No migration step, no merge prompts, no clobber risk. Pattern follows
 pgcli/mycli: a single self-documenting config, seeded once and left alone.
@@ -125,7 +125,7 @@ network, which also proves it installs offline:
    lists, diffs and schedules match the goldens; `config get league` prints the
    league `config set league` wrote.
 3. Upgrade over the install: a stale `_internal` file is gone, the docs are
-   refreshed, an edited `athc.ini` and rule TOML are kept, a deleted seeded
+   refreshed, an edited `athc.toml` and rule TOML are kept, a deleted seeded
    file comes back.
 4. Silent uninstall: the program, `%LOCALAPPDATA%\athc`, the shortcut and the
    PATH entry are gone.

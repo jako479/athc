@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-16. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-17. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -100,6 +100,15 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   `<path>: <reason>` itself, the readers and loaders pass the path instead of
   writing it into the message, and a batch `FAIL` line names the file once.
 
+- Settings (2026-10-17): `athc.toml` replaces `athc.ini`: same place, same
+  tables (`[athc]`, `[autocontinue]`, `[convert-pdb]`), TOML syntax, so every
+  settings file is TOML; `athc config set league` writes it through tomlkit.
+  A tool's settings are its table in `athc.toml`; a league may hold the same
+  table in its `league.toml`, and the league's keys win, key by key, nested
+  tables included; an array or a scalar replaces whole. convert-pdb is the
+  first tool on it, and `pdbtoexcel.toml` is gone. Every message names the
+  file a value came from. Rules:
+  [docs/architecture.md](docs/architecture.md#config).
 - Tests of an add, update or remove compare the whole result, not just the
   changed item; command tests keep spot checks. Rules:
   [docs/testing-unit.md](docs/testing-unit.md#expected-results).
@@ -128,17 +137,18 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   from the tests' own files, and shipped-file tests run once per league folder.
 - The PCFL ships gameplan and profile rules, copied from the PNFL's.
 - One folder per league under `leagues\`; every league-aware tool reads its
-  rules there. `athc.ini` keeps only app-wide settings.
+  rules there. `athc.toml` keeps only app-wide settings; a league overrides
+  a tool's table key by key in its `league.toml`.
 - The league in use is `[athc] league`, set by hand or with
-  `athc config set league NAME`, which rewrites `athc.ini` and keeps its
+  `athc config set league NAME`, which rewrites `athc.toml` and keeps its
   comments; `athc config get league` prints it. `config get` and `config set`
   also read and write the league file's `path`, `play_path`, `team` and
   `ppp_path` (tomlkit keeps `league.toml`'s comments), and `path`, `edit` and
-  `reveal` take `league.toml` as well as `athc.ini`. `--league NAME` on a league-aware command overrides it for one run
+  `reveal` take `league.toml` as well as `athc.toml`. `--league NAME` on a league-aware command overrides it for one run
   (`athc profile check OFF1.prf --league PCFL`, like `aws s3 ls --profile x`).
 - Rule layering stays: a `gameplan_rules` / `profile_rules` array in
   `league.toml` replaces the fixed file.
-- Rule files live only in league folders, never next to `athc.ini`.
+- Rule files live only in league folders, never next to `athc.toml`.
 - The installer seeds the tree below once; an upgrade never overwrites a file
   in it, only adds missing ones.
 - Unreadable config files, blank or unknown league names and a missing league
@@ -149,7 +159,7 @@ Config tree, identical in `config\dev\`, `config\release\` and the installed
 `%LOCALAPPDATA%\athc\`:
 
 ```
-athc.ini                      [athc] league, [autocontinue], [convert-pdb]
+athc.toml                     [athc] league, [autocontinue], [convert-pdb] (with its category order, deleted plays)
 leagues\
   PNFL\
     league.toml               [league] path, play_path (dev also db_path); [categories.*]
@@ -163,16 +173,15 @@ leagues\
     scheduler.toml
 ```
 
-- League keys in `athc.ini` are lowercase (`play_path`) like every other key,
-  so the parser no longer needs a subclass to keep key case.
+- Keys are lowercase (`play_path`) in every settings file.
 - The shared exit scheme and message kinds are in architecture.md; each tool's
   README carries its own lines and what counts as a finding, where a coach
   will look.
 - The `RULES_PNFL.md` docs are gone. Each tool's rules TOML is the league
   reference; a prose copy of every value went stale the moment one changed.
-- The shipped `config/release/athc.ini` is loaded through every section loader in
+- The shipped `config/release/athc.toml` is loaded through every table loader in
   `test_config.py`, so a missing bundled rule file fails the suite.
-- `config/dev/athc.ini` points at the real play pool and game log database. It used
+- `config/dev/`'s league files point at the real play pool and game log database. They used
   to point at the test fixtures, which nothing required.
 - Agent instructions live in [AGENTS.md](AGENTS.md); `.claude/CLAUDE.md` points
   at it. New STATUS, WORKLOG, CHANGELOG and TODO entries go at the top of their
@@ -231,7 +240,7 @@ Working. Docs: [autocontinue.md](docs/autocontinue.md)
 - Every `[autocontinue]` setting is optional, with the shipped defaults.
   `--continue-pause SECONDS` overrides `continue_pause` for one run;
   `-n, --dry-run` reports the button and never clicks. The status lines name
-  the `athc.ini` keys and say when the game window is active; the click lands
+  the `athc.toml` keys and say when the game window is active; the click lands
   on the button itself.
 - Its images load once at start; a missing or unreadable one stops the run
   (`Reinstall athc.`). A locked screen, screensaver or disconnected Remote
@@ -407,12 +416,15 @@ Working. Extracts a WinLogStats database into an Excel workbook. Docs:
   the workbook closes, once the row count is known.
 - The Type column's QB run and defensive front come from each play file, not
   its folder.
-- Everything league-specific comes from the league folder: the play pool, the
-  category names (`league.toml`), and the category order and deleted plays
-  (`pdbtoexcel.toml`, required). The workbook names categories the league's
-  way and sorts them in the league's order. The workbook always has the Total
-  Stats team; the workbook options stay in `[convert-pdb]`
-  (`include_category_worksheets` is no longer shipped in `athc.ini`).
+- Settings (2026-10-17): the workbook options, the category order and the
+  deleted plays are `[convert-pdb]` in `athc.toml`, and a league changes only
+  the keys that differ in its own `league.toml` (PNFL and PCFL are clones, so
+  neither does); `pdbtoexcel.toml` is gone. A missing list is empty. Every
+  setting message names the file the value came from.
+- The play pool and the category names come from the league folder
+  (`league.toml`). The workbook names categories the league's way and sorts
+  them in the configured order. The workbook always has the Total Stats team
+  (`include_category_worksheets` is not in the shipped `athc.toml`).
 - The output is optional: `<name>.xlsm` beside the PDB by default, or inside a
   folder given.
 - The Slot columns come from your team's four game plans (`--path FOLDER`,
@@ -601,14 +613,15 @@ construction, never pruned · then the quirk budget in
 - **One folder per league, fixed file names inside.** The OBS / Kodi / Hugo
   shape; nothing lists the inner files in config, so adding a league is
   copying a folder.
-- **The league in use is a key in `athc.ini`, not a separate state file.**
+- **The league in use is a key in `athc.toml`, not a separate state file.**
   Calibre keeps its current library the same way; `athc config set` rewrites
-  the file with ConfigUpdater so the comments survive.
+  the file with tomlkit so the comments survive.
 - **`--league` is on each league-aware command, after the command name.**
   `aws s3 ls --profile x` and `kubectl get --context x` take theirs there too;
   Click only takes a root option before the command name, which read oddly.
-- **convert-pdb's workbook options are app-wide.** They stay in
-  `[convert-pdb]`; only the play pool is per league.
+- **convert-pdb's settings are app-wide, overridable per league.** They live
+  in `[convert-pdb]` in `athc.toml`; a league's `league.toml` holds only the
+  keys that differ, so the PNFL and PCFL clones share one copy.
 - **check-ppp's compatibility rules live in the rules file, not the code.**
   They are league rules like any other, so a league enables each direction
   itself.
@@ -626,4 +639,5 @@ construction, never pruned · then the quirk budget in
 - **athc-admin ships the full installer.** Open to revisiting.
 - **`uv` runs the project.** It handles Python, dependencies and the lockfile,
   in place of pip.
-- **Config is `configparser`.** Pydantic was considered and dropped.
+- **Config is TOML: `tomllib` reads every settings file, tomlkit writes them.**
+  Pydantic was considered and dropped.
