@@ -26,6 +26,12 @@ def test_a_game_counts_for_both_teams():
     assert season.results[1] == (
         Result(opponent=0, scored=10, allowed=20, division=True, conference=True),
     )
+    assert season.results == (
+        (Result(1, 20, 10, True, True),),
+        (Result(0, 10, 20, True, True),),
+        (),
+        (),
+    )
 
 
 def test_games_marked_division_and_conference():
@@ -33,6 +39,14 @@ def test_games_marked_division_and_conference():
     against_c, against_d = season.results[0]
     assert (against_c.division, against_c.conference) == (False, True)
     assert (against_d.division, against_d.conference) == (False, False)
+    assert against_c == Result(2, 20, 10, False, True)
+    assert against_d == Result(3, 20, 10, False, False)
+    assert season.results == (
+        (against_c, against_d),
+        (),
+        (Result(0, 10, 20, False, True),),
+        (Result(0, 10, 20, False, False),),
+    )
 
 
 def test_won_and_lost():
@@ -41,6 +55,12 @@ def test_won_and_lost():
     assert (won.won, won.lost) == (True, False)
     assert (tied.won, tied.lost) == (False, False)
     assert season.results[1][0].lost
+    assert season.results == (
+        (Result(1, 20, 10, True, True), Result(2, 10, 10, False, True)),
+        (Result(0, 10, 20, True, True),),
+        (Result(0, 10, 10, False, True),),
+        (),
+    )
 
 
 def test_playoff_round_reached_and_the_final():

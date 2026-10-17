@@ -10,7 +10,7 @@ import pytest
 
 from athc.cli.gameplan.set_normals import set_normals
 from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
-from athc.fbpro98_gameplan import CustomPlayRef, PlayRef, read_gameplan
+from athc.fbpro98_gameplan import CustomPlayRef, PlayRef, read_gameplan, write_gameplan
 from tests.conftest import LEAGUE, league_toml
 from tests.integration.conftest import GP_OFFENSE, PLAYS, TEAM_NAMES, lge, team
 
@@ -37,6 +37,14 @@ def _copy(tmp_path: Path) -> Path:
     dst = tmp_path / "offense.pln"
     shutil.copy2(GP_OFFENSE, dst)
     return dst
+
+
+def _without_first_normal(path: Path) -> Path:
+    """`path` rewritten with normal slot 0 empty."""
+    gp = read_gameplan(path)
+    write_gameplan(gp.with_normal_plays([None, *gp.normal_plays[1:]]), path)
+    assert read_gameplan(path).normal_plays[0] is None
+    return path
 
 
 def _input(tmp_path: Path, text: str) -> Path:
@@ -118,7 +126,7 @@ def test_removed_options_rejected(runner, tmp_path: Path, extra: list[str]) -> N
 
 
 def test_writes_from_file(runner, tmp_path: Path) -> None:
-    p = _copy(tmp_path)
+    p = _without_first_normal(_copy(tmp_path))
     result = runner.invoke(set_normals, [str(p), str(_input(tmp_path, NORMAL + "\n"))])
     assert result.exit_code == 0
     rt = read_gameplan(str(p))
@@ -128,7 +136,7 @@ def test_writes_from_file(runner, tmp_path: Path) -> None:
 
 def test_a_list_saved_with_a_bom_reads_its_first_play(runner, tmp_path: Path) -> None:
     """Notepad's "UTF-8 with BOM" puts a mark before the first play name."""
-    p = _copy(tmp_path)
+    p = _without_first_normal(_copy(tmp_path))
     inp = tmp_path / "plays.txt"
     inp.write_text(NORMAL + "\n", encoding="utf-8-sig")
     result = runner.invoke(set_normals, [str(p), str(inp)])
@@ -158,14 +166,14 @@ def test_writes_no_backup(runner, tmp_path: Path) -> None:
 
 
 def test_skips_comment_lines(runner, tmp_path: Path) -> None:
-    p = _copy(tmp_path)
+    p = _without_first_normal(_copy(tmp_path))
     inp = _input(tmp_path, f":: header\n{NORMAL}\n:: another\n")
     assert runner.invoke(set_normals, [str(p), str(inp)]).exit_code == 0
     assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
 
 
 def test_strips_inline_comments(runner, tmp_path: Path) -> None:
-    p = _copy(tmp_path)
+    p = _without_first_normal(_copy(tmp_path))
     inp = _input(tmp_path, f"{NORMAL} :: my favorite play\n")
     assert runner.invoke(set_normals, [str(p), str(inp)]).exit_code == 0
     assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
@@ -194,7 +202,7 @@ def test_quiet_is_rejected(runner, tmp_path: Path) -> None:
 
 
 def test_dash_reads_from_console(runner, tmp_path: Path) -> None:
-    p = _copy(tmp_path)
+    p = _without_first_normal(_copy(tmp_path))
     result = runner.invoke(set_normals, [str(p), "-"], input=NORMAL + "\n")
     assert result.exit_code == 0
     assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
@@ -348,6 +356,7 @@ def team_league(league: Path, tmp_path: Path, **settings: str | Path) -> Path:
 
 def test_key_sets_your_game_plan(runner, league: Path, tmp_path: Path) -> None:
     folder = team_league(league, tmp_path, team="Denver")
+    _without_first_normal(folder / "OFF1.pln")
     inp = _input(tmp_path, NORMAL + "\n")
     result = runner.invoke(set_normals, ["off1", str(inp)])
     assert result.exit_code == 0

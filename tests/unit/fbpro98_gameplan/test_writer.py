@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -89,6 +90,7 @@ def test_round_trip_preserves_normal_plays(tmp_path: Path) -> None:
             assert new_play.filename == orig_play.filename
             assert new_play.play_category == orig_play.play_category
             assert new_play.user_category == orig_play.user_category
+    assert reloaded == replace(original, normal_plays=tuple(entries))
 
 
 def test_special_plays_preserved(tmp_path: Path) -> None:
@@ -100,6 +102,9 @@ def test_special_plays_preserved(tmp_path: Path) -> None:
     reloaded = read_gameplan(pln_path)
 
     assert reloaded.special_plays == original.special_plays
+    assert reloaded == replace(
+        original, normal_plays=(_make_play("TEST01"), *(None,) * 63)
+    )
 
 
 def test_empty_slots_produce_zero_offset(tmp_path: Path) -> None:
@@ -115,6 +120,9 @@ def test_empty_slots_produce_zero_offset(tmp_path: Path) -> None:
     assert reloaded.normal_plays[1] is not None
     assert reloaded.normal_plays[1].name == "TEST01"
     assert reloaded.normal_plays[2] is None
+    assert reloaded == replace(
+        original, normal_plays=(None, _make_play("TEST01"), *(None,) * 62)
+    )
 
 
 def test_fewer_than_64_pads_remaining_empty(tmp_path: Path) -> None:
@@ -128,6 +136,7 @@ def test_fewer_than_64_pads_remaining_empty(tmp_path: Path) -> None:
     assert len(filled) == 3
     for i in range(3, 64):
         assert reloaded.normal_plays[i] is None
+    assert reloaded == replace(original, normal_plays=(*entries, *(None,) * 61))
 
 
 def test_all_64_slots_filled(tmp_path: Path) -> None:
@@ -139,6 +148,7 @@ def test_all_64_slots_filled(tmp_path: Path) -> None:
     reloaded = read_gameplan(pln_path)
     filled = [p for p in reloaded.normal_plays if p is not None]
     assert len(filled) == 64
+    assert reloaded == replace(original, normal_plays=tuple(entries))
 
 
 def test_too_many_entries_raises() -> None:
@@ -176,6 +186,9 @@ def test_j95_counts_updated(tmp_path: Path) -> None:
     assert num_stock == orig_stock
     assert num_special == orig_special
     assert profile_type == 1
+    assert read_gameplan(pln_path) == replace(
+        original, normal_plays=(*entries, *(None,) * 54)
+    )
 
 
 def test_defense_round_trip(tmp_path: Path) -> None:
@@ -198,3 +211,4 @@ def test_defense_round_trip(tmp_path: Path) -> None:
     orig_names = {p.name for p in orig_filled}
     new_names = {p.name for p in new_filled}
     assert orig_names == new_names
+    assert reloaded == replace(original, normal_plays=tuple(entries))

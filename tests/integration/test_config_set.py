@@ -49,6 +49,7 @@ def test_set_updates_value_and_keeps_comments(write_config: WriteConfig) -> None
     assert "; the league the tools use" in text
     assert "; seconds before clicking" in text
     assert "continue_pause = 1.0" in text
+    assert text == COMMENTED.replace(f"league = {LEAGUE}", f"league = {OTHER_LEAGUE}")
 
 
 def test_set_adds_missing_key(write_config: WriteConfig) -> None:
@@ -58,6 +59,7 @@ def test_set_adds_missing_key(write_config: WriteConfig) -> None:
     assert f"league = {LEAGUE}" in text
     assert text.index(f"league = {LEAGUE}") < text.index("[autocontinue]")
     assert "hot_corner = true" in text
+    assert text == f"[athc]\n\nleague = {LEAGUE}\n[autocontinue]\nhot_corner = true\n"
 
 
 def test_set_adds_missing_section(write_config: WriteConfig) -> None:
@@ -67,6 +69,7 @@ def test_set_adds_missing_section(write_config: WriteConfig) -> None:
     assert "[athc]" in text
     assert f"league = {LEAGUE}" in text
     assert "hot_corner = true" in text
+    assert text == f"[athc]\nleague = {LEAGUE}\n\n[autocontinue]\nhot_corner = true\n"
 
 
 def test_set_creates_missing_file(config_dir: Path) -> None:

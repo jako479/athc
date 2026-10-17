@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from athc.cli.gameplan._common import parse_play_list
-from athc.fbpro98_gameplan import GamePlan, ProfileType, SpecialSlot, StockPlayRef
+from athc.fbpro98_gameplan import (
+    CustomPlayRef,
+    GamePlan,
+    ProfileType,
+    SpecialSlot,
+    StockPlayRef,
+)
 from athc.fbpro98_play import PlayFile
 from athc.gameplan.writer import (
     InvalidPlay,
@@ -19,25 +26,36 @@ from athc.gameplan.writer import (
 from athc.playpool import DefensivePlay, OffensivePlay, PlayPool
 
 
-def _pool_with(
-    name: str, *, special_category: int, defensive: bool = False
-) -> PlayPool:
-    """A pool holding one play whose header claims `special_category`: an
-    offensive play, or a defensive one when `defensive`."""
+def _pool_with(*names: str, special_category: int, defensive: bool = False) -> PlayPool:
+    """A pool holding one play per name, each header claiming `special_category`:
+    offensive plays, or defensive ones when `defensive`."""
     pool = PlayPool("root")
-    play_file = PlayFile(
-        Path("root") / f"{name}.ply",
-        0,
-        0x00 if defensive else 0x01,
-        special_category,
-        0,
-        (),
-        (),
-    )
-    pool.add(
-        DefensivePlay(name, play_file) if defensive else OffensivePlay(name, play_file)
-    )
+    for name in names:
+        play_file = PlayFile(
+            Path("root") / f"{name}.ply",
+            0,
+            0x00 if defensive else 0x01,
+            special_category,
+            0,
+            (),
+            (),
+        )
+        pool.add(
+            DefensivePlay(name, play_file)
+            if defensive
+            else OffensivePlay(name, play_file)
+        )
     return pool
+
+
+def _ref(name: str, special_category: int) -> CustomPlayRef:
+    """The slot entry a `_pool_with` offensive play is written as."""
+    return CustomPlayRef(
+        filename=f"root\\{name}.ply",
+        play_category=0x01,
+        special_category=special_category,
+        user_category=0,
+    )
 
 
 def _offense_gameplan() -> GamePlan:
@@ -79,9 +97,53 @@ def test_special_play_without_custom_slot_is_rejected() -> None:
 def test_special_play_in_last_custom_category_is_accepted() -> None:
     """Category 10 is the last one with a custom slot."""
     pool = _pool_with("SQUIBPLY", special_category=10)
-    updated = apply_special_plays(_offense_gameplan(), [PlayLine(1, "SQUIBPLY")], pool)
+    gp = _offense_gameplan()
+    updated = apply_special_plays(gp, [PlayLine(1, "SQUIBPLY")], pool)
     placed = updated.special_plays[9].custom
     assert placed is not None and placed.name == "SQUIBPLY"
+    assert updated == replace(
+        gp,
+        special_plays=(
+            *gp.special_plays[:9],
+            SpecialSlot(custom=_ref("SQUIBPLY", 10)),
+            *gp.special_plays[10:],
+        ),
+    )
+
+
+def test_normal_plays_fill_slots_in_order_with_blanks_empty() -> None:
+    pool = _pool_with("RUNA", "RUNB", special_category=0)
+    gp = _offense_gameplan()
+    updated = apply_normal_plays(
+        gp, [PlayLine(1, "RUNA"), PlayLine(2, ""), PlayLine(3, "RUNB")], pool
+    )
+    assert updated == replace(
+        gp, normal_plays=(_ref("RUNA", 0), None, _ref("RUNB", 0), *(None,) * 61)
+    )
+
+
+def test_special_plays_merge_keeps_unlisted_categories() -> None:
+    """A listed play fills its own category; category 4's custom, the blank
+    line and the clock stocks are left as they were."""
+    base = _offense_gameplan()
+    gp = replace(
+        base,
+        special_plays=(
+            *base.special_plays[:3],
+            SpecialSlot(custom=_ref("OLDPUNT", 4)),
+            *base.special_plays[4:],
+        ),
+    )
+    pool = _pool_with("KICKPLY", special_category=2)
+    updated = apply_special_plays(gp, [PlayLine(1, ""), PlayLine(2, "KICKPLY")], pool)
+    assert updated == replace(
+        gp,
+        special_plays=(
+            *gp.special_plays[:1],
+            SpecialSlot(custom=_ref("KICKPLY", 2)),
+            *gp.special_plays[2:],
+        ),
+    )
 
 
 def test_special_teams_play_in_a_normal_slot_is_rejected() -> None:

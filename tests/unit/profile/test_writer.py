@@ -45,16 +45,6 @@ def _write_source(
     return dest
 
 
-def _mutated_stop_clock_source(
-    src: Path, tmp_path: Path, *, flip: tuple[int, ...]
-) -> Path:
-    profile = read_profile(str(src))
-    sits = list(profile.situations)
-    for n in flip:
-        sits[n - 1] = replace(sits[n - 1], stop_clock=not sits[n - 1].stop_clock)
-    return _write_source(replace(profile, situations=tuple(sits)), tmp_path)
-
-
 def _stop_clock_vector(path: Path) -> tuple[bool, ...]:
     return tuple(s.stop_clock for s in read_profile(str(path)).situations)
 
@@ -67,20 +57,8 @@ def _distinct_weights(base: CategoryWeights) -> CategoryWeights:
     )
 
 
-def _stamp_matching(
-    profile: Profile, *, predicate: Callable[[Situation], bool], marker: CategoryWeights
-) -> Profile:
-    sits = tuple(
-        replace(s, category_weights=marker, stop_clock=not s.stop_clock)
-        if predicate(s)
-        else s
-        for s in profile.situations
-    )
-    return replace(profile, situations=sits)
-
-
-def _is_goal_line(s: Situation) -> bool:
-    return s.field_position in GOAL_LINE_POSITIONS
+def _other_range(value: int) -> int:
+    return value + 1 if value < 50 else value - 1
 
 
 def _custom_subs() -> SubstitutionSettings:
@@ -96,26 +74,105 @@ def _custom_subs() -> SubstitutionSettings:
     )
 
 
+def _differing(profile: Profile) -> Profile:
+    """`profile` with every part a copy can take changed: the stop clock and
+    weights of every situation, the PAT weights, the substitutions, the field
+    goal range and the audibles flag. With this as the source, a copy that takes
+    more than asked shows in the whole-result check."""
+    situations = tuple(
+        replace(
+            s,
+            stop_clock=not s.stop_clock,
+            category_weights=_distinct_weights(s.category_weights),
+        )
+        for s in profile.situations
+    )
+    pats = tuple(
+        replace(p, category_weights=_distinct_weights(p.category_weights))
+        for p in profile.pat_situations
+    )
+    return replace(
+        profile,
+        situations=situations,
+        pat_situations=pats,
+        substitutions=_custom_subs(),
+        field_goal_range=_other_range(profile.field_goal_range),
+        use_audibles=not profile.use_audibles,
+    )
+
+
+def _source(src: Path, tmp_path: Path) -> Path:
+    """A source profile differing from `src` in every copyable part."""
+    return _write_source(_differing(read_profile(str(src))), tmp_path)
+
+
+def _stamp_matching(
+    profile: Profile, *, predicate: Callable[[Situation], bool], marker: CategoryWeights
+) -> Profile:
+    """`profile` with `marker` as the weights of every situation `predicate` matches."""
+    sits = tuple(
+        replace(s, category_weights=marker) if predicate(s) else s
+        for s in profile.situations
+    )
+    return replace(profile, situations=sits)
+
+
+def _is_fourth(s: Situation) -> bool:
+    return s.down == Down.FOURTH
+
+
+def _is_goal_line(s: Situation) -> bool:
+    return s.field_position in GOAL_LINE_POSITIONS
+
+
+def _with_stop_clock(target: Profile, source: Profile) -> Profile:
+    """`target` with `source`'s stop clock on every situation."""
+    return replace(
+        target,
+        situations=tuple(
+            replace(t, stop_clock=s.stop_clock)
+            for t, s in zip(target.situations, source.situations, strict=True)
+        ),
+    )
+
+
+def _with_situations(
+    target: Profile, source: Profile, predicate: Callable[[Situation], bool]
+) -> Profile:
+    """`target` with `source`'s whole situation wherever `predicate` matches."""
+    return replace(
+        target,
+        situations=tuple(
+            s if predicate(t) else t
+            for t, s in zip(target.situations, source.situations, strict=True)
+        ),
+    )
+
+
 # ── stop_clock ────────────────────────────────────────────────────────────────
 
 
 def test_copy_stop_clock_replaces_every_situation(tmp_path: Path) -> None:
-    source = _mutated_stop_clock_source(OFF1, tmp_path, flip=(1, 100, 2000, 2520))
+    source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
+    original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_stop_clock=True)
     assert _stop_clock_vector(source) == tuple(s.stop_clock for s in result.situations)
+    assert result == _with_stop_clock(original, read_profile(str(source)))
 
 
 def test_copy_stop_clock_idempotent_when_source_equals_target(tmp_path: Path) -> None:
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     source = _copy_prf(OFF1, tmp_path, name="source.prf")
     original = _stop_clock_vector(target)
+    original_profile = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_stop_clock=True)
     assert tuple(s.stop_clock for s in result.situations) == original
+    assert result == original_profile
 
 
 def test_copy_no_flags_returns_target_unchanged(tmp_path: Path) -> None:
-    source = _mutated_stop_clock_source(OFF1, tmp_path, flip=(1, 2, 3))
+    source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply()
@@ -123,72 +180,67 @@ def test_copy_no_flags_returns_target_unchanged(tmp_path: Path) -> None:
 
 
 def test_copy_stop_clock_works_on_defense(tmp_path: Path) -> None:
-    source = _mutated_stop_clock_source(DEF1, tmp_path, flip=(50, 1500))
+    source = _source(DEF1, tmp_path)
     target = _copy_prf(DEF1, tmp_path, name="target.prf")
+    original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_stop_clock=True)
     assert _stop_clock_vector(source) == tuple(s.stop_clock for s in result.situations)
+    assert result == _with_stop_clock(original, read_profile(str(source)))
 
 
 def test_copy_stop_clock_preserves_category_weights(tmp_path: Path) -> None:
-    source = _mutated_stop_clock_source(OFF1, tmp_path, flip=(1, 100))
+    source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_stop_clock=True)
     for before, after in zip(original.situations, result.situations, strict=True):
         assert after.category_weights == before.category_weights
+    assert result == _with_stop_clock(original, read_profile(str(source)))
 
 
 # ── sub_percent ───────────────────────────────────────────────────────────────
 
 
 def test_copy_sub_percent_replaces_substitutions(tmp_path: Path) -> None:
-    source = _write_source(
-        replace(read_profile(str(OFF1)), substitutions=_custom_subs()), tmp_path
-    )
+    source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
+    original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_sub_percent=True)
     assert result.substitutions == _custom_subs()
+    assert result == replace(original, substitutions=_custom_subs())
 
 
 def test_copy_sub_percent_leaves_other_fields_alone(tmp_path: Path) -> None:
-    source = _write_source(
-        replace(read_profile(str(OFF1)), substitutions=_custom_subs()), tmp_path
-    )
+    source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_sub_percent=True)
     assert result.situations == original.situations
     assert result.field_goal_range == original.field_goal_range
+    assert result == replace(original, substitutions=_custom_subs())
 
 
 # ── field_goal_range ──────────────────────────────────────────────────────────
 
 
 def test_copy_field_goal_range_replaces_value(tmp_path: Path) -> None:
-    base = read_profile(str(OFF1))
-    new_range = (
-        base.field_goal_range + 1
-        if base.field_goal_range < 50
-        else base.field_goal_range - 1
-    )
-    source = _write_source(replace(base, field_goal_range=new_range), tmp_path)
+    new_range = _other_range(read_profile(str(OFF1)).field_goal_range)
+    source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
+    original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_field_goal_range=True)
     assert result.field_goal_range == new_range
+    assert result == replace(original, field_goal_range=new_range)
 
 
 def test_copy_field_goal_range_leaves_situations_alone(tmp_path: Path) -> None:
-    base = read_profile(str(OFF1))
-    new_range = (
-        base.field_goal_range + 1
-        if base.field_goal_range < 50
-        else base.field_goal_range - 1
-    )
-    source = _write_source(replace(base, field_goal_range=new_range), tmp_path)
+    new_range = _other_range(read_profile(str(OFF1)).field_goal_range)
+    source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_field_goal_range=True)
     assert result.situations == original.situations
+    assert result == replace(original, field_goal_range=new_range)
 
 
 # ── fourth_down ───────────────────────────────────────────────────────────────
@@ -198,7 +250,7 @@ def test_copy_fourth_down_copies_only_fourth_down_situations(tmp_path: Path) -> 
     base = read_profile(str(OFF1))
     marker = _distinct_weights(base.situations[0].category_weights)
     source = _write_source(
-        _stamp_matching(base, predicate=lambda s: s.down == Down.FOURTH, marker=marker),
+        _stamp_matching(_differing(base), predicate=_is_fourth, marker=marker),
         tmp_path,
     )
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
@@ -215,19 +267,22 @@ def test_copy_fourth_down_copies_only_fourth_down_situations(tmp_path: Path) -> 
                 after.category_weights == before.category_weights
                 and after.stop_clock == before.stop_clock
             )
+    assert result == _with_situations(original, read_profile(str(source)), _is_fourth)
 
 
 def test_copy_fourth_down_works_on_defense(tmp_path: Path) -> None:
     base = read_profile(str(DEF1))
     marker = _distinct_weights(base.situations[0].category_weights)
     source = _write_source(
-        _stamp_matching(base, predicate=lambda s: s.down == Down.FOURTH, marker=marker),
+        _stamp_matching(_differing(base), predicate=_is_fourth, marker=marker),
         tmp_path,
     )
     target = _copy_prf(DEF1, tmp_path, name="target.prf")
+    original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_fourth_down=True)
     affected = [s for s in result.situations if s.down == Down.FOURTH]
     assert affected and all(s.category_weights == marker for s in affected)
+    assert result == _with_situations(original, read_profile(str(source)), _is_fourth)
 
 
 # ── goal_line ─────────────────────────────────────────────────────────────────
@@ -237,7 +292,8 @@ def test_copy_goal_line_copies_only_goal_line_situations(tmp_path: Path) -> None
     base = read_profile(str(OFF1))
     marker = _distinct_weights(base.situations[0].category_weights)
     source = _write_source(
-        _stamp_matching(base, predicate=_is_goal_line, marker=marker), tmp_path
+        _stamp_matching(_differing(base), predicate=_is_goal_line, marker=marker),
+        tmp_path,
     )
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
@@ -249,15 +305,20 @@ def test_copy_goal_line_copies_only_goal_line_situations(tmp_path: Path) -> None
             else before.category_weights
         )
         assert after.category_weights == expected
+    assert result == _with_situations(
+        original, read_profile(str(source)), _is_goal_line
+    )
 
 
 def test_copy_goal_line_covers_both_inside_5_buckets(tmp_path: Path) -> None:
     base = read_profile(str(OFF1))
     marker = _distinct_weights(base.situations[0].category_weights)
     source = _write_source(
-        _stamp_matching(base, predicate=_is_goal_line, marker=marker), tmp_path
+        _stamp_matching(_differing(base), predicate=_is_goal_line, marker=marker),
+        tmp_path,
     )
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
+    original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_goal_line=True)
     def_5 = [
         s for s in result.situations if s.field_position == FieldPosition.INSIDE_DEF_5
@@ -267,6 +328,9 @@ def test_copy_goal_line_covers_both_inside_5_buckets(tmp_path: Path) -> None:
     ]
     assert def_5 and off_5
     assert all(s.category_weights == marker for s in def_5 + off_5)
+    assert result == _with_situations(
+        original, read_profile(str(source)), _is_goal_line
+    )
 
 
 # ── combinations ──────────────────────────────────────────────────────────────
@@ -274,19 +338,10 @@ def test_copy_goal_line_covers_both_inside_5_buckets(tmp_path: Path) -> None:
 
 def test_combined_flags_apply_each_independently(tmp_path: Path) -> None:
     base = read_profile(str(OFF1))
-    new_range = (
-        base.field_goal_range + 1
-        if base.field_goal_range < 50
-        else base.field_goal_range - 1
-    )
+    new_range = _other_range(base.field_goal_range)
     marker = _distinct_weights(base.situations[0].category_weights)
-    stamped = _stamp_matching(
-        base, predicate=lambda s: s.down == Down.FOURTH, marker=marker
-    )
-    source = _write_source(
-        replace(stamped, substitutions=_custom_subs(), field_goal_range=new_range),
-        tmp_path,
-    )
+    stamped = _stamp_matching(_differing(base), predicate=_is_fourth, marker=marker)
+    source = _write_source(stamped, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(
@@ -303,20 +358,18 @@ def test_combined_flags_apply_each_independently(tmp_path: Path) -> None:
         if a.down != Down.FOURTH and a.category_weights != o.category_weights
     ]
     assert non_fourth_changed == []
+    assert result == replace(
+        _with_situations(original, stamped, _is_fourth),
+        substitutions=_custom_subs(),
+        field_goal_range=new_range,
+    )
 
 
 def test_fourth_down_and_stop_clock_combine_cleanly(tmp_path: Path) -> None:
     base = read_profile(str(OFF1))
     marker = _distinct_weights(base.situations[0].category_weights)
-    sits = tuple(
-        replace(
-            s,
-            stop_clock=not s.stop_clock,
-            category_weights=marker if s.down == Down.FOURTH else s.category_weights,
-        )
-        for s in base.situations
-    )
-    source = _write_source(replace(base, situations=sits), tmp_path)
+    stamped = _stamp_matching(_differing(base), predicate=_is_fourth, marker=marker)
+    source = _write_source(stamped, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(
@@ -328,52 +381,57 @@ def test_fourth_down_and_stop_clock_combine_cleanly(tmp_path: Path) -> None:
             assert after.category_weights == marker
         else:
             assert after.category_weights == before.category_weights
+    assert result == _with_situations(
+        _with_stop_clock(original, stamped), stamped, _is_fourth
+    )
 
 
 # ── pat_logic ─────────────────────────────────────────────────────────────────
 
 
-def _bumped_pat_source(src: Path, tmp_path: Path) -> Path:
-    profile = read_profile(str(src))
-    pats = tuple(
-        replace(p, category_weights=_distinct_weights(p.category_weights))
-        for p in profile.pat_situations
-    )
-    return _write_source(replace(profile, pat_situations=pats), tmp_path)
-
-
 def test_copy_pat_logic_replaces_every_pat_situation(tmp_path: Path) -> None:
-    source = _bumped_pat_source(OFF1, tmp_path)
+    source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_pat_logic=True)
     assert result.pat_situations == read_profile(str(source)).pat_situations
     assert result.pat_situations != original.pat_situations
+    assert result == replace(
+        original, pat_situations=read_profile(str(source)).pat_situations
+    )
 
 
 def test_copy_pat_logic_leaves_other_fields_alone(tmp_path: Path) -> None:
-    source = _bumped_pat_source(OFF1, tmp_path)
+    source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_pat_logic=True)
     assert result.situations == original.situations
     assert result.substitutions == original.substitutions
     assert result.field_goal_range == original.field_goal_range
+    assert result == replace(
+        original, pat_situations=read_profile(str(source)).pat_situations
+    )
 
 
 def test_copy_pat_logic_works_on_defense(tmp_path: Path) -> None:
-    source = _bumped_pat_source(DEF1, tmp_path)
+    source = _source(DEF1, tmp_path)
     target = _copy_prf(DEF1, tmp_path, name="target.prf")
+    original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_pat_logic=True)
     assert result.pat_situations == read_profile(str(source)).pat_situations
+    assert result == replace(
+        original, pat_situations=read_profile(str(source)).pat_situations
+    )
 
 
 def test_copy_without_pat_logic_leaves_pat_situations_alone(tmp_path: Path) -> None:
-    source = _bumped_pat_source(OFF1, tmp_path)
+    source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_stop_clock=True)
     assert result.pat_situations == original.pat_situations
+    assert result == _with_stop_clock(original, read_profile(str(source)))
 
 
 # ── mismatched types ──────────────────────────────────────────────────────────

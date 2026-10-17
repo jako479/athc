@@ -100,6 +100,9 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   `<path>: <reason>` itself, the readers and loaders pass the path instead of
   writing it into the message, and a batch `FAIL` line names the file once.
 
+- Tests of an add, update or remove compare the whole result, not just the
+  changed item; command tests keep spot checks. Rules:
+  [docs/testing-unit.md](docs/testing-unit.md#expected-results).
 - `docs/` is one folder per kind of doc, flat inside: one doc per module (its
   README and ARCHITECTURE merged), `formats/` (every file spec with its
   patterns), `research/` and `proposals/` (pending designs and plans; a

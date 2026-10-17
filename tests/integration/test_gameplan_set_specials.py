@@ -10,7 +10,7 @@ import pytest
 
 from athc.cli.gameplan.set_specials import set_specials
 from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
-from athc.fbpro98_gameplan import PlayRef, read_gameplan
+from athc.fbpro98_gameplan import PlayRef, read_gameplan, write_gameplan
 from tests.conftest import LEAGUE, league_toml
 from tests.integration.conftest import (
     GP_DEFENSE,
@@ -44,6 +44,19 @@ def _copy(tmp_path: Path, name: str = "offense.pln", src: Path = GP_OFFENSE) -> 
     dst = tmp_path / name
     shutil.copy2(src, dst)
     return dst
+
+
+def _without_special(path: Path, category: int = 2) -> Path:
+    """`path` rewritten with special category `category`'s custom slot empty."""
+    gp = read_gameplan(path)
+    kept = [
+        c
+        for c in gp.custom_special_plays
+        if c is not None and c.special_category != category
+    ]
+    write_gameplan(gp.with_custom_special_plays(kept), path)
+    assert read_gameplan(path).custom_special_plays[category - 1] is None
+    return path
 
 
 def _input(tmp_path: Path, text: str) -> Path:
@@ -115,7 +128,7 @@ def test_removed_options_rejected(runner, tmp_path: Path, extra: list[str]) -> N
 
 
 def test_writes_special_from_file(runner, tmp_path: Path) -> None:
-    p = _copy(tmp_path)
+    p = _without_special(_copy(tmp_path))
     result = runner.invoke(
         set_specials, ["--path", str(p), str(_input(tmp_path, SPECIAL + "\n"))]
     )
@@ -126,7 +139,7 @@ def test_writes_special_from_file(runner, tmp_path: Path) -> None:
 
 def test_a_list_saved_with_a_bom_reads_its_first_play(runner, tmp_path: Path) -> None:
     """Notepad's "UTF-8 with BOM" puts a mark before the first play name."""
-    p = _copy(tmp_path)
+    p = _without_special(_copy(tmp_path))
     inp = tmp_path / "spec.txt"
     inp.write_text(SPECIAL + "\n", encoding="utf-8-sig")
     result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
@@ -136,7 +149,7 @@ def test_a_list_saved_with_a_bom_reads_its_first_play(runner, tmp_path: Path) ->
 
 
 def test_merge_preserves_other_categories(runner, tmp_path: Path) -> None:
-    p = _copy(tmp_path)
+    p = _without_special(_copy(tmp_path))
     before = read_gameplan(str(p)).custom_special_plays
     result = runner.invoke(
         set_specials, ["--path", str(p), str(_input(tmp_path, SPECIAL + "\n"))]
@@ -163,7 +176,7 @@ def test_writes_no_backup(runner, tmp_path: Path) -> None:
 
 
 def test_skips_and_strips_comments(runner, tmp_path: Path) -> None:
-    p = _copy(tmp_path)
+    p = _without_special(_copy(tmp_path))
     inp = _input(tmp_path, f":: header\n{SPECIAL} :: kickoff\n")
     result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
     assert result.exit_code == 0
@@ -171,7 +184,7 @@ def test_skips_and_strips_comments(runner, tmp_path: Path) -> None:
 
 
 def test_dash_reads_from_console(runner, tmp_path: Path) -> None:
-    p = _copy(tmp_path)
+    p = _without_special(_copy(tmp_path))
     result = runner.invoke(set_specials, ["--path", str(p), "-"], input=SPECIAL + "\n")
     assert result.exit_code == 0
     assert _name(read_gameplan(str(p)).custom_special_plays[1]) == SPECIAL
@@ -437,6 +450,9 @@ def test_default_scope_is_your_teams_game_plans(
     """An offense list updates the offense game plans and skips the defense
     ones, in .lg2 order, then the tally."""
     folder = team_league(league, tmp_path, names, team="Denver")
+    for name in dict.fromkeys(names):
+        if name.startswith("OFF"):
+            _without_special(folder / name)
     result = runner.invoke(set_specials, [str(_input(tmp_path, SPECIAL + "\n"))])
     assert result.exit_code == 0
     lines = []

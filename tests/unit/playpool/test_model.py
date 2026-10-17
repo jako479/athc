@@ -55,10 +55,16 @@ def test_special_to_dict(make_play: MakePlay) -> None:
 
 def test_find_by_name(make_play: MakePlay) -> None:
     pool = PlayPool("root")
-    pool.add(OffensivePlay("AFGZoutX", make_play("AFGZoutX")))
+    play = OffensivePlay("AFGZoutX", make_play("AFGZoutX"))
+    pool.add(play)
     assert pool.find_by_name("afgzoutx") is not None
     assert pool.find_by_name("AFGZOUTX").name == "AFGZoutX"  # type: ignore[union-attr]
     assert pool.find_by_name("nope") is None
+    assert (pool.offensive_plays, pool.defensive_plays, pool.special_teams_plays) == (
+        [play],
+        [],
+        [],
+    )
 
 
 def test_add_files_by_side(make_play: MakePlay) -> None:
@@ -75,10 +81,14 @@ def test_add_files_by_side(make_play: MakePlay) -> None:
 
 def test_duplicate_name_last_wins(make_play: MakePlay) -> None:
     pool = PlayPool("root")
-    pool.add(OffensivePlay("DUP", make_play("DUP", user_category=0x01)))
-    pool.add(OffensivePlay("DUP", make_play("DUP", user_category=0x09)))
+    first = OffensivePlay("DUP", make_play("DUP", user_category=0x01))
+    second = OffensivePlay("DUP", make_play("DUP", user_category=0x09))
+    pool.add(first)
+    pool.add(second)
     dup = pool.find_by_name("DUP")
     assert dup is not None and dup.category is OffensiveCategory.RUN_MIDDLE
+    assert pool.offensive_plays == [first, second]
+    assert dup is second
 
 
 def test_add_rejects_a_bare_play(make_play: MakePlay) -> None:

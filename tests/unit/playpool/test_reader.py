@@ -270,8 +270,15 @@ def test_duplicate_winner_is_last_in_path_order(tmp_path: Path) -> None:
     src = next(PLAYS.glob("**/AF2AshtZ.ply"))  # Pass Short Middle bytes
     shutil.copy(src, tmp_path / "b" / "AF21rm12.ply")
     _copy_play("AF21rm12", tmp_path / "a")  # Run Middle, created second
-    play = read_play_pool(tmp_path).find_by_name("AF21rm12")
+    pool = read_play_pool(tmp_path)
+    play = pool.find_by_name("AF21rm12")
     assert play is not None and play.category.long == "Pass Short Middle"
+    assert [p.file_path for p in pool.offensive_plays] == [
+        tmp_path / "a" / "AF21rm12.ply",
+        tmp_path / "b" / "AF21rm12.ply",
+    ]
+    assert play is pool.offensive_plays[1]
+    assert pool.issues == ["Duplicate play name 'AF21rm12'. The last one loaded wins."]
 
 
 def test_unreadable_file_is_an_issue(tmp_path: Path) -> None:

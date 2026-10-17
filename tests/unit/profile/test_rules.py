@@ -10,18 +10,28 @@ import pytest
 from athc.fbpro98_profile import Down, MinutesRemaining, YardsToGo
 from athc.profile import (
     PercentBound,
+    ProfileRules,
     RulesFileError,
     SituationRule,
     SubstitutionRule,
     load_rules,
 )
 from athc.profile.rules import (
+    GOAL_LINE_PASS,
+    GOAL_LINE_RUN,
     PASS_LONG_RIGHT,
+    PASS_MEDIUM_LEFT,
+    PASS_MEDIUM_MIDDLE,
+    PASS_MEDIUM_RIGHT,
+    PASS_SHORT_LEFT,
+    PASS_SHORT_MIDDLE,
+    PASS_SHORT_RIGHT,
     RAZZLE_DAZZLE_PASS,
     RAZZLE_DAZZLE_RUN,
     RUN_LEFT,
     RUN_MIDDLE,
     RUN_RANDOM,
+    RUN_RIGHT,
 )
 from tests.conftest import shipped_files, shipped_id
 from tests.unit.profile.conftest import DATA, exact_substitution
@@ -69,6 +79,22 @@ def test_disallowed_expands_to_complement() -> None:
     rule = find(rules.offense_situations, down=Down.THIRD, yards=YardsToGo.ZERO_TO_ONE)
     assert rule.allowed_categories is not None
     assert RAZZLE_DAZZLE_PASS not in rule.allowed_categories
+    assert rule.allowed_categories == frozenset(
+        {
+            GOAL_LINE_RUN,
+            RUN_LEFT,
+            RUN_MIDDLE,
+            RUN_RIGHT,
+            GOAL_LINE_PASS,
+            PASS_LONG_RIGHT,
+            PASS_MEDIUM_LEFT,
+            PASS_MEDIUM_MIDDLE,
+            PASS_MEDIUM_RIGHT,
+            PASS_SHORT_LEFT,
+            PASS_SHORT_MIDDLE,
+            PASS_SHORT_RIGHT,
+        }
+    )
 
 
 def test_mandatory_parsed() -> None:
@@ -194,6 +220,7 @@ def test_layering_overrides_gameplan_compatibility(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert load_rules([a, b]).require_all_profile_categories_in_gameplan is False
+    assert load_rules([a, b]) == ProfileRules()
 
 
 def test_layering_overrides_scalar(tmp_path: Path) -> None:
@@ -204,6 +231,7 @@ def test_layering_overrides_scalar(tmp_path: Path) -> None:
     rules = load_rules([a, b])
     assert rules.min_categories == 9
     assert rules.audibles_allowed is False  # untouched by the overlay
+    assert rules == ProfileRules(audibles_allowed=False, min_categories=9)
 
 
 def test_layering_overrides_audibles(tmp_path: Path) -> None:
@@ -213,6 +241,7 @@ def test_layering_overrides_audibles(tmp_path: Path) -> None:
     b.write_text("audibles_allowed = true\n", encoding="utf-8")
     rules = load_rules([a, b])
     assert rules.audibles_allowed is True
+    assert rules == ProfileRules()
 
 
 def test_all_time_buckets_match_distinctly(tmp_path: Path) -> None:
@@ -457,6 +486,12 @@ def test_substitutions_layering_override_and_accumulate(tmp_path: Path) -> None:
         out_percent=PercentBound(minimum=70)
     )
     assert rules.substitutions["DL"] == exact_substitution(60, 70)  # accumulated
+    assert rules == ProfileRules(
+        substitutions={
+            "QB": SubstitutionRule(out_percent=PercentBound(minimum=70)),
+            "DL": exact_substitution(60, 70),
+        }
+    )
 
 
 # Percent limits (min 0, max 100, out == in) accepted for every group.

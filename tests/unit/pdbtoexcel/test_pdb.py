@@ -21,6 +21,16 @@ from tests.unit.pdbtoexcel.conftest import (
 
 _FIELDS = [f[0] for f in PLAY_DATA._fields_ if f[0] not in ("team_name", "play_name")]
 
+# Every play type with no records, to `|` a test's expected keys onto.
+_EMPTY: dict[PLAY_DATA.PLAY_TYPE, list[tuple[str, str]]] = {
+    t: [] for t in PLAY_DATA.PLAY_TYPE
+}
+
+
+def _keys(pdb: PDB) -> dict[PLAY_DATA.PLAY_TYPE, list[tuple[str, str]]]:
+    """Each play type's (team, play) keys, sorted."""
+    return {t: sorted(d) for t, d in pdb.plays.items()}
+
 
 def _normalize(pdb: PDB) -> dict:
     out: dict = {}
@@ -70,6 +80,13 @@ def test_duplicate_play_merges(tmp_path: Path) -> None:
     pdb = PDB(str(write_pdb(tmp_path / "dup.pdb", plays=[a, b])))
     merged = pdb.plays[PLAY_DATA.PLAY_TYPE.RUN][("Team", "RUNPLAY")]
     assert (int(merged.play_count), int(merged.total_yards)) == (5, 20)
+    assert bytes(merged) == bytes(
+        make_play_data(
+            PLAY_DATA.PLAY_TYPE.RUN, "Team", "RUNPLAY", play_count=5, total_yards=20
+        )
+    )
+    assert _keys(pdb) == _EMPTY | {PLAY_DATA.PLAY_TYPE.RUN: [("Team", "RUNPLAY")]}
+    assert pdb.warnings == []
 
 
 def test_renamed_play_is_rewritten(tmp_path: Path) -> None:
@@ -77,6 +94,10 @@ def test_renamed_play_is_rewritten(tmp_path: Path) -> None:
     pdb = PDB(str(write_pdb(tmp_path / "ren.pdb", plays=[play])))
     assert ("Team", "WR27PT01") in pdb.plays[PLAY_DATA.PLAY_TYPE.PASS]
     assert ("Team", "WR47PT01") not in pdb.plays[PLAY_DATA.PLAY_TYPE.PASS]
+    assert bytes(pdb.plays[PLAY_DATA.PLAY_TYPE.PASS][("Team", "WR27PT01")]) == bytes(
+        make_play_data(PLAY_DATA.PLAY_TYPE.PASS, "Team", "WR27PT01", play_count=1)
+    )
+    assert _keys(pdb) == _EMPTY | {PLAY_DATA.PLAY_TYPE.PASS: [("Team", "WR27PT01")]}
 
 
 def test_clock_plays_skipped(tmp_path: Path) -> None:
@@ -93,6 +114,11 @@ def test_play_data_iadd_and_is_valid() -> None:
         PLAY_DATA.PLAY_TYPE.RUN, "T", "P", play_count=4, sacks=2, interceptions=1
     )
     assert (int(a.play_count), int(a.sacks), int(a.interceptions)) == (7, 3, 3)
+    assert bytes(a) == bytes(
+        make_play_data(
+            PLAY_DATA.PLAY_TYPE.RUN, "T", "P", play_count=7, sacks=3, interceptions=3
+        )
+    )
     assert a.is_valid()
     assert not PLAY_DATA().is_valid()  # empty names
 
@@ -118,6 +144,17 @@ def test_convert_invalid_moves_misclassified_run_to_pass(tmp_path: Path) -> None
     assert (
         int(moved.sacks) == 5
     )  # all-negative yards on a misclassified run become sacks
+    assert bytes(moved) == bytes(
+        make_play_data(
+            PLAY_DATA.PLAY_TYPE.PASS,
+            "Team",
+            "PASSPLAY",
+            play_count=5,
+            total_yards=-10,
+            sacks=5,
+        )
+    )
+    assert _keys(pdb) == _EMPTY | {PLAY_DATA.PLAY_TYPE.PASS: [("Team", "PASSPLAY")]}
 
 
 def test_invalid_records_are_warnings_not_logs(

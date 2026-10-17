@@ -68,6 +68,35 @@ REAL_2048_FINISH = {
     "West2": ["Chicago", "Minnesota", "Green Bay", "San Francisco", "Seattle"],
 }
 
+# The 2047 order the loader gives with SEED. Level teams fall to the seed's
+# coin toss, so this is the loader's order, not a published one.
+OVERALL_2047 = [
+    "Pittsburgh",
+    "Washington",
+    "Minnesota",
+    "Cincinnati",
+    "Miami",
+    "Buffalo",
+    "Seattle",
+    "San Francisco",
+    "Baltimore",
+    "Las Vegas",
+    "Philadelphia",
+    "Chicago",
+    "Green Bay",
+    "Denver",
+    "Jacksonville",
+    "Atlanta",
+    "New York",
+    "New England",
+]
+FINISH_2047 = {
+    "East1": ["Miami", "Buffalo", "Jacksonville", "New England"],
+    "West1": ["Pittsburgh", "Cincinnati", "Baltimore", "Las Vegas", "Denver"],
+    "East2": ["Washington", "Philadelphia", "Atlanta", "New York"],
+    "West2": ["Minnesota", "Seattle", "San Francisco", "Chicago", "Green Bay"],
+}
+
 
 def _files(tmp_path: Path, previous: str, upcoming: str) -> tuple[Path, Path]:
     """The two fixtures copied to `previous\\<LEAGUE>.lge` and
@@ -152,17 +181,8 @@ def test_2047_league_follows_realignment_and_renames(tmp_path: Path) -> None:
         "Las Vegas",
         "Denver",
     ]
-    assert _overall(league)[:9] == [
-        "Pittsburgh",
-        "Washington",
-        "Minnesota",
-        "Cincinnati",
-        "Miami",
-        "Buffalo",
-        "Seattle",
-        "San Francisco",
-        "Baltimore",
-    ]
+    assert _overall(league) == OVERALL_2047
+    assert _finish(league) == FINISH_2047
 
 
 def test_unfinished_season_is_a_warning(tmp_path: Path) -> None:
@@ -238,6 +258,11 @@ def test_a_name_passed_along_a_chain_of_renames_is_accepted(tmp_path: Path) -> N
     league = _load(tmp_path, PREVIOUS_2047, UPCOMING_2048, renames, 2048)
     assert _overall(league)[2] == "Denver"
     assert _overall(league)[4] == "Los Angeles"
+    swap = {"Los Angeles": "Denver", "Denver": "Los Angeles"}
+    assert _overall(league) == [swap.get(n, n) for n in REAL_2048_OVERALL]
+    assert _finish(league) == {
+        k: [swap.get(n, n) for n in v] for k, v in REAL_2048_FINISH.items()
+    }
 
 
 # --- built files -----------------------------------------------------------------
@@ -607,6 +632,36 @@ def test_a_team_that_moved_ranks_by_its_previous_division() -> None:
     assert _finish(league)["East1"][:3] == ["A3", "A1", "A5"]
     assert _finish(league)["West1"][:2] == ["A7", "A6"]
     assert _overall(league)[:5] == ["A3", "A1", "A7", "A5", "A6"]
+    # A4 and the B teams played no game: A4 beats 0-1 A8 and A9 on division
+    # net points; the B divisions go by the coin toss.
+    assert _finish(league) == {
+        "East1": ["A3", "A1", "A5", "A2"],
+        "West1": ["A7", "A6", "A4", "A8", "A9"],
+        "East2": ["B3", "B1", "B2", "B4"],
+        "West2": ["B8", "B7", "B9", "B6", "B5"],
+    }
+    # The winless go by strength of schedule (A8, A2 and A9 played 2-1 teams),
+    # then previous division finish, then the coin toss.
+    assert _overall(league) == [
+        "A3",
+        "A1",
+        "A7",
+        "A5",
+        "A6",
+        "A8",
+        "A2",
+        "A9",
+        "B3",
+        "B8",
+        "B1",
+        "B7",
+        "B2",
+        "A4",
+        "B9",
+        "B6",
+        "B4",
+        "B5",
+    ]
 
 
 def test_tied_playoff_game_rejected() -> None:
@@ -654,6 +709,26 @@ def test_division_finish_ranks_the_upcoming_members_by_previous_season() -> None
     assert league.has_divisions
     assert _finish(league)["East1"] == ["A5", "A1", "A2", "A3"]
     assert _finish(league)["West1"] == ["A9", "A4", "A6", "A7", "A8"]
+    # The B teams played no game: the coin toss orders their divisions, and
+    # they follow the A teams overall by that finish, then the coin toss.
+    assert _finish(league) == {
+        "East1": ["A5", "A1", "A2", "A3"],
+        "West1": ["A9", "A4", "A6", "A7", "A8"],
+        "East2": ["B3", "B1", "B2", "B4"],
+        "West2": ["B8", "B7", "B9", "B6", "B5"],
+    }
+    assert _overall(league) == [
+        *strength,
+        "B3",
+        "B8",
+        "B1",
+        "B7",
+        "B2",
+        "B9",
+        "B6",
+        "B4",
+        "B5",
+    ]
 
 
 def test_level_division_members_go_by_the_coin_toss() -> None:
@@ -711,3 +786,35 @@ def test_moved_teams_tie_broken_by_the_previous_seasons_divisions() -> None:
         _conference("B", ("East", b_new[:4]), ("West", b_new[4:])),
     )
     assert _finish(_build(previous, upcoming))["East1"] == ["A2", "A5", "A1", "A3"]
+    league = _build(previous, upcoming)
+    # A6 (0-2) falls behind the teams with no game on division net points;
+    # those, and the B divisions, go by the coin toss.
+    assert _finish(league) == {
+        "East1": ["A2", "A5", "A1", "A3"],
+        "West1": ["A4", "A7", "A8", "A9", "A6"],
+        "East2": ["B3", "B1", "B2", "B4"],
+        "West2": ["B8", "B7", "B9", "B6", "B5"],
+    }
+    # A5 is ahead of A1 on previous division finish, A6 ahead of the teams
+    # with no game on strength of schedule; the rest go by previous division
+    # finish, then the coin toss.
+    assert _overall(league) == [
+        "A2",
+        "A5",
+        "A1",
+        "A6",
+        "B3",
+        "B8",
+        "B1",
+        "B7",
+        "A7",
+        "A3",
+        "B2",
+        "B9",
+        "A8",
+        "A4",
+        "B6",
+        "A9",
+        "B4",
+        "B5",
+    ]

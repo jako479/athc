@@ -39,6 +39,34 @@ DIVISIONS_2048 = (
     ("Washington", "Atlanta", "New York", "Philadelphia"),
     ("Chicago", "Minnesota", "Green Bay", "San Francisco", "Seattle"),
 )
+# The 2047 order the scheduler method gives with seed 0. Level teams fall to
+# the seed's coin toss, so this is the library's order, not a published one.
+OVERALL_2047 = (
+    "Pittsburgh",
+    "Washington",
+    "Minnesota",
+    "Cincinnati",
+    "Miami",
+    "Buffalo",
+    "Seattle",
+    "San Francisco",
+    "Baltimore",
+    "Las Vegas",
+    "Philadelphia",
+    "Chicago",
+    "Green Bay",
+    "Denver",
+    "Jacksonville",
+    "Atlanta",
+    "New York",
+    "New England",
+)
+DIVISIONS_2047 = (
+    ("Miami", "Buffalo", "Jacksonville", "New England"),
+    ("Pittsburgh", "Cincinnati", "Baltimore", "Las Vegas", "Denver"),
+    ("Washington", "Philadelphia", "Atlanta", "New York"),
+    ("Minnesota", "Seattle", "San Francisco", "Chicago", "Green Bay"),
+)
 MOVES_2048 = {"Baltimore": "Los Angeles"}
 MOVES_2047 = {
     "Houston": "Miami",
@@ -70,6 +98,7 @@ def test_answers_are_the_current_files_teams():
     assert all(
         any(team is known for known in current.teams) for team in standings.league()
     )
+    assert sorted(map(id, standings.league())) == sorted(map(id, current.teams))
 
 
 def test_a_team_that_changed_division_brings_its_record():
@@ -89,6 +118,15 @@ def test_a_team_that_changed_division_brings_its_record():
         "Buffalo",
         "Jacksonville",
         "New England",
+    )
+    assert names(standings.league()) == OVERALL_2047
+    assert (
+        tuple(
+            names(standings.division(division))
+            for conference in current.conferences
+            for division in conference.divisions
+        )
+        == DIVISIONS_2047
     )
 
 

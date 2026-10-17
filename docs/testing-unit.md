@@ -45,6 +45,8 @@ Rule of thumb: real where it validates real-world fidelity; constructed where yo
 
 Keep expected values **inline** in the test (`@pytest.mark.parametrize` or a small `FixtureExpectation` dataclass) — `data/` holds the inputs, the test holds the answer. Only for genuinely large/opaque output (e.g. gameplan's 64-slot name dump) commit a plain `data/expected/*.txt` instead.
 
+A test of an add, update or remove compares the **whole result** with plain equality: the original with exactly that change (`dataclasses.replace`, tuple literals, a small builder, whole file text), never built by calling the code under test. Where the change copies from a source, the source differs from the target in every part a copy could take, so a copy that takes more than asked shows. An order a seeded coin toss decides is pinned in full from one run. Command tests keep spot checks of what they set, written into a slot the test emptied first.
+
 ### Fixture data layout
 
 Flat `<lib>/data/` folder, scenario encoded in the filename (`offense-passlong-typical.ply`, `truncated-header.ply`, `empty.ply`). **Do not** mirror the league play-pool category folders — fixtures are organized by parser behavior, not football category (matches mutagen, CPython). Subfolder by parser concern (`valid/`, `malformed/`) only if a suite grows past ~30–40 files.

@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from athc.fbpro98_play import CategoryLabels
+from athc.gameplan import OffenseCategoryRule, Rules
 from athc.gameplan import load_rules as _load_rules
 from athc.gameplan.rules import RulesFileError
 from tests.conftest import PNFL_LABELS, shipped_files, shipped_id
@@ -468,6 +469,7 @@ def test_layering_overrides_profile_compatibility(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert load_rules([a, b]).require_all_gameplan_categories_in_profile is False
+    assert load_rules([a, b]) == Rules()
 
 
 # ── top-level keys ────────────────────────────────────────────────────────────
@@ -495,6 +497,9 @@ def test_layering_replaces_category_rule(tmp_path: Path) -> None:
     rule = load_rules([a, b]).offense_categories["Run Middle"]
     assert rule.min_count == 4
     assert rule.required is False  # replaced, not merged with a's required=true
+    assert load_rules([a, b]) == Rules(
+        offense_categories={"Run Middle": OffenseCategoryRule(min_count=4)}
+    )
 
 
 def test_layering_replaces_allowed_list(tmp_path: Path) -> None:
@@ -511,6 +516,10 @@ def test_layering_replaces_allowed_list(tmp_path: Path) -> None:
     rules = load_rules([a, b])
     assert rules.allowed_offensive_categories == frozenset({"Pass Short Left"})
     assert rules.allowed_defensive_categories == frozenset({"Run Left"})
+    assert rules == Rules(
+        allowed_offensive_categories=frozenset({"Pass Short Left"}),
+        allowed_defensive_categories=frozenset({"Run Left"}),
+    )
 
 
 def test_bom_is_skipped(tmp_path: Path) -> None:

@@ -141,6 +141,10 @@ def test_divisional_league_division_sizes_come_from_the_members() -> None:
     sizes = {division.name: division.expected_size for division in league.divisions}
     assert sizes == {"AFC_EAST": 5, "AFC_WEST": 4, "NFC_EAST": 4, "NFC_WEST": 5}
     assert league.max_divisional_games_per_week == 8
+    assert {
+        division.name: tuple(team.metro for team in order)
+        for division, order in league.division_standings.items()
+    } == standings
 
 
 def test_divisional_league_rejects_an_empty_division() -> None:

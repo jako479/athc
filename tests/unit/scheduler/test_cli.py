@@ -10,6 +10,7 @@ upcoming file. The real solve runs only in the slow fixtures; here
 from __future__ import annotations
 
 import shutil
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -20,7 +21,7 @@ import athc.scheduler.main as main_module
 from athc.cli import cli
 from athc.cli.generate_schedule import generate_schedule
 from athc.errors import DIRECTORY_INVALID, AthcError
-from athc.scheduler.config import SchedulerConfig
+from athc.scheduler.config import SchedulerConfig, load_scheduler_config
 from athc.scheduler.domain.league import Conference, Team
 from athc.scheduler.domain.schedule import Game, Schedule
 from athc.scheduler.main import GeneratedSchedule
@@ -398,6 +399,10 @@ def test_phase2_time_limit_replaces_only_phase_2s_limit(
     assert isinstance(config, SchedulerConfig)
     assert config.solver.phase1_time_limit == 40.0
     assert config.solver.phase2_time_limit == 7
+    expected = load_scheduler_config(rules)
+    assert config == replace(
+        expected, solver=replace(expected.solver, phase2_time_limit=7)
+    )
 
 
 def test_cli_errors_when_the_previous_season_is_not_finished(

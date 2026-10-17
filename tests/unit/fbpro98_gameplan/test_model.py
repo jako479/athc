@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from athc.fbpro98_gameplan import (
@@ -209,25 +211,39 @@ def test_with_custom_special_plays_preserves_stock():
     assert updated.special_plays[0] == SpecialSlot(custom=new_a, stock=stock_a)
     assert updated.special_plays[1] == SpecialSlot(stock=stock_b)
     assert updated.special_plays[4] == SpecialSlot(custom=new_e)
+    assert updated == replace(
+        gameplan,
+        special_plays=_specials(
+            c1=SpecialSlot(custom=new_a, stock=stock_a),
+            c2=SpecialSlot(stock=stock_b),
+            c5=SpecialSlot(custom=new_e),
+        ),
+    )
 
 
 def test_with_custom_special_plays_preserves_clock_slots():
     gameplan = _offense()
-    updated = gameplan.with_custom_special_plays(
-        [_make_custom(special_category=2, play_category=1)]
-    )
+    play = _make_custom(special_category=2, play_category=1)
+    updated = gameplan.with_custom_special_plays([play])
     assert updated.special_plays[10] == gameplan.special_plays[10]
     assert updated.special_plays[11] == gameplan.special_plays[11]
+    assert updated == replace(
+        gameplan, special_plays=_offense_specials(c2=SpecialSlot(custom=play))
+    )
 
 
 def test_with_custom_special_plays_clears_uncovered_customs():
     gameplan = _defense(
         specials=_specials(c4=SpecialSlot(custom=_make_custom(special_category=4)))
     )
-    updated = gameplan.with_custom_special_plays([_make_custom(special_category=2)])
+    new = _make_custom(special_category=2)
+    updated = gameplan.with_custom_special_plays([new])
     placed = updated.custom_special_plays
     assert placed[1] is not None and placed[1].special_category == 2
     assert all(p is None for i, p in enumerate(placed) if i != 1)
+    assert updated == replace(
+        gameplan, special_plays=_specials(c2=SpecialSlot(custom=new))
+    )
 
 
 def test_with_custom_special_plays_order_independent():
@@ -239,6 +255,16 @@ def test_with_custom_special_plays_order_independent():
         gameplan.with_custom_special_plays([a, b, c]).custom_special_plays
         == gameplan.with_custom_special_plays([c, b, a]).custom_special_plays
     )
+    expected = replace(
+        gameplan,
+        special_plays=_specials(
+            c1=SpecialSlot(custom=c),
+            c3=SpecialSlot(custom=a),
+            c7=SpecialSlot(custom=b),
+        ),
+    )
+    assert gameplan.with_custom_special_plays([a, b, c]) == expected
+    assert gameplan.with_custom_special_plays([c, b, a]) == expected
 
 
 def test_with_custom_special_plays_rejects_stock_via_post_init():
@@ -248,10 +274,13 @@ def test_with_custom_special_plays_rejects_stock_via_post_init():
 
 @pytest.mark.parametrize("category", [1, 10])
 def test_with_custom_special_plays_accepts_range_ends(category: int):
-    updated = _defense().with_custom_special_plays(
-        [_make_custom(special_category=category)]
-    )
+    play = _make_custom(special_category=category)
+    updated = _defense().with_custom_special_plays([play])
     assert updated.special_plays[category - 1].custom is not None
+    assert updated == replace(
+        _defense(),
+        special_plays=_specials(**{f"c{category}": SpecialSlot(custom=play)}),
+    )
 
 
 @pytest.mark.parametrize("category", [0, 11])
@@ -328,10 +357,12 @@ def test_with_normal_plays_too_many_raises():
 
 def test_with_normal_plays_returns_new_instance():
     gameplan = _defense()
-    updated = gameplan.with_normal_plays([_make_custom(special_category=0)])
+    play = _make_custom(special_category=0)
+    updated = gameplan.with_normal_plays([play])
     assert updated is not gameplan
     assert gameplan.normal_plays[0] is None
     assert updated.normal_plays[0] is not None
+    assert updated == replace(gameplan, normal_plays=(play, *(None,) * 63))
 
 
 @pytest.mark.parametrize(

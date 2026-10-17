@@ -122,13 +122,15 @@ def test_pick_skips_play_already_in_gameplan(pool: PlayPool) -> None:
     gp = _offense_gameplan(
         normals={0: offense_normal("OLDRUN"), 1: offense_normal(NORMAL_REPL, 0x09)}
     )
-    picked = pick_replacement(
-        gp, "OLDRUN", _entries(pool, NORMAL_REPL, NORMAL_TARGET), Rules(), pool
-    )
+    entries = _entries(pool, NORMAL_REPL, NORMAL_TARGET)
+    picked = pick_replacement(gp, "OLDRUN", entries, Rules(), pool)
     assert picked.skipped == (Skipped(NORMAL_REPL, ("already in the game plan",)),)
     assert picked.entry is not None and picked.entry.name == NORMAL_TARGET
     assert picked.updated is not None
     assert _name(picked.updated.normal_plays[0]) == NORMAL_TARGET
+    assert picked.updated == _offense_gameplan(
+        normals={0: entries[1], 1: offense_normal(NORMAL_REPL, 0x09)}
+    )
 
 
 def test_pick_skips_play_breaking_a_rule(pool: PlayPool) -> None:
@@ -262,12 +264,14 @@ def test_replace_offense_normal_multiple_slots() -> None:
     gp = _offense_gameplan(
         normals={0: old, 5: old, 63: old, 1: offense_normal("KEEPME", 0x09)}
     )
-    out, normal_hits, special_hits = replace_in_gameplan(
-        gp, "OLDRUN", offense_normal("NEW", 0x09)
-    )
+    new = offense_normal("NEW", 0x09)
+    out, normal_hits, special_hits = replace_in_gameplan(gp, "OLDRUN", new)
     assert [i for i, _ in normal_hits] == [0, 5, 63] and special_hits == []
     assert [_name(out.normal_plays[i]) for i in (0, 5, 63)] == ["NEW"] * 3
     assert _name(out.normal_plays[1]) == "KEEPME"  # bystander preserved
+    assert out == _offense_gameplan(
+        normals={0: new, 5: new, 63: new, 1: offense_normal("KEEPME", 0x09)}
+    )
 
 
 def test_replace_defense_normal() -> None:
@@ -280,6 +284,9 @@ def test_replace_defense_normal() -> None:
     assert [i for i, _ in normal_hits] == [0] and special_hits == []
     assert _name(out.normal_plays[0]) == "NEWDEF"
     assert _name(out.normal_plays[1]) == "KEEPDEF"  # bystander preserved
+    assert out == _defense_gameplan(
+        normals={0: defense_normal("NEWDEF"), 1: defense_normal("KEEPDEF")}
+    )
 
 
 def test_replace_offense_special() -> None:
@@ -292,6 +299,9 @@ def test_replace_offense_special() -> None:
     assert normal_hits == [] and [n for n, _ in special_hits] == [1]
     assert _name(out.custom_special_plays[0]) == "NEWFG"
     assert _name(out.custom_special_plays[1]) == "KEEPKICK"  # other special preserved
+    assert out == _offense_gameplan(
+        specials={1: offense_special("NEWFG", 1), 2: offense_special("KEEPKICK", 2)}
+    )
 
 
 def test_replace_defense_special() -> None:
@@ -304,12 +314,16 @@ def test_replace_defense_special() -> None:
     assert normal_hits == [] and [n for n, _ in special_hits] == [2]
     assert _name(out.custom_special_plays[1]) == "NEWKR"  # category 2 → index 1
     assert _name(out.custom_special_plays[2]) == "KEEPPR"  # other special preserved
+    assert out == _defense_gameplan(
+        specials={2: defense_special("NEWKR", 2), 3: defense_special("KEEPPR", 3)}
+    )
 
 
 def test_replace_case_insensitive_target() -> None:
     gp = _offense_gameplan(normals={7: offense_normal("MixedCase")})
     out, normal_hits, _ = replace_in_gameplan(gp, "mixedcase", offense_normal("NEW"))
     assert [i for i, _ in normal_hits] == [7] and _name(out.normal_plays[7]) == "NEW"
+    assert out == _offense_gameplan(normals={7: offense_normal("NEW")})
 
 
 def test_replace_special_into_normal_raises() -> None:

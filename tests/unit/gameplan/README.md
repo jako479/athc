@@ -113,6 +113,8 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 |---|---|---|---|---|
 | Special category 11 play (no custom slot) | make | `InvalidPlayListError` "which has no custom slot" | `test_special_play_without_custom_slot_is_rejected` | ☑ |
 | Special category 10 play (last custom slot) | make | placed in slot 10 | `test_special_play_in_last_custom_category_is_accepted` | ☑ |
+| Normal plays with a blank line | make | slots filled in order, the blank one empty | `test_normal_plays_fill_slots_in_order_with_blanks_empty` | ☑ |
+| Special play merged into a plan with a custom | make | its category filled; other customs, blank line and clock stocks kept | `test_special_plays_merge_keeps_unlisted_categories` | ☑ |
 | Special-teams play in a normal slot | make | `InvalidPlayListError` "'KICKPLY' is a special-teams play and cannot go in a normal slot." | `test_special_teams_play_in_a_normal_slot_is_rejected` | ☑ |
 | Defensive play in an offense game plan | make | "'DEFPLAY' is a defensive play, but the game plan is offensive." | `test_defensive_play_in_an_offense_game_plan_is_rejected` | ☑ |
 | Offensive play in a defense game plan | make | "'OFFPLAY' is an offensive play, but the game plan is defensive." | `test_offensive_play_in_a_defense_game_plan_is_rejected` | ☑ |

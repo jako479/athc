@@ -228,6 +228,7 @@ def test_round_trip_modified_field_goal_range(tmp_path: Path) -> None:
     write_profile(modified, out_path)
     reloaded = read_profile(out_path)
     assert reloaded.field_goal_range == 45
+    assert reloaded == modified
 
 
 def test_round_trip_modified_use_audibles(tmp_path: Path) -> None:
@@ -237,6 +238,7 @@ def test_round_trip_modified_use_audibles(tmp_path: Path) -> None:
     write_profile(toggled, out_path)
     reloaded = read_profile(out_path)
     assert reloaded.use_audibles is not original.use_audibles
+    assert reloaded == toggled
 
 
 # ---------- use_audibles round-trips on real audible-enabled fixtures ----------
@@ -268,6 +270,7 @@ def test_update_existing_offense_in_place(tmp_path: Path) -> None:
     reloaded = read_profile(copy_path)
     assert reloaded.field_goal_range == 45
     assert reloaded.profile_type == ProfileType.OFFENSE
+    assert reloaded == modified
 
 
 def test_update_existing_defense_in_place(tmp_path: Path) -> None:
@@ -278,6 +281,7 @@ def test_update_existing_defense_in_place(tmp_path: Path) -> None:
     reloaded = read_profile(copy_path)
     assert reloaded.use_audibles is not profile.use_audibles
     assert reloaded.profile_type == ProfileType.DEFENSE
+    assert reloaded == modified
 
 
 def test_write_new_offense_from_scratch(tmp_path: Path) -> None:
