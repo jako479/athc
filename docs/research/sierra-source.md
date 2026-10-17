@@ -306,22 +306,14 @@ Injury names, by type (`ROSPLYR.CPP:117-163`):
 
 - Old format: a first offset of 24 means an old stock play with no user-category byte; user category = play category (`PLAY.CPP:206-209`).
 - Old play blocks are converted, auto-categorized and rewritten on disk (`PLAY.CPP:3184-3209`).
-- Role flags are the high byte of a 16-bit rank word: 0x0100 pre-snap (snapper), 0x0200 after-snap (receives the snap), 0x0400 kicker; rank is the low byte (`PLAY.CPP:273-285, 639-649`).
+- Role flags (`PLAY.CPP:273-285, 639-649`):
+  - The game finds the snap taker by role bit 1 on whatever slot holds it, not by slot 0.
   - Only one slot keeps each flag; on load the last flagged slot wins.
-  - On defense the snapper flag means preferred player (`PLAY.H:117-123`).
-- Command word: code in the low byte, argument count in the low nibble of the high byte (`PLAY.CPP:243-246`).
-  - Load reads arguments only for counts 1 and 2 (`PLAY.CPP:248-265`); save recomputes the count (`PLAY.CPP:677-683`).
-- Argument counts by command (`ComSize`, `PLAY.CPP:2556-2600`):
-  - 2 (x, y): ZONE, PASS, BLOCK_MOVE_TO, MOVE_TO, MOTION_STOP, MOTION_REVERSE, HANDOFF_TO, FAKE_HANDOFF_TO, FAKE_PASS_TO.
-  - 1: SNAP_TO, CHECK_NUM, TIMED_PASS, THROW_PASS_AS, RUN, PASS_DEFENSE, SHADE_COVERAGE, SHIFT_TO, RUN_PURSUIT_IS, PURSUIT_IS, PASS_COVER_IS, RUN_DEFENSE, RUN_RUSH, KEY_ON, BLOCK, WAIT_FOR, PLAYER.
-  - 0: everything else.
-- PASS_DEFENSE takes 2 arguments when man-to-man (data1 = 2) (`PLAY.CPP:680-681`).
-  - The second packs coverage (bits 7-6), rating (5-3) and rank (2-0), unscaled (`PLAY.CPP:2519-2521`).
-- After the QB's CHECK_NUM(n), the next n commands name receiver slots in check order; the command after HANDOFF_TO names the ball carrier (`PLAY.CPP:2199-2217`).
-- Flip swaps RUN 4/5 and BLOCK 2/3 (left and right) (`PLAY.CPP:1210-1222`).
+- Argument count: only the low 4 bits of its byte count (`PLAY.CPP:243-246`).
+  - Load reads arguments only for counts 1 and 2 (`PLAY.CPP:248-265`); save recomputes the count (`PLAY.CPP:676-683`).
 - Coordinates pass through the editor's pixel grid on every load and save (`PLAY.CPP:2616-2630`).
   - Inference: re-saving in the game snaps x to steps of about 7.8 units.
-- Play Wizard plays use category 0xFF (offense) or 0xFE (defense), shown as "USER SPECIFIC" (`PLAY.CPP:140-157, 2315-2319`).
+- The editor starts a new play as `Off_Wiz` or `Def_Wiz`, with both categories 0xFF (offense) or 0xFE (defense), shown as "USER SPECIFIC" (`PLAY.CPP:140-157, 2315-2319`).
 - Coaches change only the user category; the play category changes only in Sierra's internal mode (`PLAY.CPP:2485-2496`).
 - Side comes from bit 0 of the play category, not the user category (`PLAY.CPP:288`).
 - The game names every 6-bit category value (`PLAY.CPP:2322-2382`):
@@ -697,11 +689,7 @@ Each spec's ImHex pattern (`.hexpat`) changes to match. The Hex Workshop pattern
 - Fix: the snap-taker flag can sit on any slot, not slot 0; only one slot keeps each role flag.
 - Fix: on defense the game shows the fakes with the offense names; only FG/PAT, kick, punt, onside, free and squib have return labels.
 - Argument count: only the low 4 bits count; the game reads arguments only for counts 1 and 2 and recomputes the count on save.
-- Every command's name and argument count (section 6). The source has no numeric codes, so only athc's four have codes.
-- Man-to-man pass defense: the second argument packs coverage, rating and rank.
-- After CHECK_NUM(n), the next n commands name the receivers in check order; the command after HANDOFF_TO names the ball carrier.
-- Flip swaps the left and right RUN and BLOCK arguments.
-- Play Wizard plays: 0xFF / 0xFE, named Off_Wiz / Def_Wiz, shown as User Specific.
+- New plays start as Off_Wiz / Def_Wiz with 0xFF / 0xFE, shown as User Specific.
 - Old format: first offset 24 means no user-category byte; the game converts such plays and rewrites them.
 - The game names every category value: goal line beats side, Razzle Dazzle beats distance. Special codes 13-16 are the random run and pass plays.
 - Side comes from the play category's bit 0; coaches change only the user category.
