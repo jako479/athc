@@ -25,7 +25,6 @@ htmlcov/
 .env/
 env/
 .rye/
-.python-version
 schedule_*_[cd]_*.*
 
 # VS Code
@@ -49,3 +48,7 @@ CLAUDE.local.md
 # OS
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
