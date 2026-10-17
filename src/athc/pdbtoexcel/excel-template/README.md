@@ -20,9 +20,19 @@ uv run python .venv\Scripts\vba_extract.py src\athc\pdbtoexcel\excel-template\Pd
 move /y vbaProject.bin src\athc\pdbtoexcel\resources\vbaProject.bin
 ```
 
+```powershell
+uv run python .venv\Scripts\vba_extract.py src\athc\pdbtoexcel\excel-template\PdbToExcel.xlsm
+Move-Item -Force vbaProject.bin src\athc\pdbtoexcel\resources\vbaProject.bin
+```
+
 For categories:
 
 ```bat
 uv run python .venv\Scripts\vba_extract.py src\athc\pdbtoexcel\excel-template\PdbToExcelWithCategories.xlsm
 move /y vbaProject.bin src\athc\pdbtoexcel\resources\vbaProject_categories.bin
+```
+
+```powershell
+uv run python .venv\Scripts\vba_extract.py src\athc\pdbtoexcel\excel-template\PdbToExcelWithCategories.xlsm
+Move-Item -Force  vbaProject.bin src\athc\pdbtoexcel\resources\vbaProject_categories.bin
 ```
