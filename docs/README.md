@@ -57,6 +57,7 @@ Docs for repo readers; the end-user docs are in `config/release/docs/`. One fold
 - [nfl-formula.md](research/nfl-formula.md) — the NFL's own scheduling formula
 - [nfl-schedules.md](research/nfl-schedules.md) — NFL schedule patterns behind the phase-2 rules
 - [pnfl-formats.md](research/pnfl-formats.md) — decoding the PNFL's league files
+- [sierra-source.md](research/sierra-source.md) — what Sierra's FbPro98 source shows: ratings, files, computer teams
 - [standings-tie-breakers.md](research/standings-tie-breakers.md) — the game's, the NFL's, pnfl.biz's and the scheduler's tie-breakers side by side
 
 ## Proposals
