@@ -207,7 +207,8 @@ A file or folder that exists by that name wins over the key.
    into each TARGET. SOURCE is a .prf file or a profile key; each TARGET is
    a .prf file, a folder (-r includes subfolders), a wildcard or a profile
    key. Targets of the other side, and the source itself, are skipped with a
-   SKIP line. No backup is made. Copy does not check the rules -- run
+   SKIP line; the source as the only TARGET file is an error. No backup is
+   made. Copy does not check the rules -- run
    athc profile check afterward.
 
    Show help:

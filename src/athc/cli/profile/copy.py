@@ -32,6 +32,9 @@ _FLAG_LABELS = {
     "copy_pat_logic": "pat-logic",
 }
 
+# Windows' `copy` words for a file copied onto itself.
+_ONTO_ITSELF = "The file cannot be copied onto itself."
+
 
 @profile.command(
     name="copy",
@@ -109,9 +112,16 @@ def copy(
         )
     profiles = team_profiles((source, *target), team=team, league=league)
     source_path = one_profile(source, profiles)
+    source_resolved = source_path.resolve()
+    expanded = expand_names(target, profiles)
+    # The source as the one file named is refused, as Windows' `copy` does; in
+    # a bulk copy (more targets, a folder, a wildcard) it is only skipped.
+    if len(target) == 1 and expanded.paths:
+        only = Path(expanded.paths[0])
+        if only.is_file() and only.resolve() == source_resolved:
+            raise AthcError(_ONTO_ITSELF, only)
     side = "offense" if read_profile(source_path).is_offense else "defense"
 
-    expanded = expand_names(target, profiles)
     collected = collect_files(expanded.paths, suffix=".prf", recursive=recursive)
     errors = [*expanded.errors, *collected.errors]
     for line in errors:
@@ -120,7 +130,6 @@ def copy(
         console.warn(line)
 
     other_side = "defense" if side == "offense" else "offense"
-    source_resolved = source_path.resolve()
     updated = skipped = 0
     failed = len(errors)
     for path in collected.files:

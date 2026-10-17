@@ -10,7 +10,7 @@ Every command prints through the shared console ([architecture](architecture.md#
 | Command | Lines | Exit 1 (findings) |
 |---|---|---|
 | `check` | per file `OK   <file>: <side>, FG range ...` or the headline `<file>: <n> violation(s) (...)` with its indented detail lines; a blank line; `<n> file(s) checked, <n> with violations, <n> failed` | violations |
-| `copy` | `OK   <file>: updated (stop-clock, substitutions, ...)`, `SKIP <file>: <other side> profile` and `SKIP <file>: the source profile`, `FAIL <file>: <why>`; a tally `<n> file(s) processed, <n> updated, <n> skipped, <n> failed`; no copy option is a usage error | never (a failed file is exit 2) |
+| `copy` | `OK   <file>: updated (stop-clock, substitutions, ...)`, `SKIP <file>: <other side> profile` and `SKIP <file>: the source profile`, `FAIL <file>: <why>`; the source as the only target file is `FAIL <file>: The file cannot be copied onto itself.`, 2; a tally `<n> file(s) processed, <n> updated, <n> skipped, <n> failed`; no copy option is a usage error | never (a failed file is exit 2) |
 | `diff` | the report; with `-o`, `OK   <file>: written`; different sides are `FAIL Cannot compare <a> (offense) with <b> (defense).`, 2; a bad `-o` extension is a usage error | any difference |
 
 ## Profile keys
@@ -65,8 +65,9 @@ TARGET (`.prf` files, folders, wildcards or profile keys; `-r` takes a folder's
 whole tree), each file once, in TARGET order. Pick at least one:
 `--stop-clock`, `--substitutions`, `--field-goal-range`, `--fourth-down`,
 `--goal-line`, `--pat-logic`. Targets of the other side, and the source itself,
-are skipped; no backup is made. A missing SOURCE stops the run before any
-target is touched. Exit 0 (done, skips included) or 2 (an error, or a target
+are skipped; no backup is made. A missing SOURCE, or SOURCE as the only TARGET
+file (`The file cannot be copied onto itself.`, Windows' `copy` words), stops
+the run before any target is touched. Exit 0 (done, skips included) or 2 (an error, or a target
 failed). No rules needed; check afterward with `check`.
 
 ## Rules
@@ -199,7 +200,8 @@ selected fields from SOURCE (`one_profile`) into one or more targets
 TARGETs go through `expand_names` and `collect_files`: files, folders (`-r` for
 the tree), wildcards and keys, each file once in TARGET order. Files of the
 wrong side are skipped by file-size parity (offense even, defense odd), and
-SOURCE is never overwritten. No backup is made. Options (≥1 required,
+SOURCE is never overwritten: as the one file of a single TARGET it is an
+AthcError before any profile is read, elsewhere it is skipped. No backup is made. Options (≥1 required,
 combinable): `--stop-clock`, `--substitutions` (the writer's
 `copy_sub_percent`), `--field-goal-range`, `--fourth-down`, `--goal-line`,
 `--pat-logic`; `--fourth-down` and `--goal-line` copy whole situations

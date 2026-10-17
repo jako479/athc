@@ -2,7 +2,7 @@
 
 ## 1.0.0
 
-- [ ] profile: `copy` errors when the source and the single target are the same file (non-bulk copy)
+- [x] profile: `copy` errors when the source and the single target are the same file (non-bulk copy)
 - [x] athc: an output folder for convert-pdb, list-normals, list-specials and generate-schedule
 - [x] profile: CLI plan (profile keys `off1 def1 off2 def2` on check, diff and copy, `--team`, `copy SOURCE TARGET...`, `--substitutions`)
 - [x] playpool: CLI plan (`check [FOLDER]`, `athc config set play_path` in its not-set lines)

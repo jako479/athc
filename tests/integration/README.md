@@ -549,6 +549,8 @@ In [test_profile_copy.py](test_profile_copy.py). Inputs: real `TST-OFF1/DEF1.prf
 | Offense source skips defense targets | dir mix | wrong side untouched | `test_cli_offense_source_skips_defense_targets` | ☑ |
 | Single wrong-side target skipped | DEF1 target | exit 0; 0 processed; untouched | `test_cli_single_wrong_side_target_skipped` | ☑ |
 | Continues past failed file | dir + bad | exit 2; stderr: `FAIL` for the bad file; stdout tally: 1 updated, 1 failed | `test_cli_continues_past_failed_file` | ☑ |
+| File onto itself | `source.prf` as SOURCE and, spelled differently, TARGET | exit 2; stderr: `FAIL source.prf: The file cannot be copied onto itself.`; stdout empty; untouched | `test_cli_file_onto_itself_exit_2` | ☑ |
+| Folder holding the source | `<folder>` with the source in it | exit 0; the other file updated, `SKIP <file>: the source profile`; tally 1 updated, 1 skipped | `test_cli_folder_holding_source_skips_it` | ☑ |
 | Missing source / target | tmp | exit 2; stderr: `FAIL <path>: The system cannot find the file specified.`; target untouched | `test_cli_missing_source_exit_2` / `test_cli_missing_target_exit_2` | ☑ |
 | Target in a missing folder | tmp | exit 2; folder not created | `test_cli_missing_target_folder_not_created_exit_2` | ☑ |
 
@@ -558,7 +560,8 @@ In [test_profile_copy.py](test_profile_copy.py). Inputs: real `TST-OFF1/DEF1.prf
 | 1st half to 2nd half | `off1 off2 --stop-clock` | exit 0; stdout: `OK   <DEN-OFF2>: updated (stop-clock)` and the tally; bits copied | `test_cli_key_to_key` | ☑ |
 | File to two keys | `new.prf off1 off2 --substitutions` | exit 0; both `updated (substitutions)`; subs copied | `test_cli_file_to_two_keys` | ☑ |
 | Offense key to defense keys | `off1 def1` / `off1 def1 def2` | exit 0; one `SKIP <file>: defense profile` per target; untouched | `test_cli_offense_key_to_defense_keys` `[P]` | ☑ |
-| Key onto itself | `off1 off1` | exit 0; `SKIP <file>: the source profile` | `test_cli_key_onto_itself` | ☑ |
+| Key onto itself | `off1 off1` | exit 2; stderr: `FAIL <file>: The file cannot be copied onto itself.`; stdout empty; untouched | `test_cli_key_onto_itself` | ☑ |
+| Key onto itself and another | `off1 off1 off2` | exit 0; `SKIP <file>: the source profile`, off2 updated; tally 1 updated, 1 skipped | `test_cli_key_onto_itself_and_another` | ☑ |
 | Folder and key | `<folder> off2` | exit 0; the folder's files sorted, then off2's | `test_cli_folder_and_key` | ☑ |
 | Key repeated | `off2 OFF2` | one update; "1 file(s) processed" | `test_cli_key_repeated_once` | ☑ |
 | Missing key target | `off2 off1`, DEN-OFF2 deleted | exit 2; stderr: `FAIL <file>: ... or pass a .prf file.`; off1 updated; "1 failed" | `test_cli_missing_key_target_counts_failed` | ☑ |

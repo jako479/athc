@@ -434,6 +434,35 @@ def test_cli_missing_source_exit_2(runner, tmp_path: Path) -> None:
     assert target.read_bytes() == pre  # untouched when source can't be read
 
 
+def test_cli_file_onto_itself_exit_2(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same file however it is spelled; the line names the target as given."""
+    source = _copy_prf(OFF1, tmp_path, name="source.prf")
+    before = source.read_bytes()
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(copy, [str(source), "source.prf", "--stop-clock"])
+    assert result.exit_code == 2
+    assert result.stderr == "FAIL source.prf: The file cannot be copied onto itself.\n"
+    assert result.stdout == ""
+    assert source.read_bytes() == before
+
+
+def test_cli_folder_holding_source_skips_it(runner, tmp_path: Path) -> None:
+    """One TARGET, but a folder: the source in it is only skipped."""
+    folder = tmp_path / "drafts"
+    folder.mkdir()
+    source = _mutated_source(OFF1, folder, flip=(1,))
+    other = _copy_prf(OFF1, folder, name="other.prf")
+    result = runner.invoke(copy, [str(source), str(folder), "--stop-clock"])
+    assert result.exit_code == 0
+    assert result.stdout == (
+        f"OK   {other}: updated (stop-clock)\n"
+        f"SKIP {source}: the source profile\n"
+        "\n2 file(s) processed, 1 updated, 1 skipped, 0 failed\n"
+    )
+
+
 def test_cli_missing_target_exit_2(runner, tmp_path: Path) -> None:
     source = _copy_prf(OFF1, tmp_path, name="source.prf")
     result = runner.invoke(
@@ -498,9 +527,26 @@ def test_cli_offense_key_to_defense_keys(runner, denver: Path, keys: list[str]) 
 
 
 def test_cli_key_onto_itself(runner, denver: Path) -> None:
+    """The source as the only target is refused, as Windows' copy does."""
+    off1 = _key_file(denver, "off1")
+    before = off1.read_bytes()
     result = runner.invoke(copy, ["off1", "off1", "--stop-clock"])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {off1}: The file cannot be copied onto itself.\n"
+    assert result.stdout == ""
+    assert off1.read_bytes() == before
+
+
+def test_cli_key_onto_itself_and_another(runner, denver: Path) -> None:
+    """With a second target the source is only skipped."""
+    off1, off2 = _key_file(denver, "off1"), _key_file(denver, "off2")
+    result = runner.invoke(copy, ["off1", "off1", "off2", "--stop-clock"])
     assert result.exit_code == 0
-    assert f"SKIP {_key_file(denver, 'off1')}: the source profile\n" in result.stdout
+    assert result.stdout == (
+        f"SKIP {off1}: the source profile\n"
+        f"OK   {off2}: updated (stop-clock)\n"
+        "\n2 file(s) processed, 1 updated, 1 skipped, 0 failed\n"
+    )
 
 
 def test_cli_folder_and_key(runner, denver: Path, tmp_path: Path) -> None:
