@@ -117,7 +117,11 @@ ship in the package**; `validate_profile` requires a rule set and never falls
 back to one. Situation rules are a list: each has optional game-state filters
 (time/down/yards/fields — omitted = all) and constraints (`allowed`,
 `disallowed`, `mandatory`, `min_categories`); a situation gets every rule it
-matches. Substitution rules are one `SubstitutionRule` per position group, a
+matches. `allowed` limits a matching situation to the listed categories;
+`disallowed` forbids exactly the listed ones and nothing else; a situation's
+disallowed set is the side's top-level `disallowed_offensive_categories` /
+`disallowed_defensive_categories` list plus every matching rule's. Substitution
+rules are one `SubstitutionRule` per position group, a
 `PercentBound` per side (out/in): an exact value or an optional min/max range;
 a side with no key is unchecked, and each unmet side is its own violation. The
 shipped [config/release/leagues/PNFL/profile.toml](../config/release/leagues/PNFL/profile.toml)

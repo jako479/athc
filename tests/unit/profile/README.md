@@ -10,7 +10,9 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Valid file loads all fields | data | audibles/min/subs/situations | `test_load_valid_full` | ☑ |
-| `disallowed` → complement | data | allowed = universe − {PRD} | `test_disallowed_expands_to_complement` | ☑ |
+| `disallowed` parsed | data | disallowed = {PRD}, allowed None | `test_disallowed_parsed` | ☑ |
+| Defense `disallowed` label → each code | tmp | `PassShort` → all three pass-short codes | `test_disallowed_defense_label_covers_each_code` | ☑ |
+| `disallowed = []` forbids nothing | tmp | disallowed empty, allowed None | `test_disallowed_empty_list_forbids_nothing` | ☑ |
 | `mandatory` parsed | data | `( {PLR}, )` | `test_mandatory_parsed` | ☑ |
 | `mandatory` flat list → AND | tmp | `( {RL}, {RM} )` | `test_mandatory_multiple_categories` | ☑ |
 | Rule-level `min_categories` | tmp | `rule.min_categories == 3` | `test_min_categories_on_rule` | ☑ |
@@ -59,6 +61,7 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | `allowed` + `disallowed` | tmp | "Set at most one of allowed, disallowed." | `test_allowed_and_disallowed_exclusive` | ☑ |
 | Unknown category | tmp | "unknown category" | `test_unknown_category` | ☑ |
 | `mandatory` not a list | tmp | "[offense.x].mandatory: Must be a list." | `test_mandatory_must_be_list` | ☑ |
+| `disallowed` not a list | tmp | "[offense.x].disallowed: Must be a list." | `test_disallowed_must_be_list` | ☑ |
 | `fields` empty | tmp | "[offense.x].fields: Must be a non-empty list." | `test_fields_must_be_a_non_empty_list` | ☑ |
 | `mandatory` unknown category | tmp | "unknown category" | `test_mandatory_unknown_category` | ☑ |
 | Disallowed unknown name | tmp | "unknown name" | `test_disallowed_categories_unknown_name` | ☑ |
@@ -112,6 +115,10 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | Multiple `mandatory` each required | built + make | flags missing one, not the satisfied one | `test_multiple_mandatory_categories_each_required` | ☑ |
 | Disallowed category fires | built + make | `OFFENSE_DISALLOWED_CATEGORY` | `test_disallowed_category_fires` | ☑ |
 | Disallowed category clean when unused | built + make | no violation | `test_disallowed_category_clean_when_unused` | ☑ |
+| Rule `disallowed` fires only where the rule matches | built + make | sit 11 flagged, sit 515 not | `test_rule_disallowed_fires_only_where_the_rule_matches` | ☑ |
+| Rule `disallowed` leaves unlabeled categories alone | built + make | Pass Long Left not flagged | `test_rule_disallowed_leaves_unlabeled_categories_alone` | ☑ |
+| Rule `disallowed` + banned list → one violation | built + make | "Situation 11 uses banned categories: 0x03, 0x0D" | `test_rule_disallowed_combines_with_banned_list` | ☑ |
+| Two matching rules' `disallowed` union | built + make | one violation listing both codes | `test_two_matching_rules_disallowed_union` | ☑ |
 | All issues reported (incl. disallowed) | built + make | disallowed + allowed + min all present | `test_all_issues_reported_including_disallowed` | ☑ |
 | Full offense rules — specific | OFF1 + data | 18; allowed@1, mandatory@300, min@43 | `test_offense_full_rules` | ☑ |
 | Full defense rules | DEF1 + data | 7, all min-categories | `test_defense_full_rules` | ☑ |

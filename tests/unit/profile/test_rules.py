@@ -17,21 +17,13 @@ from athc.profile import (
     load_rules,
 )
 from athc.profile.rules import (
-    GOAL_LINE_PASS,
-    GOAL_LINE_RUN,
     PASS_LONG_RIGHT,
-    PASS_MEDIUM_LEFT,
-    PASS_MEDIUM_MIDDLE,
-    PASS_MEDIUM_RIGHT,
-    PASS_SHORT_LEFT,
-    PASS_SHORT_MIDDLE,
-    PASS_SHORT_RIGHT,
+    PASS_SHORT_ANY,
     RAZZLE_DAZZLE_PASS,
     RAZZLE_DAZZLE_RUN,
     RUN_LEFT,
     RUN_MIDDLE,
     RUN_RANDOM,
-    RUN_RIGHT,
 )
 from tests.conftest import shipped_files, shipped_id
 from tests.unit.profile.conftest import DATA, exact_substitution
@@ -74,27 +66,11 @@ def test_load_valid_full() -> None:
     assert rules.offense_situations and rules.defense_situations
 
 
-def test_disallowed_expands_to_complement() -> None:
+def test_disallowed_parsed() -> None:
     rules = load_rules([DATA / "profile_rules.toml"])
     rule = find(rules.offense_situations, down=Down.THIRD, yards=YardsToGo.ZERO_TO_ONE)
-    assert rule.allowed_categories is not None
-    assert RAZZLE_DAZZLE_PASS not in rule.allowed_categories
-    assert rule.allowed_categories == frozenset(
-        {
-            GOAL_LINE_RUN,
-            RUN_LEFT,
-            RUN_MIDDLE,
-            RUN_RIGHT,
-            GOAL_LINE_PASS,
-            PASS_LONG_RIGHT,
-            PASS_MEDIUM_LEFT,
-            PASS_MEDIUM_MIDDLE,
-            PASS_MEDIUM_RIGHT,
-            PASS_SHORT_LEFT,
-            PASS_SHORT_MIDDLE,
-            PASS_SHORT_RIGHT,
-        }
-    )
+    assert rule.disallowed_categories == frozenset({RAZZLE_DAZZLE_PASS})
+    assert rule.allowed_categories is None
 
 
 def test_mandatory_parsed() -> None:
@@ -358,6 +334,27 @@ def test_mandatory_must_be_list(tmp_path: Path) -> None:
     text = MINIMAL + SECTION + 'mandatory = "RL"\n'
     with pytest.raises(
         RulesFileError, match=r"\[offense\.x\]\.mandatory: Must be a list\."
+    ):
+        load_rules([write(tmp_path, text)])
+
+
+def test_disallowed_defense_label_covers_each_code(tmp_path: Path) -> None:
+    text = MINIMAL + '[defense.x]\ndisallowed = ["PassShort"]\n'
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.defense_situations[0].disallowed_categories == PASS_SHORT_ANY
+
+
+def test_disallowed_empty_list_forbids_nothing(tmp_path: Path) -> None:
+    text = MINIMAL + "[offense.x]\ndisallowed = []\n"
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.offense_situations[0].disallowed_categories == frozenset()
+    assert rules.offense_situations[0].allowed_categories is None
+
+
+def test_disallowed_must_be_list(tmp_path: Path) -> None:
+    text = MINIMAL + '[offense.x]\ndisallowed = "PRD"\n'
+    with pytest.raises(
+        RulesFileError, match=re.escape("[offense.x].disallowed: Must be a list.")
     ):
         load_rules([write(tmp_path, text)])
 

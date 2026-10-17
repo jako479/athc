@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- profile: a situation rule's disallowed list now forbids only the categories it names; it no longer also forbids every category the league gives no short name
 - athc: settings file is athc.toml (TOML, like every other settings file); a league's league.toml overrides a tool's settings a key at a time
 - convert-pdb: the category order and deleted plays live in athc.toml, overridable per league; pdbtoexcel.toml is gone
 - athc: every library test of an add, update or remove now checks the whole result, not just the changed item

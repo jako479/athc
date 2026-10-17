@@ -94,9 +94,11 @@ class SituationRule:
     bucket". PointSpread never filters. A situation gets every rule it matches.
 
     Constraints (each optional): `allowed_categories` limits which categories may
-    have weight > 0; `mandatory_alternatives` holds one set per required category
-    (at least one code in each must appear); `min_categories` raises the minimum
-    distinct categories for matched situations.
+    have weight > 0; `disallowed_categories` are the categories that may not have
+    weight, empty when the section has no `disallowed`; `mandatory_alternatives`
+    holds one set per required category (at least one code in each must appear);
+    `min_categories` raises the minimum distinct categories for matched
+    situations.
     """
 
     time: MinutesRemaining | None
@@ -104,6 +106,7 @@ class SituationRule:
     yards: YardsToGo | None
     fields: frozenset[FieldPosition] | None
     allowed_categories: frozenset[int] | None
+    disallowed_categories: frozenset[int]
     mandatory_alternatives: tuple[frozenset[int], ...]
     min_categories: int | None
 
@@ -460,6 +463,7 @@ def _build_situation_rule(
     fields = _optional_fields(section, source, where)
 
     allowed = _build_allowed(section, category_map, source, where)
+    disallowed = _build_disallowed(section, category_map, source, where)
     mandatory = _build_mandatory(section, category_map, source, where)
     min_categories = (
         _require_nonneg_int(
@@ -475,6 +479,7 @@ def _build_situation_rule(
         yards=yards,
         fields=fields,
         allowed_categories=allowed,
+        disallowed_categories=disallowed,
         mandatory_alternatives=mandatory,
         min_categories=min_categories,
     )
@@ -496,13 +501,20 @@ def _build_allowed(
         return _expand_categories(
             section["allowed"], category_map, source, f"{where}.allowed"
         )
-    if has_disallowed:
-        universe = frozenset().union(*category_map.values())
-        bad = _expand_categories(
+    return None
+
+
+def _build_disallowed(
+    section: Mapping[str, Any],
+    category_map: Mapping[str, frozenset[int]],
+    source: Path,
+    where: str,
+) -> frozenset[int]:
+    if "disallowed" in section:
+        return _expand_categories(
             section["disallowed"], category_map, source, f"{where}.disallowed"
         )
-        return universe - bad
-    return None
+    return frozenset()
 
 
 def _build_mandatory(

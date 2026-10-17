@@ -3,9 +3,9 @@
 Each validator returns a list of `RuleViolation`; `validate_profile` is the public
 entry point. Thresholds come from the supplied `ProfileRules`; the only built-in
 policy is the min-categories exemption (below). A situation is checked against
-every rule it matches: `allowed` sets intersect, `mandatory` requirements
-accumulate, and `min_categories` takes the strictest (highest) value, falling
-back to the rule set's baseline.
+every rule it matches: `allowed` sets intersect, `disallowed` sets union,
+`mandatory` requirements accumulate, and `min_categories` takes the strictest
+(highest) value, falling back to the rule set's baseline.
 """
 
 from __future__ import annotations
@@ -178,6 +178,7 @@ def _check_situation(
     violations: list[RuleViolation] = []
     n = situation.situation_number
 
+    disallowed = disallowed.union(*(rule.disallowed_categories for rule in matching))
     used_disallowed = sorted(cats & disallowed)
     if used_disallowed:
         codes = ", ".join(f"0x{c:02X}" for c in used_disallowed)

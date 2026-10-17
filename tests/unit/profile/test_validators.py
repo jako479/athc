@@ -30,8 +30,10 @@ from athc.profile import (
 from athc.profile.rules import (
     FAKE_PUNT_PASS,
     FIELD_GOAL_PAT,
+    PASS_LONG_LEFT,
     PASS_SHORT_LEFT,
     PUNT,
+    RAZZLE_DAZZLE_PASS,
     RUN_CLOCK,
     RUN_LEFT,
     RUN_MIDDLE,
@@ -72,6 +74,7 @@ def rule(
     yards: YardsToGo | None = None,
     fields: set[FieldPosition] | None = None,
     allowed: frozenset[int] | None = None,
+    disallowed: frozenset[int] = frozenset(),
     mandatory: tuple[frozenset[int], ...] = (),
     min_categories: int | None = None,
 ) -> SituationRule:
@@ -81,6 +84,7 @@ def rule(
         yards=yards,
         fields=frozenset(fields) if fields is not None else None,
         allowed_categories=allowed,
+        disallowed_categories=disallowed,
         mandatory_alternatives=mandatory,
         min_categories=min_categories,
     )
@@ -514,6 +518,75 @@ def test_disallowed_category_clean_when_unused() -> None:
     """A disallowed category the profile never uses fires nothing."""
     rules = make_rules(offense_disallowed_categories=frozenset({RUN_LEFT}))
     assert RuleName.OFFENSE_DISALLOWED_CATEGORY not in names(make_profile(), rules)
+
+
+def test_rule_disallowed_fires_only_where_the_rule_matches() -> None:
+    """A rule's `disallowed` flags a matching situation that uses the category;
+    the same profile is clean where the rule does not match."""
+    r = rule(
+        time=MinutesRemaining.OVER_FIVE,
+        down=Down.FIRST,
+        yards=YardsToGo.ZERO_TO_ONE,
+        fields={FieldPosition.DEF_5_TO_DEF_35},
+        disallowed=frozenset({RUN_MIDDLE}),
+    )
+    rules = make_rules(offense_situations=(r,))
+    flagged = {
+        v.situation_number
+        for v in validate_profile(make_profile(), rules)
+        if v.rule_name == RuleName.OFFENSE_DISALLOWED_CATEGORY
+    }
+    assert 11 in flagged  # OVER_FIVE, 1st-and-0-1, DEF 5-35, tied
+    assert 515 not in flagged  # TWO_TO_FIVE counterpart — rule doesn't match
+
+
+def test_rule_disallowed_leaves_unlabeled_categories_alone() -> None:
+    """A category the league gives no label (Pass Long Left) is not flagged by
+    a rule that disallows something else."""
+    profile = make_profile(
+        category_weights=weights(PASS_LONG_LEFT, 4, RUN_MIDDLE, 3, 0, 0)
+    )
+    r = rule(disallowed=frozenset({RAZZLE_DAZZLE_PASS}))
+    got = names(profile, make_rules(offense_situations=(r,)))
+    assert RuleName.OFFENSE_DISALLOWED_CATEGORY not in got
+    assert RuleName.OFFENSE_ALLOWED_CATEGORIES not in got
+
+
+def test_rule_disallowed_combines_with_banned_list() -> None:
+    """The banned list and a matching rule's `disallowed` give one violation
+    per situation, listing every code."""
+    r = rule(disallowed=frozenset({PASS_SHORT_LEFT}))
+    rules = make_rules(
+        offense_disallowed_categories=frozenset({RUN_MIDDLE}),
+        offense_situations=(r,),
+    )
+    hits = [
+        v
+        for v in validate_profile(make_profile(), rules)
+        if v.rule_name == RuleName.OFFENSE_DISALLOWED_CATEGORY
+        and v.situation_number == 11
+    ]
+    assert [v.message for v in hits] == [
+        "Situation 11 uses banned categories: 0x03, 0x0D"
+    ]
+
+
+def test_two_matching_rules_disallowed_union() -> None:
+    rules = make_rules(
+        offense_situations=(
+            rule(disallowed=frozenset({RUN_MIDDLE})),
+            rule(disallowed=frozenset({PASS_SHORT_LEFT})),
+        )
+    )
+    hits = [
+        v
+        for v in validate_profile(make_profile(), rules)
+        if v.rule_name == RuleName.OFFENSE_DISALLOWED_CATEGORY
+        and v.situation_number == 11
+    ]
+    assert [v.message for v in hits] == [
+        "Situation 11 uses banned categories: 0x03, 0x0D"
+    ]
 
 
 def test_all_issues_reported_including_disallowed() -> None:
