@@ -6,7 +6,7 @@ Library + CLI for a league's play pool: builds it from a folder of Front Page Sp
 
 - Walks a folder tree of `.ply` files, any layout
 - Side, category and play attributes (rollout, QB run, timed pass, defensive front) from the play file; folders only add what the bytes can't carry (screen)
-- Typed `OffensivePlay` / `DefensivePlay` / `SpecialTeamsPlay` records
+- Typed `OffensivePlay` / `DefensivePlay` / `SpecialPlay` records
 - Reports, as issues on the pool, league folders (side folders, and category folders named by the league's labels) that contradict a play's file, duplicate names and invalid files
 
 ## Setup
@@ -24,7 +24,7 @@ from athc.playpool import read_play_pool
 labels = load_league_config().categories     # optional: the league's folder names
 pool = read_play_pool("plays", labels=labels)
 
-len(pool.offensive_plays), len(pool.defensive_plays), len(pool.special_teams_plays)
+len(pool.offensive_plays), len(pool.defensive_plays), len(pool.special_plays)
 play = pool.find_by_name("AF3ArshZ")        # case-insensitive
 play.category.long                           # the game's category name
 play.file_path
@@ -51,8 +51,8 @@ A pass can be both a rollout and a timed pass.
 
 - `read_play_pool(root_dir, *, labels=None)` walks `root_dir/**/*.ply` in sorted path order and returns a `PlayPool`; invalid and unreadable files are noted in `issues` and skipped, never raised, and nothing is logged, and of two same-named plays the later in that order wins. `labels` is the league's `CategoryLabels`; without it no folder name means a category.
 - `folder_warnings(rel_path, play, labels)`: the folder/file mismatch warnings for one play, as the pool reports them.
-- `PlayPool`: `root_dir`, `offensive_plays`, `defensive_plays`, `special_teams_plays`, `issues` (every problem, word for word); `find_by_name(name)` (case-insensitive); `add(play)` files an `OffensivePlay` / `DefensivePlay` / `SpecialTeamsPlay` under its side and indexes it.
-- `Play`: `name`, `play_file` (the parsed `PlayFile`), `file_path`, `category` (an `fbpro98_play` enum member), `play_category`, `special_category`, `user_category`; `to_dict()`. `OffensivePlay` adds `screen`, `rollout`, `qb_run`, `pass_logic` (`PassLogic.TIMED` / `CHECK_RECEIVERS`); `DefensivePlay` adds `defensive_front` (an `fbpro98_play` `DefensiveFront`: `THREE_FOUR` / `FOUR_THREE` / `TWO_DL`, or `None`); `SpecialTeamsPlay` adds nothing. Each attribute is set as [How athc reads a play](#how-athc-reads-a-play) describes; the rollout margin is `ROLLOUT_MARGIN` in `playpool.reader`.
+- `PlayPool`: `root_dir`, `offensive_plays`, `defensive_plays`, `special_plays`, `issues` (every problem, word for word); `find_by_name(name)` (case-insensitive); `add(play)` files an `OffensivePlay` / `DefensivePlay` / `SpecialPlay` under its side and indexes it.
+- `Play`: `name`, `play_file` (the parsed `PlayFile`), `file_path`, `category` (an `fbpro98_play` enum member), `play_category`, `special_category`, `user_category`; `to_dict()`. `OffensivePlay` adds `screen`, `rollout`, `qb_run`, `pass_logic` (`PassLogic.TIMED` / `CHECK_RECEIVERS`); `DefensivePlay` adds `defensive_front` (an `fbpro98_play` `DefensiveFront`: `THREE_FOUR` / `FOUR_THREE` / `TWO_DL`, or `None`); `SpecialPlay` adds nothing. Each attribute is set as [How athc reads a play](#how-athc-reads-a-play) describes; the rollout margin is `ROLLOUT_MARGIN` in `playpool.reader`.
 
 ## CLI
 
@@ -115,7 +115,7 @@ pytest
 ```
 src/athc/playpool/
 ├── __init__.py   # public API re-exports
-├── model.py      # Play + Offensive/Defensive/SpecialTeams subclasses; PassLogic; PlayPool
+├── model.py      # Play + Offensive/Defensive/Special subclasses; PassLogic; PlayPool
 └── reader.py     # read_play_pool: walk, classify, add to the pool; folder_warnings
 ```
 
@@ -127,7 +127,7 @@ src/athc/playpool/
   later in that order wins).
 - Classifies each play **from its file**:
   - side from the category bytes (`is_offensive` / `is_defensive` /
-    `is_special_teams`);
+    `is_special`);
   - `category` (an `fbpro98_play` enum member; a file with an unrecognized
     category is skipped) from the play's `user_category`; run/pass is `category.is_run` / `category.is_pass`;
   - offense `qb_run` (run plays), `rollout` and `pass_logic` (pass plays) from
@@ -154,7 +154,7 @@ member) from the play file. Subclasses add:
 
 - `OffensivePlay`: `screen`, `rollout`, `qb_run`, `pass_logic`.
 - `DefensivePlay`: `defensive_front`.
-- `SpecialTeamsPlay`: nothing beyond the base.
+- `SpecialPlay`: nothing beyond the base.
 
 Enums: `PassLogic` (Timed, Check Receivers); `defensive_front` is an
 `fbpro98_play` `DefensiveFront` (3-4, 4-3, 2-DL, where 2-DL is the

@@ -7,7 +7,7 @@ from athc.playpool.model import (
     PassLogic,
     Play,
     PlayPool,
-    SpecialTeamsPlay,
+    SpecialPlay,
 )
 from athc.playpool.reader import read_play_pool
 
@@ -17,6 +17,6 @@ __all__ = [
     "PassLogic",
     "Play",
     "PlayPool",
-    "SpecialTeamsPlay",
+    "SpecialPlay",
     "read_play_pool",
 ]

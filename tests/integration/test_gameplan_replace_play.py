@@ -215,7 +215,7 @@ def test_pick_model_refusal_keeps_the_text_for_one_replacement(
     )
     assert picked.updated is None and picked.entry is None
     assert str(picked.refused).startswith(
-        "x.pln: Normal slot 0 contains a special-teams play"
+        "x.pln: Normal slot 0 contains a special play"
     )
 
 
@@ -348,7 +348,7 @@ def test_replace_error_names_the_path_first() -> None:
     gp = _offense_gameplan(normals={0: offense_normal("OLDRUN")})
     with pytest.raises(AthcError) as exc:
         replace_in_gameplan(gp, "OLDRUN", offense_special("FG", 1), Path("x.pln"))
-    assert str(exc.value).startswith("x.pln: Normal slot 0 contains a special-teams")
+    assert str(exc.value).startswith("x.pln: Normal slot 0 contains a special")
     assert exc.value.path == Path("x.pln")
 
 
@@ -884,8 +884,8 @@ def test_cli_replacement_special_for_normal_fails(runner, tmp_path: Path) -> Non
     result = runner.invoke(replace_play, ["OLDRUN", SPECIAL_REPL, "--path", str(p)])
     assert result.exit_code == 2
     assert result.stderr == (
-        f"FAIL {p}: Normal slot 0 contains a special-teams play "
-        "(special_category=1); only non-special-teams plays allowed in normal "
+        f"FAIL {p}: Normal slot 0 contains a special play "
+        "(special_category=1); only non-special plays allowed in normal "
         "slots.\n"
     )
     assert list(tmp_path.glob("*.bak")) == [] and p.read_bytes() == original

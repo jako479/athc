@@ -2,7 +2,7 @@
 
 Leagues abbreviate the game's category names (PNFL: `PSR` for Pass Short Right,
 `RunLeft` for defense Run Left). The labels come from the league's settings
-file; this module only holds and validates them. Special-teams categories have
+file; this module only holds and validates them. Special categories have
 no labels and always go by their game name.
 """
 

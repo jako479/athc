@@ -184,9 +184,9 @@ class PdbWorkbookCreator:
                 yield play_in_pdb, play_name, team_name, play_record
 
     def _should_export(self, play_in_pdb: PLAY_DATA, play_record: Play) -> bool:
-        """Skip special-teams plays and any whose category is not in the league's
+        """Skip special plays and any whose category is not in the league's
         order for its PDB play type (unlisted on purpose, or misclassified)."""
-        if play_record.play_file.is_special_teams:
+        if play_record.play_file.is_special:
             return False
         return play_record.category in self.config.category_order[play_in_pdb.play_type]
 

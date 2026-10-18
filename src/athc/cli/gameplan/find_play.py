@@ -76,7 +76,7 @@ def find_play(
 ) -> None:
     """Find plays by name in game plans.
 
-    Lists each play's normal and special-teams slots in each game plan.
+    Lists each play's normal and special slots in each game plan.
     """
     require_key_path(team, path)
     if league is not None:

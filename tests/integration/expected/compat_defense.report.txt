@@ -6,8 +6,8 @@ TST-DEF1.prf: 7 violation(s), 5 game plan issue(s) (defense, FG range 36)
   [situation 250] Situation 250 has 2 category(ies) with non-zero weight; requires 3.
   [situation 251] Situation 251 has 2 category(ies) with non-zero weight; requires 3.
   [situation 252] Situation 252 has 2 category(ies) with non-zero weight; requires 3.
-  game plan: special-teams category Field Goal/PAT has no custom special play in the game plan
-  game plan: special-teams category Fake FG Run is in the game plan but not used by the profile
-  game plan: special-teams category Fake FG Pass is in the game plan but not used by the profile
-  game plan: special-teams category Fake Punt Run is in the game plan but not used by the profile
-  game plan: special-teams category Fake Punt Pass is in the game plan but not used by the profile
+  game plan: special category Field Goal/PAT has no custom special play in the game plan
+  game plan: special category Fake FG Run is in the game plan but not used by the profile
+  game plan: special category Fake FG Pass is in the game plan but not used by the profile
+  game plan: special category Fake Punt Run is in the game plan but not used by the profile
+  game plan: special category Fake Punt Pass is in the game plan but not used by the profile

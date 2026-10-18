@@ -58,8 +58,8 @@ PASS_SHORT_RANDOM: Final = 0x1A
 OFFENSE_CATEGORIES: Final[frozenset[int]] = frozenset(range(0x00, 0x1B))
 DEFENSE_CATEGORIES: Final[frozenset[int]] = frozenset(range(0x00, 0x16))
 
-# The categories the top-level allowed lists limit: all but special teams (FG/PAT,
-# the fakes, punt, run clock), which leagues give no labels.
+# The categories the top-level allowed lists limit: all but the special ones
+# (FG/PAT, the fakes, punt, run clock), which leagues give no labels.
 OFFENSE_LIST_SCOPE: Final[frozenset[int]] = frozenset(range(0x00, 0x10)) | {
     RUN_RANDOM,
     PASS_LONG_RANDOM,

@@ -72,9 +72,9 @@ def test_even_play_category_is_defensive(play_category):
     assert not play.is_offensive
 
 
-def test_is_special_teams():
-    assert _play(special_category=0x02).is_special_teams
-    assert not _play(special_category=0x00).is_special_teams
+def test_is_special():
+    assert _play(special_category=0x02).is_special
+    assert not _play(special_category=0x00).is_special
 
 
 @pytest.mark.parametrize("category", list(OffensiveCategory))
@@ -90,13 +90,13 @@ def test_defensive_category_name(category):
 
 
 @pytest.mark.parametrize("category", list(SpecialOffensiveCategory))
-def test_offensive_special_teams_names(category):
+def test_offensive_special_names(category):
     play = _play(play_category=0x01, special_category=category.code)
     assert play.category_name == category.long
 
 
 @pytest.mark.parametrize("category", list(SpecialDefensiveCategory))
-def test_defensive_special_teams_names(category):
+def test_defensive_special_names(category):
     play = _play(play_category=0x00, special_category=category.code)
     assert play.category_name == category.long
 

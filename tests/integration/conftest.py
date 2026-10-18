@@ -295,7 +295,7 @@ def offense_normal(name: str, user_category: int = 0x05) -> CustomPlayRef:
 
 
 def offense_special(name: str, category: int = 1) -> CustomPlayRef:
-    """Offense special-teams play in `category` (1-10)."""
+    """Offense special play in `category` (1-10)."""
     return CustomPlayRef(
         filename=f"plays\\{name}.PLY",
         play_category=1,
@@ -315,7 +315,7 @@ def defense_normal(name: str, user_category: int = 0x04) -> CustomPlayRef:
 
 
 def defense_special(name: str, category: int) -> CustomPlayRef:
-    """Defense special-teams play in `category` (1-10)."""
+    """Defense special play in `category` (1-10)."""
     return CustomPlayRef(
         filename=f"plays\\{name}.PLY",
         play_category=0,

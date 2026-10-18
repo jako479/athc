@@ -15,7 +15,7 @@ from athc.playpool import (
     PassLogic,
     Play,
     PlayPool,
-    SpecialTeamsPlay,
+    SpecialPlay,
 )
 
 DATA = Path(__file__).resolve().parent / "data"
@@ -95,7 +95,7 @@ def make_record(
         Path(f"{name}.ply"), 0, play_category, special_category, user_category, (), ()
     )
     if special_category:
-        return SpecialTeamsPlay(name, play_file)
+        return SpecialPlay(name, play_file)
     if play_category % 2 == 1:  # odd → offense
         return OffensivePlay(
             name,

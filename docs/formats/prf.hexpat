@@ -197,9 +197,9 @@ struct G95 {
                           // Offset from 0x0C to the start of each play in the
                           // plan; Any empty slots have an offset of 0.
                           // Normal plays have specialCategory of 0.
-                          // Special teams plays go in order of specialCategory,
+                          // Special plays go in order of specialCategory,
                           // 1-10, alternating between non-stock and stock
-                          // versions of each. Each special teams play has
+                          // versions of each. Each special play has
                           // playCategory of 1 and userCategory of 1.
 
     // Plays continue until the end of the G95 block (id+len header is 8 bytes,

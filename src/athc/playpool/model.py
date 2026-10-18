@@ -104,8 +104,8 @@ class DefensivePlay(Play):
 
 
 @dataclass(frozen=True, slots=True)
-class SpecialTeamsPlay(Play):
-    """A special-teams play; adds no fields beyond the base."""
+class SpecialPlay(Play):
+    """A special play; adds no fields beyond the base."""
 
 
 class PlayPool:
@@ -115,7 +115,7 @@ class PlayPool:
         self.root_dir = Path(root_dir)
         self.offensive_plays: list[OffensivePlay] = []
         self.defensive_plays: list[DefensivePlay] = []
-        self.special_teams_plays: list[SpecialTeamsPlay] = []
+        self.special_plays: list[SpecialPlay] = []
         # The reader's warnings, kept word for word so a caller like playpool
         # check can print and count them as findings.
         self.issues: list[str] = []
@@ -124,19 +124,17 @@ class PlayPool:
     def find_by_name(self, name: str) -> Play | None:
         return self._plays_by_name.get(name.upper())
 
-    def add(self, play: OffensivePlay | DefensivePlay | SpecialTeamsPlay) -> None:
+    def add(self, play: OffensivePlay | DefensivePlay | SpecialPlay) -> None:
         """File `play` under its side and index it by name (case-insensitive); a
         repeated name replaces the earlier entry in the index."""
         if isinstance(play, OffensivePlay):
             self.offensive_plays.append(play)
         elif isinstance(play, DefensivePlay):
             self.defensive_plays.append(play)
-        elif isinstance(play, SpecialTeamsPlay):
-            self.special_teams_plays.append(play)
+        elif isinstance(play, SpecialPlay):
+            self.special_plays.append(play)
         else:
-            raise TypeError(
-                f"not an offensive, defensive or special-teams play: {play!r}"
-            )
+            raise TypeError(f"not an offensive, defensive or special play: {play!r}")
         self._plays_by_name[play.name.upper()] = play
 
 
@@ -146,5 +144,5 @@ __all__ = [
     "PassLogic",
     "Play",
     "PlayPool",
-    "SpecialTeamsPlay",
+    "SpecialPlay",
 ]

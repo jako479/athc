@@ -146,14 +146,12 @@ def test_special_plays_merge_keeps_unlisted_categories() -> None:
     )
 
 
-def test_special_teams_play_in_a_normal_slot_is_rejected() -> None:
+def test_special_play_in_a_normal_slot_is_rejected() -> None:
     pool = _pool_with("KICKPLY", special_category=2)
     with pytest.raises(InvalidPlayListError) as exc:
         apply_normal_plays(_offense_gameplan(), [PlayLine(3, "KICKPLY")], pool)
     assert exc.value.invalid_plays == [
-        InvalidPlay(
-            3, "'KICKPLY' is a special-teams play and cannot go in a normal slot."
-        )
+        InvalidPlay(3, "'KICKPLY' is a special play and cannot go in a normal slot.")
     ]
 
 
@@ -182,7 +180,7 @@ def test_normal_play_in_the_specials_list_is_rejected() -> None:
     with pytest.raises(InvalidPlayListError) as exc:
         apply_special_plays(_offense_gameplan(), [PlayLine(5, "RUNPLAY")], pool)
     assert exc.value.invalid_plays == [
-        InvalidPlay(5, "'RUNPLAY' is not a special-teams play.")
+        InvalidPlay(5, "'RUNPLAY' is not a special play.")
     ]
 
 

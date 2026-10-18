@@ -22,7 +22,7 @@ from tests.integration.conftest import (
 )
 
 SPECIAL = "LIONKICK"  # offense Kickoff, special_category 2 -> custom slot index 1
-NORMAL = "OR45RL01"  # a normal offense play (not special teams)
+NORMAL = "OR45RL01"  # a normal offense play (not special)
 MakeLeague = Callable[..., Path]
 WriteConfig = Callable[..., Path]
 
@@ -195,7 +195,7 @@ def test_dash_input_errors_name_no_file(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_specials, ["--path", str(p), "-"], input=NORMAL + "\n")
     assert result.exit_code == 2
     assert (
-        f"FAIL line 1: '{NORMAL}' is not a special-teams play. Run 'athc gameplan set-normals'.\n"
+        f"FAIL line 1: '{NORMAL}' is not a special play. Run 'athc gameplan set-normals'.\n"
         in result.stderr
     )
     assert "FAIL - " not in result.stderr
@@ -238,7 +238,7 @@ def test_rejects_normal_play(runner, tmp_path: Path) -> None:
     assert result.exit_code == 2
     assert result.stderr.splitlines()[-1].startswith("FAIL ")  # after the WARN lines
     assert (
-        "not a special-teams play" in result.stderr
+        "not a special play" in result.stderr
         and "athc gameplan set-normals" in result.stderr
     )
     assert p.read_bytes() == original

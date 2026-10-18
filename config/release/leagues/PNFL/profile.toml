@@ -7,8 +7,8 @@ min_categories = 2         # baseline distinct categories per situation (>= 0)
 
 # Categories a profile may use, by the league's names. A used category not
 # listed is a violation; random plays have no league name, so a list always
-# bans them. Special teams (field goal, punt, fakes, run clock) are never
-# limited. Omitted = not enforced.
+# bans them. Special categories (field goal, punt, fakes, run clock) are
+# never limited. Omitted = not enforced.
 allowed_offensive_categories = [
     "GLR", "RL", "RM", "RR",
     "GLP", "PRD", "PLR",

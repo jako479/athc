@@ -324,11 +324,11 @@ def test_cli_unused_gameplan_categories_are_info(
     assert normalized(result, DEF1, GP_DEFENSE) == (
         "TST-DEF1.prf: 7 violation(s), 1 game plan issue(s) (defense, FG range 36)\n"
         + "".join(situations)
-        + "  game plan: special-teams category Field Goal/PAT has no custom special play in the game plan\n"
-        "  game plan info: special-teams category Fake FG Run is in the game plan but not used by the profile\n"
-        "  game plan info: special-teams category Fake FG Pass is in the game plan but not used by the profile\n"
-        "  game plan info: special-teams category Fake Punt Run is in the game plan but not used by the profile\n"
-        "  game plan info: special-teams category Fake Punt Pass is in the game plan but not used by the profile\n"
+        + "  game plan: special category Field Goal/PAT has no custom special play in the game plan\n"
+        "  game plan info: special category Fake FG Run is in the game plan but not used by the profile\n"
+        "  game plan info: special category Fake FG Pass is in the game plan but not used by the profile\n"
+        "  game plan info: special category Fake Punt Run is in the game plan but not used by the profile\n"
+        "  game plan info: special category Fake Punt Pass is in the game plan but not used by the profile\n"
         + golden("defense")
         + "\n2 file(s) checked, 2 with violations, 0 failed\n"
     )

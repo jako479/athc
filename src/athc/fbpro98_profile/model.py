@@ -45,7 +45,7 @@ DEFENSIVE_CATEGORIES = {
     0xFE: "User Specific",
 }
 
-SPECIAL_TEAMS_OFFENSIVE_CATEGORIES = {
+SPECIAL_OFFENSIVE_CATEGORIES = {
     0x01: "Field Goal/PAT",
     0x02: "Kickoff",
     0x03: "Punt",
@@ -58,7 +58,7 @@ SPECIAL_TEAMS_OFFENSIVE_CATEGORIES = {
     0x0A: "Squib Kick",
 }
 
-SPECIAL_TEAMS_DEFENSIVE_CATEGORIES = {
+SPECIAL_DEFENSIVE_CATEGORIES = {
     0x01: "Field Goal/PAT Defense",
     0x02: "Kick Return",
     0x03: "Punt Return",

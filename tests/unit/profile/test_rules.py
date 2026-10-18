@@ -274,8 +274,8 @@ def test_layering_omitted_keeps_allowed(tmp_path: Path) -> None:
     )
 
 
-def test_list_scopes_leave_out_special_teams() -> None:
-    """The lists cover every category but special teams: offense 0x00-0x0F and
+def test_list_scopes_leave_out_special_categories() -> None:
+    """The lists cover every category but the special ones: offense 0x00-0x0F and
     the randoms 0x17-0x1A, defense 0x00-0x0F."""
     assert (
         frozenset(range(0x00, 0x10))

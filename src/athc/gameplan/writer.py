@@ -1,7 +1,7 @@
 """Apply play-list updates to a GamePlan: resolve names via the pool, fill slots.
 
 Pure logic (no Click, no I/O): callers read/write the `.pln` themselves. Side and
-special-teams classification come from each play's `.ply` header, not the rules.
+special classification come from each play's `.ply` header, not the rules.
 """
 
 from __future__ import annotations
@@ -116,11 +116,11 @@ def _resolve_normal_line(
         )
         return None
     pf = record.play_file
-    if pf.is_special_teams:
+    if pf.is_special:
         invalid_plays.append(
             InvalidPlay(
                 play.line,
-                f"'{name}' is a special-teams play and cannot go in a normal slot.",
+                f"'{name}' is a special play and cannot go in a normal slot.",
             )
         )
         return None
@@ -167,10 +167,8 @@ def _resolve_special_line(
         invalid_plays.append(InvalidPlay(line, f"'{name}' is not in the play pool."))
         return None
     pf = record.play_file
-    if not pf.is_special_teams:
-        invalid_plays.append(
-            InvalidPlay(line, f"'{name}' is not a special-teams play.")
-        )
+    if not pf.is_special:
+        invalid_plays.append(InvalidPlay(line, f"'{name}' is not a special play."))
         return None
     if gp.is_offense and not pf.is_offensive:
         invalid_plays.append(

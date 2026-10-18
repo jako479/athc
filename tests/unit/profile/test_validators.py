@@ -550,7 +550,7 @@ def test_empty_allowed_list_enforces_nothing(ptype: ProfileType) -> None:
     assert _banned_messages(profile, make_rules()) == []
 
 
-# The lists' scope edges: special teams (offense 0x10-0x16, defense 0x10-0x15)
+# The lists' scope edges: special categories (offense 0x10-0x16, defense 0x10-0x15)
 # are never limited; the randoms (0x17-0x1A) are, having no league label.
 @pytest.mark.parametrize(
     "ptype,code,banned",

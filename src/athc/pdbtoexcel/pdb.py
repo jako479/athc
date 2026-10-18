@@ -61,7 +61,7 @@ class PLAY_DATA(ctypes.LittleEndianStructure):
         ("team_name", ctypes.c_char * 64),
         ("play_name", ctypes.c_char * 128),
         ("total_yards", ctypes.c_int32),
-        # Inaccurate for defensive plays; appears to include special-teams snaps.
+        # Inaccurate for defensive plays; appears to include special-play snaps.
         ("play_count", ctypes.c_uint32),
         ("completions", ctypes.c_uint32),
         ("sacks", ctypes.c_uint32),

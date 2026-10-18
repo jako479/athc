@@ -20,7 +20,7 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | Allowed category lists: labels → codes, defense label → each code | tmp | `{RL, PSR}`; `PassShort` → all three pass-short codes | `test_allowed_categories_parse` | ☑ |
 | Allowed lists omitted / `[]` → not enforced | tmp | both empty | `test_allowed_categories_omitted_is_empty` / `_empty_list_is_empty` | ☑ |
 | Layering: later allowed list replaces / `[]` clears / omitted keeps | tmp ×2 | whole result | `test_layering_replaces_allowed_list` / `test_layering_empty_list_clears_allowed` / `test_layering_omitted_keeps_allowed` | ☑ |
-| List scopes leave out special teams | const | offense 0x00-0x0F + randoms, defense 0x00-0x0F | `test_list_scopes_leave_out_special_teams` | ☑ |
+| List scopes leave out special categories | const | offense 0x00-0x0F + randoms, defense 0x00-0x0F | `test_list_scopes_leave_out_special_categories` | ☑ |
 | `audibles_allowed` omitted → default | tmp | True (no audibles check) | `test_audibles_allowed_defaults_when_omitted` | ☑ |
 | `min_categories` omitted → default | tmp | 0 (no baseline) | `test_min_categories_defaults_when_omitted` | ☑ |
 | `min_categories` = 0 (lower limit) ok | tmp | min == 0 | `test_min_categories_zero_ok` | ☑ |

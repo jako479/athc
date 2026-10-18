@@ -35,7 +35,7 @@ enum PlayType : u32 {
 // Notes (see pdb.md section 4):
 // - play_count is inaccurate for defensive plays; it exceeds
 //   run_plays_against + pass_plays_against, appearing to also count
-//   snaps during special-teams plays.
+//   snaps during special plays.
 // - QB scrambles are indistinguishable from incomplete passes
 //   (0-yard pass play, no completion).
 // - A sack on a "timed" pass play is logged as a run with negative yards;

@@ -34,7 +34,7 @@ high-level change completed alongside it gets its own line.
 - generate-schedule: `random_nonconference` picks the non-conference games at random from the run's seed (the PCFL's option, off)
 - generate-schedule: `--phase2-time-limit` replaces `--time-limit`; `scheduler.toml` puts `[solver]` first with `phase1_time_limit` and `phase2_time_limit`, and `[phase1] difficulty_slope` replaces `[difficulty] spread`
 - gameplan: find-play prints hits only when searching a set; a single game plan still says when the play is not in it
-- athc: messages say "game plan", "special-teams" and "is not in the play pool" everywhere, and every command hint reads `Run 'athc ...'`
+- athc: messages say "game plan", "special" and "is not in the play pool" everywhere, and every command hint reads `Run 'athc ...'`
 - athc: set-normals says `updated`, generate-schedule says `written`, and no line quotes a path
 - athc: the run log is `time LEVEL message`, the level once: `WARN` and `FAIL` lines carry it as the level, `OK` and `SKIP` lines keep their word
 - docs: `docs/` is four folders: one doc per module, `formats/` for every file spec and its patterns, `research/` and `proposals/`; the designs, specs and plans of merged work are gone

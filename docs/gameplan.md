@@ -46,7 +46,7 @@ athc gameplan check OFF.pln --league PCFL     # another league
 
 athc gameplan list-normals off1                    # 64 normal plays beside the game plan
 athc gameplan list-normals OFF.pln plays.txt --sort category
-athc gameplan list-specials def1 -                 # special teams to the console
+athc gameplan list-specials def1 -                 # special plays to the console
 athc gameplan find-play OR45RL01                   # your team's game plans
 athc gameplan find-play OR45RL01 BCFGPAT --path plans -r
 athc gameplan set-normals off1 plays.txt           # replace 64 normal slots
@@ -166,9 +166,9 @@ Each league's rule set is `config/release/leagues/<NAME>/gameplan.toml` — data
 
 ### set-normals / set-specials
 
-`gameplan.writer` resolves a play list against the pool into `.pln` slot entries (`apply_normal_plays` / `apply_special_plays`), aggregating every per-line problem into one `InvalidPlayListError`. Side and special-teams classification come from each play's `.ply` header, not the rules. A play in a stock-only special category (11-12) is rejected per line. The list format is one name per line, `::` comment lines, ` ::` inline trailers (`parse_play_list`); `read_play_list` reads a list file, and one that is not text (a `.pln` given by mistake) is `FAIL <list>: Not a valid play list.` Input or read failures abort before any write. Each slot's play path is the play pool's folder name, then the play's path inside the pool (`<pool folder>\Offense\RL\OR45RL01.ply`).
+`gameplan.writer` resolves a play list against the pool into `.pln` slot entries (`apply_normal_plays` / `apply_special_plays`), aggregating every per-line problem into one `InvalidPlayListError`. Side and special classification come from each play's `.ply` header, not the rules. A play in a stock-only special category (11-12) is rejected per line. The list format is one name per line, `::` comment lines, ` ::` inline trailers (`parse_play_list`); `read_play_list` reads a list file, and one that is not text (a `.pln` given by mistake) is `FAIL <list>: Not a valid play list.` Input or read failures abort before any write. Each slot's play path is the play pool's folder name, then the play's path inside the pool (`<pool folder>\Offense\RL\OR45RL01.ply`).
 
-- `set-normals GAME_PLAN INPUT_FILE` replaces all 64 normal slots of one `.pln` (a path or one of the four names); an `INPUT_FILE` of `-` reads the console. The pool comes from the league. No backup is made, and there is no quiet flag (`> nul` hides the `OK` line). Special-teams plays are rejected (`'X' is a special-teams play. Run 'athc gameplan set-specials'.`). Exit `0` = updated, `2` = usage or error.
+- `set-normals GAME_PLAN INPUT_FILE` replaces all 64 normal slots of one `.pln` (a path or one of the four names); an `INPUT_FILE` of `-` reads the console. The pool comes from the league. No backup is made, and there is no quiet flag (`> nul` hides the `OK` line). Special plays are rejected (`'X' is a special play. Run 'athc gameplan set-specials'.`). Exit `0` = updated, `2` = usage or error.
 - `set-specials INPUT_FILE` merges the custom special slots (unlisted categories preserved) of your team's four game plans, or of what `--path` names (one `.pln`, a name, every `.pln` in a folder/tree with `-r`, a wildcard); an `INPUT_FILE` of `-` reads the console. The list is read and counted before the league. Each play self-slots by its special category; wrong-side files are skipped with a `SKIP` line (offense `.pln` are even-sized, defense odd). The pool comes from the league. No backup is made. Exit `0` = all updated, `2` = usage, setup error or a failed file.
 
 ### replace-play

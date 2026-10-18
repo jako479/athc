@@ -15,7 +15,7 @@ from tests.conftest import LEAGUE, athc_toml, league_toml
 from tests.integration.conftest import GP_OFFENSE, PLAYS, TEAM_NAMES, lge, team
 
 NORMAL = "OR45RL01"  # a real normal offense play in the pool
-SPECIAL = "SFFGXPAT"  # a real special-teams offense play in the pool
+SPECIAL = "SFFGXPAT"  # a real special offense play in the pool
 MakeLeague = Callable[..., Path]
 WriteConfig = Callable[..., Path]
 
@@ -245,14 +245,14 @@ def test_file_input_line_is_the_real_line(runner, tmp_path: Path) -> None:
 # ── validation / errors (target left untouched) ───────────────────────────────
 
 
-def test_rejects_special_teams_play(runner, tmp_path: Path) -> None:
+def test_rejects_special_play(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
     original = p.read_bytes()
     inp = _input(tmp_path, SPECIAL + "\n")
     result = runner.invoke(set_normals, [str(p), str(inp)])
     assert result.exit_code == 2
     assert (
-        f"FAIL {inp}: line 1: '{SPECIAL}' is a special-teams play. Run 'athc gameplan set-specials'.\n"
+        f"FAIL {inp}: line 1: '{SPECIAL}' is a special play. Run 'athc gameplan set-specials'.\n"
         in result.stderr
     )
     assert p.read_bytes() == original

@@ -68,9 +68,7 @@ def check(ctx: click.Context, folder: Path | None, league: str | None) -> None:
     if pool.issues:
         console.print()
     plays = (
-        len(pool.offensive_plays)
-        + len(pool.defensive_plays)
-        + len(pool.special_teams_plays)
+        len(pool.offensive_plays) + len(pool.defensive_plays) + len(pool.special_plays)
     )
     console.result(f"{folder}: {plays} play(s) checked, {len(pool.issues)} issue(s)")
     ctx.exit(1 if pool.issues else 0)

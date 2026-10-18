@@ -81,7 +81,7 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 | % columns follow the run, not the setting | `calculate_percentages` false, run on | "Fumble %" header | `test_percent_columns_follow_the_run_not_the_setting` | ☑ |
 | Totals add "Total Stats" team | synth + pool | summed team present | `test_totals_adds_total_stats_team` | ☑ |
 | Category worksheets when enabled | synth + pool | "Run Categories" sheet + row | `test_category_worksheets_when_enabled` | ☑ |
-| Special-teams / unknown skipped | synth + pool | absent from sheets; "is not in the play pool" warning | `test_special_teams_and_unknown_plays_skipped` | ☑ |
+| Special / unknown skipped | synth + pool | absent from sheets; "is not in the play pool" warning | `test_special_and_unknown_plays_skipped` | ☑ |
 | Tendencies written | synth | 16 rows per team | `test_tendencies_written` | ☑ |
 | Slot column from gameplan | synth + pool + pln | slot 0 → "1-1" | `test_slot_column_from_gameplan` | ☑ |
 | Slot column hidden by its own plan | neither, plan 1 only, plan 2 only, both | hidden where absent | `test_slot_options_by_presence` `[P]` | ☑ |

@@ -1,4 +1,4 @@
-"""`athc gameplan set-specials` — set special-teams slots of one or many .pln."""
+"""`athc gameplan set-specials` — set special slots of one or many .pln."""
 
 from __future__ import annotations
 
@@ -59,12 +59,11 @@ def validate_special_play_list(
         record = pool.find_by_name(name)
         if record is None:
             continue
-        if not record.play_file.is_special_teams:
+        if not record.play_file.is_special:
             errors.append(
                 InvalidPlay(
                     play.line,
-                    f"'{name}' is not a special-teams play. "
-                    "Run 'athc gameplan set-normals'.",
+                    f"'{name}' is not a special play. Run 'athc gameplan set-normals'.",
                 )
             )
             continue
@@ -94,7 +93,7 @@ def _determine_side(pool: PlayPool, plays: Sequence[PlayLine]) -> str | None:
     """Infer side from the first resolvable special play; None if none resolve."""
     for play in plays:
         record = pool.find_by_name(play.name)
-        if record is not None and record.play_file.is_special_teams:
+        if record is not None and record.play_file.is_special:
             if record.play_file.is_offensive:
                 return "offense"
             if record.play_file.is_defensive:
@@ -128,7 +127,7 @@ def set_specials(
     team: str | None,
     league: str | None,
 ) -> None:
-    """Set the special-teams plays from a play list.
+    """Set the special plays from a play list.
 
     Other-side game plans are skipped; unlisted categories keep their plays.
     """

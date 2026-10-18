@@ -2,7 +2,7 @@
 
 A profile weights play categories per situation (and PAT); the gameplan must back
 every used category with at least one *custom* play. Normal run/pass categories
-map to the 64 normal slots; special-teams categories (FG/PAT, punt, the fakes)
+map to the 64 normal slots; special categories (FG/PAT, punt, the fakes)
 map to the 10 custom special slots. Clock and "random" meta-categories aren't
 backed by individual custom plays and are skipped.
 
@@ -91,7 +91,7 @@ _DEFENSE_NORMAL_CODES: dict[str, frozenset[int]] = {
     "Pass Short": PASS_SHORT_ANY,
 }
 
-# Profile special-teams code -> gameplan custom special slot (1-10). Slot numbers
+# Profile special category code -> gameplan custom special slot (1-10). Slot numbers
 # are side-independent (FG/PAT = 1 on offense and defense, etc.).
 _SPECIAL_SLOT_BY_CODE: dict[int, int] = {
     FIELD_GOAL_PAT: 1,
@@ -102,7 +102,7 @@ _SPECIAL_SLOT_BY_CODE: dict[int, int] = {
     FAKE_PUNT_PASS: 8,
 }
 
-# Readable names for the special-teams codes a profile can reference.
+# Readable names for the special category codes a profile can reference.
 _SPECIAL_NAME: dict[int, str] = {
     FIELD_GOAL_PAT: "Field Goal/PAT",
     PUNT: "Punt",
@@ -139,7 +139,7 @@ def check_gameplan_compatibility(
     """Report categories the profile uses that the gameplan has no custom play for.
 
     Profile and gameplan must already be the same side. Normal categories are
-    checked against the 64 normal slots, special-teams categories against the 10
+    checked against the 64 normal slots, special categories against the 10
     custom special slots; clock/random categories are ignored.
     """
     used = _used_categories(profile)
@@ -165,7 +165,7 @@ def check_gameplan_compatibility(
                 CompatIssue(
                     CompatKind.MISSING_SPECIAL_CATEGORY,
                     code,
-                    f"special-teams category {_SPECIAL_NAME[code]} has no custom "
+                    f"special category {_SPECIAL_NAME[code]} has no custom "
                     f"special play in the game plan",
                 )
             )
@@ -205,7 +205,7 @@ def gameplan_extra_categories(
                 CompatIssue(
                     CompatKind.EXTRA_SPECIAL_CATEGORY,
                     code,
-                    f"special-teams category {_SPECIAL_NAME[code]} "
+                    f"special category {_SPECIAL_NAME[code]} "
                     f"is in the game plan but not used by the profile",
                 )
             )

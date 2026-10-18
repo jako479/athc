@@ -463,7 +463,7 @@ def _category_lines(gp: GamePlan, labels: CategoryLabels) -> list[str]:
     plays = [(category_of(p), p.name) for p in gp.normal_plays if p is not None]
     lines: list[str] = []
     # The reader rejects an unrecognized category, and the GamePlan invariants
-    # (side parity, no special-teams play in a normal slot) keep every play's
+    # (side parity, no special play in a normal slot) keep every play's
     # category inside `order`, so none is dropped here.
     for category in order:
         names = [name for found, name in plays if found is category]
@@ -474,7 +474,7 @@ def _category_lines(gp: GamePlan, labels: CategoryLabels) -> list[str]:
 
 
 def special_play_lines(gp: GamePlan) -> list[str]:
-    """The custom special-teams play names in source order (empty slot = "")."""
+    """The custom special play names in source order (empty slot = "")."""
     return ["" if p is None else p.name for p in gp.custom_special_plays]
 
 

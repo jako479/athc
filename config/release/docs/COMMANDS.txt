@@ -75,8 +75,8 @@ A file or folder that exists by that name wins over the key.
       athc gameplan list-normals offense.pln -
 
 
-3) gameplan list-specials  --  list the special-teams plays in a game plan
-   -----------------------------------------------------------------------
+3) gameplan list-specials  --  list the special plays in a game plan
+   -----------------------------------------------------------------
 
    Lists them in game plan order. Default writes <name>.specials.txt next to
    the .pln, replacing any existing copy; pass an output file or folder to
@@ -97,9 +97,9 @@ A file or folder that exists by that name wins over the key.
 
    Searches your team's game plans, or the ones --path names: a .pln file,
    a folder, a wildcard or a game plan key (-r includes subfolders). Every
-   argument is a play. Case-insensitive; only the normal and special-teams
+   argument is a play. Case-insensitive; only the normal and special
    slots are searched (stock/clock slots skipped). Hits show the slot(s),
-   e.g. 'OR45RL01' found in slots 1-3, 16-2; special-teams hits add the
+   e.g. 'OR45RL01' found in slots 1-3, 16-2; special hits add the
    category, e.g. 'BCFGPAT' found in special slot 1 (Field Goal/PAT). No pool
    setup needed -- the category is read from the .pln. A single game plan
    without the play prints `not found`; a folder, a wildcard or your team's
@@ -132,8 +132,8 @@ A file or folder that exists by that name wins over the key.
       athc gameplan set-normals offense.pln plays.txt > nul
 
 
-6) gameplan set-specials  --  set the special-teams plays from a play list
-   -----------------------------------------------------------------------
+6) gameplan set-specials  --  set the special plays from a play list
+   -----------------------------------------------------------------
 
    Updates your team's game plans, or the ones --path names: a .pln file, a
    folder, a wildcard or a game plan key (-r includes subfolders), from a
@@ -154,7 +154,7 @@ A file or folder that exists by that name wins over the key.
 
    Replaces every instance of one play in your team's game plans, or the
    ones --path names: a .pln file, a folder, a wildcard or a game plan key
-   (-r includes subfolders). Searches the normal and special-teams slots,
+   (-r includes subfolders). Searches the normal and special slots,
    case-insensitive (same as find-play); only matching slots change, the
    rest are left alone.
 

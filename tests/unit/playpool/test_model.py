@@ -11,7 +11,7 @@ from athc.playpool import (
     PassLogic,
     Play,
     PlayPool,
-    SpecialTeamsPlay,
+    SpecialPlay,
 )
 from tests.unit.playpool.conftest import MakePlay
 
@@ -47,7 +47,7 @@ def test_defensive_to_dict(make_play: MakePlay) -> None:
 
 
 def test_special_to_dict(make_play: MakePlay) -> None:
-    rec = SpecialTeamsPlay("k", make_play("k", special_category=0x02))
+    rec = SpecialPlay("k", make_play("k", special_category=0x02))
     d = rec.to_dict()
     assert d["name"] == "k"
     assert "screen" not in d and "defensive_front" not in d
@@ -60,7 +60,7 @@ def test_find_by_name(make_play: MakePlay) -> None:
     assert pool.find_by_name("afgzoutx") is not None
     assert pool.find_by_name("AFGZOUTX").name == "AFGZoutX"  # type: ignore[union-attr]
     assert pool.find_by_name("nope") is None
-    assert (pool.offensive_plays, pool.defensive_plays, pool.special_teams_plays) == (
+    assert (pool.offensive_plays, pool.defensive_plays, pool.special_plays) == (
         [play],
         [],
         [],
@@ -71,12 +71,12 @@ def test_add_files_by_side(make_play: MakePlay) -> None:
     pool = PlayPool("root")
     offense = OffensivePlay("o", make_play("o"))
     defense = DefensivePlay("d", make_play("d", play_category=0x00, user_category=0x02))
-    special = SpecialTeamsPlay("k", make_play("k", special_category=0x02))
+    special = SpecialPlay("k", make_play("k", special_category=0x02))
     for play in (offense, defense, special):
         pool.add(play)
     assert pool.offensive_plays == [offense]
     assert pool.defensive_plays == [defense]
-    assert pool.special_teams_plays == [special]
+    assert pool.special_plays == [special]
 
 
 def test_duplicate_name_last_wins(make_play: MakePlay) -> None:

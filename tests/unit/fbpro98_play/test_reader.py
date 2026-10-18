@@ -265,27 +265,27 @@ def test_real_fixture_invariants(expected: FixtureExpectation) -> None:
     assert all(8 + header.offset + 4 <= len(data) for header in play.player_headers)
 
 
-def test_offensive_special_teams_category_name() -> None:
+def test_offensive_special_category_name() -> None:
     play = read_play(FIXTURE_DIR / "AF-KO.ply")
-    assert play.is_special_teams and play.is_offensive
+    assert play.is_special and play.is_offensive
     assert play.category_name == "Kickoff"
 
 
-def test_defensive_special_teams_category_name() -> None:
+def test_defensive_special_category_name() -> None:
     play = read_play(FIXTURE_DIR / "BCFGPATD.ply")
-    assert play.is_special_teams and play.is_defensive
+    assert play.is_special and play.is_defensive
     assert play.category_name == "Field Goal/PAT Defense"
 
 
 def test_offensive_normal_category_name() -> None:
     play = read_play(FIXTURE_DIR / "AFGZoutX.ply")
-    assert not play.is_special_teams and play.is_offensive
+    assert not play.is_special and play.is_offensive
     assert play.category_name == "Goal Line Pass"
 
 
 def test_defensive_normal_category_name() -> None:
     play = read_play(FIXTURE_DIR / "KCC33rmA.ply")
-    assert not play.is_special_teams and play.is_defensive
+    assert not play.is_special and play.is_defensive
     assert play.category_name == "Run Middle"
 
 
@@ -317,7 +317,7 @@ def test_offensive_attributes_of_real_plays(
         ("MN22PLz.ply", DefensiveFront.TWO_DL),
         ("KCC33rmA.ply", DefensiveFront.THREE_FOUR),
         ("JJ43rlZB.ply", DefensiveFront.FOUR_THREE),
-        ("BCFGPATD.ply", None),  # FG/PAT defense: special teams have no front
+        ("BCFGPATD.ply", None),  # FG/PAT defense: special plays have no front
     ],
 )
 def test_defensive_front_of_real_plays(

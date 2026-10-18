@@ -164,7 +164,7 @@ Which options the game's play editor offers each player, checked in the editor.
 | DT, DE         |                     | Move to, Stop and wait, Read, Pass rush, Run rush, Pursuit is                                                  |
 | LB, CB, S      | Line up on man      | Move to, Stop and wait, Read, Key on, Pass defense, Run defense, Blitz, If run pursuit is, If pass coverage is |
 
-### Special teams
+### Special plays
 
 | Team         | Before snap             | After snap                                                                                                            |
 | :----------- | :---------------------- | :-------------------------------------------------------------------------------------------------------------------- |

@@ -37,8 +37,8 @@ class CustomPlayRef:
     (odd = offense/kicking, even = defense/receiving)."""
 
     special_category: int
-    """Special-teams category; 0 = not special teams, 1-12 = the special-teams
-    categories (11 Run Clock and 12 Stop Clock are offense-only stock plays)."""
+    """Special category; 0 = not a special play, 1-12 = the special categories
+    (11 Run Clock and 12 Stop Clock are offense-only stock plays)."""
 
     user_category: int
     """User category byte; bits 5-0 = play category, bits 7-6 vary."""
@@ -71,8 +71,8 @@ class StockPlayRef:
     (odd = offense/kicking, even = defense/receiving)."""
 
     special_category: int
-    """Special-teams category; 0 = not special teams, 1-12 = the special-teams
-    categories (11 Run Clock and 12 Stop Clock are offense-only stock plays)."""
+    """Special category; 0 = not a special play, 1-12 = the special categories
+    (11 Run Clock and 12 Stop Clock are offense-only stock plays)."""
 
     user_category: int
     """User category byte; bits 5-0 = play category, bits 7-6 vary."""
@@ -88,7 +88,7 @@ PlayRef = CustomPlayRef | StockPlayRef
 
 @dataclass(frozen=True, slots=True)
 class SpecialSlot:
-    """One special-teams category's two slots: the coach's `custom` play and the
+    """One special category's two slots: the coach's `custom` play and the
     game's `stock` play. Categories 11-12 (Run Clock, Stop Clock) have no custom
     slot on disk, so their `custom` is always None."""
 
@@ -110,7 +110,7 @@ class GamePlan:
     """Number of normal (non-special) play slots."""
 
     NUMBER_SPECIAL_CATEGORIES: ClassVar[int] = 12
-    """Special-teams categories 1-12; `special_plays` has one slot per category."""
+    """Special categories 1-12; `special_plays` has one slot per category."""
 
     CUSTOM_SPECIAL_CATEGORIES: ClassVar[range] = range(1, 11)
     """Categories that have a custom slot. 11 (Run Clock) and 12 (Stop Clock)
@@ -127,7 +127,7 @@ class GamePlan:
     """The 64 normal play slots. None indicates an unused slot."""
 
     special_plays: tuple[SpecialSlot, ...]
-    """One SpecialSlot per special-teams category; index = category - 1."""
+    """One SpecialSlot per special category; index = category - 1."""
 
     audible: bytes = b"\x00\x01\x02\x03"
     """Four-byte audible play reference stored in the G95 block."""
@@ -167,9 +167,9 @@ class GamePlan:
                 continue
             if play.special_category != 0:
                 raise ValueError(
-                    f"Normal slot {i} contains a special-teams play "
+                    f"Normal slot {i} contains a special play "
                     f"(special_category={play.special_category}); "
-                    f"only non-special-teams plays allowed in normal slots"
+                    f"only non-special plays allowed in normal slots"
                 )
 
     def _check_slot(self, category: int, slot: SpecialSlot) -> None:
@@ -284,7 +284,7 @@ class GamePlan:
                 `special_category` selects its destination category.
 
         Returns:
-            A new GamePlan with the updated custom special-teams slots.
+            A new GamePlan with the updated custom special slots.
 
         Raises:
             ValueError: If any play's `special_category` is outside

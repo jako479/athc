@@ -80,6 +80,6 @@ A tendency record is valid when the team name is non-empty.
 
 ## 4. Notes
 
-- **Play count is inaccurate for defensive plays.** For defense it exceeds run plays against + pass plays against, appearing to also count snaps the defensive play was on the field for during special-teams plays. Treat run plays against + pass plays against as the authoritative defensive snap count.
+- **Play count is inaccurate for defensive plays.** For defense it exceeds run plays against + pass plays against, appearing to also count snaps the defensive play was on the field for during special plays. Treat run plays against + pass plays against as the authoritative defensive snap count.
 - **QB scrambles are indistinguishable from incomplete passes.** A scramble appears in the PDB as a pass play with `0` yards and no completion — identical to a thrown incompletion.
 - **Sacks on timed pass plays are logged as runs.** When a sack occurs on a "timed" pass play, the engine attributes the play (and its lost yards) to the run bucket rather than the pass bucket.

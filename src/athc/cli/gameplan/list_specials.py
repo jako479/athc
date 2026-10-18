@@ -1,4 +1,4 @@
-"""`athc gameplan list-specials` — dump the custom special-teams plays from a .pln."""
+"""`athc gameplan list-specials` — dump the custom special plays from a .pln."""
 
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ def list_specials(
     team: str | None,
     league: str | None,
 ) -> None:
-    """List the special-teams plays in a game plan.
+    """List the special plays in a game plan.
 
     Lists them in game plan order; an existing output file is replaced.
     """

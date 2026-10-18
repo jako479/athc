@@ -387,10 +387,10 @@ Commands:
   check          Check game plans against the league's rules.
   find-play      Find plays by name in game plans.
   list-normals   List the 64 normal plays in a game plan.
-  list-specials  List the special-teams plays in a game plan.
+  list-specials  List the special plays in a game plan.
   replace-play   Replace one play with another in game plans.
   set-normals    Set the 64 normal plays from a play list.
-  set-specials   Set the special-teams plays from a play list.
+  set-specials   Set the special plays from a play list.
 """,
     ("gameplan", "check"): f"""\
 Usage: athc gameplan check [OPTIONS] [PATH]...
@@ -418,7 +418,7 @@ Usage: athc gameplan find-play [OPTIONS] PLAY...
 
   Find plays by name in game plans.
 
-  Lists each play's normal and special-teams slots in each game plan.
+  Lists each play's normal and special slots in each game plan.
 
 Positional arguments:
   PLAY  Plays to find (any case).
@@ -461,7 +461,7 @@ Options:
     ("gameplan", "set-specials"): f"""\
 Usage: athc gameplan set-specials [OPTIONS] INPUT_FILE
 
-  Set the special-teams plays from a play list.
+  Set the special plays from a play list.
 
   Other-side game plans are skipped; unlisted categories keep their plays.
 
@@ -511,7 +511,7 @@ Options:
     ("gameplan", "list-specials"): f"""\
 Usage: athc gameplan list-specials [OPTIONS] GAME_PLAN [OUTPUT]
 
-  List the special-teams plays in a game plan.
+  List the special plays in a game plan.
 
   Lists them in game plan order; an existing output file is replaced.
 

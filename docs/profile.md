@@ -119,7 +119,7 @@ package**; `validate_profile` requires a rule set and never falls back to one.
 
 `allowed_offensive_categories` / `allowed_defensive_categories` list, by the
 league's labels only, the categories a profile may use; an omitted or empty
-list enforces nothing. They cover every category but special teams (FG/PAT,
+list enforces nothing. They cover every category but the special ones (FG/PAT,
 the fakes, punt, run clock), which they never limit; the randoms have no
 label, so a non-empty list always bans them. A defense label stands for all of
 its codes (`PassShort` for the three pass-short codes). An entry that is not

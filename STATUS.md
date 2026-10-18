@@ -340,8 +340,8 @@ Reads `.ply` play files. Docs: [spec](docs/formats/ply.md)
   plays). A player record too short for its logic boxes makes the file
   invalid. A damaged play file gets one message, `The play file is invalid or
   corrupted.`; only a wrong header and an unknown category say more.
-- The special-teams enum includes the two clock categories, Run Clock (`0x0B`)
-  and Stop Clock (`0x0C`).
+- The special category enum includes the two clock categories, Run Clock
+  (`0x0B`) and Stop Clock (`0x0C`).
 - The `.ply` spec gained a whole-file map and its categories were split into
   sections.
 - Play category is an enum with short and long forms, resolved from the play
@@ -480,8 +480,8 @@ Working. Validates and compares `.prf` coaching profiles. Docs:
 [profile.md](docs/profile.md) · [rules](config/release/leagues/PNFL/profile.toml)
 
 - `allowed_offensive_categories` / `allowed_defensive_categories` list the
-  categories a profile may use, by the league's labels; special teams are
-  never limited, and the shipped lists ban what the old never-use lists did.
+  categories a profile may use, by the league's labels; special categories
+  are never limited, and the shipped lists ban what the old never-use lists did.
   A situation's banned set is what its side's list leaves out plus every
   matching rule's `disallowed`.
 - A situation rule's `disallowed` forbids only the categories it lists.

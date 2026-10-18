@@ -80,11 +80,10 @@ def set_normals(
     specials = [
         InvalidPlay(
             play.line,
-            f"'{play.name}' is a special-teams play. Run 'athc gameplan set-specials'.",
+            f"'{play.name}' is a special play. Run 'athc gameplan set-specials'.",
         )
         for play in plays
-        if (r := pool.find_by_name(play.name)) is not None
-        and r.play_file.is_special_teams
+        if (r := pool.find_by_name(play.name)) is not None and r.play_file.is_special
     ]
     if specials:
         for invalid in specials:

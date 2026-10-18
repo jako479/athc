@@ -11,7 +11,7 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 | `category` (enum member) from the file | make | `OffensiveCategory.RUN_MIDDLE`, `is_run` | `test_category` | ☑ |
 | Offensive `to_dict` (category → long name) | make | `screen` + `pass_logic` | `test_offensive_to_dict` | ☑ |
 | Defensive `to_dict` | make | `defensive_front == "2-DL"` | `test_defensive_to_dict` | ☑ |
-| Special-teams `to_dict` (no extra fields) | make | base keys only | `test_special_to_dict` | ☑ |
+| Special `to_dict` (no extra fields) | make | base keys only | `test_special_to_dict` | ☑ |
 | `find_by_name` case-insensitive | make | hit; miss → None | `test_find_by_name` | ☑ |
 | `add` files a play under its side | make | one list each | `test_add_files_by_side` | ☑ |
 | `add` rejects a bare `Play` | make | `TypeError` | `test_add_rejects_a_bare_play` | ☑ |
@@ -26,7 +26,7 @@ One row per behavior. `[P]` = parametrized. Input: `make` = constructed `PlayFil
 | Defensive: category + `defensive_front` from the file | tree | same in all 3 layouts | `test_defensive_file_driven` `[P]` | ☑ |
 | Rollout margin | built; QB 100 / 101 units outside the line | not / rollout | `test_rollout_is_beyond_100_units_outside_the_line` `[P]` | ☑ |
 | Category gates the attributes | built; pass play whose QB runs, run play whose QB moves out and throws | no `qb_run`; no `rollout`, no `pass_logic` | `test_category_still_gates_the_attributes` | ☑ |
-| Special-teams play filed | tree | `SpecialTeamsPlay` | `test_special_file_driven` `[P]` | ☑ |
+| Special play filed | tree | `SpecialPlay` | `test_special_file_driven` `[P]` | ☑ |
 | `find_by_name` across sides | tree | hits / miss | `test_find_across_sides` `[P]` | ☑ |
 | Consistent trees emit no warning | tree | no "play in" | `test_no_warnings_on_consistent_trees` `[P]` | ☑ |
 | Invalid `.ply` skipped + warning | tree | warned; absent | `test_invalid_skipped` | ☑ |

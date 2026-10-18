@@ -195,7 +195,7 @@ src/athc/cli/_team.py         # shared team layer: league files, team, file loca
   plays are settings, a league's own where it differs; nothing league-specific
   is in the code. The "Type" column reads the
   typed playpool attributes (`qb_run`, `screen`, `defensive_front`): `screen`
-  from the play's folder, the others from its play file; special-teams plays
+  from the play's folder, the others from its play file; special plays
   leave it blank.
 - Not carried over from PdbToExcel: its `TOTAL_STATS_FILTER` thresholds and
   check (never reachable there; what to do with that filtering is a TODO item).

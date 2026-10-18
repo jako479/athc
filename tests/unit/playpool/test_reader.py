@@ -23,7 +23,7 @@ from athc.playpool import (
     OffensivePlay,
     PassLogic,
     PlayPool,
-    SpecialTeamsPlay,
+    SpecialPlay,
     read_play_pool,
 )
 from athc.playpool.reader import folder_warnings
@@ -155,7 +155,7 @@ def test_category_still_gates_the_attributes(tmp_path: Path) -> None:
 @pytest.mark.parametrize("pool_name", ALL_POOLS)
 def test_special_file_driven(request: pytest.FixtureRequest, pool_name: str) -> None:
     play = request.getfixturevalue(pool_name).find_by_name("AF-KO")
-    assert isinstance(play, SpecialTeamsPlay)
+    assert isinstance(play, SpecialPlay)
     assert play.category.long == "Kickoff"
 
 
@@ -328,9 +328,9 @@ def test_warn_offensive_play_in_defense_tree(make_play: MakePlay) -> None:
 
 
 def test_warn_special_play_in_side_tree(make_play: MakePlay) -> None:
-    play = make_play("X", special_category=0x02)  # special teams
+    play = make_play("X", special_category=0x02)  # special
     w = folder_warnings("Defense/X.ply", play, PNFL_LABELS)
-    assert w == ["Defense/X.ply: Special-teams play in the defense tree."]
+    assert w == ["Defense/X.ply: Special play in the defense tree."]
 
 
 def test_warn_offense_category_mismatch(make_play: MakePlay) -> None:

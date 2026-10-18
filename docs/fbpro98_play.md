@@ -34,7 +34,7 @@ print(play_file.defensive_front)
 ## API
 
 - `read_play(path)` reads a `.ply` and returns a `PlayFile`; `parse_play(buffer, path)` parses raw bytes, `path` only naming the source in errors (`<path>: <reason>`).
-- `PlayFile`: `file_path`, `stream_length`, `player_offsets`, `player_headers`, `player_logic`, `play_category`, `special_category`, `user_category`; `is_offensive` / `is_defensive` / `is_special_teams`; `category` (a category enum member, `UNKNOWN_CATEGORY` when unrecognized) and `category_name`.
+- `PlayFile`: `file_path`, `stream_length`, `player_offsets`, `player_headers`, `player_logic`, `play_category`, `special_category`, `user_category`; `is_offensive` / `is_defensive` / `is_special`; `category` (a category enum member, `UNKNOWN_CATEGORY` when unrecognized) and `category_name`.
 - Play attributes on `PlayFile`, normal plays only: `is_timed_pass`, `is_qb_run`, `is_rollout(margin)` (the caller picks the margin; 90 units to a yard) and `defensive_front` (`DefensiveFront.THREE_FOUR` / `FOUR_THREE` / `TWO_DL`, or `None`); the rules: [How athc reads a play](playpool.md#how-athc-reads-a-play).
 - `PlayerHeader`: `offset`, `rank`, `player_type`, `position`.
 - `PlayerLogic`: `pre_snap` and `after_snap`, each a tuple of `LogicBox` (`x`, `y`, `commands`); `Command`: `code`, `arguments`.
@@ -76,7 +76,7 @@ src/athc/fbpro98_play/
   - `play_category` (raw integer from the file)
   - `special_category` (raw integer)
   - `user_category` (raw integer)
-  - Properties: `is_offensive`, `is_defensive`, `is_special_teams`
+  - Properties: `is_offensive`, `is_defensive`, `is_special`
 - Names play categories: four per-side enums (`OffensiveCategory`, `DefensiveCategory`,
   `SpecialOffensiveCategory`, `SpecialDefensiveCategory`), each member carrying its
   `code` and `long` (game name), plus `is_run`/`is_pass`.
@@ -88,7 +88,7 @@ src/athc/fbpro98_play/
   `[categories.offense]` / `[categories.defense]` tables of `league.toml` by
   `CategoryLabels.from_tables` (ValueError on a bad entry). `label(category)` is the
   league label, else the game name; `offense_by_label` / `defense_by_label` resolve a
-  label within one side. Special-teams categories never have labels.
+  label within one side. Special categories never have labels.
 - Validates structural correctness of `.ply` bytes
 
 ### What this package assumes

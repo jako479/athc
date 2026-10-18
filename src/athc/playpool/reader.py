@@ -29,7 +29,7 @@ from athc.playpool.model import (
     OffensivePlay,
     PassLogic,
     PlayPool,
-    SpecialTeamsPlay,
+    SpecialPlay,
     StrPath,
 )
 
@@ -47,14 +47,14 @@ SIDE_FOLDERS = ("Offense", "Defense", "Special")
 _SIDE_ADJECTIVE = {
     "Offense": "Offensive",
     "Defense": "Defensive",
-    "Special": "Special-teams",
+    "Special": "Special",
 }
 # Category folders use the league's labels (league.toml) — resolved per side.
 
 
 def _file_side(play: PlayFile) -> str:
     """'Offense' | 'Defense' | 'Special' from the play file's own bytes."""
-    if play.is_special_teams:
+    if play.is_special:
         return "Special"
     return "Offense" if play.is_offensive else "Defense"
 
@@ -145,9 +145,7 @@ def _warn(pool: PlayPool, message: str) -> None:
     pool.issues.append(message)
 
 
-def _add(
-    pool: PlayPool, play: OffensivePlay | DefensivePlay | SpecialTeamsPlay
-) -> None:
+def _add(pool: PlayPool, play: OffensivePlay | DefensivePlay | SpecialPlay) -> None:
     if pool.find_by_name(play.name) is not None:
         _warn(pool, f"Duplicate play name '{play.name}'. The last one loaded wins.")
     pool.add(play)
@@ -194,8 +192,8 @@ def _read_play_file(pool: PlayPool, file_path: Path, labels: CategoryLabels) -> 
     for message in _warnings(info, play_file, rel.as_posix()):
         _warn(pool, message)
 
-    if play_file.is_special_teams:
-        _add(pool, SpecialTeamsPlay(name=name, play_file=play_file))
+    if play_file.is_special:
+        _add(pool, SpecialPlay(name=name, play_file=play_file))
     elif play_file.is_offensive:
         _add(pool, _offensive(name, play_file, screen=info.screen))
     else:

@@ -3,7 +3,7 @@
 # Sources: https://pnfl.biz/messageboard/viewtopic.php?f=16&t=14 (offense)
 #          https://pnfl.biz/messageboard/viewtopic.php?f=16&t=15 (defense)
 
-# Special teams that must each have a play assigned. Valid names:
+# Special categories that must each have a play assigned. Valid names:
 #   "Field Goal/PAT" "Kickoff" "Punt" "Onside Kick" "Fake FG Run" "Fake FG Pass"
 #   "Fake Punt Run" "Fake Punt Pass" "Free Kick" "Squib Kick" "Run Clock" "Stop Clock"
 required_special_categories = [

@@ -193,9 +193,9 @@ def test_category_worksheets_when_enabled(tmp_path: Path) -> None:
     assert _rows(wb["Run Categories"])[1][1] == "RM"
 
 
-def test_special_teams_and_unknown_plays_skipped(tmp_path: Path) -> None:
+def test_special_and_unknown_plays_skipped(tmp_path: Path) -> None:
     plays = [
-        _run_play("STPLAY", play_count=1),  # in pool but special teams
+        _run_play("STPLAY", play_count=1),  # in pool but special
         _run_play("GHOST", play_count=1),  # not in pool
     ]
     record = make_record(

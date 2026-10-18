@@ -331,10 +331,10 @@ def test_defensive_clock_play_in_offensive_gameplan_raises():
         _offense(specials=_offense_specials(c11=slot))
 
 
-def test_special_teams_play_in_normal_slot_raises():
+def test_special_play_in_normal_slot_raises():
     normals: list[PlayRef | None] = [None] * GamePlan.NUMBER_NORMAL_PLAYS
     normals[0] = _make_custom(special_category=2, play_category=0)
-    with pytest.raises(ValueError, match="Normal slot 0 contains a special-teams play"):
+    with pytest.raises(ValueError, match="Normal slot 0 contains a special play"):
         _defense(normals=tuple(normals))
 
 

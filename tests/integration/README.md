@@ -319,7 +319,7 @@ In [test_gameplan_set_normals.py](test_gameplan_set_normals.py). Operates on a t
 | `-q` rejected; `-` reads the console | tmp | exit 2, stderr ends `Error: No such option '-q'.`, untouched / exit 0, set | `test_quiet_is_rejected` / `test_dash_reads_from_console` | ☑ |
 | `-` input errors name no file | tmp | exit 2; stderr: `FAIL line 1: ...`, no `- ` | `test_dash_input_errors_name_no_file` | ☑ |
 | Error lines name the real line | `-` with CRLF, a blank and a `::` line / a file | `FAIL line 3: ...` / `FAIL <list>: line 4: ... (slot 1-2).` | `test_dash_input_line_is_the_real_line` / `test_file_input_line_is_the_real_line` | ☑ |
-| Special-teams play rejected (untouched) | tmp | exit 2; stderr: `FAIL` naming set-specials | `test_rejects_special_teams_play` | ☑ |
+| Special play rejected (untouched) | tmp | exit 2; stderr: `FAIL` naming set-specials | `test_rejects_special_play` | ☑ |
 | Missing play aborts (untouched) | tmp | exit 2; stderr: `FAIL` | `test_missing_play_aborts` | ☑ |
 | >64 plays / league `play_path` missing | tmp | exit 2; stderr: `FAIL` | `test_too_many_plays_rejected` / `test_invalid_play_path` | ☑ |
 | 64 plays accepted; >64 from the console | tmp | exit 0, `OK   <file>: updated (64 normal play(s))` / exit 2, `FAIL Too many plays (65). The most is 64.` | `test_as_many_plays_as_slots_accepted` / `test_too_many_plays_from_the_console_names_no_file` | ☑ |

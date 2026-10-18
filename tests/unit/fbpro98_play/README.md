@@ -16,7 +16,7 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_ply()` = 
 | Every real player has logic | golden | 11 `PlayerLogic`s, each with an after-snap box | `test_every_fixture_player_has_logic` `[P]` | ☑ |
 | Built logic decodes | make_ply | boxes in order; commands with 2, 1 and 0 arguments | `test_decodes_built_logic` | ☑ |
 | Bytes after the logic | make_ply | ignored; logic still read | `test_bytes_after_the_logic_are_ignored` | ☑ |
-| Category names resolve on real files (4 branches) | golden | off/def normal + off/def special-teams | `test_*_category_name` (4) | ☑ |
+| Category names resolve on real files (4 branches) | golden | off/def normal + off/def special | `test_*_category_name` (4) | ☑ |
 | Default path sentinel | make_ply | `file_path == Path("<buffer>")` | `test_default_path_sentinel` | ☑ |
 | Explicit path | make_ply | `file_path == Path(path)` | `test_explicit_path` | ☑ |
 | `read_play` accepts str + PathLike | tmp_path | parses; `file_path` set | `test_read_play_accepts_str_and_pathlike` | ☑ |
@@ -55,11 +55,11 @@ Every damaged file gets one message, "The play file is invalid or corrupted."; o
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | `is_offensive`/`is_defensive` by parity | PlayFile | odd `play_category` → offensive; even → defensive | `test_odd…_offensive` / `test_even…_defensive` `[P]` | ☑ |
-| `is_special_teams` | PlayFile | `special_category != 0` → True; `0` → False | `test_is_special_teams` | ☑ |
+| `is_special` | PlayFile | `special_category != 0` → True; `0` → False | `test_is_special` | ☑ |
 | Offensive normal category names | PlayFile | every `OffensiveCategory` member → long name | `test_offensive_category_name` `[P]` | ☑ |
 | Defensive normal category names | PlayFile | every `DefensiveCategory` member → long name | `test_defensive_category_name` `[P]` | ☑ |
-| Offensive special-teams names | PlayFile | every `SpecialOffensiveCategory` member → long name | `test_offensive_special_teams_names` `[P]` | ☑ |
-| Defensive special-teams names | PlayFile | every `SpecialDefensiveCategory` member → long name | `test_defensive_special_teams_names` `[P]` | ☑ |
+| Offensive special names | PlayFile | every `SpecialOffensiveCategory` member → long name | `test_offensive_special_names` `[P]` | ☑ |
+| Defensive special names | PlayFile | every `SpecialDefensiveCategory` member → long name | `test_defensive_special_names` `[P]` | ☑ |
 
 ### Edge / Error
 | Case | Input | Expected | Test | Status |
@@ -108,8 +108,8 @@ Constructed plays: tackles at x -300 and 300 unless a row says otherwise; margin
 | 3-4 / 4-3 only on Run Left, Middle, Right | each, 3 / 4 / 2 DL | 3-4, 4-3, None | `test_3_4_and_4_3_are_run_left_middle_right_fronts` `[P]` | ☑ |
 | 2-DL only on pass plays | Pass Short, Medium, Long, Dazzle, Goal Line Pass; 2 / 3 / 4 DL | 2-DL, None, None | `test_2_dl_is_a_pass_front` `[P]` | ☑ |
 | No front on other defenses | Run Dazzle, Goal Line Run, User Specific; 2-4 DL | None | `test_no_front_for_other_defenses` `[P]` | ☑ |
-| Offense attributes on defense / special teams | QB Run, Move to, Timed pass | all False | `test_offense_attributes_only_on_normal_offense` | ☑ |
-| Front on offense / special teams | 3 DT | None | `test_front_only_on_normal_defense` | ☑ |
+| Offense attributes on defense / special plays | QB Run, Move to, Timed pass | all False | `test_offense_attributes_only_on_normal_offense` | ☑ |
+| Front on offense / special plays | 3 DT | None | `test_front_only_on_normal_defense` | ☑ |
 | No logic | PlayFile without `player_logic` | all False / None | `test_no_logic_means_no_attributes` | ☑ |
 | Real offensive plays | golden | timed / rollout / QB run per play | `test_offensive_attributes_of_real_plays` `[P]` | ☑ |
 | Real defensive plays | golden | 2-DL, 3-4, 4-3; FG/PAT defense None | `test_defensive_front_of_real_plays` `[P]` | ☑ |

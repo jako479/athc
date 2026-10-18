@@ -88,7 +88,7 @@ class DefensiveCategory(PlayCategory, Enum):
 
 
 class SpecialOffensiveCategory(PlayCategory, Enum):
-    """Kicking-side special-teams categories, keyed by `special_category`.
+    """Kicking-side special categories, keyed by `special_category`.
     11 and 12 are the clock plays, which exist only on offense."""
 
     FIELD_GOAL_PAT = (0x01, "Field Goal/PAT")
@@ -106,7 +106,7 @@ class SpecialOffensiveCategory(PlayCategory, Enum):
 
 
 class SpecialDefensiveCategory(PlayCategory, Enum):
-    """Receiving-side special-teams categories, keyed by `special_category`."""
+    """Receiving-side special categories, keyed by `special_category`."""
 
     FIELD_GOAL_PAT_DEFENSE = (0x01, "Field Goal/PAT Defense")
     KICK_RETURN = (0x02, "Kick Return")
@@ -159,7 +159,7 @@ def resolve_category(
 
     The byte-level namer: used by `PlayFile.category` and by callers holding
     category bytes without a `PlayFile` (e.g. a gameplan or profile play). Side
-    comes from `play_category` parity; special teams use `special_category`;
+    comes from `play_category` parity; special plays use `special_category`;
     normal plays look up `user_category`, falling back to `user_category & 0x3F`
     (the top two bits vary within a category).
     """
@@ -255,7 +255,7 @@ class PlayFile:
     (odd = offense/kicking, even = defense/receiving)."""
 
     special_category: int
-    """Special-teams category at 0x1F; 0 = not special teams."""
+    """Special category at 0x1F; 0 = not a special play."""
 
     user_category: int
     """User category byte at 0x20; bits 5-0 = play category, bits 7-6 vary."""
@@ -281,8 +281,8 @@ class PlayFile:
         return self.play_category % 2 == 0
 
     @property
-    def is_special_teams(self) -> bool:
-        """True if this is a special-teams play (any non-zero special_category)."""
+    def is_special(self) -> bool:
+        """True if this is a special play (any non-zero special_category)."""
         return self.special_category != 0
 
     @property
@@ -335,7 +335,7 @@ class PlayFile:
         """A defensive play's front from its down linemen (DT + DE): on a Run
         Left, Run Middle or Run Right play 3 is a 3-4 and 4 a 4-3; on a pass
         play 2 is a 2-DL. None for any other play or count."""
-        if not self.is_defensive or self.is_special_teams:
+        if not self.is_defensive or self.is_special:
             return None
         count = sum(1 for h in self.player_headers if h.position in _DOWN_LINEMEN)
         category = self.category
@@ -347,7 +347,7 @@ class PlayFile:
 
     @property
     def _is_normal_offense(self) -> bool:
-        return self.is_offensive and not self.is_special_teams
+        return self.is_offensive and not self.is_special
 
     def _logic_at(self, *positions: int) -> list[PlayerLogic]:
         """The logic of every player at one of `positions`, in slot order."""
