@@ -9,8 +9,11 @@ Where things stand now: [STATUS.md](STATUS.md).
   category lists moved to the left of the sheet. The golden workbook test ran
   three seasons of stats against the small test pool, so it warned about
   every missing play and checked only the ones the pool had; it now uses a
-  real week's PDB with every play in the test pool, so it runs with no
-  warnings. AGENTS.md's project meta list now names WORKLOG.md.
+  real week's PDB with its own pool holding every play in it, so it runs with
+  no warnings. A first try copied those plays into the shared test pool and
+  broke the release sandbox check that pins that pool at 128 plays, so they
+  moved to a folder of their own. AGENTS.md's project meta list now names
+  WORKLOG.md.
 - 2026-10-17 — **athc**: PNFL and PCFL are clones, so each league carried the
   same convert-pdb settings twice in its own `pdbtoexcel.toml`, while the rest
   of convert-pdb's settings sat in `athc.ini`. Settings now have one home and

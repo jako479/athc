@@ -268,7 +268,7 @@ option is a usage error. `OUTPUT` follows the rules in
   the Options sheet's names, the row highlight).
 - `tests/integration/test_convert_pdb.py` — CLI end-to-end (the default
   output, the options, the team's game plans from each source, the setting
-  errors), plus a golden workbook: a real week's `.pdb` (`48W17.pdb`, every
-  play in the curated pool) converted against that pool, the PNFL labels and
-  order and both game plans, every cell compared to
+  errors), plus a golden workbook: a real week's `.pdb` (`48W17.pdb`)
+  converted against its own play pool, which holds every play in it, the PNFL
+  labels and order and both game plans, every cell compared to
   `expected/48W17.workbook.json`.

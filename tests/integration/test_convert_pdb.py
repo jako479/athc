@@ -48,7 +48,6 @@ from tests.integration.conftest import (
     EXPECTED,
     GP_DEFENSE,
     GP_OFFENSE,
-    PLAYS,
     TEAM_NAMES,
     BuildLeague,
     team,
@@ -56,9 +55,10 @@ from tests.integration.conftest import (
 from tests.integration.conftest import DENVER_2049 as DENVER
 
 PDB = DATA / "2045-2047.pdb"
-# Every play in this week's PDB is in data/plays/, so a run against that pool
-# warns about none of them.
+# A real week's PDB and its own pool holding every play in it, so a run warns
+# about none of them; the shared data/plays/ pool stays as other tests pin it.
 POOL_PDB = DATA / "48W17.pdb"
+POOL_PLAYS = DATA / "48W17-plays"
 GOLDEN = EXPECTED / "48W17.workbook.json"
 MakeLeague = Callable[..., Path]
 WriteConfig = Callable[..., Path]
@@ -314,7 +314,7 @@ def test_no_category_order_exports_nothing(
     """No category_order in athc.toml or league.toml: every list is empty, so
     the pool the golden workbook fills gives no play rows."""
     write_config(athc_toml())
-    make_league(LEAGUE, league_toml(PLAYS))
+    make_league(LEAGUE, league_toml(POOL_PLAYS))
     out = tmp_path / "o.xlsx"
     result = runner.invoke(convert_pdb, [str(POOL_PDB), str(out)])
     assert result.exit_code == 0
@@ -335,7 +335,7 @@ def test_league_override_changes_the_order(
     sort before RL, and RR and GLR are left out."""
     write_config(athc_toml() + CONVERT_PDB_TOML)
     body = '[convert-pdb.category_order]\nrun = ["RM", "RL"]\n'
-    make_league(LEAGUE, league_toml(PLAYS, convert_pdb=body))
+    make_league(LEAGUE, league_toml(POOL_PLAYS, convert_pdb=body))
     out = tmp_path / "o.xlsx"
     result = runner.invoke(convert_pdb, [str(POOL_PDB), str(out)])
     assert result.exit_code == 0, result.stderr
@@ -594,14 +594,14 @@ def test_no_play_path_exit_2(
 
 
 # ── golden workbook ───────────────────────────────────────────────────────────
-# The real .pdb converted against the curated pool and both game plans, category
+# A real week's .pdb converted against its own pool and both game plans, category
 # worksheets on; every cell compared to the golden JSON.
 
 
 def _golden_league(config_dir: Path) -> None:
-    """Select a league under `config_dir` whose pool is `data/plays/`, with the
+    """Select a league under `config_dir` whose pool is the PDB's own, with the
     PNFL labels and order, and turn the category worksheets on."""
-    make_league_dir(config_dir, LEAGUE, league_toml(PLAYS))
+    make_league_dir(config_dir, LEAGUE, league_toml(POOL_PLAYS))
     write_config_file(
         config_dir,
         athc_toml()
