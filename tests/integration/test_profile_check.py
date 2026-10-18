@@ -20,7 +20,9 @@ from athc.profile import load_rules
 from tests.conftest import (
     LEAGUE,
     OTHER_LEAGUE,
+    PNFL_LABELS,
     athc_toml,
+    league_toml,
     no_league_selected,
     no_rules_configured,
     toml_error,
@@ -42,7 +44,7 @@ from tests.integration.conftest import (
     profile_file,
 )
 
-RULES = load_rules([RULES_TOML])
+RULES = load_rules([RULES_TOML], labels=PNFL_LABELS)
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
 
@@ -515,6 +517,24 @@ def test_cli_rules_from_league_folder(
     shutil.copy(RULES_TOML, folder / "profile.toml")
     write_config(athc_toml())
     assert runner.invoke(check, [str(OFF1)]).exit_code == 1
+
+
+def test_cli_allowed_lists_use_the_league_labels(
+    runner, make_league: MakeLeague, write_config: WriteConfig
+) -> None:
+    """The allowed lists are read with the labels in the league's league.toml;
+    without them `RM` would not load."""
+    folder = make_league(LEAGUE, league_toml())
+    rules = folder / "profile.toml"
+    rules.write_text('allowed_offensive_categories = ["RM"]\n', encoding="utf-8")
+    write_config(athc_toml())
+    _, report = check_file(OFF1, load_rules([rules], labels=PNFL_LABELS))
+    assert "uses banned categories" in report
+    result = runner.invoke(check, [str(OFF1)])
+    assert result.exit_code == 1
+    assert result.stdout == (
+        f"{report}\n\n1 file(s) checked, 1 with violations, 0 failed\n"
+    )
 
 
 def test_cli_league_flag_picks_folder(runner, make_league: MakeLeague) -> None:

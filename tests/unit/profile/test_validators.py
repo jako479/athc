@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from functools import partial
 from pathlib import Path
 
 import pytest
@@ -24,31 +25,40 @@ from athc.profile import (
     RuleName,
     RuleViolation,
     SubstitutionRule,
-    load_rules,
     validate_profile,
 )
+from athc.profile import load_rules as _load_rules
 from athc.profile.rules import (
     FAKE_PUNT_PASS,
     FIELD_GOAL_PAT,
+    GOAL_LINE_RUN,
     PASS_LONG_LEFT,
+    PASS_MEDIUM_LEFT,
     PASS_SHORT_LEFT,
+    PASS_SHORT_RANDOM,
+    PASS_SHORT_RIGHT,
     PUNT,
     RAZZLE_DAZZLE_PASS,
+    RAZZLE_DAZZLE_RUN,
     RUN_CLOCK,
     RUN_LEFT,
     RUN_MIDDLE,
+    RUN_RANDOM,
     SituationRule,
 )
 from athc.profile.validators import (
     DEFENSE_EXEMPT_CATEGORIES,
     OFFENSE_EXEMPT_CATEGORIES,
 )
+from tests.conftest import PNFL_LABELS
 from tests.unit.profile.conftest import (
     DATA,
     exact_substitution,
     make_profile,
     weights,
 )
+
+load_rules = partial(_load_rules, labels=PNFL_LABELS)
 
 OFF1 = read_profile(str(DATA / "TST-OFF1.prf"))  # offense, audibles off, qb 75/80
 OFF1_AUD = read_profile(str(DATA / "TST-OFF1-AUD.prf"))  # offense, audibles ON
@@ -502,22 +512,74 @@ def test_multiple_mandatory_categories_each_required() -> None:
 # ── disallowed categories ─────────────────────────────────────────────────────
 
 
-def test_disallowed_category_fires() -> None:
-    """A category in the disallowed set is flagged wherever it has weight."""
-    rules = make_rules(offense_disallowed_categories=frozenset({RUN_MIDDLE}))
-    flagged = [
-        v
-        for v in validate_profile(make_profile(), rules)
-        if v.rule_name == RuleName.OFFENSE_DISALLOWED_CATEGORY
+def _banned_messages(profile: Profile, rules: ProfileRules) -> list[str]:
+    return [
+        v.message
+        for v in validate_profile(profile, rules)
+        if v.rule_name
+        in (RuleName.OFFENSE_DISALLOWED_CATEGORY, RuleName.DEFENSE_DISALLOWED_CATEGORY)
     ]
-    assert flagged
-    assert all("0x03" in v.message for v in flagged)  # RUN_MIDDLE = 0x03
 
 
-def test_disallowed_category_clean_when_unused() -> None:
-    """A disallowed category the profile never uses fires nothing."""
-    rules = make_rules(offense_disallowed_categories=frozenset({RUN_LEFT}))
-    assert RuleName.OFFENSE_DISALLOWED_CATEGORY not in names(make_profile(), rules)
+def test_category_outside_allowed_list_is_banned() -> None:
+    """A used category the allowed list leaves out is banned in every situation
+    that uses it. The baseline profile uses RUN_MIDDLE (0x03), PSL and PML."""
+    rules = make_rules(
+        offense_allowed_categories=frozenset({PASS_SHORT_LEFT, PASS_MEDIUM_LEFT})
+    )
+    assert _banned_messages(make_profile(), rules) == [
+        f"Situation {n} uses banned categories: 0x03"
+        for n in range(1, Profile.NUMBER_SITUATIONS + 1)
+    ]
+
+
+def test_allowed_list_clean_when_every_used_category_is_listed() -> None:
+    rules = make_rules(
+        offense_allowed_categories=frozenset(
+            {RUN_MIDDLE, PASS_SHORT_LEFT, PASS_MEDIUM_LEFT}
+        )
+    )
+    assert _banned_messages(make_profile(), rules) == []
+
+
+@pytest.mark.parametrize("ptype", [ProfileType.OFFENSE, ProfileType.DEFENSE])
+def test_empty_allowed_list_enforces_nothing(ptype: ProfileType) -> None:
+    profile = make_profile(
+        ptype, category_weights=weights(RUN_RANDOM, 4, RAZZLE_DAZZLE_RUN, 3, 0, 0)
+    )
+    assert _banned_messages(profile, make_rules()) == []
+
+
+# The lists' scope edges: special teams (offense 0x10-0x16, defense 0x10-0x15)
+# are never limited; the randoms (0x17-0x1A) are, having no league label.
+@pytest.mark.parametrize(
+    "ptype,code,banned",
+    [
+        (ProfileType.OFFENSE, GOAL_LINE_RUN, True),  # 0x00
+        (ProfileType.OFFENSE, PASS_SHORT_RIGHT, True),  # 0x0F
+        (ProfileType.OFFENSE, FIELD_GOAL_PAT, False),  # 0x10
+        (ProfileType.OFFENSE, RUN_CLOCK, False),  # 0x16
+        (ProfileType.OFFENSE, RUN_RANDOM, True),  # 0x17
+        (ProfileType.OFFENSE, PASS_SHORT_RANDOM, True),  # 0x1A
+        (ProfileType.DEFENSE, GOAL_LINE_RUN, True),  # 0x00
+        (ProfileType.DEFENSE, PASS_SHORT_RIGHT, True),  # 0x0F
+        (ProfileType.DEFENSE, FIELD_GOAL_PAT, False),  # 0x10
+    ],
+)
+def test_allowed_list_scope_edges(ptype: ProfileType, code: int, banned: bool) -> None:
+    """A non-empty list naming none of the edge codes (only RUN_MIDDLE)."""
+    profile = make_profile(
+        ptype, category_weights=weights(code, 4, RUN_MIDDLE, 3, 0, 0)
+    )
+    listed = frozenset({RUN_MIDDLE})
+    rules = make_rules(
+        offense_allowed_categories=listed, defense_allowed_categories=listed
+    )
+    expected = [
+        f"Situation {n} uses banned categories: 0x{code:02X}"
+        for n in range(1, Profile.NUMBER_SITUATIONS + 1)
+    ]
+    assert _banned_messages(profile, rules) == (expected if banned else [])
 
 
 def test_rule_disallowed_fires_only_where_the_rule_matches() -> None:
@@ -552,12 +614,12 @@ def test_rule_disallowed_leaves_unlabeled_categories_alone() -> None:
     assert RuleName.OFFENSE_ALLOWED_CATEGORIES not in got
 
 
-def test_rule_disallowed_combines_with_banned_list() -> None:
-    """The banned list and a matching rule's `disallowed` give one violation
-    per situation, listing every code."""
+def test_rule_disallowed_combines_with_allowed_list() -> None:
+    """A category the allowed list leaves out and a matching rule's `disallowed`
+    give one violation per situation, listing every code."""
     r = rule(disallowed=frozenset({PASS_SHORT_LEFT}))
     rules = make_rules(
-        offense_disallowed_categories=frozenset({RUN_MIDDLE}),
+        offense_allowed_categories=frozenset({PASS_SHORT_LEFT, PASS_MEDIUM_LEFT}),
         offense_situations=(r,),
     )
     hits = [
@@ -593,11 +655,12 @@ def test_all_issues_reported_including_disallowed() -> None:
     """One validate_profile reports every distinct issue, not just the first.
 
     The baseline profile (RUN_MIDDLE + two passes) is made to trip three rules at
-    once: a banned category, a too-restrictive allowed set, and the minimum.
+    once: a category the allowed list leaves out, a too-restrictive allowed set,
+    and the minimum.
     """
     rules = make_rules(
         min_categories=5,
-        offense_disallowed_categories=frozenset({RUN_MIDDLE}),
+        offense_allowed_categories=frozenset({PASS_SHORT_LEFT, PASS_MEDIUM_LEFT}),
         offense_situations=(rule(allowed=frozenset({RUN_LEFT})),),
     )
     kinds = {v.rule_name for v in validate_profile(make_profile(), rules)}

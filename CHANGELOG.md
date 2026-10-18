@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- profile: rules list the categories a profile may use, by the league's names, in place of the never-use lists
 - convert-pdb: an `.xlsm` always outlines the selected row; the Options sheet's Highlight Selected Row option is gone
 - convert-pdb: the golden workbook test uses a real week's PDB whose plays are all in the test pool, so it runs with no warnings
 - profile: `copy` onto the same file as its only target is an error, as with Windows' `copy`; in a bulk copy the source is still skipped

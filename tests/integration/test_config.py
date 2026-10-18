@@ -1154,6 +1154,17 @@ def test_release_gameplan_rules_load_with_the_league_labels(name: str) -> None:
 
 @pytest.mark.usefixtures("release_config_dir")
 @pytest.mark.parametrize("name", SHIPPED_LEAGUES)
+def test_release_profile_rules_load_with_the_league_labels(name: str) -> None:
+    from athc.profile import config as profile_config
+    from athc.profile import load_rules
+
+    cfg = profile_config.load_config(name)
+    assert cfg.categories.offense and cfg.categories.defense
+    load_rules(cfg.rule_files, labels=cfg.categories)
+
+
+@pytest.mark.usefixtures("release_config_dir")
+@pytest.mark.parametrize("name", SHIPPED_LEAGUES)
 def test_release_profile_config_loads(name: str) -> None:
     from athc.profile import config as profile_config
 

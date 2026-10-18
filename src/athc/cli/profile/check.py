@@ -54,7 +54,8 @@ def check(
     """
     paths = path or (".",)
     profiles = team_profiles(paths, team=team, league=league)
-    rules = load_rules_or_raise(load_config(league).rule_files)
+    config = load_config(league)
+    rules = load_rules_or_raise(config.rule_files, config.categories)
 
     expanded = expand_names(paths, profiles)
     collected = collect_files(expanded.paths, suffix=".prf", recursive=recursive)

@@ -93,7 +93,7 @@ and its comments explain every key.
 ```
 src/athc/profile/          # tool logic (no Click)
 ├── __init__.py    # public API
-├── config.py      # profile.toml (or profile_rules list) from the league folder
+├── config.py      # profile.toml (or profile_rules list) and the category labels from the league folder
 ├── model.py       # RuleName, RuleViolation
 ├── rules.py       # ProfileRules, SituationRule, SubstitutionRule/PercentBound, load_rules, RulesFileError
 ├── validators.py  # validate_profile
@@ -112,21 +112,31 @@ src/athc/cli/profile/      # Click wiring
 
 ### Rules
 
-External TOML, loaded via `load_rules(paths)` — multiple files layer in order
-(scalars overwrite; per-situation rules replace by section label). **No rules
-ship in the package**; `validate_profile` requires a rule set and never falls
-back to one. Situation rules are a list: each has optional game-state filters
+External TOML, loaded via `load_rules(paths, labels=...)` with the league's
+category labels — multiple files layer in order (scalars and lists overwrite;
+per-situation rules replace by section label). **No rules ship in the
+package**; `validate_profile` requires a rule set and never falls back to one.
+
+`allowed_offensive_categories` / `allowed_defensive_categories` list, by the
+league's labels only, the categories a profile may use; an omitted or empty
+list enforces nothing. They cover every category but special teams (FG/PAT,
+the fakes, punt, run clock), which they never limit; the randoms have no
+label, so a non-empty list always bans them. A defense label stands for all of
+its codes (`PassShort` for the three pass-short codes). An entry that is not
+one of the side's labels (a game name, a User Specific label) is an error.
+
+Situation rules are a list: each has optional game-state filters
 (time/down/yards/fields — omitted = all) and constraints (`allowed`,
 `disallowed`, `mandatory`, `min_categories`); a situation gets every rule it
 matches. `allowed` limits a matching situation to the listed categories;
 `disallowed` forbids exactly the listed ones and nothing else; a situation's
-disallowed set is the side's top-level `disallowed_offensive_categories` /
-`disallowed_defensive_categories` list plus every matching rule's. Substitution
+banned set is every in-scope category its side's allowed list leaves out plus
+every matching rule's `disallowed`, reported as one violation. Substitution
 rules are one `SubstitutionRule` per position group, a
 `PercentBound` per side (out/in): an exact value or an optional min/max range;
 a side with no key is unchecked, and each unmet side is its own violation. The
 shipped [config/release/leagues/PNFL/profile.toml](../config/release/leagues/PNFL/profile.toml)
-is the reference; its comments cover the matrix, category counts, disallowed
+is the reference; its comments cover the matrix, category counts, allowed
 categories and substitutions.
 
 The min-categories exemption is built into `validators.py`, not the rules file: a

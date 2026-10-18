@@ -5,20 +5,20 @@
 audibles_allowed = false   # if false, profiles must save with audibles off
 min_categories = 2         # baseline distinct categories per situation (>= 0)
 
-# Categories a profile must never use (weight 0 in every situation). Full game
-# names: Goal Line Run/Pass, Razzle Dazzle Run/Pass, Run Left/Middle/Right,
-# Pass Long/Medium/Short Left/Middle/Right, Field Goal/PAT, Fake FG Run/Pass,
-# Punt, Fake Punt Run/Pass, Run Clock, Run Random, Pass Long/Medium/Short Random.
-disallowed_offensive_categories = [
-    "Razzle Dazzle Run",
-    "Run Random",
-    "Pass Long Left",
-    "Pass Long Middle",
-    "Pass Long Random",
-    "Pass Medium Random",
-    "Pass Short Random",
+# Categories a profile may use, by the league's names. A used category not
+# listed is a violation; random plays have no league name, so a list always
+# bans them. Special teams (field goal, punt, fakes, run clock) are never
+# limited. Omitted = not enforced.
+allowed_offensive_categories = [
+    "GLR", "RL", "RM", "RR",
+    "GLP", "PRD", "PLR",
+    "PML", "PMM", "PMR",
+    "PSL", "PSM", "PSR",
 ]
-disallowed_defensive_categories = []
+allowed_defensive_categories = [
+    "GLrun", "RunDazzle", "RunLeft", "RunMiddle", "RunRight",
+    "GLpass", "PassDazzle", "PassLong", "PassMedium", "PassShort",
+]
 
 # Cross-check between a profile and a gameplan, applied by `check-ppp`.
 # Omitted = not enforced.

@@ -57,6 +57,7 @@ The "league" input is a selected league folder whose `profile.toml` is the test 
 | No league configured | empty config | exit 2; stderr: `FAIL League is not set ...` | `test_cli_no_league` | ☑ |
 | League folder without rules | `leagues/<NAME>/` | exit 2; stderr: `FAIL No rules configured ...` | `test_cli_no_rules_in_league_folder` | ☑ |
 | Rules from the league folder | `leagues/<NAME>/profile.toml` + `[athc] league` | exit 1 | `test_cli_rules_from_league_folder` | ☑ |
+| Allowed lists read with the league's labels | `allowed_offensive_categories = ["RM"]` + league.toml labels | exit 1; the report `check_file` gives | `test_cli_allowed_lists_use_the_league_labels` | ☑ |
 | `--league` picks the folder | two leagues | exit 1 | `test_cli_league_flag_picks_folder` | ☑ |
 | `profile_rules` list | relative to the league folder | exit 1 | `test_cli_profile_rules_list_relative_to_league_folder` | ☑ |
 | `profile_rules` layering | base + overlay | later overrides earlier | `test_cli_rules_layering` | ☑ |
@@ -681,6 +682,7 @@ Argument errors check nothing, since both files are required.
 | Config error stops before the files | no league; OFF1 + broken.pln | exit 2; stderr: `FAIL League is not set ...` only; stdout empty | `test_cli_config_error_stops_before_the_files` / `test_cli_first_config_error_stops_the_run` | ☑ |
 | No `play_path` / not a directory | league folder | exit 2; stderr: `FAIL`; no `--play-path` hint | `test_cli_no_play_path` / `test_cli_play_path_not_a_directory` | ☑ |
 | Bad rules TOML | profile / gameplan | exit 2; stderr: `FAIL <file>: Not valid TOML: ...`; neither file checked | `test_cli_bad_rules_toml` `[P]` | ☑ |
+| Profile allowed lists read with the league's labels | `allowed_offensive_categories = ["RM"]` + league.toml labels | exit 1; the banned-category lines `validate_profile` gives | `test_cli_profile_allowed_lists_use_the_league_labels` | ☑ |
 | Rule lists in `league.toml` | `profile_rules` + `gameplan_rules` arrays | exit 1 | `test_cli_rule_lists_in_league_toml` | ☑ |
 | Listed rules file missing | `*_rules` → absent file | exit 2; stderr: `FAIL` naming the path | `test_cli_missing_listed_rules_file` `[P]` | ☑ |
 | Malformed `athc.toml` | bad TOML | exit 2; stderr: `FAIL <athc.toml>: Not valid TOML: ...` | `test_cli_malformed_toml` | ☑ |
@@ -1084,6 +1086,7 @@ In [test_config_set.py](test_config_set.py). `set_config_value` rewrites `athc.t
 | `[autocontinue]` | config/release/ | loads | `test_release_autocontinue_section_loads` | ☑ |
 | gameplan, every league | config/release/ | loads; rule files exist | `test_release_gameplan_config_loads` `[P]` | ☑ |
 | profile, every league | config/release/ | loads; rule files exist | `test_release_profile_config_loads` `[P]` | ☑ |
+| profile rules, every league | config/release/ | load with the league's category labels | `test_release_profile_rules_load_with_the_league_labels` `[P]` | ☑ |
 | convert-pdb, every league | config/release/ | loads; the order (4/9/10) and deleted plays from `athc.toml` | `test_release_convert_pdb_config_loads` `[P]` | ☑ |
 | `[convert-pdb]` options | config/release/ | spelled out in `athc.toml`; sacks counted as attempts | `test_release_convert_pdb_defaults` | ☑ |
 | scheduler, every league | config/release/ | the rules path is the league folder's `scheduler.toml`; it loads | `test_release_scheduler_files_load` `[P]` | ☑ |

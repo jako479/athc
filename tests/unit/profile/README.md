@@ -2,7 +2,7 @@
 
 Tool-logic unit cases (rules loader + validators). Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). CLI cases live in [../../integration/README.md](../../integration/README.md).
 
-One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profile_rules.toml`; `tmp` = constructed TOML; `make` = `ProfileRules` built in-test; `built` = synthetic `Profile` from `conftest.make_profile`. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/profile` passes.
+One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profile_rules.toml`; `tmp` = constructed TOML; `make` = `ProfileRules` built in-test; `built` = synthetic `Profile` from `conftest.make_profile`; `const` = module constants. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/profile` passes.
 
 ## rules.py — `load_rules`
 
@@ -17,7 +17,10 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | `mandatory` flat list → AND | tmp | `( {RL}, {RM} )` | `test_mandatory_multiple_categories` | ☑ |
 | Rule-level `min_categories` | tmp | `rule.min_categories == 3` | `test_min_categories_on_rule` | ☑ |
 | Omitted buckets → None | tmp | all filters None | `test_omitted_buckets_are_none` | ☑ |
-| Disallowed category lists | tmp | offense/defense code sets | `test_disallowed_categories_parse` | ☑ |
+| Allowed category lists: labels → codes, defense label → each code | tmp | `{RL, PSR}`; `PassShort` → all three pass-short codes | `test_allowed_categories_parse` | ☑ |
+| Allowed lists omitted / `[]` → not enforced | tmp | both empty | `test_allowed_categories_omitted_is_empty` / `_empty_list_is_empty` | ☑ |
+| Layering: later allowed list replaces / `[]` clears / omitted keeps | tmp ×2 | whole result | `test_layering_replaces_allowed_list` / `test_layering_empty_list_clears_allowed` / `test_layering_omitted_keeps_allowed` | ☑ |
+| List scopes leave out special teams | const | offense 0x00-0x0F + randoms, defense 0x00-0x0F | `test_list_scopes_leave_out_special_teams` | ☑ |
 | `audibles_allowed` omitted → default | tmp | True (no audibles check) | `test_audibles_allowed_defaults_when_omitted` | ☑ |
 | `min_categories` omitted → default | tmp | 0 (no baseline) | `test_min_categories_defaults_when_omitted` | ☑ |
 | `min_categories` = 0 (lower limit) ok | tmp | min == 0 | `test_min_categories_zero_ok` | ☑ |
@@ -41,7 +44,8 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | `gameplan_compatibility` not a table | tmp | "Must be a table." | `test_gameplan_compatibility_must_be_table` | ☑ |
 | Layering overrides a compat flag | tmp ×2 | later value wins | `test_layering_overrides_gameplan_compatibility` | ☑ |
 | Five time buckets → distinct rules | tmp | one rule per `MinutesRemaining` | `test_all_time_buckets_match_distinctly` | ☑ |
-| Every shipped league's rules load | `config/dev/` + `config/release/` `leagues/<league>/profile.toml` | loads | `test_shipped_rules_load` `[P]` | ☑ |
+| Every shipped league's rules load | `config/dev/` + `config/release/` `leagues/<league>/profile.toml`, with the labels of the `league.toml` beside it | loads | `test_shipped_rules_load` `[P]` | ☑ |
+| Shipped allowed lists ban the old categories | same | offense RDR, PLL, PLM + the four randoms; defense none | `test_shipped_rules_ban_the_old_categories` `[P]` | ☑ |
 | UTF-8 BOM skipped | tmp | loads | `test_bom_is_skipped` | ☑ |
 
 ### Error → `RulesFileError`
@@ -64,7 +68,11 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | `disallowed` not a list | tmp | "[offense.x].disallowed: Must be a list." | `test_disallowed_must_be_list` | ☑ |
 | `fields` empty | tmp | "[offense.x].fields: Must be a non-empty list." | `test_fields_must_be_a_non_empty_list` | ☑ |
 | `mandatory` unknown category | tmp | "unknown category" | `test_mandatory_unknown_category` | ☑ |
-| Disallowed unknown name | tmp | "unknown name" | `test_disallowed_categories_unknown_name` | ☑ |
+| Allowed list: game name rejected | tmp | "'Razzle Dazzle Run' is not an offense category label. Valid: …" | `test_allowed_categories_reject_game_name` | ☑ |
+| Allowed list: other side's label rejected | tmp | "'RL' is not a defense category label. Valid: …" | `test_allowed_categories_reject_unknown_defense_label` | ☑ |
+| Allowed list: User Specific label rejected | tmp | "'US' is not an offense category label." | `test_allowed_categories_reject_user_specific_label` | ☑ |
+| Allowed list: league with no labels | tmp | "… Valid: ." | `test_allowed_categories_without_league_labels` | ☑ |
+| Allowed list not a list / non-string entry | tmp | "Must be a list." / "Entries must be strings." | `test_allowed_categories_must_be_list` / `_entries_must_be_strings` | ☑ |
 | Unknown field name | tmp | "unknown value" | `test_unknown_field_name` | ☑ |
 | Sub percent below 0 / above 100, every key | tmp | "<key>: must be in [0, 100]" | `test_substitutions_percent_out_of_range` `[P]` | ☑ |
 | Sub exact + min/max on one side | tmp | "Set at most one of …" | `test_substitutions_exact_with_bound_same_side_rejected` `[P]` | ☑ |
@@ -113,11 +121,13 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | Matrix rule fires in non-OVER_FIVE bucket | built + make | flags TWO_TO_FIVE sit, not OVER_FIVE | `test_matrix_rule_fires_in_non_over_five_bucket` | ☑ |
 | Omitted buckets match all | built + make | matches whole time bucket | `test_omitted_buckets_match_all` | ☑ |
 | Multiple `mandatory` each required | built + make | flags missing one, not the satisfied one | `test_multiple_mandatory_categories_each_required` | ☑ |
-| Disallowed category fires | built + make | `OFFENSE_DISALLOWED_CATEGORY` | `test_disallowed_category_fires` | ☑ |
-| Disallowed category clean when unused | built + make | no violation | `test_disallowed_category_clean_when_unused` | ☑ |
+| Category outside the allowed list banned | built + make | "Situation N uses banned categories: 0x03", every situation | `test_category_outside_allowed_list_is_banned` | ☑ |
+| Allowed list clean when every used category listed | built + make | no violation | `test_allowed_list_clean_when_every_used_category_is_listed` | ☑ |
+| Empty allowed list enforces nothing, both sides | built + make | no violation | `test_empty_allowed_list_enforces_nothing` `[P]` | ☑ |
+| Allowed list scope edges | built + make | offense 0x00, 0x0F, 0x17, 0x1A banned; 0x10, 0x16 not; defense 0x00, 0x0F banned, 0x10 not | `test_allowed_list_scope_edges` `[P]` | ☑ |
 | Rule `disallowed` fires only where the rule matches | built + make | sit 11 flagged, sit 515 not | `test_rule_disallowed_fires_only_where_the_rule_matches` | ☑ |
 | Rule `disallowed` leaves unlabeled categories alone | built + make | Pass Long Left not flagged | `test_rule_disallowed_leaves_unlabeled_categories_alone` | ☑ |
-| Rule `disallowed` + banned list → one violation | built + make | "Situation 11 uses banned categories: 0x03, 0x0D" | `test_rule_disallowed_combines_with_banned_list` | ☑ |
+| Rule `disallowed` + allowed list → one violation | built + make | "Situation 11 uses banned categories: 0x03, 0x0D" | `test_rule_disallowed_combines_with_allowed_list` | ☑ |
 | Two matching rules' `disallowed` union | built + make | one violation listing both codes | `test_two_matching_rules_disallowed_union` | ☑ |
 | All issues reported (incl. disallowed) | built + make | disallowed + allowed + min all present | `test_all_issues_reported_including_disallowed` | ☑ |
 | Full offense rules — specific | OFF1 + data | 18; allowed@1, mandatory@300, min@43 | `test_offense_full_rules` | ☑ |

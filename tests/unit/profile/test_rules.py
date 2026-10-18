@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import re
+import tomllib
+from functools import partial
 from pathlib import Path
 
 import pytest
 
+from athc.fbpro98_play import CategoryLabels
 from athc.fbpro98_profile import Down, MinutesRemaining, YardsToGo
 from athc.profile import (
     PercentBound,
@@ -14,19 +17,37 @@ from athc.profile import (
     RulesFileError,
     SituationRule,
     SubstitutionRule,
-    load_rules,
 )
+from athc.profile import load_rules as _load_rules
 from athc.profile.rules import (
+    DEFENSE_LIST_SCOPE,
+    OFFENSE_LIST_SCOPE,
+    PASS_LONG_LEFT,
+    PASS_LONG_MIDDLE,
+    PASS_LONG_RANDOM,
     PASS_LONG_RIGHT,
+    PASS_MEDIUM_RANDOM,
     PASS_SHORT_ANY,
+    PASS_SHORT_LEFT,
+    PASS_SHORT_RANDOM,
+    PASS_SHORT_RIGHT,
     RAZZLE_DAZZLE_PASS,
     RAZZLE_DAZZLE_RUN,
     RUN_LEFT,
     RUN_MIDDLE,
     RUN_RANDOM,
 )
-from tests.conftest import shipped_files, shipped_id
+from tests.conftest import (
+    PNFL_DEFENSE,
+    PNFL_LABELS,
+    PNFL_OFFENSE,
+    shipped_files,
+    shipped_id,
+)
 from tests.unit.profile.conftest import DATA, exact_substitution
+
+# Every test loads with the PNFL labels unless it says otherwise.
+load_rules = partial(_load_rules, labels=PNFL_LABELS)
 
 MINIMAL = "audibles_allowed = false\nmin_categories = 2\n"
 
@@ -105,19 +126,6 @@ def test_omitted_buckets_are_none(tmp_path: Path) -> None:
     assert (rule.time, rule.down, rule.yards, rule.fields) == (None, None, None, None)
 
 
-def test_disallowed_categories_parse(tmp_path: Path) -> None:
-    text = (
-        MINIMAL
-        + 'disallowed_offensive_categories = ["Razzle Dazzle Run", "Run Random"]\n'
-        "disallowed_defensive_categories = []\n"
-    )
-    rules = load_rules([write(tmp_path, text)])
-    assert rules.offense_disallowed_categories == frozenset(
-        {RAZZLE_DAZZLE_RUN, RUN_RANDOM}
-    )
-    assert rules.defense_disallowed_categories == frozenset()
-
-
 def test_audibles_allowed_defaults_when_omitted(tmp_path: Path) -> None:
     """Omitted `audibles_allowed` defaults to True (no audibles check)."""
     rules = load_rules([write(tmp_path, "min_categories = 2\n")])
@@ -128,6 +136,158 @@ def test_min_categories_defaults_when_omitted(tmp_path: Path) -> None:
     """Omitted `min_categories` defaults to 0 (no baseline minimum)."""
     rules = load_rules([write(tmp_path, "audibles_allowed = false\n")])
     assert rules.min_categories == 0
+
+
+# ── allowed category lists ────────────────────────────────────────────────────
+
+VALID_OFFENSE = "GLP, GLR, PLR, PML, PMM, PMR, PRD, PSL, PSM, PSR, RL, RM, RR."
+VALID_DEFENSE = (
+    "GLpass, GLrun, PassDazzle, PassLong, PassMedium, PassShort, "
+    "RunDazzle, RunLeft, RunMiddle, RunRight."
+)
+
+
+def load_error(tmp_path: Path, text: str, labels: CategoryLabels = PNFL_LABELS) -> str:
+    """The whole message loading `text` with `labels` raises."""
+    with pytest.raises(RulesFileError) as exc:
+        _load_rules([write(tmp_path, text)], labels=labels)
+    return str(exc.value)
+
+
+def test_allowed_categories_parse(tmp_path: Path) -> None:
+    """Labels resolve to codes; a defense label covers each of its codes."""
+    text = (
+        MINIMAL + 'allowed_offensive_categories = ["RL", "PSR"]\n'
+        'allowed_defensive_categories = ["PassShort"]\n'
+    )
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.offense_allowed_categories == frozenset({RUN_LEFT, PASS_SHORT_RIGHT})
+    assert rules.defense_allowed_categories == PASS_SHORT_ANY
+
+
+def test_allowed_categories_omitted_is_empty(tmp_path: Path) -> None:
+    rules = load_rules([write(tmp_path, MINIMAL)])
+    assert rules.offense_allowed_categories == frozenset()
+    assert rules.defense_allowed_categories == frozenset()
+
+
+def test_allowed_categories_empty_list_is_empty(tmp_path: Path) -> None:
+    text = (
+        MINIMAL + "allowed_offensive_categories = []\n"
+        "allowed_defensive_categories = []\n"
+    )
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.offense_allowed_categories == frozenset()
+    assert rules.defense_allowed_categories == frozenset()
+
+
+def test_allowed_categories_reject_game_name(tmp_path: Path) -> None:
+    text = MINIMAL + 'allowed_offensive_categories = ["Razzle Dazzle Run"]\n'
+    assert load_error(tmp_path, text) == (
+        f"{tmp_path / 'rules.toml'}: allowed_offensive_categories: "
+        f"'Razzle Dazzle Run' is not an offense category label. Valid: {VALID_OFFENSE}"
+    )
+
+
+def test_allowed_categories_reject_unknown_defense_label(tmp_path: Path) -> None:
+    text = MINIMAL + 'allowed_defensive_categories = ["RL"]\n'
+    assert load_error(tmp_path, text) == (
+        f"{tmp_path / 'rules.toml'}: allowed_defensive_categories: "
+        f"'RL' is not a defense category label. Valid: {VALID_DEFENSE}"
+    )
+
+
+def test_allowed_categories_reject_user_specific_label(tmp_path: Path) -> None:
+    """Profiles have no User Specific category, so its league label is not one
+    of the list's labels."""
+    labels = CategoryLabels.from_tables(
+        {**PNFL_OFFENSE, "User Specific": "US"}, PNFL_DEFENSE
+    )
+    text = MINIMAL + 'allowed_offensive_categories = ["US"]\n'
+    assert load_error(tmp_path, text, labels=labels) == (
+        f"{tmp_path / 'rules.toml'}: allowed_offensive_categories: "
+        f"'US' is not an offense category label. Valid: {VALID_OFFENSE}"
+    )
+
+
+def test_allowed_categories_without_league_labels(tmp_path: Path) -> None:
+    text = MINIMAL + 'allowed_offensive_categories = ["RL"]\n'
+    assert load_error(tmp_path, text, labels=CategoryLabels()) == (
+        f"{tmp_path / 'rules.toml'}: allowed_offensive_categories: "
+        "'RL' is not an offense category label. Valid: ."
+    )
+
+
+def test_allowed_categories_must_be_list(tmp_path: Path) -> None:
+    text = MINIMAL + 'allowed_offensive_categories = "RL"\n'
+    assert load_error(tmp_path, text) == (
+        f"{tmp_path / 'rules.toml'}: allowed_offensive_categories: Must be a list."
+    )
+
+
+def test_allowed_categories_entries_must_be_strings(tmp_path: Path) -> None:
+    text = MINIMAL + "allowed_offensive_categories = [1]\n"
+    assert load_error(tmp_path, text) == (
+        f"{tmp_path / 'rules.toml'}: allowed_offensive_categories: "
+        "Entries must be strings."
+    )
+
+
+def test_layering_replaces_allowed_list(tmp_path: Path) -> None:
+    a = tmp_path / "a.toml"
+    a.write_text('allowed_offensive_categories = ["RL", "RM"]\n', encoding="utf-8")
+    b = tmp_path / "b.toml"
+    b.write_text('allowed_offensive_categories = ["PSL"]\n', encoding="utf-8")
+    assert load_rules([a, b]) == ProfileRules(
+        offense_allowed_categories=frozenset({PASS_SHORT_LEFT})
+    )
+
+
+def test_layering_empty_list_clears_allowed(tmp_path: Path) -> None:
+    a = tmp_path / "a.toml"
+    a.write_text(
+        'allowed_offensive_categories = ["RL"]\n'
+        'allowed_defensive_categories = ["PassShort"]\n',
+        encoding="utf-8",
+    )
+    b = tmp_path / "b.toml"
+    b.write_text(
+        "allowed_offensive_categories = []\nallowed_defensive_categories = []\n",
+        encoding="utf-8",
+    )
+    assert load_rules([a, b]) == ProfileRules()
+
+
+def test_layering_omitted_keeps_allowed(tmp_path: Path) -> None:
+    a = tmp_path / "a.toml"
+    a.write_text(
+        'allowed_offensive_categories = ["RL"]\n'
+        'allowed_defensive_categories = ["PassShort"]\n',
+        encoding="utf-8",
+    )
+    b = tmp_path / "b.toml"
+    b.write_text("min_categories = 2\n", encoding="utf-8")
+    assert load_rules([a, b]) == ProfileRules(
+        min_categories=2,
+        offense_allowed_categories=frozenset({RUN_LEFT}),
+        defense_allowed_categories=PASS_SHORT_ANY,
+    )
+
+
+def test_list_scopes_leave_out_special_teams() -> None:
+    """The lists cover every category but special teams: offense 0x00-0x0F and
+    the randoms 0x17-0x1A, defense 0x00-0x0F."""
+    assert (
+        frozenset(range(0x00, 0x10))
+        | {
+            RUN_RANDOM,
+            PASS_LONG_RANDOM,
+            PASS_MEDIUM_RANDOM,
+            PASS_SHORT_RANDOM,
+        }
+        == OFFENSE_LIST_SCOPE
+    )
+    assert frozenset(range(0x00, 0x10)) == DEFENSE_LIST_SCOPE
 
 
 # ── [gameplan_compatibility] ──────────────────────────────────────────────────
@@ -373,12 +533,6 @@ def test_mandatory_unknown_category(tmp_path: Path) -> None:
         load_rules([write(tmp_path, text)])
 
 
-def test_disallowed_categories_unknown_name(tmp_path: Path) -> None:
-    text = MINIMAL + 'disallowed_offensive_categories = ["bogus"]\n'
-    with pytest.raises(RulesFileError, match="Unknown name"):
-        load_rules([write(tmp_path, text)])
-
-
 def test_unknown_field_name(tmp_path: Path) -> None:
     text = MINIMAL + SECTION.replace('"inside_def_5"', '"midfield"')
     with pytest.raises(RulesFileError, match="Unknown value"):
@@ -620,6 +774,32 @@ def test_rule_min_categories_zero_ok(tmp_path: Path) -> None:
 # ── every shipped league's rules load ─────────────────────────────────────────
 
 
+def league_labels(rules_file: Path) -> CategoryLabels:
+    """The labels in the league.toml beside a shipped rules file."""
+    with (rules_file.parent / "league.toml").open("rb") as f:
+        categories = tomllib.load(f)["categories"]
+    return CategoryLabels.from_tables(categories["offense"], categories["defense"])
+
+
 @pytest.mark.parametrize("path", shipped_files("*/profile.toml"), ids=shipped_id)
 def test_shipped_rules_load(path: Path) -> None:
-    load_rules([path])
+    _load_rules([path], labels=league_labels(path))
+
+
+@pytest.mark.parametrize("path", shipped_files("*/profile.toml"), ids=shipped_id)
+def test_shipped_rules_ban_the_old_categories(path: Path) -> None:
+    """With its league's labels, each file's allowed lists ban exactly what the
+    old disallowed lists did."""
+    rules = _load_rules([path], labels=league_labels(path))
+    assert OFFENSE_LIST_SCOPE - rules.offense_allowed_categories == frozenset(
+        {
+            RAZZLE_DAZZLE_RUN,
+            PASS_LONG_LEFT,
+            PASS_LONG_MIDDLE,
+            RUN_RANDOM,
+            PASS_LONG_RANDOM,
+            PASS_MEDIUM_RANDOM,
+            PASS_SHORT_RANDOM,
+        }
+    )
+    assert DEFENSE_LIST_SCOPE - rules.defense_allowed_categories == frozenset()

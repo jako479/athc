@@ -479,9 +479,12 @@ Open: count plays by file name type (TODO).
 Working. Validates and compares `.prf` coaching profiles. Docs:
 [profile.md](docs/profile.md) · [rules](config/release/leagues/PNFL/profile.toml)
 
-- A situation rule's `disallowed` forbids only the categories it lists; a
-  situation's banned set is the side's top-level list plus every matching
-  rule's.
+- `allowed_offensive_categories` / `allowed_defensive_categories` list the
+  categories a profile may use, by the league's labels; special teams are
+  never limited, and the shipped lists ban what the old never-use lists did.
+  A situation's banned set is what its side's list leaves out plus every
+  matching rule's `disallowed`.
+- A situation rule's `disallowed` forbids only the categories it lists.
 - `copy --pat-logic` copies the whole 60-situation PAT table, either side.
 - `check` defaults to the current directory when no path is given, like
   `grep -r` and `find`.

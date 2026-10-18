@@ -29,10 +29,13 @@ from athc.errors import (
     AthcError,
 )
 from athc.fbpro98_lge import read_lge
+from athc.fbpro98_profile import read_profile
+from athc.profile import RuleName, load_rules, validate_profile
 from tests.conftest import (
     CATEGORIES_TOML,
     LEAGUE,
     OTHER_LEAGUE,
+    PNFL_LABELS,
     athc_toml,
     league_not_found,
     no_league_selected,
@@ -748,6 +751,28 @@ def test_cli_bad_rules_toml(
         f"FAIL {folder / f'{side}.toml'}: {toml_error('not = valid = toml')}\n"
     )
     assert result.stdout == ""
+
+
+def test_cli_profile_allowed_lists_use_the_league_labels(
+    runner, build_league: BuildLeague, write_config: WriteConfig, tmp_path: Path
+) -> None:
+    """The profile rules' allowed lists are read with the labels in the
+    league's league.toml; without them `RM` would not load."""
+    rules = write_toml(tmp_path, 'allowed_offensive_categories = ["RM"]\n')
+    build_league(profile_rules=rules)
+    write_config(athc_toml())
+    banned = [
+        f"  [situation {v.situation_number}] {v.message}"
+        for v in validate_profile(
+            read_profile(OFF1), load_rules([rules], labels=PNFL_LABELS)
+        )
+        if v.rule_name is RuleName.OFFENSE_DISALLOWED_CATEGORY
+    ]
+    assert banned
+    result = run(runner, OFF1, GP_OFFENSE)
+    assert result.exit_code == 1
+    lines = result.stdout.splitlines()
+    assert [line for line in lines if "uses banned categories" in line] == banned
 
 
 def test_cli_rule_lists_in_league_toml(

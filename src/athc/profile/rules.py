@@ -1,7 +1,8 @@
 """Coaching-profile validation rules: dataclasses and TOML loader.
 
 Rule data lives in external TOML files — none ship with this package. Use
-`load_rules(paths)` to load one or more into a `ProfileRules`. Rule semantics:
+`load_rules(paths, labels=...)` to load one or more into a `ProfileRules`. The
+`allowed_*_categories` lists take the league's labels only. Rule semantics:
 config/release/leagues/PNFL/profile.toml.
 """
 
@@ -14,6 +15,12 @@ from pathlib import Path
 from typing import Any, Final
 
 from athc.errors import RulesFileError, reason_of, toml_reason
+from athc.fbpro98_play import (
+    CategoryLabels,
+    DefensiveCategory,
+    OffensiveCategory,
+    PlayCategory,
+)
 from athc.fbpro98_profile import Down, FieldPosition, MinutesRemaining, YardsToGo
 
 # ---------------------------------------------------------------------------
@@ -50,6 +57,16 @@ PASS_SHORT_RANDOM: Final = 0x1A
 
 OFFENSE_CATEGORIES: Final[frozenset[int]] = frozenset(range(0x00, 0x1B))
 DEFENSE_CATEGORIES: Final[frozenset[int]] = frozenset(range(0x00, 0x16))
+
+# The categories the top-level allowed lists limit: all but special teams (FG/PAT,
+# the fakes, punt, run clock), which leagues give no labels.
+OFFENSE_LIST_SCOPE: Final[frozenset[int]] = frozenset(range(0x00, 0x10)) | {
+    RUN_RANDOM,
+    PASS_LONG_RANDOM,
+    PASS_MEDIUM_RANDOM,
+    PASS_SHORT_RANDOM,
+}
+DEFENSE_LIST_SCOPE: Final[frozenset[int]] = frozenset(range(0x00, 0x10))
 
 # Defense doesn't distinguish pass direction; the three direction codes share a
 # single label.
@@ -154,6 +171,10 @@ class ProfileRules:
 
     `audibles_allowed` omitted in the file defaults to True — no audibles check.
 
+    `offense_allowed_categories` / `defense_allowed_categories` hold the codes
+    a profile may use within the side's list scope (`OFFENSE_LIST_SCOPE`,
+    `DEFENSE_LIST_SCOPE`); empty enforces nothing.
+
     The `[gameplan_compatibility]` flag gates the profile-vs-gameplan check
     `check-ppp` runs; it defaults False — not enforced.
 
@@ -165,8 +186,8 @@ class ProfileRules:
     offense_situations: tuple[SituationRule, ...] = ()
     defense_situations: tuple[SituationRule, ...] = ()
     min_categories: int = 0
-    offense_disallowed_categories: frozenset[int] = frozenset()
-    defense_disallowed_categories: frozenset[int] = frozenset()
+    offense_allowed_categories: frozenset[int] = frozenset()
+    defense_allowed_categories: frozenset[int] = frozenset()
     require_all_profile_categories_in_gameplan: bool = False
 
 
@@ -229,38 +250,38 @@ _DEFENSE_CATEGORY_BY_NAME: Final[Mapping[str, frozenset[int]]] = {
     "PassMedium": PASS_MEDIUM_ANY,
     "PassShort":  PASS_SHORT_ANY,
 }  # fmt: skip
-# Full game-category names (as the game shows them), used by the top-level
-# disallowed_categories lists — these categories have no league short labels.
-# Each maps to its .prf category byte.
-_GAME_CATEGORY_BY_NAME: Final[Mapping[str, int]] = {
-    "Goal Line Run": GOAL_LINE_RUN,
-    "Razzle Dazzle Run": RAZZLE_DAZZLE_RUN,
-    "Run Left": RUN_LEFT,
-    "Run Middle": RUN_MIDDLE,
-    "Run Right": RUN_RIGHT,
-    "Goal Line Pass": GOAL_LINE_PASS,
-    "Razzle Dazzle Pass": RAZZLE_DAZZLE_PASS,
-    "Pass Long Left": PASS_LONG_LEFT,
-    "Pass Long Middle": PASS_LONG_MIDDLE,
-    "Pass Long Right": PASS_LONG_RIGHT,
-    "Pass Medium Left": PASS_MEDIUM_LEFT,
-    "Pass Medium Middle": PASS_MEDIUM_MIDDLE,
-    "Pass Medium Right": PASS_MEDIUM_RIGHT,
-    "Pass Short Left": PASS_SHORT_LEFT,
-    "Pass Short Middle": PASS_SHORT_MIDDLE,
-    "Pass Short Right": PASS_SHORT_RIGHT,
-    "Field Goal/PAT": FIELD_GOAL_PAT,
-    "Fake FG Run": FAKE_FIELD_GOAL_RUN,
-    "Fake FG Pass": FAKE_FIELD_GOAL_PASS,
-    "Punt": PUNT,
-    "Fake Punt Run": FAKE_PUNT_RUN,
-    "Fake Punt Pass": FAKE_PUNT_PASS,
-    "Run Clock": RUN_CLOCK,
-    "Run Random": RUN_RANDOM,
-    "Pass Long Random": PASS_LONG_RANDOM,
-    "Pass Medium Random": PASS_MEDIUM_RANDOM,
-    "Pass Short Random": PASS_SHORT_RANDOM,
-}
+# League category -> its .prf codes, for the top-level allowed lists. User
+# Specific has no profile code, so its league label is not a list label.
+_OFFENSE_CODES: Final[Mapping[OffensiveCategory, frozenset[int]]] = {
+    OffensiveCategory.GOAL_LINE_RUN:      frozenset({GOAL_LINE_RUN}),
+    OffensiveCategory.RAZZLE_DAZZLE_RUN:  frozenset({RAZZLE_DAZZLE_RUN}),
+    OffensiveCategory.RUN_LEFT:           frozenset({RUN_LEFT}),
+    OffensiveCategory.RUN_MIDDLE:         frozenset({RUN_MIDDLE}),
+    OffensiveCategory.RUN_RIGHT:          frozenset({RUN_RIGHT}),
+    OffensiveCategory.GOAL_LINE_PASS:     frozenset({GOAL_LINE_PASS}),
+    OffensiveCategory.RAZZLE_DAZZLE_PASS: frozenset({RAZZLE_DAZZLE_PASS}),
+    OffensiveCategory.PASS_LONG_LEFT:     frozenset({PASS_LONG_LEFT}),
+    OffensiveCategory.PASS_LONG_MIDDLE:   frozenset({PASS_LONG_MIDDLE}),
+    OffensiveCategory.PASS_LONG_RIGHT:    frozenset({PASS_LONG_RIGHT}),
+    OffensiveCategory.PASS_MEDIUM_LEFT:   frozenset({PASS_MEDIUM_LEFT}),
+    OffensiveCategory.PASS_MEDIUM_MIDDLE: frozenset({PASS_MEDIUM_MIDDLE}),
+    OffensiveCategory.PASS_MEDIUM_RIGHT:  frozenset({PASS_MEDIUM_RIGHT}),
+    OffensiveCategory.PASS_SHORT_LEFT:    frozenset({PASS_SHORT_LEFT}),
+    OffensiveCategory.PASS_SHORT_MIDDLE:  frozenset({PASS_SHORT_MIDDLE}),
+    OffensiveCategory.PASS_SHORT_RIGHT:   frozenset({PASS_SHORT_RIGHT}),
+}  # fmt: skip
+_DEFENSE_CODES: Final[Mapping[DefensiveCategory, frozenset[int]]] = {
+    DefensiveCategory.GOAL_LINE_RUN:  frozenset({GOAL_LINE_RUN}),
+    DefensiveCategory.RUN_DAZZLE:     frozenset({RAZZLE_DAZZLE_RUN}),
+    DefensiveCategory.RUN_LEFT:       frozenset({RUN_LEFT}),
+    DefensiveCategory.RUN_MIDDLE:     frozenset({RUN_MIDDLE}),
+    DefensiveCategory.RUN_RIGHT:      frozenset({RUN_RIGHT}),
+    DefensiveCategory.GOAL_LINE_PASS: frozenset({GOAL_LINE_PASS}),
+    DefensiveCategory.PASS_DAZZLE:    frozenset({RAZZLE_DAZZLE_PASS}),
+    DefensiveCategory.PASS_LONG:      PASS_LONG_ANY,
+    DefensiveCategory.PASS_MEDIUM:    PASS_MEDIUM_ANY,
+    DefensiveCategory.PASS_SHORT:     PASS_SHORT_ANY,
+}  # fmt: skip
 
 # Allowed keys at each nesting level. Any other key raises RulesFileError so
 # typos like `[my_rule]` (missing `offense.`/`defense.` prefix) are caught early.
@@ -270,8 +291,8 @@ _ALLOWED_TOP_KEYS: Final[frozenset[str]] = frozenset(
         "min_categories",
         "gameplan_compatibility",
         "substitutions",
-        "disallowed_offensive_categories",
-        "disallowed_defensive_categories",
+        "allowed_offensive_categories",
+        "allowed_defensive_categories",
         "offense",
         "defense",
     }
@@ -309,15 +330,16 @@ class _MergedData:
     min_categories: int | None = None
     require_all_profile_categories_in_gameplan: bool | None = None
     substitutions: dict[str, SubstitutionRule] = field(default_factory=dict)
-    offense_disallowed: frozenset[int] = field(default_factory=frozenset)
-    defense_disallowed: frozenset[int] = field(default_factory=frozenset)
+    offense_allowed: frozenset[int] | None = None
+    defense_allowed: frozenset[int] | None = None
     # Keyed by section label so a later file's same-named rule replaces it.
     offense_rules: dict[str, SituationRule] = field(default_factory=dict)
     defense_rules: dict[str, SituationRule] = field(default_factory=dict)
 
 
-def load_rules(paths: Iterable[Path | str]) -> ProfileRules:
+def load_rules(paths: Iterable[Path | str], *, labels: CategoryLabels) -> ProfileRules:
     """Load one or more TOML rules files and merge into a `ProfileRules`.
+    `labels` are the league's category labels.
 
     Files are merged in order. Top-level scalars and section tables are
     overwritten by later files; per-situation rules are replaced by section label.
@@ -334,7 +356,7 @@ def load_rules(paths: Iterable[Path | str]) -> ProfileRules:
         except RulesFileError as e:
             errors.extend(e.errors)
             continue
-        _merge_file(merged, data, errors, source=path)
+        _merge_file(merged, data, errors, source=path, labels=labels)
 
     if errors:
         raise RulesFileError(errors)
@@ -363,7 +385,12 @@ def _attempt(errors: list[str], fn: Callable[[], Any]) -> tuple[Any, bool]:
 
 
 def _merge_file(
-    merged: _MergedData, data: Mapping[str, Any], errors: list[str], *, source: Path
+    merged: _MergedData,
+    data: Mapping[str, Any],
+    errors: list[str],
+    *,
+    source: Path,
+    labels: CategoryLabels,
 ) -> None:
     """Apply one parsed TOML document onto `merged`, collecting every problem."""
     _attempt(
@@ -392,34 +419,32 @@ def _merge_file(
         )
     if "substitutions" in data:
         _merge_substitutions(merged, data["substitutions"], errors, source=source)
-    if "disallowed_offensive_categories" in data:
+    if "allowed_offensive_categories" in data:
         val, ok = _attempt(
             errors,
-            lambda: frozenset(
-                _map_each(
-                    data["disallowed_offensive_categories"],
-                    _GAME_CATEGORY_BY_NAME,
-                    source,
-                    "disallowed_offensive_categories",
-                )
+            lambda: _allowed_codes(
+                data["allowed_offensive_categories"],
+                _codes_by_label(labels.offense, _OFFENSE_CODES),
+                source,
+                "allowed_offensive_categories",
+                "offense",
             ),
         )
         if ok:
-            merged.offense_disallowed = val
-    if "disallowed_defensive_categories" in data:
+            merged.offense_allowed = val
+    if "allowed_defensive_categories" in data:
         val, ok = _attempt(
             errors,
-            lambda: frozenset(
-                _map_each(
-                    data["disallowed_defensive_categories"],
-                    _GAME_CATEGORY_BY_NAME,
-                    source,
-                    "disallowed_defensive_categories",
-                )
+            lambda: _allowed_codes(
+                data["allowed_defensive_categories"],
+                _codes_by_label(labels.defense, _DEFENSE_CODES),
+                source,
+                "allowed_defensive_categories",
+                "defense",
             ),
         )
         if ok:
-            merged.defense_disallowed = val
+            merged.defense_allowed = val
 
     for label, section in data.get("offense", {}).items():
         val, ok = _attempt(
@@ -554,19 +579,37 @@ def _expand_categories(
     return frozenset(codes)
 
 
-def _map_each(
-    names: object, name_map: Mapping[str, Any], source: Path, where: str
-) -> list[Any]:
-    if not isinstance(names, list):
+def _codes_by_label[C: PlayCategory](
+    labels: Mapping[C, str], codes: Mapping[C, frozenset[int]]
+) -> dict[str, frozenset[int]]:
+    """The league's label -> codes, for each labeled category that has codes."""
+    return {label: codes[c] for c, label in labels.items() if c in codes}
+
+
+def _allowed_codes(
+    value: object,
+    by_label: Mapping[str, frozenset[int]],
+    source: Path,
+    where: str,
+    side: str,
+) -> frozenset[int]:
+    """A list of the league's labels for one side -> the categories' codes.
+    Only league labels count — never a game name."""
+    if not isinstance(value, list):
         raise RulesFileError(f"{where}: Must be a list.", source)
-    result: list[Any] = []
-    for name in names:
-        if not isinstance(name, str):
+    codes: set[int] = set()
+    for label in value:
+        if not isinstance(label, str):
             raise RulesFileError(f"{where}: Entries must be strings.", source)
-        if name not in name_map:
-            raise RulesFileError(f"{where}: Unknown name {name!r}.", source)
-        result.append(name_map[name])
-    return result
+        if label not in by_label:
+            article = "an" if side == "offense" else "a"
+            raise RulesFileError(
+                f"{where}: {label!r} is not {article} {side} category "
+                f"label. Valid: {', '.join(sorted(by_label))}.",
+                source,
+            )
+        codes.update(by_label[label])
+    return frozenset(codes)
 
 
 def _merge_gameplan_compatibility(
@@ -757,15 +800,17 @@ def _build_rules(m: _MergedData) -> ProfileRules:
         substitutions=dict(m.substitutions),
         offense_situations=tuple(m.offense_rules.values()),
         defense_situations=tuple(m.defense_rules.values()),
-        offense_disallowed_categories=m.offense_disallowed,
-        defense_disallowed_categories=m.defense_disallowed,
+        offense_allowed_categories=m.offense_allowed or frozenset(),
+        defense_allowed_categories=m.defense_allowed or frozenset(),
         **scalars,
     )
 
 
 __all__ = [
     "DEFENSE_CATEGORIES",
+    "DEFENSE_LIST_SCOPE",
     "OFFENSE_CATEGORIES",
+    "OFFENSE_LIST_SCOPE",
     "PASS_LONG_ANY",
     "PASS_MEDIUM_ANY",
     "PASS_SHORT_ANY",

@@ -5,7 +5,9 @@ entry point. Thresholds come from the supplied `ProfileRules`; the only built-in
 policy is the min-categories exemption (below). A situation is checked against
 every rule it matches: `allowed` sets intersect, `disallowed` sets union,
 `mandatory` requirements accumulate, and `min_categories` takes the strictest
-(highest) value, falling back to the rule set's baseline.
+(highest) value, falling back to the rule set's baseline. The side's top-level
+allowed list, when non-empty, adds every in-scope category it leaves out to
+each situation's banned set.
 """
 
 from __future__ import annotations
@@ -16,7 +18,9 @@ from typing import Final
 from athc.fbpro98_profile import CategoryWeights, Profile, Situation
 from athc.profile.model import RuleName, RuleViolation
 from athc.profile.rules import (
+    DEFENSE_LIST_SCOPE,
     FIELD_GOAL_PAT,
+    OFFENSE_LIST_SCOPE,
     PUNT,
     RUN_CLOCK,
     SUBSTITUTION_POSITIONS,
@@ -137,13 +141,16 @@ def _validate_situations(profile: Profile, rules: ProfileRules) -> list[RuleViol
     if profile.is_offense:
         side_rules = rules.offense_situations
         exempt = OFFENSE_EXEMPT_CATEGORIES
-        disallowed = rules.offense_disallowed_categories
+        scope, allowed = OFFENSE_LIST_SCOPE, rules.offense_allowed_categories
         names = _OFFENSE_NAMES
     else:
         side_rules = rules.defense_situations
         exempt = DEFENSE_EXEMPT_CATEGORIES
-        disallowed = rules.defense_disallowed_categories
+        scope, allowed = DEFENSE_LIST_SCOPE, rules.defense_allowed_categories
         names = _DEFENSE_NAMES
+    # An empty allowed list enforces nothing; otherwise every in-scope category
+    # it leaves out is banned in every situation.
+    disallowed = scope - allowed if allowed else frozenset()
 
     violations: list[RuleViolation] = []
     for situation in profile.situations:

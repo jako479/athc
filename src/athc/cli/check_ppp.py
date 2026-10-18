@@ -467,7 +467,9 @@ def load_setup(league: str | None) -> Setup:
     problem found (league, config, rules, pool) raises; nothing is checked
     without all three."""
     profile_config = load_profile_config(league)
-    profile_rules = load_profile_rules(profile_config.rule_files)
+    profile_rules = load_profile_rules(
+        profile_config.rule_files, profile_config.categories
+    )
     gameplan_config = load_gameplan_config(league)
     gameplan_rules = load_gameplan_rules(
         gameplan_config.rule_files, gameplan_config.categories

@@ -41,6 +41,7 @@ from athc.errors import (
     ConfigFileError,
     missing_reason,
 )
+from athc.fbpro98_play import CategoryLabels
 from athc.profile import ProfileRules, load_rules
 
 __all__ = [
@@ -80,15 +81,18 @@ def epilog(*examples: str) -> str:
     return f"{_KEYS}\nExamples:\n\n\b\n{lines}"
 
 
-def load_rules_or_raise(rule_files: Iterable[Path]) -> ProfileRules:
-    """The league's profile rules. ConfigFileError when none are configured; a
-    rules file that cannot be read or parsed raises its own error."""
+def load_rules_or_raise(
+    rule_files: Iterable[Path], labels: CategoryLabels
+) -> ProfileRules:
+    """The league's profile rules, read with its category `labels`.
+    ConfigFileError when none are configured; a rules file that cannot be read
+    or parsed raises its own error."""
     files = list(rule_files)
     if not files:
         raise ConfigFileError(
             "No rules configured. Add profile.toml to the league folder."
         )
-    return load_rules(files)
+    return load_rules(files, labels=labels)
 
 
 @dataclass(frozen=True, slots=True)
