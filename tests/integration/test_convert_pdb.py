@@ -56,7 +56,10 @@ from tests.integration.conftest import (
 from tests.integration.conftest import DENVER_2049 as DENVER
 
 PDB = DATA / "2045-2047.pdb"
-GOLDEN = EXPECTED / "2045-2047.workbook.json"
+# Every play in this week's PDB is in data/plays/, so a run against that pool
+# warns about none of them.
+POOL_PDB = DATA / "48W17.pdb"
+GOLDEN = EXPECTED / "48W17.workbook.json"
 MakeLeague = Callable[..., Path]
 WriteConfig = Callable[..., Path]
 
@@ -313,7 +316,7 @@ def test_no_category_order_exports_nothing(
     write_config(athc_toml())
     make_league(LEAGUE, league_toml(PLAYS))
     out = tmp_path / "o.xlsx"
-    result = runner.invoke(convert_pdb, [str(PDB), str(out)])
+    result = runner.invoke(convert_pdb, [str(POOL_PDB), str(out)])
     assert result.exit_code == 0
     assert result.stdout == f"OK   {out}: 0 play(s)\n"
     workbook = openpyxl.load_workbook(out)
@@ -334,7 +337,7 @@ def test_league_override_changes_the_order(
     body = '[convert-pdb.category_order]\nrun = ["RM", "RL"]\n'
     make_league(LEAGUE, league_toml(PLAYS, convert_pdb=body))
     out = tmp_path / "o.xlsx"
-    result = runner.invoke(convert_pdb, [str(PDB), str(out)])
+    result = runner.invoke(convert_pdb, [str(POOL_PDB), str(out)])
     assert result.exit_code == 0, result.stderr
     sheet = openpyxl.load_workbook(out)["Run Plays"]
     header = next(sheet.iter_rows(values_only=True))
@@ -610,7 +613,7 @@ def _golden_league(config_dir: Path) -> None:
 def _convert_golden(runner: CliRunner, out: Path) -> None:
     result = runner.invoke(
         convert_pdb,
-        [str(PDB), str(out), "-o", str(GP_OFFENSE), "-d", str(GP_DEFENSE)],
+        [str(POOL_PDB), str(out), "-o", str(GP_OFFENSE), "-d", str(GP_DEFENSE)],
     )
     assert result.exit_code == 0, result.stderr or repr(result.exception)
 
@@ -681,18 +684,17 @@ def _golden_play_rows() -> int:
     )
 
 
-def test_progress_on_stderr_warnings_and_ok_line(
+def test_progress_on_stderr_and_ok_line(
     runner, config_dir: Path, tmp_path: Path
 ) -> None:
     _golden_league(config_dir)
     out = tmp_path / "w.xlsx"
     result = runner.invoke(
-        convert_pdb, [str(PDB), str(out), "-o", str(GP_OFFENSE), "-d", str(GP_DEFENSE)]
+        convert_pdb,
+        [str(POOL_PDB), str(out), "-o", str(GP_OFFENSE), "-d", str(GP_DEFENSE)],
     )
     assert result.exit_code == 0
-    lines = result.stderr.splitlines()
-    assert lines[0] == f"Creating {out}"
-    assert lines[1:] and all(line.startswith("WARN ") for line in lines[1:])
+    assert result.stderr == f"Creating {out}\n"
     assert result.stdout == f"OK   {out}: {_golden_play_rows()} play(s)\n"
 
 

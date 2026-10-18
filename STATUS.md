@@ -412,6 +412,8 @@ Open: `replace-play` should take a list of plays for bulk swaps.
 Working. Extracts a WinLogStats database into an Excel workbook. Docs:
 [pdbtoexcel.md](docs/pdbtoexcel.md)
 
+- Row highlight (2026-10-17): an `.xlsm` always outlines the selected row;
+  the Options sheet's Highlight Selected Row option is gone.
 - Each sheet's filter covers the header and every row written; it is set when
   the workbook closes, once the row count is known.
 - The Type column's QB run and defensive front come from each play file, not

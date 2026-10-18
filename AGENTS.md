@@ -70,7 +70,7 @@ After a behavior change, read the project's design docs (`docs/architecture.md`
 and the module's `docs/<module>.md`) end to end and update whatever the change
 affects.
 
-Update project meta as appropriate: STATUS.md, CHANGELOG.md, TODO.md, README.md,
+Update project meta as appropriate: STATUS.md, WORKLOG.md, CHANGELOG.md, TODO.md, README.md,
 config/release/docs/README.txt. CHANGELOG and TODO entries are single-line when possible.
 A finished TODO entry is ticked (`[x]`), never removed.
 

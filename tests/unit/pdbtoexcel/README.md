@@ -69,7 +69,9 @@ One row per behavior. `[P]` = parametrized. Input: `real` = `2045-2047.pdb` + `.
 | Pass row: Screen + comp/att | synth + pool | "PSR"; "Screen"; att excludes sacks | `test_pass_row_screen_and_stats` | ☑ |
 | Defense row: front Type | synth + pool | "RunRight"; `defensive_front` value; total calls | `test_defense_row_front_type` | ☑ |
 | Unlabeled category shows its game name | synth + pool | "Razzle Dazzle Run" | `test_unlabeled_category_shows_its_game_name` | ☑ |
-| Options sheet lists the order by label | — | H/I/J columns = run/pass/defense labels | `test_options_sheet_lists_the_order_by_label` | ☑ |
+| Options sheet lists the order by label | — | B/C/D columns = run/pass/defense labels | `test_options_sheet_lists_the_order_by_label` | ☑ |
+| Category order names cover their lists | — | each name spans its labels exactly: header just above, empty cell just below | `test_category_order_name_covers_its_list` `[P]` | ☑ |
+| Highlight rule reads HighlightRow | `.xlsm` | `HighlightRow` starts at 0; every data sheet's rule is `ROW()=HighlightRow` | `test_highlight_rule_reads_highlight_row` | ☑ |
 | Rows follow the category order | synth + pool | RL row before RM row | `test_rows_follow_the_category_order` | ☑ |
 | Unlisted category left out | order with RL only | RM play absent | `test_unlisted_category_is_left_out` | ☑ |
 | Deleted play skipped quietly | not in pool, 2 teams | no row; no warning; one info line | `test_deleted_play_is_skipped_quietly` | ☑ |

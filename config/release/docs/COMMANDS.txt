@@ -313,9 +313,10 @@ A file or folder that exists by that name wins over the key.
    extension gets .xlsm). An .xlsm has the built-in sorting:
    double-click a column to sort by it (stat columns toggle between
    descending and ascending; Team, Category, Slot, Play and Type sort
-   ascending only). Excel opens an .xlsm with its macros disabled until you
-   click Enable Content, and a copy sent by email opens with them blocked
-   (unblock it in the file's Properties, or make an .xlsx to share).
+   ascending only), and the row you select is outlined. Excel opens an
+   .xlsm with its macros disabled until you click Enable Content, and a
+   copy sent by email opens with them blocked (unblock it in the file's
+   Properties, or make an .xlsx to share).
 
    Slot 1 and Slot 2 show where each play sits in your team's 1st- and
    2nd-half game plans, per side. With no game plan option, they come from

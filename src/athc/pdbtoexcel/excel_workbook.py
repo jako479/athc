@@ -39,8 +39,6 @@ class _Formats:
     options_normal: Any
     options_header: Any
     options_header2: Any
-    options_option: Any
-    options_note: Any
 
 
 class ExcelPdbWorkbook:
@@ -179,18 +177,6 @@ class ExcelPdbWorkbook:
             options_header2=self.workbook.add_format(
                 {"bg_color": "#FDE9D9", "bold": True, "font_size": 10}
             ),
-            options_option=self.workbook.add_format(
-                {
-                    "bg_color": "#FFFF00",
-                    "bold": True,
-                    "font_size": 10,
-                    "border": 2,
-                    "border_color": "black",
-                }
-            ),
-            options_note=self.workbook.add_format(
-                {"bg_color": "#FDE9D9", "bold": True, "font_size": 8}
-            ),
         )
 
     def _create_options_worksheet(self) -> None:
@@ -198,60 +184,47 @@ class ExcelPdbWorkbook:
         ws.set_vba_name("wsOptions")
         ws.set_column(0, 16383, None, self.fmt.options_normal)
         ws.set_column_pixels(0, 0, 6)
-        # OPTIONS
-        ws.write_row(0, 1, ["OPTIONS"] + [""] * 4, self.fmt.options_header)
-        ws.write_row(
-            1, 1, ["Highlight Selected Row"] + [""] * 4, self.fmt.options_header2
-        )
-        ws.data_validation(2, 1, 2, 1, {"validate": "list", "source": ["Yes", "No"]})
-        ws.write(2, 1, "Yes", self.fmt.options_option)
-        ws.write_row(
-            2,
-            2,
-            ["""      (when "Yes", hold [Ctrl] to paste data)"""] + [""] * 3,
-            self.fmt.options_note,
-        )
         # CATEGORY ORDER
-        ws.set_column_pixels(7, 9, 81)
-        ws.write_row(0, 7, ["CATEGORY ORDER", "", ""], self.fmt.options_header)
-        ws.write_row(1, 7, ["RUN", "PASS", "DEFENSE"], self.fmt.options_header2)
+        ws.set_column_pixels(1, 3, 86)
+        ws.write_row(0, 1, ["CATEGORY ORDER", "", ""], self.fmt.options_header)
+        ws.write_row(1, 1, ["RUN", "PASS", "DEFENSE"], self.fmt.options_header2)
         for column, play_type in enumerate(
             (
                 PLAY_DATA.PLAY_TYPE.RUN,
                 PLAY_DATA.PLAY_TYPE.PASS,
                 PLAY_DATA.PLAY_TYPE.DEFENSE,
             ),
-            start=7,
+            start=1,
         ):
             ws.write_column(
                 2, column, [self._label(c) for c in self.category_order[play_type]]
             )
         # NOTES
-        ws.write_row(0, 11, ["NOTES"] + [""] * 9, self.fmt.options_header)
+        ws.write_row(0, 5, ["NOTES"] + [""] * 10, self.fmt.options_header)
         note = (
             "1. Play data columns (attempts, yards, etc.) utilize bi-directional sort; "
             "All other columns sort in ascending order only."
         )
-        ws.write(1, 11, note)
+        ws.write(1, 5, note)
         note = (
             "2. Built-in columns can be sorted by double-clicking anywhere in the "
             "column (i.e. double-click does not invoke data editor)."
         )
-        ws.write(2, 11, note)
+        ws.write(2, 5, note)
         note = (
             "3. Sort user-added columns by double-clicking populated column header "
             "(retains double-click to invoke data editor)."
         )
-        ws.write(3, 11, note)
+        ws.write(3, 5, note)
         # Named ranges
         run_last = 2 + len(self.category_order[PLAY_DATA.PLAY_TYPE.RUN])
         pass_last = 2 + len(self.category_order[PLAY_DATA.PLAY_TYPE.PASS])
         def_last = 2 + len(self.category_order[PLAY_DATA.PLAY_TYPE.DEFENSE])
-        self.workbook.define_name("HighlightSelectedRow", "=Options!$B$3")
-        self.workbook.define_name("RunCategoryOrder", f"=Options!$H$3:$H${run_last}")
-        self.workbook.define_name("PassCategoryOrder", f"=Options!$I$3:$I${pass_last}")
+        self.workbook.define_name("HighlightRow", "=0")
+        self.workbook.define_name("RunCategoryOrder", f"=Options!$B$3:$B${run_last}")
+        self.workbook.define_name("PassCategoryOrder", f"=Options!$C$3:$C${pass_last}")
         self.workbook.define_name(
-            "DefenseCategoryOrder", f"=Options!$J$3:$J${def_last}"
+            "DefenseCategoryOrder", f"=Options!$D$3:$D${def_last}"
         )
 
     def _create_run_worksheet(self) -> _WorksheetState:
@@ -837,9 +810,7 @@ class ExcelPdbWorkbook:
 
         formula = {
             "type": "formula",
-            "criteria": (
-                '=AND(CELL("row")=ROW(), INDIRECT("HighlightSelectedRow")="Yes")'
-            ),
+            "criteria": ("=ROW()=HighlightRow"),
             "format": border_format,
         }
 

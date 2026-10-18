@@ -4,6 +4,13 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-17 — **convert-pdb**: the Options sheet's Highlight Selected Row
+  option went; an `.xlsm` now always outlines the selected row, and the
+  category lists moved to the left of the sheet. The golden workbook test ran
+  three seasons of stats against the small test pool, so it warned about
+  every missing play and checked only the ones the pool had; it now uses a
+  real week's PDB with every play in the test pool, so it runs with no
+  warnings. AGENTS.md's project meta list now names WORKLOG.md.
 - 2026-10-17 — **athc**: PNFL and PCFL are clones, so each league carried the
   same convert-pdb settings twice in its own `pdbtoexcel.toml`, while the rest
   of convert-pdb's settings sat in `athc.ini`. Settings now have one home and

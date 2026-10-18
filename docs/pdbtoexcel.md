@@ -21,7 +21,8 @@ for %f in (*.pdb) do athc convert-pdb "%f"
   A folder (one that exists, or a path ending in `\`) gets that name inside
   it; a name with no extension gets `.xlsm`. Missing folders are created; an
   existing file is replaced.
-- `.xlsm` has the sorting macros; `.xlsx` is plain. Excel opens an `.xlsm`
+- `.xlsm` has the sorting macros and outlines the selected row; `.xlsx` is
+  plain. Excel opens an `.xlsm`
   with its macros disabled until you click Enable Content, and a copy sent by
   email opens with them blocked (unblock it in the file's Properties, or send
   an `.xlsx`).
@@ -165,6 +166,12 @@ src/athc/cli/_team.py         # shared team layer: league files, team, file loca
   is missing or can't be read.
 - Always adds a Total Stats team summing every team.
 - Writes `.xlsx` (plain) or `.xlsm` (with the VBA sort macros from `resources/`).
+- In an `.xlsm`, the macros set the workbook name `HighlightRow` to the
+  selected row, and a conditional format on every data sheet outlines that
+  row; it starts at 0, so nothing is outlined until a cell is selected.
+- The Options sheet holds the category order lists (named
+  `RunCategoryOrder`, `PassCategoryOrder`, `DefenseCategoryOrder` for the
+  sort macros) and the sorting notes.
 
 ### PDB parser
 
@@ -257,9 +264,11 @@ option is a usage error. `OUTPUT` follows the rules in
   (every key from athc.toml alone, from league.toml alone and mixed a key at
   a time, each message naming its file, the shipped files), workbook
   creation (synthetic PDB + injected pool, read back with openpyxl: labels,
-  order, unlisted and deleted plays, Slot columns by presence, filter ranges).
+  order, unlisted and deleted plays, Slot columns by presence, filter ranges,
+  the Options sheet's names, the row highlight).
 - `tests/integration/test_convert_pdb.py` — CLI end-to-end (the default
   output, the options, the team's game plans from each source, the setting
-  errors), plus a golden workbook: the real `.pdb` converted against the
-  curated pool, the PNFL labels and order and both game plans, every cell
-  compared to `expected/2045-2047.workbook.json`.
+  errors), plus a golden workbook: a real week's `.pdb` (`48W17.pdb`, every
+  play in the curated pool) converted against that pool, the PNFL labels and
+  order and both game plans, every cell compared to
+  `expected/48W17.workbook.json`.

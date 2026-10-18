@@ -7,6 +7,7 @@ from pathlib import Path
 
 import openpyxl
 import pytest
+from openpyxl.utils.cell import range_boundaries
 
 from athc.fbpro98_play import DefensiveFront
 from athc.fbpro98_play import OffensiveCategory as O
@@ -53,10 +54,11 @@ def _convert(
     calculate_totals=False,
     tendencies=(),
     perform_calcs=True,
+    out_name="out.xlsx",
 ) -> tuple[openpyxl.Workbook, PdbWorkbookCreator]:
     """Convert and read the workbook back, with the creator for its warnings."""
     pdb = PDB(str(write_pdb(tmp_path / "in.pdb", plays=plays, tendencies=tendencies)))
-    out = tmp_path / "out.xlsx"
+    out = tmp_path / out_name
     creator = PdbWorkbookCreator(config or _config(), make_pool(records), pdb)
     creator.create_workbook(str(out), perform_calcs, calculate_totals)
     return openpyxl.load_workbook(out), creator
@@ -281,14 +283,60 @@ def test_options_sheet_lists_the_order_by_label(tmp_path: Path) -> None:
     column = lambda col: [  # noqa: E731
         ws.cell(row=r, column=col).value for r in range(3, 3 + 10)
     ]
-    assert column(8)[:4] == ["RL", "RM", "RR", "GLR"] and column(8)[4] is None
-    assert column(9)[:9] == [
+    assert column(2)[:4] == ["RL", "RM", "RR", "GLR"] and column(2)[4] is None
+    assert column(3)[:9] == [
         "PSL", "PSM", "PSR", "PML", "PMM", "PMR", "PLR", "PRD", "GLP",
     ]  # fmt: skip
-    assert column(10) == [
+    assert column(4) == [
         "RunLeft", "RunMiddle", "RunRight", "RunDazzle", "PassShort",
         "PassMedium", "PassLong", "PassDazzle", "GLrun", "GLpass",
     ]  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    ("name", "header", "labels"),
+    [
+        ("RunCategoryOrder", "RUN", ["RL", "RM", "RR", "GLR"]),
+        (
+            "PassCategoryOrder",
+            "PASS",
+            ["PSL", "PSM", "PSR", "PML", "PMM", "PMR", "PLR", "PRD", "GLP"],
+        ),
+        (
+            "DefenseCategoryOrder",
+            "DEFENSE",
+            [
+                "RunLeft", "RunMiddle", "RunRight", "RunDazzle", "PassShort",
+                "PassMedium", "PassLong", "PassDazzle", "GLrun", "GLpass",
+            ],
+        ),
+    ],
+)  # fmt: skip
+def test_category_order_name_covers_its_list(
+    tmp_path: Path, name: str, header: str, labels: list[str]
+) -> None:
+    """The name spans the list exactly: its header sits just above, an empty
+    cell just below."""
+    wb = _build(tmp_path, [], [])
+    ((sheet, ref),) = wb.defined_names[name].destinations
+    ws = wb[sheet]
+    column, first, last_column, last = range_boundaries(ref)
+    assert column and first and last  # a cell range, not a whole row or column
+    assert sheet == "Options" and column == last_column
+    assert [ws.cell(row=r, column=column).value for r in range(first, last + 1)] == (
+        labels
+    )
+    assert ws.cell(row=first - 1, column=column).value == header
+    assert ws.cell(row=last + 1, column=column).value is None
+
+
+def test_highlight_rule_reads_highlight_row(tmp_path: Path) -> None:
+    """No row is highlighted until the VBA sets HighlightRow."""
+    wb = _build(tmp_path, [], [], out_name="out.xlsm")
+    assert wb.defined_names["HighlightRow"].attr_text == "0"
+    for name in ("Run Plays", "Pass Plays", "Def Plays", "Tendencies"):
+        rules = [r for cf in wb[name].conditional_formatting for r in cf.rules]
+        assert [r.formula for r in rules] == [["ROW()=HighlightRow"]], name
 
 
 def test_rows_follow_the_category_order(tmp_path: Path) -> None:
