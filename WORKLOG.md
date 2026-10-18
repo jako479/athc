@@ -4,6 +4,9 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-17 — **athc**: the setup.exe now reads the installed version and
+  refuses to install over a newer one; the same version or an older one is
+  replaced as before. The sandbox test fakes a newer install to prove it.
 - 2026-10-17 — **convert-pdb**: the Options sheet's Highlight Selected Row
   option went; an `.xlsm` now always outlines the selected row, and the
   category lists moved to the left of the sheet. The golden workbook test ran

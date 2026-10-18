@@ -349,8 +349,8 @@ def _category_labels(table: Mapping[str, Any], path: Path) -> CategoryLabels:
 
 
 def load_league(league: str | None = None) -> dict[str, str]:
-    """The `[league]` string values of the resolved league's `league.toml`. Kept
-    for callers that only need the raw mapping (athc-admin)."""
+    """The `[league]` string values of the resolved league's `league.toml`, for
+    callers that only need the raw mapping."""
     return load_league_config(league).values
 
 

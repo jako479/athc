@@ -1,17 +1,16 @@
 # Tests the built installer end to end in Windows Sandbox: silent install,
 # every athc command and subcommand on the integration-test fixtures (outputs
 # compared against the goldens where the tests keep one), upgrade over the
-# install, silent uninstall. Prints the sandbox's PASS/FAIL lines and exits
+# install, refusal over a newer version, silent uninstall. Prints the sandbox's PASS/FAIL lines and exits
 # non-zero on any failure. The sandbox has no network, which also proves the
 # installer works offline.
 #
 # Needs a built installer (run release-build.ps1 first) and the Windows Sandbox
 # optional feature. A sandbox window opens and closes by itself.
 #
-# athc-admin's release-test.ps1 runs this script for the admin setup.exe: it
-# passes -SetupExe, plus -ExtraSteps (a script run inside the sandbox after
-# athc's command checks) and -ExtraData (its fixtures, mapped in as
-# Desktop\extra).
+# -SetupExe tests another setup.exe; -ExtraSteps is a script run inside the
+# sandbox after athc's command checks; -ExtraData is a folder of its fixtures,
+# mapped in as Desktop\extra.
 #
 # Run from anywhere; paths resolve relative to this script:
 #     ./athc/packaging/release-test.ps1
@@ -144,6 +143,6 @@ if ($failed -gt 0) {
     exit 1
 }
 Write-Host "All sandbox checks passed. Logs in $outDir"
-# Explicit, so a calling script (athc-admin's) reads this result rather than
-# the last native command's.
+# Explicit, so a calling script reads this result rather than the last native
+# command's.
 exit 0

@@ -40,6 +40,8 @@ with this README, COMMANDS.txt, SCHEDULER-COMMANDS.txt, CHANGELOG.txt and
 LICENSE.txt beside it. The Start menu has a shortcut to this README.
 
 To upgrade, run the new version's setup.exe. Your settings are kept.
+An older version's setup.exe will not install over a newer one; uninstall
+first to go back.
 
 
 FIRST-TIME SETUP

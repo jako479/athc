@@ -162,12 +162,12 @@ Config tree, identical in `config\dev\`, `config\release\` and the installed
 athc.toml                     [athc] league, [autocontinue], [convert-pdb] (with its category order, deleted plays)
 leagues\
   PNFL\
-    league.toml               [league] path, play_path (dev also db_path); [categories.*]
+    league.toml               [league] path, play_path; [categories.*]
     gameplan.toml
     profile.toml
     scheduler.toml            rules, solver settings, [renames.<season>]
   PCFL\
-    league.toml               [league] path, play_path (dev also db_path); [categories.*]
+    league.toml               [league] path, play_path; [categories.*]
     gameplan.toml
     profile.toml
     scheduler.toml
@@ -181,7 +181,7 @@ leagues\
   reference; a prose copy of every value went stale the moment one changed.
 - The shipped `config/release/athc.toml` is loaded through every table loader in
   `test_config.py`, so a missing bundled rule file fails the suite.
-- `config/dev/`'s league files point at the real play pool and game log database. They used
+- `config/dev/`'s league files point at the real play pool. They used
   to point at the test fixtures, which nothing required.
 - Agent instructions live in [AGENTS.md](AGENTS.md); `.claude/CLAUDE.md` points
   at it. New STATUS, WORKLOG, CHANGELOG and TODO entries go at the top of their
@@ -195,17 +195,12 @@ leagues\
   warnings into errors.
 - `.vscode/` is untracked; game data files are marked binary in
   `.gitattributes`.
-- Config stays INI.
 - Install is a per-user `athc-<ver>-setup.exe`: a PyInstaller bundle with its
   own Python, wrapped by Inno Setup; no Python, uv or internet needed. Built
   from the exact versions in `uv.lock`. Scripts in `packaging/`; a Windows
   Sandbox test installs it, runs every command against the goldens, upgrades
-  and uninstalls. athc-admin builds its own setup.exe from the same scripts;
-  the public setup.exe refuses to install over it. Design: [docs/installer.md](docs/installer.md).
-
-Open: athc-admin's three commands still call `basicConfig` and its tests still
-write the old `[league.PNFL]` layout; both need updating when it picks up this
-athc.
+  and uninstalls. The setup.exe refuses to install over a newer installed
+  version. Design: [docs/installer.md](docs/installer.md).
 
 ## autocontinue
 
@@ -644,7 +639,6 @@ construction, never pruned · then the quirk budget in
   PNFL conventions, and making them fully league-agnostic would cost more than
   it is worth.
 - **The CLI is Click.** CLI tests run through its `CliRunner`.
-- **athc-admin ships the full installer.** Open to revisiting.
 - **`uv` runs the project.** It handles Python, dependencies and the lockfile,
   in place of pip.
 - **Config is TOML: `tomllib` reads every settings file, tomlkit writes them.**

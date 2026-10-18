@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: the setup.exe refuses to install over a newer installed version
 - profile: rules list the categories a profile may use, by the league's names, in place of the never-use lists
 - convert-pdb: an `.xlsm` always outlines the selected row; the Options sheet's Highlight Selected Row option is gone
 - convert-pdb: the golden workbook test uses a real week's PDB with its own test pool holding every play in it, so it runs with no warnings

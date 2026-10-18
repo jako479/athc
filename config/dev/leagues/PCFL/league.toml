@@ -1,7 +1,6 @@
 [league]
 path = 'E:\SIERRA\FbPro98'
 play_path = 'E:\SIERRA\FbPro98\PCFL'
-db_path = 'E:\PNFL\Game Log Database\49W4\pcfl_athc.db'
 
 [categories.offense]
 "Run Right" = "RR"

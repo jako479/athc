@@ -2,9 +2,7 @@
 ;
 ; Compiled by packaging\release-build.ps1, which passes AppVersion, StagingDir,
 ; ConfigDir, DocsDir, ChangelogFile, LicenseFile, OutputDir and OutputBaseName
-; with /D. athc-admin's build compiles this same script for the admin setup.exe
-; and also passes AdminDocsDir. Running ISCC on this file directly fails on the
-; #error checks below.
+; with /D. Running ISCC on this file directly fails on the #error checks below.
 
 #ifndef AppVersion
   #error AppVersion must be passed with /DAppVersion=...
@@ -32,8 +30,8 @@
 #endif
 
 [Setup]
-; One identity for the public and the admin setup.exe, so the admin one
-; installs over the public one in place (the reverse is refused, see [Code]).
+; One identity for every release, so a setup.exe installs over an older one in
+; place (a newer one is refused, see [Code]).
 AppId={{A60A37FC-32E8-41F5-BF9E-C78F8A2C53C2}
 AppName=Assistant to the Head Coach
 AppVersion={#AppVersion}
@@ -73,12 +71,6 @@ Source: "{#ChangelogFile}"; DestDir: "{app}"; DestName: "CHANGELOG.txt"; \
     Flags: ignoreversion
 Source: "{#LicenseFile}"; DestDir: "{app}"; DestName: "LICENSE.txt"; \
     Flags: ignoreversion
-#ifdef AdminDocsDir
-Source: "{#AdminDocsDir}\README.txt"; DestDir: "{app}"; \
-    DestName: "README-admin.txt"; Flags: ignoreversion
-Source: "{#AdminDocsDir}\COMMANDS.txt"; DestDir: "{app}"; \
-    DestName: "COMMANDS-admin.txt"; Flags: ignoreversion
-#endif
 ; User-owned config, in the folder athc reads it from: each file seeded only if
 ; it is missing, so edits survive an upgrade and a file new in a release is
 ; still added.
@@ -99,35 +91,35 @@ Type: filesandordirs; Name: "{localappdata}\athc"
 ; Put athc.exe on PATH for this user.
 Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \
     ValueData: "{olddata};{app}"; Check: NeedsAddPath(ExpandConstant('{app}'))
-#ifdef AdminDocsDir
-; Marks an admin install, so the public setup.exe refuses to install over it.
-Root: HKCU; Subkey: "Software\Assistant to the Head Coach"; ValueType: string; \
-    ValueName: "Edition"; ValueData: "admin"; Flags: uninsdeletekey
-#endif
 
 [Run]
 Filename: "{app}\README.txt"; Description: "Open the README"; \
     Flags: postinstall shellexec skipifsilent nowait
 
 [Code]
-#ifndef AdminDocsDir
-{ The public setup.exe would drop the admin commands and leave their docs
-  behind, so it stops when the admin edition is installed. }
+{ Stops when a newer version is installed; the same version or an older one is
+  replaced in place. A version that does not parse never blocks. }
 function InitializeSetup(): Boolean;
 var
-  Edition: string;
+  Installed: string;
+  InstalledVersion, ThisVersion: Int64;
 begin
   Result := True;
-  if RegQueryStringValue(HKCU, 'Software\Assistant to the Head Coach', 'Edition', Edition)
-     and (Edition = 'admin') then
+  if RegQueryStringValue(HKA,
+       'Software\Microsoft\Windows\CurrentVersion\Uninstall\' +
+       ExpandConstant('{#SetupSetting("AppId")}') + '_is1',
+       'DisplayVersion', Installed)
+     and StrToVersion(Installed, InstalledVersion)
+     and StrToVersion('{#AppVersion}', ThisVersion)
+     and (ComparePackedVersion(InstalledVersion, ThisVersion) > 0) then
   begin
-    SuppressibleMsgBox('The admin edition of Assistant to the Head Coach is installed. ' +
-      'Run the admin setup instead, or uninstall the admin edition first.',
+    SuppressibleMsgBox('Assistant to the Head Coach ' + Installed +
+      ' is installed, which is newer than this setup''s {#AppVersion}. ' +
+      'Uninstall it first to install this version.',
       mbError, MB_OK, IDOK);
     Result := False;
   end;
 end;
-#endif
 
 { True when Dir is not already one of the entries in the user's PATH. }
 function NeedsAddPath(Dir: string): Boolean;

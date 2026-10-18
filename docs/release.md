@@ -6,6 +6,7 @@ Dev-facing process for cutting an athc release. End-user install behavior lives 
 
 - **Scheme**: SemVer (`MAJOR.MINOR.PATCH`). Stay below `1.0.0` until interfaces are committed-to.
 - **Source of truth**: `version = "..."` in `pyproject.toml`. Code reads it via `importlib.metadata.version(...)`; never hard-code.
+- **Install order**: the setup.exe refuses to install over a newer installed version, compared as dotted numbers.
 
 ## Release steps
 

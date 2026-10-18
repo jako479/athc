@@ -2,8 +2,8 @@
 # the sandbox LogonCommand. Installs the setup.exe silently, runs every athc
 # command and subcommand on the integration-test fixtures (outputs compared
 # against the goldens where the tests keep one), upgrades over the install,
-# uninstalls, and writes PASS/FAIL lines to Desktop\out (a writable mapping
-# back to the host).
+# checks it refuses to install over a newer version, uninstalls, and writes
+# PASS/FAIL lines to Desktop\out (a writable mapping back to the host).
 
 $ErrorActionPreference = 'Continue'
 $desk      = 'C:\Users\WDAGUtilityAccount\Desktop'
@@ -278,7 +278,7 @@ Check 'autocontinue: Continue button image bundled' (
 Get-Process notepad -ErrorAction SilentlyContinue | Stop-Process -Force
 (New-Object -ComObject Shell.Application).Windows() | ForEach-Object { $_.Quit() }
 
-# --- extra steps: the admin build's own commands ------------------------------
+# --- extra steps: the caller's own checks (release-test.ps1 -ExtraSteps) -----
 if (Test-Path $extra) { . $extra }
 
 # --- upgrade (same setup.exe over the install) -------------------------------
@@ -305,6 +305,21 @@ Check 'upgrade: user-added league left alone'     (Test-Path (Join-Path $testLea
 $ver2 = (& $exe --version 2>&1 | Out-String).Trim()
 Check "upgrade: athc still runs (got '$ver2')"    ($ver2 -match [regex]::Escape($version))
 
+# --- newer version installed: setup refuses and changes nothing ---------------
+# The upgrade above is the same version over itself; one patch newer is refused.
+$uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{A60A37FC-32E8-41F5-BF9E-C78F8A2C53C2}_is1'
+$parts = $version.Split('.')
+$parts[-1] = [string]([int]$parts[-1] + 1)
+$newer = $parts -join '.'
+Set-ItemProperty $uninstallKey -Name DisplayVersion -Value $newer
+Set-Content $marker 'left by the newer install'
+$p = Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$out\install3.log" -Wait -PassThru
+Check "newer installed ($newer): setup refuses (exit $($p.ExitCode))" ($p.ExitCode -ne 0)
+Check 'newer installed: install folder untouched'  (Test-Path $marker)
+Check 'newer installed: installed version unchanged' ((Get-ItemProperty $uninstallKey).DisplayVersion -eq $newer)
+# The uninstaller removes only what setup installed; the marker would keep the folder.
+Remove-Item $marker -ErrorAction SilentlyContinue
+
 # --- uninstall ---------------------------------------------------------------
 Start-Process (Join-Path $app 'unins000.exe') -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
 $limit = (Get-Date).AddSeconds(20)   # the uninstaller's final cleanup is async
@@ -314,7 +329,6 @@ Check 'uninstall: %LOCALAPPDATA%\athc removed'    (-not (Test-Path $cfgDir))
 Check 'uninstall: start-menu shortcut removed'    (-not (Test-Path $lnk))
 $regPath2 = (Get-ItemProperty 'HKCU:\Environment' -ErrorAction SilentlyContinue).Path
 Check 'uninstall: install folder off user PATH'   (-not ($regPath2 -like "*$app*"))
-Check 'uninstall: no admin-edition marker left'   (-not (Test-Path 'HKCU:\Software\Assistant to the Head Coach'))
 
 Add-Content $results "SUMMARY  $pass pass, $fail fail"
 Stop-Transcript | Out-Null

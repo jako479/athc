@@ -1,8 +1,6 @@
 # athc installer
 
-How the athc and athc-admin setup.exe files are built, what they put on disk,
-and how they are tested. This one doc covers both; athc-admin's installer.md
-only points here.
+How the athc setup.exe is built, what it puts on disk, and how it is tested.
 
 The build follows the Tamarack Habilitations `pdf-converter` tool
 (`C:\Users\Brian\Projects\Customer Projects\Tamarack Habilitations\pdf-converter`).
@@ -65,6 +63,8 @@ feature with its `wsb` command line for the test.
   installs per user into `%LOCALAPPDATA%\Programs\Assistant to the Head Coach`.
   The command is `athc.exe`.
 - Installs on 64-bit Windows only, since the bundled Python is 64-bit.
+- Refuses to install over a newer installed version; the same version or an
+  older one is replaced in place.
 - Wipes the old bundle's `_internal` folder before copying, because
   PyInstaller renames internals between builds.
 - Adds the install folder to the user's PATH.
@@ -91,6 +91,7 @@ the uninstaller does not run.
 |---|---|---|---|
 | First install | installed | all seeded | added |
 | Upgrade or reinstall | replaced | kept as they are; only missing files are added | kept |
+| Over a newer version | refused, nothing changes | unchanged | unchanged |
 | Uninstall | removed | whole folder removed, edits included | removed |
 | Uninstall, then install | installed fresh | all seeded fresh | added |
 
@@ -127,32 +128,10 @@ network, which also proves it installs offline:
 3. Upgrade over the install: a stale `_internal` file is gone, the docs are
    refreshed, an edited `athc.toml` and rule TOML are kept, a deleted seeded
    file comes back.
-4. Silent uninstall: the program, `%LOCALAPPDATA%\athc`, the shortcut and the
+4. Over a newer version (the installed version faked one patch ahead): the
+   setup.exe refuses and changes nothing.
+5. Silent uninstall: the program, `%LOCALAPPDATA%\athc`, the shortcut and the
    PATH entry are gone.
 
 It prints PASS/FAIL lines, exits non-zero on any failure, and closes the
 sandbox when done.
-
-## Admin build
-
-athc-admin builds `athc-admin-<ver>-setup.exe`, which freezes athc and
-athc-admin together into one `athc.exe`. athc-admin's commands then show up
-the same way athc's do, with no code changes.
-
-- athc-admin follows the same layout: scripts in its own `packaging/`, admin
-  docs in its own `config/release/docs/`.
-- Its `release-build.ps1` reuses athc's `packaging/entry.py` and `athc.iss`
-  from the athc checkout beside it (or `-AthcRoot`). It installs the exact
-  versions in athc's `uv.lock`, so both bundles carry the same libraries, and
-  also bundles athc-admin's metadata, modules and `sql\*.sql`.
-- It installs athc's docs plus `README-admin.txt` and `COMMANDS-admin.txt`.
-- It has the same app identity and install folder as the public setup.exe, so
-  it installs over a public install in place: one `athc.exe` on PATH, one
-  uninstall entry.
-- The public setup.exe refuses to install over the admin edition, which would
-  drop the admin commands and leave their docs behind. The admin install
-  leaves a registry marker for this; its uninstall removes it.
-- Its `release-test.ps1` runs athc's sandbox test on the admin setup.exe, plus
-  its own `sandbox-steps.ps1` for the logparser commands and for the public
-  setup.exe refusing to install over it.
-- athc and athc-admin versions stay in lockstep (athc-admin's release.md).
