@@ -127,7 +127,7 @@ def set_specials(
     team: str | None,
     league: str | None,
 ) -> None:
-    """Set the special plays from a play list.
+    """Replace only the listed special plays.
 
     Other-side game plans are skipped; unlisted categories keep their plays.
     """
@@ -139,7 +139,9 @@ def set_specials(
     # A list from the console has no file to name.
     source = "" if from_console else f"{input_file}: "
     where = "play list" if from_console else str(input_file)
-    plays = parse_play_list(text)
+    # Each special play goes to its own category's slot, so a blank line means
+    # nothing here.
+    plays = [play for play in parse_play_list(text) if play.name]
     if len(plays) > SPECIAL_COUNT:
         raise AthcError(
             f"Too many plays ({len(plays)}). The most is {SPECIAL_COUNT}.",

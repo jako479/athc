@@ -372,18 +372,24 @@ _DEFENSE_CATEGORY_ORDER: tuple[PlayCategory, ...] = (
 
 
 def parse_play_list(text: str) -> list[PlayLine]:
-    """Play names in order with their line numbers; drops blanks, `::` lines,
-    and ` ::` trailers."""
+    """Play names in order with their line numbers; a blank line is an empty
+    name, and blanks after the last name are dropped. Drops `::` lines and
+    ` ::` trailers."""
     out: list[PlayLine] = []
     for number, raw in enumerate(text.splitlines(), start=1):
         line = raw.strip()
-        if not line or line.startswith(COMMENT_TOKEN):
+        if not line:
+            out.append(PlayLine(number, ""))
+            continue
+        if line.startswith(COMMENT_TOKEN):
             continue
         idx = line.find(f" {COMMENT_TOKEN}")
         if idx >= 0:
             line = line[:idx].rstrip()
         if line:
             out.append(PlayLine(number, line))
+    while out and not out[-1].name:
+        out.pop()
     return out
 
 

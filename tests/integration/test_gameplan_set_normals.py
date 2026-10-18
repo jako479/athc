@@ -8,11 +8,21 @@ from pathlib import Path
 
 import pytest
 
+from athc.cli.gameplan.list_normals import list_normals
 from athc.cli.gameplan.set_normals import set_normals
 from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_gameplan import CustomPlayRef, PlayRef, read_gameplan, write_gameplan
 from tests.conftest import LEAGUE, athc_toml, league_toml
-from tests.integration.conftest import GP_OFFENSE, PLAYS, TEAM_NAMES, lge, team
+from tests.integration.conftest import (
+    EMPTY_SLOTS_PLAYS,
+    GP_DEFENSE,
+    GP_EMPTY_SLOTS,
+    GP_OFFENSE,
+    PLAYS,
+    TEAM_NAMES,
+    lge,
+    team,
+)
 
 NORMAL = "OR45RL01"  # a real normal offense play in the pool
 SPECIAL = "SFFGXPAT"  # a real special offense play in the pool
@@ -186,6 +196,81 @@ def test_inline_comment_requires_space(runner, tmp_path: Path) -> None:
     assert runner.invoke(set_normals, [str(p), str(inp)]).exit_code == 2
 
 
+# ── blank lines ───────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
+def test_blank_lines_leave_their_slots_empty(
+    runner, tmp_path: Path, newline: str
+) -> None:
+    p = _copy(tmp_path)
+    lines = [NORMAL, "", "DN28RM01", "", "", "AT21Draw"]
+    inp = tmp_path / "plays.txt"
+    inp.write_bytes((newline.join(lines) + newline).encode("utf-8"))
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 0
+    assert result.stdout == f"OK   {p}: updated (3 normal play(s))\n"
+    slots = read_gameplan(str(p)).normal_plays
+    assert [i for i, s in enumerate(slots) if s is not None] == [0, 2, 5]
+    assert [_name(slots[i]) for i in (0, 2, 5)] == [NORMAL, "DN28RM01", "AT21Draw"]
+
+
+def test_only_blank_lines_clear_every_slot(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    inp = _input(tmp_path, "\n\n:: none\n")
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 0
+    assert result.stdout == f"OK   {p}: updated (0 normal play(s))\n"
+    assert all(s is None for s in read_gameplan(str(p)).normal_plays)
+
+
+def test_last_play_on_slot_64_accepted(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    inp = _input(tmp_path, "\n" * 63 + NORMAL + "\n")
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 0
+    assert _name(read_gameplan(str(p)).normal_plays[63]) == NORMAL
+
+
+def test_last_play_on_slot_65_rejected(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    original = p.read_bytes()
+    inp = _input(tmp_path, "\n" * 64 + NORMAL + "\n")
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {inp}: Too many plays (65). The most is 64.\n"
+    assert p.read_bytes() == original
+
+
+def test_trailing_blank_lines_after_64_plays_accepted(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    inp = _input(tmp_path, (NORMAL + "\n") * 64 + "\n\n  \n")
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 0
+    assert result.stdout == f"OK   {p}: updated (64 normal play(s))\n"
+
+
+def test_slot_listing_reads_back_to_the_same_slots(
+    runner, league: Path, tmp_path: Path
+) -> None:
+    """A defense game plan saved by the game with empty slots, listed by
+    `list-normals` (slot order, blanks kept) and read back by set-normals,
+    gives the same slots."""
+    (league / "league.toml").write_text(
+        league_toml(EMPTY_SLOTS_PLAYS), encoding="utf-8"
+    )
+    listing = runner.invoke(list_normals, [str(GP_EMPTY_SLOTS), "-"])
+    target = tmp_path / "defense.pln"
+    shutil.copy2(GP_DEFENSE, target)
+    result = runner.invoke(set_normals, [str(target), "-"], input=listing.stdout)
+    assert result.exit_code == 0
+
+    def names(path: Path) -> list[str | None]:
+        return [s.name if s else None for s in read_gameplan(str(path)).normal_plays]
+
+    assert names(target) == names(GP_EMPTY_SLOTS)
+
+
 # ── quiet / console input ─────────────────────────────────────────────────────
 
 
@@ -220,13 +305,14 @@ def test_dash_input_errors_name_no_file(runner, tmp_path: Path) -> None:
 
 
 def test_dash_input_line_is_the_real_line(runner, tmp_path: Path) -> None:
-    """Blank and `::` lines count, CRLF or not, as in a file."""
+    """Blank and `::` lines count, CRLF or not, as in a file; a blank line
+    also takes a slot."""
     p = _copy(tmp_path)
     text = "\r\n:: my list\r\nNOTAREALPLAY\r\n"
     result = runner.invoke(set_normals, [str(p), "-"], input=text)
     assert result.exit_code == 2
     assert (
-        "FAIL line 3: 'NOTAREALPLAY' is not in the play pool (slot 1-1).\n"
+        "FAIL line 3: 'NOTAREALPLAY' is not in the play pool (slot 1-2).\n"
         in result.stderr
     )
 
@@ -237,7 +323,7 @@ def test_file_input_line_is_the_real_line(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_normals, [str(p), str(inp)])
     assert result.exit_code == 2
     assert (
-        f"FAIL {inp}: line 4: 'NOTAREALPLAY' is not in the play pool (slot 1-2).\n"
+        f"FAIL {inp}: line 4: 'NOTAREALPLAY' is not in the play pool (slot 1-3).\n"
         in result.stderr
     )
 

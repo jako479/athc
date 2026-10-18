@@ -316,9 +316,14 @@ In [test_gameplan_set_normals.py](test_gameplan_set_normals.py). Operates on a t
 | Slot path starts with the play pool's folder name | tmp | `<pool folder>\Offense\RL\<play>.ply` | `test_slot_path_starts_with_play_pool_folder` | ☑ |
 | No backup | tmp | stdout: `OK` line; no `.bak` | `test_writes_no_backup` | ☑ |
 | Skips `::` / strips ` ::` / `name::` fails | tmp | parsed / parsed / exit 2 | `test_skips_comment_lines` / `test_strips_inline_comments` / `test_inline_comment_requires_space` | ☑ |
+| Blank lines leave their slots empty | A, blank, B, blank, blank, C; LF and CRLF | A, B and C in slots 1, 3 and 6; `OK   <file>: updated (3 normal play(s))` | `test_blank_lines_leave_their_slots_empty` `[P]` | ☑ |
+| Only blank and `::` lines | tmp | every slot cleared; `OK   <file>: updated (0 normal play(s))` | `test_only_blank_lines_clear_every_slot` | ☑ |
+| Last play on slot 64 / 65 | 63 / 64 blank lines, then a play | exit 0, slot 64 set / exit 2, `FAIL <list>: Too many plays (65). The most is 64.`, untouched | `test_last_play_on_slot_64_accepted` / `test_last_play_on_slot_65_rejected` | ☑ |
+| 64 plays, then blank lines | tmp | exit 0; `OK   <file>: updated (64 normal play(s))` | `test_trailing_blank_lines_after_64_plays_accepted` | ☑ |
+| A `list-normals` slot listing read back | `data/empty_slots/defense.pln` (saved by the game, 14 empty slots) with its plays in `data/empty_slots/plays/`; listed to `-`, set from `-` into a copy of `defense.pln` | the same slots | `test_slot_listing_reads_back_to_the_same_slots` | ☑ |
 | `-q` rejected; `-` reads the console | tmp | exit 2, stderr ends `Error: No such option '-q'.`, untouched / exit 0, set | `test_quiet_is_rejected` / `test_dash_reads_from_console` | ☑ |
 | `-` input errors name no file | tmp | exit 2; stderr: `FAIL line 1: ...`, no `- ` | `test_dash_input_errors_name_no_file` | ☑ |
-| Error lines name the real line | `-` with CRLF, a blank and a `::` line / a file | `FAIL line 3: ...` / `FAIL <list>: line 4: ... (slot 1-2).` | `test_dash_input_line_is_the_real_line` / `test_file_input_line_is_the_real_line` | ☑ |
+| Error lines name the real line | `-` with CRLF, a blank and a `::` line / a file | `FAIL line 3: ...` / `FAIL <list>: line 4: ... (slot 1-3).` | `test_dash_input_line_is_the_real_line` / `test_file_input_line_is_the_real_line` | ☑ |
 | Special play rejected (untouched) | tmp | exit 2; stderr: `FAIL` naming set-specials | `test_rejects_special_play` | ☑ |
 | Missing play aborts (untouched) | tmp | exit 2; stderr: `FAIL` | `test_missing_play_aborts` | ☑ |
 | >64 plays / league `play_path` missing | tmp | exit 2; stderr: `FAIL` | `test_too_many_plays_rejected` / `test_invalid_play_path` | ☑ |
@@ -342,10 +347,12 @@ In [test_gameplan_set_specials.py](test_gameplan_set_specials.py). Tmp copies of
 | List saved with a BOM | UTF-8 with BOM | first play placed | `test_a_list_saved_with_a_bom_reads_its_first_play` | ☑ |
 | No backup | tmp | no `.bak`; no backup note | `test_writes_no_backup` | ☑ |
 | Comments; `-` reads the console | tmp | parsed; set | `test_skips_and_strips_comments` / `test_dash_reads_from_console` | ☑ |
+| Blank lines skipped | blanks around one play | exit 0; the play set; two blanks are not a duplicate | `test_blank_lines_are_skipped` | ☑ |
 | `-` input errors name no file | tmp | exit 2; stderr: `FAIL line 1: ...`, no `- ` | `test_dash_input_errors_name_no_file` | ☑ |
 | A play a game plan cannot take | file / `-` | exit 2; stderr: `FAIL <pln>: 'NOPEPLAY' is not in the play pool (<list> line 3).` / `(play list line 1).` | `test_gameplan_problem_names_the_gameplan_and_the_list_line` / `test_gameplan_problem_from_the_console` | ☑ |
 | Normal play / duplicate / >10 rejected (untouched) | tmp | exit 2; stderr: `FAIL ...` | `test_rejects_normal_play` / `test_rejects_duplicate_play` / `test_too_many_plays_rejected` | ☑ |
 | 10 plays pass the count | tmp | past the count (here to the duplicate check) | `test_as_many_plays_as_slots_pass_the_count` | ☑ |
+| 10 / 11 plays with a blank line after each | tmp | past the count / exit 2, `FAIL <list>: Too many plays (11). The most is 10.` | `test_blank_lines_do_not_count_toward_the_limit` / `test_eleven_plays_between_blank_lines_rejected` | ☑ |
 | Missing target / league `play_path` missing | tmp | exit 2 | `test_missing_target` / `test_invalid_play_path` | ☑ |
 | Missing play list | tmp | exit 2; stderr: `FAIL <path>: The system cannot find the file specified.` only | `test_missing_play_list` | ☑ |
 | Directory top-level / recursive | tmp | stdout: "2 file(s) processed" tally | `test_directory_top_level_only` / `test_directory_recursive` | ☑ |

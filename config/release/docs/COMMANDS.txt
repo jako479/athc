@@ -114,13 +114,15 @@ A file or folder that exists by that name wins over the key.
       athc gameplan find-play OR45RL01 --path .
 
 
-5) gameplan set-normals  --  set the 64 normal plays from a play list
-   ------------------------------------------------------------------
+5) gameplan set-normals  --  replace all 64 normal plays from a play list
+   ----------------------------------------------------------------------
 
-   Replaces the normal slots of one game plan (a .pln file or a game plan
-   key) from a play list file; - reads the list from the screen instead. No
-   backup is made. Lines starting with `::`, and text after ` ::`, are
-   ignored. The league's play pool resolves names; run `check` afterward.
+   Clears all 64 normal slots of one game plan (a .pln file or a game plan
+   key), then fills them in order from a play list file; - reads the list
+   from the screen instead. A blank line leaves its slot empty; blank lines
+   after the last play are ignored. No backup is made. Lines starting with
+   `::`, and text after ` ::`, are ignored. The league's play pool resolves
+   names; run `check` afterward.
    To hide the OK lines, redirect them:  > nul  (FAIL lines still show).
 
    Show help:
@@ -132,8 +134,8 @@ A file or folder that exists by that name wins over the key.
       athc gameplan set-normals offense.pln plays.txt > nul
 
 
-6) gameplan set-specials  --  set the special plays from a play list
-   -----------------------------------------------------------------
+6) gameplan set-specials  --  replace only the listed special plays
+   ----------------------------------------------------------------
 
    Updates your team's game plans, or the ones --path names: a .pln file, a
    folder, a wildcard or a game plan key (-r includes subfolders), from a

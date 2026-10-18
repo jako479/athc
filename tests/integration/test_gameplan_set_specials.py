@@ -183,6 +183,16 @@ def test_skips_and_strips_comments(runner, tmp_path: Path) -> None:
     assert _name(read_gameplan(str(p)).custom_special_plays[1]) == SPECIAL
 
 
+def test_blank_lines_are_skipped(runner, tmp_path: Path) -> None:
+    """Each special play goes to its own category, so a blank line means
+    nothing; two of them are not a duplicate."""
+    p = _without_special(_copy(tmp_path))
+    inp = _input(tmp_path, f"\n\n{SPECIAL}\n\n")
+    result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
+    assert result.exit_code == 0
+    assert _name(read_gameplan(str(p)).custom_special_plays[1]) == SPECIAL
+
+
 def test_dash_reads_from_console(runner, tmp_path: Path) -> None:
     p = _without_special(_copy(tmp_path))
     result = runner.invoke(set_specials, ["--path", str(p), "-"], input=SPECIAL + "\n")
@@ -262,6 +272,23 @@ def test_as_many_plays_as_slots_pass_the_count(runner, tmp_path: Path) -> None:
     result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
     assert "Too many plays" not in result.stderr
     assert result.stderr.splitlines()[-1].startswith(f"FAIL {inp}: line 10: Duplicate")
+
+
+def test_blank_lines_do_not_count_toward_the_limit(runner, tmp_path: Path) -> None:
+    """Ten plays with a blank line between each pass the count."""
+    p = _copy(tmp_path)
+    inp = _input(tmp_path, (SPECIAL + "\n\n") * 10)
+    result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
+    assert "Too many plays" not in result.stderr
+    assert result.stderr.splitlines()[-1].startswith(f"FAIL {inp}: line 19: Duplicate")
+
+
+def test_eleven_plays_between_blank_lines_rejected(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    inp = _input(tmp_path, (SPECIAL + "\n\n") * 11)
+    result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {inp}: Too many plays (11). The most is 10.\n"
 
 
 def test_too_many_plays_rejected(runner, tmp_path: Path) -> None:

@@ -2,7 +2,7 @@
 
 Tool-logic unit cases (rules loader). Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). CLI cases live in [../../integration/README.md](../../integration/README.md).
 
-One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `leagues/<league>/gameplan.toml` in `config/dev/` and `config/release/`. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/gameplan` passes.
+One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `leagues/<league>/gameplan.toml` in `config/dev/` and `config/release/`; `str` = a play list's text written in the test. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/gameplan` passes.
 
 ## rules.py — `load_rules`
 
@@ -121,6 +121,15 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 | Normal play in the specials list | make | "'RUNPLAY' is not a special play." | `test_normal_play_in_the_specials_list_is_rejected` | ☑ |
 | Defensive special play in an offense game plan | make | "'DEFKICK' is a defensive special play, but the game plan is offensive." | `test_defensive_special_play_in_an_offense_game_plan_is_rejected` | ☑ |
 | Offensive special play in a defense game plan | make | "'OFFKICK' is an offensive special play, but the game plan is defensive." | `test_offensive_special_play_in_a_defense_game_plan_is_rejected` | ☑ |
+
+## _common.py — `parse_play_list`
+
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| File line numbers kept; blanks are empty entries | `str`, CRLF, blank / `::` / ` ::` lines | `(1, "")`, `(3, "Play A")`, `(4, "")`, `(5, "Play B")` | `test_parse_play_list_keeps_the_file_line_numbers` | ☑ |
+| A line of only spaces or a tab is blank | `str` | `(2, "")`, `(3, "")` between the plays | `test_parse_play_list_keeps_blank_lines_as_empty_entries` | ☑ |
+| Blanks after the last play dropped | `str`, blanks and a `::` line after it | the play alone | `test_parse_play_list_drops_blank_lines_after_the_last_play` | ☑ |
+| Only blanks and comments | `str` | `[]` | `test_parse_play_list_of_only_blank_lines_is_empty` | ☑ |
 
 ## validators.py — `validate_gameplan`
 

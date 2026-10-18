@@ -56,9 +56,11 @@ def set_normals(
     team: str | None,
     league: str | None,
 ) -> None:
-    """Set the 64 normal plays from a play list.
+    """Replace all 64 normal plays from a play list.
 
-    Lines starting with :: are comments; run 'athc gameplan check' afterward.
+    Every normal slot is cleared, then filled in list order; a blank line leaves
+    its slot empty. Lines starting with :: are comments; run 'athc gameplan
+    check' afterward.
     """
     require_a_key(team, [game_plan])
     if league is not None:
@@ -83,7 +85,9 @@ def set_normals(
             f"'{play.name}' is a special play. Run 'athc gameplan set-specials'.",
         )
         for play in plays
-        if (r := pool.find_by_name(play.name)) is not None and r.play_file.is_special
+        if play.name
+        and (r := pool.find_by_name(play.name)) is not None
+        and r.play_file.is_special
     ]
     if specials:
         for invalid in specials:

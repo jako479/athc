@@ -39,6 +39,7 @@
 
 ## 2.0.0
 
+- gameplan: set-normals checks the resulting game plan and, if it fails, asks for confirmation before replacing
 - athc: update the file specs and their ImHex patterns from the Sierra source findings; see [docs/research/sierra-source.md](docs/research/sierra-source.md#14-planned-spec-changes)
 - athc: document the game behaviors and fix comments and code from the Sierra source findings and the updated specs; see [docs/research/sierra-source.md](docs/research/sierra-source.md#15-other-planned-changes)
 - [x] autocontinue: full test set (real screens with the pointer off, on and lit; a test per setting; a pointer helper in the sandbox game; a test matrix)

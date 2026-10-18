@@ -372,6 +372,9 @@ method's steps),
 Working. Validates and edits `.pln` game plans. Docs:
 [gameplan.md](docs/gameplan.md) · [rules](config/release/leagues/PNFL/gameplan.toml)
 
+- `set-normals` clears all 64 normal slots, then fills them in list order; a
+  blank line leaves its slot empty. `set-specials` replaces only the listed
+  plays and skips blank lines.
 - The attribute caps (QB runs, rollouts, timed passes, 2-DL) count what each
   play file holds, not its name or folder.
 - Rules say which categories a gameplan may contain

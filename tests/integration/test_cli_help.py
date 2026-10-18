@@ -389,8 +389,8 @@ Commands:
   list-normals   List the 64 normal plays in a game plan.
   list-specials  List the special plays in a game plan.
   replace-play   Replace one play with another in game plans.
-  set-normals    Set the 64 normal plays from a play list.
-  set-specials   Set the special plays from a play list.
+  set-normals    Replace all 64 normal plays from a play list.
+  set-specials   Replace only the listed special plays.
 """,
     ("gameplan", "check"): f"""\
 Usage: athc gameplan check [OPTIONS] [PATH]...
@@ -461,7 +461,7 @@ Options:
     ("gameplan", "set-specials"): f"""\
 Usage: athc gameplan set-specials [OPTIONS] INPUT_FILE
 
-  Set the special plays from a play list.
+  Replace only the listed special plays.
 
   Other-side game plans are skipped; unlisted categories keep their plays.
 
@@ -533,9 +533,11 @@ Options:
     ("gameplan", "set-normals"): f"""\
 Usage: athc gameplan set-normals [OPTIONS] GAME_PLAN INPUT_FILE
 
-  Set the 64 normal plays from a play list.
+  Replace all 64 normal plays from a play list.
 
-  Lines starting with :: are comments; run 'athc gameplan check' afterward.
+  Every normal slot is cleared, then filled in list order; a blank line leaves
+  its slot empty. Lines starting with :: are comments; run 'athc gameplan
+  check' afterward.
 
 Positional arguments:
   GAME_PLAN   A .pln file or a game plan key.

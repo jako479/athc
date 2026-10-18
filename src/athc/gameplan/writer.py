@@ -18,8 +18,9 @@ MAX_NORMAL_PLAYS = GamePlan.NUMBER_NORMAL_PLAYS
 
 
 class PlayLine(NamedTuple):
-    """One play name and the line of the list it is on (1-based, blank and
-    `::` lines counted), so an error points at the line the user sees."""
+    """One play name (empty for a blank line) and the line of the list it is on
+    (1-based, blank and `::` lines counted), so an error points at the line the
+    user sees."""
 
     line: int
     name: str

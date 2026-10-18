@@ -41,6 +41,11 @@ GP_OFFENSE = DATA / "offense.pln"
 GP_DEFENSE = DATA / "defense.pln"
 PLAYS = DATA / "plays"
 
+# set-normals round trip: a defense game plan saved by the game with empty
+# slots, and its plays copied from the real pool.
+GP_EMPTY_SLOTS = DATA / "empty_slots" / "defense.pln"
+EMPTY_SLOTS_PLAYS = DATA / "empty_slots" / "plays"
+
 # check-ppp: a clean profile that fully matches offense.pln above.
 COMPAT_OFF_CLEAN = DATA / "compat_off_clean.prf"
 
