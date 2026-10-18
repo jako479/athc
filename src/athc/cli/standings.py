@@ -36,21 +36,21 @@ EXAMPLES = """Examples:
     "--view",
     type=click.Choice(VIEWS),
     default="game",
-    show_default=True,
-    help="The game's standings screen, or an ESPN standings tab.",
+    help="Which standings to show (default: game).",
 )
 @click.option(
     "--method",
     type=click.Choice(_METHODS),
     default="scheduler",
-    show_default=True,
-    help="Tie-breakers: the scheduler's, the game's or the NFL's.",
+    help=(
+        "Tie-breakers: the scheduler's, the game's or the NFL's (default: scheduler)."
+    ),
 )
 @league_option
 def standings(view: View, method: Method, league: str | None) -> None:
     """Show the league's standings as played so far.
 
-    Reads the league's .lge from the folder path names in league.toml.
+    Reads the league's .lge from the folder 'path' names in league.toml.
     """
     config = load_league_config(league)
     folder = config.path(LEAGUE_PATH_KEY)

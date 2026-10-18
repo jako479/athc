@@ -30,13 +30,13 @@ EXAMPLES = """Examples:
 @click.argument(
     "key",
     callback=key_callback,
-    help="Setting to print: league, path, play_path, team or ppp_path.",
+    help="Setting to print: 'league', 'path', 'play_path', 'team' or 'ppp_path'.",
 )
 @league_option
 def get(key: str, league: str | None) -> None:
     """Print a setting.
 
-    league comes from athc.toml, the other keys from the league's league.toml.
+    'league' comes from athc.toml, the other keys from the league's league.toml.
     """
     if key == "league":
         console.print(resolve_league(league))

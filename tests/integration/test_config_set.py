@@ -506,15 +506,16 @@ Usage: athc config set [OPTIONS] KEY VALUE
 
   Set a value in athc.toml or league.toml.
 
-  league goes in athc.toml, the other keys in the league's league.toml.
+  'league' goes in athc.toml, the other keys in the league's league.toml.
 
 Positional arguments:
-  KEY    Setting to change: league, path, play_path, team or ppp_path.
+  KEY    Setting to change: 'league', 'path', 'play_path', 'team' or
+         'ppp_path'.
   VALUE  New value.
 
 Options:
-  --league NAME  League to use (default: the one set with athc config set
-                 league).
+  --league NAME  League to use (default: the one set with 'athc config set
+                 league').
   -h, --help     Show this message and exit.
 
   Examples:

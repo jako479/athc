@@ -277,8 +277,8 @@ def test_help_shows_the_team_options(runner) -> None:
     assert result.exit_code == 0
     output = " ".join(result.stdout.split())  # the help text wraps
     assert "Usage: check-ppp [OPTIONS] [PATH]..." in output
-    assert "--team NAME Team to check (default: team in league.toml)." in output
-    assert "-a, --all-teams Every team in the league." in output
+    assert "--team NAME Team to check (default: 'team' in league.toml)." in output
+    assert "-a, --all-teams Check every team's profiles and game plans." in output
 
 
 # ── both files ────────────────────────────────────────────────────────────────

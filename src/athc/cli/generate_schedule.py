@@ -107,7 +107,7 @@ def _not_the_console(
     default=None,
     metavar="FILE",
     help=(
-        "Upcoming season's .lge file (default: the league's .lge in path in "
+        "Upcoming season's .lge file (default: the league's .lge in 'path' in "
         "league.toml)."
     ),
 )
@@ -127,7 +127,7 @@ def _not_the_console(
     callback=_time_limit_in_range,
     help=(
         "Solver budget for placing games into weeks, in the solver's own time "
-        "units, not seconds (default: phase2_time_limit in scheduler.toml)."
+        "units, not seconds (default: 'phase2_time_limit' in scheduler.toml)."
     ),
 )
 @league_option

@@ -1009,7 +1009,7 @@ In [test_cli_root.py](test_cli_root.py). `--league` is an option on each league-
 |---|---|---|---|---|
 | Root `--help` has no `--league` | `athc --help` | exit 0; stdout: `--league` absent | `test_root_help_has_no_league` | ☑ |
 | Root rejects `--league` | `athc --league <NAME> profile check` | exit 2; stderr: Click's "No such option" | `test_root_rejects_league` | ☑ |
-| Every league-aware command takes `--league` | `--help` per command | stdout: `--league NAME  League to use (default: the one set with athc config set league).` | `test_league_commands_take_league` `[P]` | ☑ |
+| Every league-aware command takes `--league` | `--help` per command | stdout: `--league NAME  League to use (default: the one set with 'athc config set league').` | `test_league_commands_take_league` `[P]` | ☑ |
 | `-h` on every command and group | `-h` per command | exit 0; stdout: "Usage:" | `test_short_help_option_on_every_command` `[P]` | ☑ |
 | Usage line is Click's own | `-h` on the root, a group and several commands | exact usage line: `[OPTIONS]`, then the arguments; a group ends in `COMMAND [ARGS]...` | `test_usage_is_clicks_own` `[P]` | ☑ |
 | Help uses uppercase names | `--help` on `convert-pdb`, `gameplan check`, `find-play`, `replace-play`, `list-normals`, `set-normals`, `set-specials`, `generate-schedule`, `playpool check`, `profile check`, `profile copy`, `profile diff`, `check-ppp` | stdout: UPPERCASE placeholders (generate-schedule: `--season YEAR`, `--previous FILE`, `--upcoming FILE`, `--seed NUMBER`, `--phase2-time-limit LIMIT`); not the old names (generate-schedule: `INTEGER`, `--season year`) | `test_help_uses_uppercase_names` `[P]` | ☑ |
@@ -1035,7 +1035,10 @@ In [test_cli_help.py](test_cli_help.py). The ranges are checked on constructed t
 | Every description and example count in range | each leaf command | 1 to 4 description lines; 1 to 6 examples | `test_description_fits_the_range` / `test_examples_fit_the_range` `[P]` | ☑ |
 | Argument help lines | `--help` | each argument's help in "Positional arguments", under its bare name (`PATH`, `FOLDER`) | `test_argument_help_line` `[P]` | ☑ |
 | Whole help screens | `--help` on `autocontinue`, `gameplan` and each of its subcommands, 80-column console | stdout equals the screen exactly | `test_help_screen` `[P]` | ☑ |
-| Windows words | `--help` on each command and group | no "directory", "stdout", "glob", "config dir", "CTRL-C", "file manager" | `test_help_uses_windows_words` `[P]` | ☑ |
+| Windows words | `--help` on each command and group | no "directory", "glob", "config dir", "CTRL-C", "file manager" | `test_help_uses_windows_words` `[P]` | ☑ |
+| Defaults one way | `--help` on each command and group | no `[default:` or "by default" | `test_help_writes_defaults_one_way` `[P]` | ☑ |
+| Commands quoted | `--help` on each command and group, usage line and examples left out | no `athc <command>` outside single quotes | `test_help_quotes_commands` `[P]` | ☑ |
+| Settings quoted | `--help` on each command and group, usage line and examples left out | no bare setting with an underscore (`play_path`) | `test_help_quotes_settings` `[P]` | ☑ |
 
 ## `athc config set`
 

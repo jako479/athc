@@ -55,7 +55,7 @@ def check(
 ) -> None:
     """Check game plans against the league's rules.
 
-    To check game plans with their profiles, run athc check-ppp.
+    To check game plans with their profiles, run 'athc check-ppp'.
     """
     require_a_key(team, path)
     if league is not None:

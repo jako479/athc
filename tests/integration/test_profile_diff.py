@@ -48,12 +48,12 @@ Positional arguments:
   PROFILE2  The profile to compare it with, named the same way.
 
 Options:
-  -o, --output FILE  Write the report to FILE instead of the console (.txt, or
-                     .csv for Excel).
-  --team NAME        Team the profile keys refer to (default: team in
+  -o, --output FILE  Write the report to FILE instead of stdout (.txt, or .csv
+                     for Excel).
+  --team NAME        Team the profile keys refer to (default: 'team' in
                      league.toml).
-  --league NAME      League to use (default: the one set with athc config set
-                     league).
+  --league NAME      League to use (default: the one set with 'athc config set
+                     league').
   -h, --help         Show this message and exit.
 
   Profile keys, for your team's profiles:

@@ -214,7 +214,7 @@ def replace_play(
     """Replace one play with another in game plans.
 
     Each game plan gets the first REPLACEMENT not already in it with which it
-    still passes athc gameplan check; the others are backups, tried in order.
+    still passes 'athc gameplan check'; the others are backups, tried in order.
     """
     require_key_path(team, path)
     if league is not None:

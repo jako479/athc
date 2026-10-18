@@ -40,7 +40,7 @@ EXAMPLES = """Examples:
     "folder",
     required=False,
     type=click.Path(path_type=Path),
-    help="Play pool folder (default: the league's play_path).",
+    help="Play pool folder (default: the league's 'play_path').",
 )
 @league_option
 @click.pass_context

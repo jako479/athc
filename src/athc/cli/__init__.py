@@ -159,7 +159,7 @@ def league_option(f: Callable[..., Any]) -> Callable[..., Any]:
         "--league",
         default=None,
         metavar="NAME",
-        help="League to use (default: the one set with athc config set league).",
+        help="League to use (default: the one set with 'athc config set league').",
     )(f)
 
 
@@ -171,7 +171,7 @@ def team_option(head: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]
         "--team",
         default=None,
         metavar="NAME",
-        help=f"{head} (default: team in league.toml).",
+        help=f"{head} (default: 'team' in league.toml).",
     )
 
 

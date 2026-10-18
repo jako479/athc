@@ -50,7 +50,7 @@ def _output_format(
     default=None,
     metavar="FILE",
     callback=_output_format,
-    help="Write the report to FILE instead of the console (.txt, or .csv for Excel).",
+    help="Write the report to FILE instead of stdout (.txt, or .csv for Excel).",
 )
 @team_option(TEAM_HELP)
 @league_option

@@ -44,7 +44,7 @@ NORMAL_COUNT = GamePlan.NUMBER_NORMAL_PLAYS
 @click.argument(
     "input_file",
     type=click.Path(path_type=Path, allow_dash=True),
-    help="Play list, one name per line (- reads the console).",
+    help="Play list, one name per line; use '-' for stdin.",
 )
 @team_option(TEAM_HELP)
 @league_option
@@ -58,7 +58,7 @@ def set_normals(
 ) -> None:
     """Set the 64 normal plays from a play list.
 
-    Lines starting with :: are comments; run athc gameplan check afterward.
+    Lines starting with :: are comments; run 'athc gameplan check' afterward.
     """
     require_a_key(team, [game_plan])
     if league is not None:

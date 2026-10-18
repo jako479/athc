@@ -72,8 +72,8 @@ def test_league_commands_take_league(runner, command: click.Command) -> None:
     assert result.exit_code == 0
     output = " ".join(result.stdout.split())  # the help text wraps
     assert (
-        "--league NAME League to use (default: the one set with athc config set "
-        "league)." in output
+        "--league NAME League to use (default: the one set with 'athc config set "
+        "league')." in output
     )
 
 

@@ -52,14 +52,14 @@ Options:
   --previous FILE            Previous season's .lge file, saved after its last
                              playoff game (default: the --upcoming file).
   --upcoming FILE            Upcoming season's .lge file (default: the
-                             league's .lge in path in league.toml).
+                             league's .lge in 'path' in league.toml).
   --seed NUMBER              Seed for a repeatable run (default: random; the
                              last line shows it).
   --phase2-time-limit LIMIT  Solver budget for placing games into weeks, in
                              the solver's own time units, not seconds
-                             (default: phase2_time_limit in scheduler.toml).
-  --league NAME              League to use (default: the one set with athc
-                             config set league).
+                             (default: 'phase2_time_limit' in scheduler.toml).
+  --league NAME              League to use (default: the one set with 'athc
+                             config set league').
   -h, --help                 Show this message and exit.
 
   Examples:

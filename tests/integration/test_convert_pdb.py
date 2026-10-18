@@ -99,7 +99,7 @@ Usage: athc convert-pdb [OPTIONS] PDB_FILE [OUTPUT]
 Positional arguments:
   PDB_FILE  WinLogStats .pdb file.
   OUTPUT    .xlsx, or .xlsm to include sorting macros, or a folder (default:
-            PDB_FILE with .xlsm, beside it).
+            <name>.xlsm next to PDB_FILE).
 
 Options:
   -o, --pln-off GAME_PLAN         Offense Slot 1.
@@ -107,15 +107,15 @@ Options:
   -d, --pln-def GAME_PLAN         Defense Slot 1.
   -d2, --pln-def-2 GAME_PLAN      Defense Slot 2.
   --path FOLDER                   Folder holding your team's game plans, by
-                                  their league-file names (default: ppp_path,
-                                  else where the game reads them).
+                                  their league-file names (default:
+                                  'ppp_path', else where the game reads them).
   --team NAME                     Team whose game plans fill the Slot columns
-                                  (default: team in league.toml).
+                                  (default: 'team' in league.toml).
   --percentages / --no-percentages
-                                  Overrides calculate_percentages in athc.toml
-                                  (on by default).
+                                  Add the percentage columns. Overrides
+                                  'calculate_percentages' in athc.toml.
   --league NAME                   League to use (default: the one set with
-                                  athc config set league).
+                                  'athc config set league').
   -h, --help                      Show this message and exit.
 
   Examples:

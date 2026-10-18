@@ -175,7 +175,7 @@ def _plan_option(*names: str, help: str):
     callback=_workbook,
     help=(
         ".xlsx, or .xlsm to include sorting macros, or a folder (default: "
-        "PDB_FILE with .xlsm, beside it)."
+        "<name>.xlsm next to PDB_FILE)."
     ),
 )
 @_plan_option("-o", "--pln-off", help="Offense Slot 1.")
@@ -189,14 +189,14 @@ def _plan_option(*names: str, help: str):
     default=None,
     help=(
         "Folder holding your team's game plans, by their league-file names "
-        "(default: ppp_path, else where the game reads them)."
+        "(default: 'ppp_path', else where the game reads them)."
     ),
 )
 @team_option("Team whose game plans fill the Slot columns")
 @click.option(
     "--percentages/--no-percentages",
     default=None,
-    help="Overrides calculate_percentages in athc.toml (on by default).",
+    help="Add the percentage columns. Overrides 'calculate_percentages' in athc.toml.",
 )
 @league_option
 @click.pass_context

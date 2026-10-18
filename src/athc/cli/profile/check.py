@@ -50,7 +50,7 @@ def check(
 ) -> None:
     """Check profiles against the league's rules.
 
-    To check a profile with its game plan, run athc check-ppp.
+    To check a profile with its game plan, run 'athc check-ppp'.
     """
     paths = path or (".",)
     profiles = team_profiles(paths, team=team, league=league)

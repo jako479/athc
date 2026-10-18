@@ -37,7 +37,7 @@ Usage: athc profile copy [OPTIONS] SOURCE TARGET...
 
   Copy settings from one profile to others.
 
-  Targets of the other side are skipped; run athc profile check afterward.
+  Targets of the other side are skipped; run 'athc profile check' afterward.
 
 Positional arguments:
   SOURCE  Profile to copy from: a .prf file or a profile key.
@@ -52,10 +52,10 @@ Options:
   --fourth-down       Copy every 4th-down situation.
   --goal-line         Copy every goal-line situation (inside the 5).
   --pat-logic         Copy the PAT table (60 situations).
-  --team NAME         Team the profile keys refer to (default: team in
+  --team NAME         Team the profile keys refer to (default: 'team' in
                       league.toml).
-  --league NAME       League to use (default: the one set with athc config set
-                      league).
+  --league NAME       League to use (default: the one set with 'athc config
+                      set league').
   -h, --help          Show this message and exit.
 
   Profile keys, for your team's profiles:

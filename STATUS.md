@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-17. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-18. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -53,6 +53,10 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
 ### CLI and help (1.0.0)
 
+- Help wording (2026-10-18): `use '-' for stdout` / `stdin`; every default as
+  `(default: ...)`; commands and settings named in help in single quotes; an
+  option that overrides a setting never states its value. Rules:
+  [docs/architecture.md](docs/architecture.md#cli).
 - `OUTPUT` (`convert-pdb`, `list-normals`, `list-specials`) takes a file or a
   folder, and a name with no extension gets the command's; `generate-schedule`
   takes `OUTPUT_FOLDER`. Rules:

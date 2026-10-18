@@ -88,7 +88,7 @@ TEAM_HELP = "Team the game plan keys refer to"
 
 # The \b lines keep Click from joining the lines of each block into one.
 _KEYS_BLOCK = """\b
-Game plan keys, for your team's league game plans:
+Game plan keys, for your team's game plans:
   off1  1st-half offense    def1  1st-half defense
   off2  2nd-half offense    def2  2nd-half defense
 """

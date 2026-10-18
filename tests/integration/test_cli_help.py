@@ -1,10 +1,12 @@
 """The help every command and group shares: argument help lines, Windows
-words, and the ranges for the one-line summary (55 characters or fewer), the
-description (one to four lines) and the examples (one to six)."""
+words, defaults written one way, quoted commands and settings, and the ranges
+for the one-line summary (55 characters or fewer), the description (one to
+four lines) and the examples (one to six)."""
 
 from __future__ import annotations
 
 import inspect
+import re
 from collections.abc import Iterator
 
 import click
@@ -160,12 +162,12 @@ ARGUMENT_HELP = [
     (
         ("config", "get"),
         "KEY",
-        "Setting to print: league, path, play_path, team or ppp_path.",
+        "Setting to print: 'league', 'path', 'play_path', 'team' or 'ppp_path'.",
     ),
     (
         ("config", "set"),
         "KEY",
-        "Setting to change: league, path, play_path, team or ppp_path.",
+        "Setting to change: 'league', 'path', 'play_path', 'team' or 'ppp_path'.",
     ),
     (("config", "set"), "VALUE", "New value."),
     (("convert-pdb",), "PDB_FILE", "WinLogStats .pdb file."),
@@ -173,7 +175,7 @@ ARGUMENT_HELP = [
         ("convert-pdb",),
         "OUTPUT",
         ".xlsx, or .xlsm to include sorting macros, or a folder (default: "
-        "PDB_FILE with .xlsm, beside it).",
+        "<name>.xlsm next to PDB_FILE).",
     ),
     (
         ("gameplan", "check"),
@@ -189,8 +191,8 @@ ARGUMENT_HELP = [
     (
         ("gameplan", "list-normals"),
         "OUTPUT",
-        "File or folder for the list (default: GAME_PLAN with .normals.txt, "
-        "beside it; - prints it).",
+        "File or folder for the list (default: <name>.normals.txt next to "
+        "GAME_PLAN; use '-' for stdout).",
     ),
     (
         ("gameplan", "list-specials"),
@@ -200,8 +202,8 @@ ARGUMENT_HELP = [
     (
         ("gameplan", "list-specials"),
         "OUTPUT",
-        "File or folder for the list (default: GAME_PLAN with .specials.txt, "
-        "beside it; - prints it).",
+        "File or folder for the list (default: <name>.specials.txt next to "
+        "GAME_PLAN; use '-' for stdout).",
     ),
     (("gameplan", "replace-play"), "PLAY", "Play to replace (any case)."),
     (
@@ -217,17 +219,17 @@ ARGUMENT_HELP = [
     (
         ("gameplan", "set-normals"),
         "INPUT_FILE",
-        "Play list, one name per line (- reads the console).",
+        "Play list, one name per line; use '-' for stdin.",
     ),
     (
         ("gameplan", "set-specials"),
         "INPUT_FILE",
-        "Play list, one name per line (- reads the console).",
+        "Play list, one name per line; use '-' for stdin.",
     ),
     (
         ("playpool", "check"),
         "FOLDER",
-        "Play pool folder (default: the league's play_path).",
+        "Play pool folder (default: the league's 'play_path').",
     ),
     (
         ("profile", "check"),
@@ -338,15 +340,15 @@ def test_examples_close_the_help(
 # ── whole screens ─────────────────────────────────────────────────────────────
 
 GAME_PLAN_KEYS = """\
-  Game plan keys, for your team's league game plans:
+  Game plan keys, for your team's game plans:
     off1  1st-half offense    def1  1st-half defense
     off2  2nd-half offense    def2  2nd-half defense
 """
 TEAM_OPTION = """\
-  --team NAME      Team the game plan keys refer to (default: team in
+  --team NAME      Team the game plan keys refer to (default: 'team' in
                    league.toml).
-  --league NAME    League to use (default: the one set with athc config set
-                   league).
+  --league NAME    League to use (default: the one set with 'athc config set
+                   league').
   -h, --help       Show this message and exit.
 """
 
@@ -360,13 +362,11 @@ Usage: athc autocontinue [OPTIONS]
 
 Options:
   --continue-pause SECONDS        Seconds to wait before each Continue click.
-                                  Overrides continue_pause in athc.toml (1.0
-                                  by default).
+                                  Overrides 'continue_pause' in athc.toml.
   -n, --dry-run                   Report what it finds each time; never move
                                   the mouse or click.
   --hot-corner / --no-hot-corner  Stop when the mouse hits the top-left
-                                  corner. Overrides hot_corner in athc.toml
-                                  (on by default).
+                                  corner. Overrides 'hot_corner' in athc.toml.
   -h, --help                      Show this message and exit.
 
   Examples:
@@ -397,7 +397,7 @@ Usage: athc gameplan check [OPTIONS] [PATH]...
 
   Check game plans against the league's rules.
 
-  To check game plans with their profiles, run athc check-ppp.
+  To check game plans with their profiles, run 'athc check-ppp'.
 
 Positional arguments:
   PATH  .pln files, folders, wildcards or game plan keys (default: current
@@ -440,7 +440,7 @@ Usage: athc gameplan replace-play [OPTIONS] PLAY REPLACEMENT...
   Replace one play with another in game plans.
 
   Each game plan gets the first REPLACEMENT not already in it with which it
-  still passes athc gameplan check; the others are backups, tried in order.
+  still passes 'athc gameplan check'; the others are backups, tried in order.
 
 Positional arguments:
   PLAY         Play to replace (any case).
@@ -466,7 +466,7 @@ Usage: athc gameplan set-specials [OPTIONS] INPUT_FILE
   Other-side game plans are skipped; unlisted categories keep their plays.
 
 Positional arguments:
-  INPUT_FILE  Play list, one name per line (- reads the console).
+  INPUT_FILE  Play list, one name per line; use '-' for stdin.
 
 Options:
   --path PATH      Game plans to edit: a .pln file, a folder, a wildcard or a
@@ -488,18 +488,15 @@ Usage: athc gameplan list-normals [OPTIONS] GAME_PLAN [OUTPUT]
 
 Positional arguments:
   GAME_PLAN  A .pln file or a game plan key.
-  OUTPUT     File or folder for the list (default: GAME_PLAN with
-             .normals.txt, beside it; - prints it).
+  OUTPUT     File or folder for the list (default: <name>.normals.txt next to
+             GAME_PLAN; use '-' for stdout).
 
 Options:
-  --sort [slot|name|category]  slot keeps slot order (empty slots blank); name
-                               sorts by name; category groups by category
-                               under :: headers with the league's names.
-                               [default: slot]
-  --team NAME                  Team the game plan keys refer to (default: team
-                               in league.toml).
-  --league NAME                League to use (default: the one set with athc
-                               config set league).
+  --sort [slot|name|category]  Sort the list (default: slot).
+  --team NAME                  Team the game plan keys refer to (default:
+                               'team' in league.toml).
+  --league NAME                League to use (default: the one set with 'athc
+                               config set league').
   -h, --help                   Show this message and exit.
 
 {GAME_PLAN_KEYS}
@@ -517,14 +514,14 @@ Usage: athc gameplan list-specials [OPTIONS] GAME_PLAN [OUTPUT]
 
 Positional arguments:
   GAME_PLAN  A .pln file or a game plan key.
-  OUTPUT     File or folder for the list (default: GAME_PLAN with
-             .specials.txt, beside it; - prints it).
+  OUTPUT     File or folder for the list (default: <name>.specials.txt next to
+             GAME_PLAN; use '-' for stdout).
 
 Options:
-  --team NAME    Team the game plan keys refer to (default: team in
+  --team NAME    Team the game plan keys refer to (default: 'team' in
                  league.toml).
-  --league NAME  League to use (default: the one set with athc config set
-                 league).
+  --league NAME  League to use (default: the one set with 'athc config set
+                 league').
   -h, --help     Show this message and exit.
 
 {GAME_PLAN_KEYS}
@@ -538,17 +535,17 @@ Usage: athc gameplan set-normals [OPTIONS] GAME_PLAN INPUT_FILE
 
   Set the 64 normal plays from a play list.
 
-  Lines starting with :: are comments; run athc gameplan check afterward.
+  Lines starting with :: are comments; run 'athc gameplan check' afterward.
 
 Positional arguments:
   GAME_PLAN   A .pln file or a game plan key.
-  INPUT_FILE  Play list, one name per line (- reads the console).
+  INPUT_FILE  Play list, one name per line; use '-' for stdin.
 
 Options:
-  --team NAME    Team the game plan keys refer to (default: team in
+  --team NAME    Team the game plan keys refer to (default: 'team' in
                  league.toml).
-  --league NAME  League to use (default: the one set with athc config set
-                 league).
+  --league NAME  League to use (default: the one set with 'athc config set
+                 league').
   -h, --help     Show this message and exit.
 
 {GAME_PLAN_KEYS}
@@ -573,7 +570,6 @@ def test_help_screen(runner, path: tuple[str, ...]) -> None:
 NOT_WINDOWS_WORDS = (
     "directory",
     "directories",
-    "stdout",
     "glob",
     "config dir",
     "ctrl-c",
@@ -583,9 +579,65 @@ NOT_WINDOWS_WORDS = (
 
 @pytest.mark.parametrize("path", [path for path, _ in COMMANDS], ids=_id)
 def test_help_uses_windows_words(runner, path: tuple[str, ...]) -> None:
-    """Folder, console, wildcard, File Explorer and Ctrl+C, as Windows says them."""
+    """Folder, wildcard, File Explorer and Ctrl+C, as Windows says them."""
     result = runner.invoke(cli, [*path, "--help"])
     assert result.exit_code == 0
     text = result.stdout.lower()
     for word in NOT_WINDOWS_WORDS:
         assert word not in text
+
+
+# ── defaults, commands and settings ───────────────────────────────────────────
+
+TOP_COMMANDS = [path[0] for path, _ in COMMANDS if len(path) == 1]
+UNQUOTED_COMMAND = re.compile(
+    rf"(?<!')\bathc (?:{'|'.join(map(re.escape, TOP_COMMANDS))})\b"
+)
+# Plain-word settings (team, path) read like any other word, so only the names
+# with an underscore can be told apart.
+BARE_SETTING = re.compile(r"(?<![\w'])[a-z][a-z0-9]*_[a-z0-9_]*(?![\w'])")
+
+
+def prose(stdout: str) -> str:
+    """The help after the usage line and before the examples, on one line:
+    what a reader takes in, without the commands it shows as typed."""
+    _, _, body = stdout.partition("\n\n")
+    body, _, _ = body.partition("Examples:")
+    return " ".join(body.split())
+
+
+def test_unquoted_command_is_found() -> None:
+    assert UNQUOTED_COMMAND.findall("run athc check-ppp afterward")
+    assert not UNQUOTED_COMMAND.findall("run 'athc check-ppp'; athc settings")
+
+
+def test_bare_setting_is_found() -> None:
+    assert BARE_SETTING.findall("the league's play_path.")
+    assert not BARE_SETTING.findall("the league's 'play_path'; GAME_PLAN")
+
+
+@pytest.mark.parametrize("path", [path for path, _ in COMMANDS], ids=_id)
+def test_help_writes_defaults_one_way(runner, path: tuple[str, ...]) -> None:
+    """Every default reads `(default: ...)`, never Click's `[default: ...]` or
+    "on by default"."""
+    result = runner.invoke(cli, [*path, "--help"])
+    assert result.exit_code == 0
+    text = result.stdout.lower()
+    assert "[default:" not in text
+    assert "by default" not in text
+
+
+@pytest.mark.parametrize("path", [path for path, _ in COMMANDS], ids=_id)
+def test_help_quotes_commands(runner, path: tuple[str, ...]) -> None:
+    """A command the help names reads 'athc check-ppp', quoted."""
+    result = runner.invoke(cli, [*path, "--help"])
+    assert result.exit_code == 0
+    assert not UNQUOTED_COMMAND.findall(prose(result.stdout))
+
+
+@pytest.mark.parametrize("path", [path for path, _ in COMMANDS], ids=_id)
+def test_help_quotes_settings(runner, path: tuple[str, ...]) -> None:
+    """A setting the help names reads 'play_path', quoted."""
+    result = runner.invoke(cli, [*path, "--help"])
+    assert result.exit_code == 0
+    assert not BARE_SETTING.findall(prose(result.stdout))

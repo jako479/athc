@@ -102,7 +102,7 @@ def copy(
 ) -> None:
     """Copy settings from one profile to others.
 
-    Targets of the other side are skipped; run athc profile check afterward.
+    Targets of the other side are skipped; run 'athc profile check' afterward.
     """
     if not any(flags.values()):
         raise click.UsageError(

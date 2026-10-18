@@ -997,8 +997,8 @@ Positional arguments:
         --league is given).
 
 Options:
-  --league NAME  League to use (default: the one set with athc config set
-                 league).
+  --league NAME  League to use (default: the one set with 'athc config set
+                 league').
   -h, --help     Show this message and exit.
 
   Examples:
@@ -1019,8 +1019,8 @@ Positional arguments:
         --league is given).
 
 Options:
-  --league NAME  League to use (default: the one set with athc config set
-                 league).
+  --league NAME  League to use (default: the one set with 'athc config set
+                 league').
   -h, --help     Show this message and exit.
 
   Examples:
@@ -1042,8 +1042,8 @@ Positional arguments:
         --league is given).
 
 Options:
-  --league NAME  League to use (default: the one set with athc config set
-                 league).
+  --league NAME  League to use (default: the one set with 'athc config set
+                 league').
   -h, --help     Show this message and exit.
 
   Examples:
@@ -1057,14 +1057,14 @@ Usage: athc config get [OPTIONS] KEY
 
   Print a setting.
 
-  league comes from athc.toml, the other keys from the league's league.toml.
+  'league' comes from athc.toml, the other keys from the league's league.toml.
 
 Positional arguments:
-  KEY  Setting to print: league, path, play_path, team or ppp_path.
+  KEY  Setting to print: 'league', 'path', 'play_path', 'team' or 'ppp_path'.
 
 Options:
-  --league NAME  League to use (default: the one set with athc config set
-                 league).
+  --league NAME  League to use (default: the one set with 'athc config set
+                 league').
   -h, --help     Show this message and exit.
 
   Examples:

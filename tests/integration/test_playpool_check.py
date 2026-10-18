@@ -324,11 +324,11 @@ Usage: athc playpool check [OPTIONS] [FOLDER]
   Finds plays in the wrong folder, duplicate names and invalid play files.
 
 Positional arguments:
-  FOLDER  Play pool folder (default: the league's play_path).
+  FOLDER  Play pool folder (default: the league's 'play_path').
 
 Options:
-  --league NAME  League to use (default: the one set with athc config set
-                 league).
+  --league NAME  League to use (default: the one set with 'athc config set
+                 league').
   -h, --help     Show this message and exit.
 
   Examples:

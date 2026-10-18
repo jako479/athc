@@ -112,7 +112,7 @@ def _determine_side(pool: PlayPool, plays: Sequence[PlayLine]) -> str | None:
 @click.argument(
     "input_file",
     type=click.Path(path_type=Path, allow_dash=True),
-    help="Play list, one name per line (- reads the console).",
+    help="Play list, one name per line; use '-' for stdin.",
 )
 @path_option("Game plans to edit")
 @click.option("-r", "--recursive", is_flag=True, help="Include subfolders.")

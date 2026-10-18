@@ -32,8 +32,8 @@ from athc.fbpro98_gameplan import read_gameplan
     "output",
     required=False,
     help=(
-        "File or folder for the list (default: GAME_PLAN with .specials.txt, "
-        "beside it; - prints it)."
+        "File or folder for the list (default: <name>.specials.txt next to "
+        "GAME_PLAN; use '-' for stdout)."
     ),
 )
 @team_option(TEAM_HELP)

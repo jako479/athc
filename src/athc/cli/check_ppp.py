@@ -119,7 +119,12 @@ class Seen:
 @click.argument("path", nargs=-1, help="A .prf, a .pln, or a folder.")
 @click.option("-r", "--recursive", is_flag=True, help="Include subfolders.")
 @team_option("Team to check")
-@click.option("-a", "--all-teams", is_flag=True, help="Every team in the league.")
+@click.option(
+    "-a",
+    "--all-teams",
+    is_flag=True,
+    help="Check every team's profiles and game plans.",
+)
 @league_option
 @click.pass_context
 def check_ppp(

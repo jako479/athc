@@ -32,19 +32,15 @@ from athc.fbpro98_gameplan import read_gameplan
     "output",
     required=False,
     help=(
-        "File or folder for the list (default: GAME_PLAN with .normals.txt, "
-        "beside it; - prints it)."
+        "File or folder for the list (default: <name>.normals.txt next to "
+        "GAME_PLAN; use '-' for stdout)."
     ),
 )
 @click.option(
     "--sort",
     type=click.Choice(["slot", "name", "category"]),
     default="slot",
-    show_default=True,
-    help=(
-        "slot keeps slot order (empty slots blank); name sorts by name; category "
-        "groups by category under :: headers with the league's names."
-    ),
+    help="Sort the list (default: slot).",
 )
 @team_option(TEAM_HELP)
 @league_option

@@ -25,14 +25,14 @@ EXAMPLES = """Examples:
 @click.argument(
     "key",
     callback=key_callback,
-    help="Setting to change: league, path, play_path, team or ppp_path.",
+    help="Setting to change: 'league', 'path', 'play_path', 'team' or 'ppp_path'.",
 )
 @click.argument("value", help="New value.")
 @league_option
 def set_(key: str, value: str, league: str | None) -> None:
     """Set a value in athc.toml or league.toml.
 
-    league goes in athc.toml, the other keys in the league's league.toml.
+    'league' goes in athc.toml, the other keys in the league's league.toml.
     """
     if key == "league":
         written = _set_league(value, league)

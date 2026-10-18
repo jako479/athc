@@ -57,7 +57,7 @@ Usage: athc profile check [OPTIONS] [PATH]...
 
   Check profiles against the league's rules.
 
-  To check a profile with its game plan, run athc check-ppp.
+  To check a profile with its game plan, run 'athc check-ppp'.
 
 Positional arguments:
   PATH  .prf files, folders, wildcards or profile keys (default: current
@@ -65,10 +65,10 @@ Positional arguments:
 
 Options:
   -r, --recursive  Include subfolders.
-  --team NAME      Team the profile keys refer to (default: team in
+  --team NAME      Team the profile keys refer to (default: 'team' in
                    league.toml).
-  --league NAME    League to use (default: the one set with athc config set
-                   league).
+  --league NAME    League to use (default: the one set with 'athc config set
+                   league').
   -h, --help       Show this message and exit.
 
   Profile keys, for your team's profiles:
