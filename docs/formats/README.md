@@ -9,20 +9,22 @@ one exists, sits beside it.
 
 ## Coaching files (one per team or coach)
 
-- `.ply` play: one `P95` block; 11 player records with pre-snap and
-  after-snap logic boxes; three category bytes. Spec:
-  [ply.md](ply.md). Library: `fbpro98_play`. Not masked.
-  One layout seen.
-- `.pln` game plan: `G95` (86 play slots and play records), `J95` (counts),
-  `S98` (stock map name). Offense and defense layouts differ; a play record is
-  custom (path) or stock (offset into `STOCK98.MAP`). Spec:
-  [pln.md](pln.md). Library: `fbpro98_gameplan`.
-  Not masked.
-- `.prf` coaching profile: `F95` (substitutions, category weights, FG range,
-  PAT weights, audibles), `I95`, trailer. Variants: stock profiles (other
-  `F95` size, `0x69` trailer) and profiles with embedded game plan blocks; the
-  library rejects both. Spec: [prf.md](prf.md).
-  Library: `fbpro98_profile`. Not masked.
+- `.ply` play: one `P95` block. Spec: [ply.md](ply.md). Library:
+  `fbpro98_play`. Not masked. One layout seen. Holds:
+  - 11 player records with pre-snap and after-snap logic boxes.
+  - Three category bytes.
+- `.pln` game plan: offense and defense layouts differ. Spec:
+  [pln.md](pln.md). Library: `fbpro98_gameplan`. Not masked. Holds:
+  - `G95`: 86 play slots and play records; a play record is custom (path) or
+    stock (offset into `STOCK98.MAP`).
+  - `J95`: counts.
+  - `S98`: stock map name.
+- `.prf` coaching profile: variants are stock profiles (other `F95` size,
+  `0x69` trailer) and profiles with embedded game plan blocks; the library
+  rejects both. Spec: [prf.md](prf.md). Library: `fbpro98_profile`. Not
+  masked. Holds:
+  - `F95`: substitutions, category weights, FG range, PAT weights, audibles.
+  - `I95` and a trailer.
 - `.lg2` team files: per team, the profile and game plan for each half and
   side, as folder + filename. Three layouts by league age: custom, modern
   stock (`STOCK` folder) and old stock (empty folder). Team order is the
@@ -31,33 +33,46 @@ one exists, sits beside it.
 
 ## League files (one set per league, in the game folder)
 
-- `.lge` league: name, base year, next player id, conferences, divisions,
-  teams (team name, nickname, abbreviation, stadium, head coach, uniform
-  colors, draft profile name), rosters (player ids and jersey numbers per slot) and the schedule with
-  scores. Chunk tree, depth-first; team numbers 1..N follow it and key every
-  other file. Team and roster chunks masked (below). Spec:
-  [lge.md](lge.md). Library: `fbpro98_lge`
-  (conference, division and team names; standings; the played games and
-  playoff results), used by `generate-schedule`. One layout in every
-  sampled league, nested or grouped by chunk kind (five stock files); the
-  8-12 team stock leagues have a one-byte-shorter league chunk.
+- `.lge` league: a chunk tree, depth-first; team numbers 1..N follow it and
+  key every other file. Team and roster chunks masked (below). Spec:
+  [lge.md](lge.md). Library: `fbpro98_lge` (conference, division and team
+  names; standings; the played games and playoff results), used by
+  `generate-schedule`. One layout in every sampled league, nested or grouped
+  by chunk kind (five stock files); the 8-12 team stock leagues have a
+  one-byte-shorter league chunk. Holds:
+  - League: name, base year, next player id.
+  - Conferences and divisions.
+  - Teams: team name, nickname, abbreviation, stadium, head coach, uniform
+    colors, draft profile name.
+  - Rosters: player ids and jersey numbers per slot.
+  - The schedule with scores.
 - `.rst` rosters: the `.lge` roster chunks, byte for byte. Same mask.
-- `.pyr` players: every player the league knows: id, first and last name,
-  potential and actual ratings (AC AG DI EN HA IN SP ST), injury, position
-  group, position, years; height and weight only for the newest draft class.
-  Masked (below). Spec: [pyr.md](pyr.md). No library.
-  One layout in every sampled file. The game folder also holds `1994.PYR`,
-  `1995.PYR` and `1996.PYR`, the same layout for those NFL seasons.
-- `.dat` + `.idx` statistics: 20-byte records keyed by type and id. Type =
-  block + category; blocks for a player's last game, season and career and a
-  team's own and opponents' last game and season; categories for extra
-  points, field goals, rushing, passing, receiving, interceptions, punting,
-  returns, fumbles, sacks, safeties, tackles, two-point conversions, first
-  downs, penalties, awards and the Hall of Fame.
-  Unused fields hold leftover memory. The index is a B-tree of 512-byte
-  blocks over (type, id) that points at each record. Not masked. Spec:
-  [stats.md](stats.md). No library. Fresh stock leagues ship
-  an empty pair (140 and 512 bytes).
+- `.pyr` players: every player the league knows. Masked (below). Spec:
+  [pyr.md](pyr.md). No library. One layout in every sampled file. The game
+  folder also holds `1994.PYR`, `1995.PYR` and `1996.PYR`, the same layout
+  for those NFL seasons. Holds, per player:
+  - Id, first and last name.
+  - Potential and actual ratings (AC AG DI EN HA IN SP ST).
+  - Injury.
+  - Position group, position and years.
+  - Height and weight, only for the newest draft class.
+- `.dat` + `.idx` statistics: 20-byte records keyed by type (block +
+  category) and id (player or team). Unused fields hold leftover memory. The
+  index is a B-tree of 512-byte blocks over (type, id) that points at each
+  record. Not masked. Spec: [stats.md](stats.md). No library. Fresh stock
+  leagues ship an empty pair (140 and 512 bytes). Holds:
+  - Blocks: player last game, season and career; team and opponents last
+    game and season.
+  - Game stats, players and teams: extra points, field goals by distance,
+    rushing, passing, receiving, interceptions, punting, punt returns, kick
+    returns, fumbles, fumble recoveries, sacks, safeties, tackles and
+    two-point conversions.
+  - Team only: first downs, third and fourth downs, and game details
+    (opponent, penalties, time of possession, score, fumbles lost).
+  - Player only: penalties, last game.
+  - Honors: Player of the Game and of the Week, All-Pro team, Coach of the
+    Year, season awards (MVP, offensive and defensive player of the year,
+    rookie of the year), Hall of Fame points and nominees.
 - `.PYF` free agents: `PPD:` chunk of player ids. `.PYC`: same shape, empty,
   or a 0-byte file. Not masked.
 - `.dft` draft order: `DOD:` chunk, team count, then the team numbers in draft
@@ -73,9 +88,11 @@ one exists, sits beside it.
   play names with offsets; `.pln` stock plays point into the map.
 - `<TEAM>.DAT` + `<TEAM>.MAP` (`BRONCOS`, `49ERS`, ...): per-team stock
   playbooks, same pair.
-- `CITIES.DAT`: 128 city records (name, weather tables, stadium name and
-  type); the team chunk's city index points into it. Spec:
-  [cities.md](cities.md).
+- `CITIES.DAT`: 128 city records; the team chunk's city index points into
+  it. Spec: [cities.md](cities.md). Holds, per city:
+  - Name.
+  - Weather tables.
+  - Stadium name and type.
 - `NAMEF.DAT`, `NAMEL.DAT`: NUL-separated first and last names for generated
   players.
 - `injury.dat`: offset table plus injury names ("Sprained ankle").
