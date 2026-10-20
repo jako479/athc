@@ -324,7 +324,7 @@ far (`fbpro98_lge`, names and standings). Docs:
 [stats spec](docs/formats/stats.md), [notes](docs/research/pnfl-formats.md).
 
 - `.lge`, `.rst`, `.pyr`, `.PYF`, `.dft`, `.tmn` and `.lgc` decoded in full;
-  `.dat` + `.idx` mostly (stat categories 12, 14, 15 and part of 16 unmapped).
+  `.dat` + `.idx` mostly (a few header bytes unmapped).
 - `research/pnfl_decode.py` reads them all (stdlib, read-only).
 
 ## fbpro98_play (library)

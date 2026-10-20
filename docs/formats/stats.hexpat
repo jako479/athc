@@ -33,7 +33,28 @@ fn block_name(u16 base) {
     }
 };
 
-fn category_name(u16 category) {
+// Categories 14-16 hold different values in player and team blocks;
+// opponents' blocks use the team layout.
+fn block_category_name(u16 base, u16 category) {
+    if (base >= 96) {
+        if (category == 14) return "first downs";
+        if (category == 15) return "third and fourth downs";
+        return "game details";
+    }
+    if (category == 14) return "Hall of Fame points";
+    if (category == 15) {
+        if (base == 0) return "Player of the Game";
+        if (base == 32) return "All-Pro team";
+        return "awards";
+    }
+    if (base == 0) return "penalties";
+    if (base == 32) return "unused";
+    return "Hall of Fame nominee";
+};
+
+fn category_name(u16 base, u16 category) {
+    if (category >= 14 && category <= 16)
+        return block_category_name(base, category);
     match (category) {
         (0): return "extra points";
         (1): return "field goals";
@@ -47,11 +68,8 @@ fn category_name(u16 category) {
         (9): return "fumbles";
         (10): return "fumble recoveries";
         (11): return "sacks";
-        (12): return "unknown 12";
+        (12): return "safeties";
         (13): return "tackles";
-        (14): return "unknown 14";
-        (15): return "unknown 15";
-        (16): return "unknown 16";
         (17): return "two-point conversions";
         (_): return std::format("category {}", category);
     }
@@ -59,7 +77,7 @@ fn category_name(u16 category) {
 
 fn type_name(u16 type) {
     u16 base = block_base(type);
-    return std::format("{}, {}", block_name(base), category_name(type - base));
+    return std::format("{}, {}", block_name(base), category_name(base, type - base));
 };
 
 fn type_format(u16 type) {
@@ -86,7 +104,7 @@ fn field_goal_range_format(ref auto r) {
 
 struct FieldGoals {
     s16 long;
-    FieldGoalRange under20;
+    FieldGoalRange from10to19;
     FieldGoalRange from20to29;
     FieldGoalRange from30to39;
     FieldGoalRange from40to49;
@@ -118,9 +136,9 @@ struct Punting {
     s16 punts;
     s16 yards;
     s16 long;
-    s16 unknown3;
-    s16 unknown4;
-    s16 unknown5;
+    s16 zero [[comment("Always 0")]];
+    s16 blocked;
+    s16 returns;
     s16 returnYards;
     s16 touchbacks;
 };
@@ -130,7 +148,7 @@ struct PuntReturns {
     s16 yards;
     s16 long;
     s16 touchdowns;
-    s16 unknown4;
+    s16 fairCatches;
     s16 leftover[3];
 };
 
@@ -149,6 +167,94 @@ struct Unmapped {
     s16 values[8];
 };
 
+// ---- Categories 14-16, by block (stats.md section 5.2) ----
+
+struct FirstDowns {
+    s16 total;
+    s16 rushing;
+    s16 passing;
+    s16 penalty;
+    s16 leftover[4];
+};
+
+struct ThirdAndFourthDowns {
+    s16 firstDowns;
+    s16 thirdAttempts;
+    s16 thirdMade;
+    s16 fourthAttempts;
+    s16 fourthMade;
+    s16 leftover[3];
+};
+
+// Score = own x 256 + opponent's, so the low byte is the opponent's.
+struct GameDetails {
+    s16 opponent [[comment("Team number")]];
+    s16 penalties;
+    s16 penaltyYards;
+    s16 possessionSeconds;
+    u8 opponentScore;
+    u8 score;
+    s16 fumblesLost;
+    s16 leftover[2];
+};
+
+struct HallOfFamePoints {
+    s16 count;
+    s16 conference;
+    s16 points;
+    s16 leftover[5];
+};
+
+struct PlayerOfTheGame {
+    s16 points;
+    s16 player;
+    s16 team;
+    s16 opponent;
+    s16 leftover[4];
+};
+
+// All-Pro team, Coach of the Year (season id 4096) and awards.
+struct Winner {
+    s16 leftover0;
+    s16 winner [[comment("Player id; team number for Coach of the Year")]];
+    s16 leftover[6];
+};
+
+struct HallOfFameNominee {
+    s16 unused0 [[comment("Holds leftover memory")]];
+    s16 points;
+    s16 yearRetired;
+    s16 yearElected [[comment("0 until elected")]];
+    s16 leftover[4];
+};
+
+struct Category14<auto Type> {
+    if (Type >= 96)
+        FirstDowns values [[inline]];
+    else
+        HallOfFamePoints values [[inline]];
+};
+
+struct Category15<auto Type> {
+    if (Type >= 96)
+        ThirdAndFourthDowns values [[inline]];
+    else if (Type < 32)
+        PlayerOfTheGame values [[inline]];
+    else
+        Winner values [[inline]];
+};
+
+struct Category16<auto Type> {
+    if (Type >= 96)
+        GameDetails values [[inline]];
+    else if (Type < 32)
+        OneCount values [[inline, comment("Penalties")]];
+    else if (Type >= 64)
+        HallOfFameNominee values [[inline]];
+    else
+        Unmapped values [[inline]];
+};
+
 // ---- .dat ----
 
 struct DatHeader {
@@ -162,7 +268,7 @@ struct DatHeader {
     u16 unknown28;
     u16 zero2A;
     u16 recordSize;
-    u16 unknown2E;
+    u16 growth [[comment("File growth step")]];
     u16 unknown30;
     u8 zero32[8];
     u16 unknown3A;
@@ -185,7 +291,7 @@ struct Slot {
         u8 leftover[15];
     } else {
         u16 type [[format("type_format")]];
-        u16 id [[comment("Player id in player blocks, team number in team blocks")]];
+        u16 id [[comment("Player id in player blocks, team number in team blocks; category 15 player records have their own ids")]];
         match (type - block_base(type)) {
             (0): ExtraPoints values;
             (1): FieldGoals values;
@@ -201,6 +307,9 @@ struct Slot {
             (11): OneCount values;
             (12): OneCount values;
             (13): OneCount values;
+            (14): Category14<type> values;
+            (15): Category15<type> values;
+            (16): Category16<type> values;
             (17): TwoPoint values;
             (_): Unmapped values;
         }
@@ -233,7 +342,7 @@ struct IdxHeader {
     u16 unknown28;
     u16 blockSize;
     u16 zero2C;
-    u16 unknown2E;
+    u16 growth [[comment("File growth step")]];
     u16 unknown30;
     u16 zero32;
     u16 unknown34;

@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: the `.dat` / `.idx` spec now decodes field goal ranges, safeties, blocked punts, fair catches, first downs, third and fourth downs, penalties, awards and the Hall of Fame
 - gameplan: set-normals leaves a slot empty for each blank line in the list again; the help says set-normals replaces all 64 normal plays and set-specials only the listed ones
 - athc: options that override a setting no longer state its value; `list-normals --sort` and `standings --view` help is one short line
 - check-ppp: `--all-teams` help says it checks every team's profiles and game plans; gameplan's key list is "for your team's game plans"

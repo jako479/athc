@@ -52,7 +52,8 @@ one exists, sits beside it.
   block + category; blocks for a player's last game, season and career and a
   team's own and opponents' last game and season; categories for extra
   points, field goals, rushing, passing, receiving, interceptions, punting,
-  returns, fumbles, sacks, tackles and two-point conversions (some unmapped).
+  returns, fumbles, sacks, safeties, tackles, two-point conversions, first
+  downs, penalties, awards and the Hall of Fame.
   Unused fields hold leftover memory. The index is a B-tree of 512-byte
   blocks over (type, id) that points at each record. Not masked. Spec:
   [stats.md](stats.md). No library. Fresh stock leagues ship

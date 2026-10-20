@@ -714,23 +714,26 @@ Each spec's ImHex pattern (`.hexpat`) changes to match. The Hex Workshop pattern
 
 ### stats.md
 
-- The file pair is a c-tree database: names header 0x2E (4096 growth) and 0x30; 512-byte index nodes; a 4-byte big-endian key.
-- Punting: value 4 is blocked punts, value 5 returns.
-- Punt returns: value 4 is fair catches.
-- Category 12 is safeties.
-- Player categories 14-16 (section 10.2):
+Applied to [stats.md](../formats/stats.md) and `stats.hexpat` on 2026-10-20; ticked items are done.
+
+- [x] The file pair is a c-tree database: names header 0x2E (4096 growth); 512-byte index nodes; a 4-byte big-endian key.
+- [ ] Header 0x30: not applied; section 10.1 does not say what it holds.
+- [x] Punting: value 4 is blocked punts, value 5 returns.
+- [x] Punt returns: value 4 is fair catches.
+- [x] Category 12 is safeties.
+- [x] Player categories 14-16 (section 10.2):
   - Hall of Fame points;
   - Player of the Game / Player of the Week, All-Pro team and awards, with their id encodings;
   - penalties, and Hall of Fame nominee.
-- Team categories:
+- [x] Team categories:
   - 14: first downs (total, rush, pass, penalty);
   - 15: third and fourth downs (attempts, made);
   - 16: opponent, penalties, penalty yards, time of possession, final score, fumbles lost.
-- Team points include 2 × safeties.
-- Playoff games feed last-game records only.
-- The weekly and season clean-ups; the file pair is wiped if it fails to open.
-- Field goal range counts wrap at 256.
-- Open questions updated.
+- [x] Team points include 2 × safeties.
+- [x] Playoff games feed last-game records only.
+- [x] The weekly and season clean-ups; the file pair is wiped if it fails to open.
+- [x] Field goal range counts wrap at 256.
+- [x] Open questions updated.
 
 ### cities.md
 
