@@ -36,8 +36,10 @@ The program installs to:
 
    %LOCALAPPDATA%\Programs\Assistant to the Head Coach\
 
-with this README, COMMANDS.txt, SCHEDULER-COMMANDS.txt, CHANGELOG.txt and
-LICENSE.txt beside it. The Start menu has a shortcut to this README.
+with this README, one file per command (autocontinue.txt, check-ppp.txt,
+config.txt, convert-pdb.txt, gameplan.txt, generate-schedule.txt,
+playpool.txt, profile.txt, standings.txt), USAGE_ORIGINAL.txt, CHANGELOG.txt
+and LICENSE.txt beside it. The Start menu has a shortcut to this README.
 
 To upgrade, run the new version's setup.exe. Your settings are kept.
 An older version's setup.exe will not install over a newer one; uninstall
@@ -79,11 +81,58 @@ USING THE TOOLS
 Once installed, the 'athc' command is available from any terminal
 (Command Prompt or PowerShell):
 
-   athc --help                      list top-level commands
-   athc <command> --help            show help for one command
+   athc --help                        list top-level commands
+   athc <group> --help                list subcommands in a group
+   athc <group> <subcommand> --help   show help for one subcommand
 
-For what each tool does, with examples, see COMMANDS.txt in the
-install folder (see INSTALLATION above).
+For what each tool does, with examples, see its file in the install folder
+(see INSTALLATION above): autocontinue.txt, check-ppp.txt, config.txt,
+convert-pdb.txt, gameplan.txt, generate-schedule.txt (Commissioner only),
+playpool.txt, profile.txt and standings.txt. USAGE_ORIGINAL.txt keeps each
+command's help as it was before 1.0, for reference; run --help for the
+current help.
+
+Settings live in athc.toml (the file documents every option inline). Each
+league is a folder under leagues\ next to it: league.toml (path, play_path,
+team, ppp_path, category names, and any convert-pdb settings that differ
+from athc.toml's) and rule files (gameplan.toml, profile.toml,
+scheduler.toml). League-aware tools use the league named by [athc] league
+unless the command is given --league NAME.
+
+Game plan and profile keys: off1, def1, off2 and def2 name your team's
+1st-half offense, 1st-half defense, 2nd-half offense and 2nd-half defense
+file, found in ppp_path in league.toml, else where the league file puts
+them. team in league.toml is your team; --team NAME picks another team for
+one run. A file or folder that exists by that name wins over the key.
+
+
+EXIT CODES
+----------
+
+   The same numbers in every command, so a script can treat 2 as "athc
+   could not do it" everywhere:
+      0    done -- clean, or with warnings only
+      1    findings -- ran fine and reported problems in valid input
+           (violations, play pool issues, differences, a play found
+           nowhere, nothing replaced, no valid replacement); only gameplan
+           check, find-play, replace-play, profile check, profile diff,
+           check-ppp and playpool check use it
+      2    error -- could not do the job: bad arguments, a config, league
+           or rules problem, a missing or bad file, a file that failed
+           inside a batch, a missing dependency, or a bug
+      130  stopped with Ctrl-C (autocontinue stops that way on purpose, so
+           there it is 0)
+
+   A batch (a folder or a list of files) processes every file, then exits
+   with the worst outcome: error beats findings beats clean. Warnings never
+   change the code.
+
+   A status line starts with a label: OK (done), SKIP (left alone on
+   purpose), WARN (noted, nothing failed), FAIL (that item, or the run,
+   failed). Results, OK and SKIP go to standard output; progress, WARN and
+   FAIL to standard error, so  > out.txt  keeps the results and  2> err.txt
+   the problems. Every status line is also in the run log,
+   %LOCALAPPDATA%\athc\Logs\athc.log.
 
 
 SETTINGS FOLDER

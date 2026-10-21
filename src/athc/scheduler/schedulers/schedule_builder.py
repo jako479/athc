@@ -1,7 +1,7 @@
 """Phase 2 of the scheduler: the CP-SAT model that places a fixed matchup
 inventory into weeks and picks each game's host. The rules it enforces, which
 of them apply to a given league, and their provenance are documented once, in
-docs/scheduler-phase-2-schedule.md.
+docs/design/scheduler-phase-2-schedule.md.
 """
 
 from __future__ import annotations

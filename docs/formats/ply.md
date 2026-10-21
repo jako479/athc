@@ -312,7 +312,7 @@ Play type and personnel are not stored as fields; they follow from the player re
 - Play type: the commands in the QB's logic boxes (position `0x0020`; section 2.5), such as a Timed pass, Check receivers or a Run, and the spots the QB moves to.
 - Personnel: count the 11 position codes (section 4.1). Offense: RB (HB + FB), TE, WR. Defense: DL (DE + DT), LB, DB (CB + S).
 
-How athc turns these into a timed pass, QB run, rollout or defensive front is a league rule, not part of the format: see [playpool.md](../playpool.md#how-athc-reads-a-play).
+How athc turns these into a timed pass, QB run, rollout or defensive front is a league rule, not part of the format: see [playpool.md](../design/playpool.md#how-athc-reads-a-play).
 
 ---
 

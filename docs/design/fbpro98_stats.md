@@ -92,10 +92,10 @@ The file is a database of 20-byte records keyed by type (block + category) and i
 - Name players or teams, or check ids against the `.pyr` or `.lge`.
 - Follow the deleted-slot list, or read the header's other bytes.
 
-See [formats/stats.md](formats/stats.md) for the format.
+See [formats/stats.md](../formats/stats.md) for the format.
 
 ### Testing
 
 - `tests/unit/fbpro98_stats/test_reader.py` — real 2047 PNFL files (checked against their `.lge`), every category and honor from built bytes, every check at its limit and one past it.
 
-Fixtures in `tests/unit/fbpro98_stats/data/` are real game files; the test matrix is [tests/unit/fbpro98_stats/README.md](../tests/unit/fbpro98_stats/README.md).
+Fixtures in `tests/unit/fbpro98_stats/data/` are real game files; the test matrix is [tests/unit/fbpro98_stats/README.md](../../tests/unit/fbpro98_stats/README.md).

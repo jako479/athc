@@ -45,7 +45,7 @@ write_profile(modified, "TST-OFF1.prf")
 - `read_profile(path)` reads a `.prf` and returns a `Profile`; `write_profile(profile, path)` writes one. `parse_profile(buffer, path)` and `build_profile_bytes(profile)` are the bytes-in / bytes-out pair, `path` only naming the source in errors (`<path>: <reason>`).
 - `Profile`: `profile_type` (`ProfileType.OFFENSE` / `DEFENSE`), `substitutions` (a `SubstitutionSettings` of eight `SubstitutionPair`s, each `out_percent` / `in_percent`; `SubstitutionSettings.default()` is the game's 80/90 for every group), `situations` (2520 `Situation`), `pat_situations` (60 `PatSituation`), `field_goal_range`, `use_audibles`; `is_offense` / `is_defense`; `stop_clock_situations`.
 - `Situation`: `situation_number`, `minutes_remaining`, `down`, `yards_to_go`, `field_position`, `point_spread`, `stop_clock`, `category_weights`. `PatSituation`: `situation_number`, `minutes_remaining`, `point_spread`, `category_weights`. Both have `from_situation_number`. `CategoryWeights`: `play_category1` / `weight1` through `play_category3` / `weight3`. The buckets are the enums `MinutesRemaining`, `Down`, `YardsToGo`, `FieldPosition`, `PointSpread`, `PatMinutesRemaining` and `PatPointSpread`; `OFFENSE_DISPLAY_CATEGORIES` / `DEFENSE_DISPLAY_CATEGORIES` are the category codes the game labels on each side.
-- `InvalidProfileError`: malformed bytes; the conditions are the validity rules in [`formats/prf.md`](formats/prf.md).
+- `InvalidProfileError`: malformed bytes; the conditions are the validity rules in [`formats/prf.md`](../formats/prf.md).
 - `UnsupportedProfileError`: a structurally valid profile in a variant the library does not handle:
   - **Stock layout** — the older format of game-shipped profiles (`OFF1.PRF`, `DEF1.PRF`), detected by an F95 size of `0x3F69` or `0x4509`. Re-saving a stock profile in the game converts it to the saved layout (`0x3C9D`).
   - **Embedded game plans** — a profile saved with game plans appended after I95, detected by a non-zero I95 game plan block count or a `G95:` / `J95:` / `S98:` ID after I95.
@@ -71,7 +71,7 @@ src/athc/fbpro98_profile/
 └── writer.py      # write_profile / build_profile_bytes
 ```
 
-The domain (`model.py`) owns the situation-number ↔ game-state mapping (see [formats/prf.md section 2.3.4](formats/prf.md#234-situation-number-layout) and [section 2.5.1](formats/prf.md#251-pat-situation-number-layout)); `Situation.from_situation_number` and `PatSituation.from_situation_number` are the factories. The reader translates its 0-based array index at the boundary (`idx + 1`) and delegates; the math itself never leaves the domain.
+The domain (`model.py`) owns the situation-number ↔ game-state mapping (see [formats/prf.md section 2.3.4](../formats/prf.md#234-situation-number-layout) and [section 2.5.1](../formats/prf.md#251-pat-situation-number-layout)); `Situation.from_situation_number` and `PatSituation.from_situation_number` are the factories. The reader translates its 0-based array index at the boundary (`idx + 1`) and delegates; the math itself never leaves the domain.
 
 `reader.py` and `writer.py` are pure functions of the model and schema — they share no state, only types. Round-trip byte identity is enforced by tests against four game-produced `TST-*.prf` fixtures.
 
@@ -86,7 +86,7 @@ The domain (`model.py`) owns the situation-number ↔ game-state mapping (see [f
 - Handle the older "stock" on-disk layout — `F95.size` ∈ {`0x3F69`, `0x4509`} → `UnsupportedProfileError`.
 - Handle profiles saved with embedded game plans — `I95.num_game_plan_blocks ≠ 0` or G95/J95/S98 magic after I95 → `UnsupportedProfileError`.
 
-See [formats/prf.md](formats/prf.md) sections 6-7 for the full reader validation and writer contract.
+See [formats/prf.md](../formats/prf.md) sections 6-7 for the full reader validation and writer contract.
 
 ### Testing
 

@@ -1,0 +1,65 @@
+athc playpool
+=============
+
+
+playpool check  --  check the play pool for misfiled and duplicate plays
+   ---------------------------------------------------------------------
+
+   With no folder, checks every play under the league's play_path; when
+   play_path is not set, missing or not a folder, the line says to run
+   athc config set play_path FOLDER or pass the folder. Give a folder (. is
+   the current one) to check it instead; then play_path is not read, and no
+   league is needed, though a configured league still names the category
+   folders, and without one no folder name means a category. --league
+   picks another league. Reports plays in a folder that doesn't match the
+   play file, duplicate play names, and invalid play files -- the same
+   warnings other commands show when they load the play pool. Ends with a
+   count of plays checked and issues found.
+
+   Show help:
+      athc playpool check -h
+
+   Example terminal calls:
+      athc playpool check
+      athc playpool check .
+      athc playpool check newplays
+      athc playpool check --league PCFL
+
+   What it checks:
+
+      The same things pool loading checks for every other command, with the
+      same messages:
+
+      - A play in a side folder, or a category folder named by the league's
+        labels, that contradicts its file (wrong side or category).
+      - A play name used more than once.
+      - A .ply file that isn't a valid play file.
+
+      A play's side, category and attributes come from the play file
+      itself; a folder only adds screen passes (a Screens folder) and these
+      misfiled-play warnings.
+
+   Lines and exit codes:
+
+      Each issue prints on its own line (a result, on stdout, never a
+      WARN), then a blank line and <folder>: <n> play(s) checked,
+      <n> issue(s), the folder as typed. A play_path that is missing on disk
+      ends its line with Run 'athc config set play_path FOLDER'.; no
+      play_path at all says Play pool folder is not set. Run 'athc config
+      set play_path FOLDER' or pass the folder. A FOLDER that is missing
+      gets Windows' plain line, with no hint.
+
+      0    done: no issues
+      1    findings: one or more issues
+      2    error: no league; no play_path (FAIL <league.toml>: Play pool
+           folder is not set. Run 'athc config set play_path FOLDER' or
+           pass the folder.); a play_path that is not a folder, with the
+           hint (FAIL <play_path>: The system cannot find the path
+           specified. Run 'athc config set play_path FOLDER'.); a missing
+           FOLDER (FAIL <folder>: The system cannot find the path
+           specified.) or a file in its place (FAIL <folder>: The directory
+           name is invalid.); a second FOLDER (Click's usage error); or a
+           file or folder the system can't read (FAIL <why>)
+
+      The shared scheme: EXIT CODES in README.txt.
+

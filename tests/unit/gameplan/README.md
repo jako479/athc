@@ -1,6 +1,6 @@
 # gameplan — Test Matrix
 
-Tool-logic unit cases (rules loader, play-list writer, validators). Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). CLI cases live in [../../integration/README.md](../../integration/README.md).
+Tool-logic unit cases (rules loader, play-list writer, validators). Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). CLI cases live in [../../integration/README.md](../../integration/README.md).
 
 One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `leagues/<league>/gameplan.toml` in `config/dev/` and `config/release/`; `str` = a play list's text written in the test. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/gameplan` passes.
 

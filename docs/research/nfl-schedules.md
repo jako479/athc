@@ -1,6 +1,6 @@
 # Research — NFL schedule patterns behind the phase-2 rules
 
-Provenance for the week-placement rules in [scheduler-phase-2-schedule.md](../scheduler-phase-2-schedule.md): documented NFL policy vs. patterns measured from real schedules. PNFL context: 18 teams, 16 weeks, no byes. Opponent-selection prior art is separate: [nfl-formula.md](nfl-formula.md).
+Provenance for the week-placement rules in [scheduler-phase-2-schedule.md](../design/scheduler-phase-2-schedule.md): documented NFL policy vs. patterns measured from real schedules. PNFL context: 18 teams, 16 weeks, no byes. Opponent-selection prior art is separate: [nfl-formula.md](nfl-formula.md).
 
 ## Sources
 

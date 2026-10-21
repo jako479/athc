@@ -50,7 +50,7 @@ ranked(lge)                                      # every team, best first
 - `LgeFile.conferences` → `Conference.name`, `Conference.divisions` → `Division.name`, `Division.teams` → `Team`, all in file order. Walking them in order gives the team numbers 1..N that key the other league files.
 - `Team.name` ("Team Name"), `Team.nickname`, `Team.official_name` (the two joined by a space; just the one present when the other is empty), `Team.record`.
 - `Record`: `wins`, `losses`, `ties`, `points_for`, `points_against`, `games`, `win_percentage` (a tie counts as half a win; 0.0 before any game), `point_differential`. Only regular-season games marked played count.
-- `Division.standings`, `Conference.standings`: teams best first, the way the game orders a finished season's standings: won-lost-tied percentage, then the manual's tie-breakers among level teams (head-to-head, division record, conference record, net points in division games, net points in all games, strength of schedule), then file order; in season the game's screen sorts tied teams by points for instead (see [game behavior](fbpro98-game-behavior.md#standings)). `ranked(lge, teams)` ranks any of the file's teams the same way, every team when `teams` is omitted; `LgeFile.teams` is every team in file order.
+- `Division.standings`, `Conference.standings`: teams best first, the way the game orders a finished season's standings: won-lost-tied percentage, then the manual's tie-breakers among level teams (head-to-head, division record, conference record, net points in division games, net points in all games, strength of schedule), then file order; in season the game's screen sorts tied teams by points for instead (see [game behavior](../research/fbpro98-game-behavior.md#standings)). `ranked(lge, teams)` ranks any of the file's teams the same way, every team when `teams` is omitted; `LgeFile.teams` is every team in file order.
 - `LgeFile.weeks`: each regular-season week's played games; `LgeFile.playoffs`: each playoff round's; `LgeFile.unplayed_games`: how many games, regular season and playoffs, are not played yet.
 - `Game`: `home`, `home_score`, `away`, `away_score` (the file's teams), `winner` and `loser` (None on a tie).
 - A name is the text up to its NUL, or the whole field when it has none; an empty name is `""`.
@@ -95,7 +95,7 @@ The model nests teams in divisions and divisions in conferences, the way the fil
 - Write `.lge` files.
 - Know where a league's files are; the caller supplies the folder.
 
-See [formats/lge.md](formats/lge.md) for the format.
+See [formats/lge.md](../formats/lge.md) for the format.
 
 ### Testing
 

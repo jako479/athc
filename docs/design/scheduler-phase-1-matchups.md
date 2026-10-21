@@ -1,6 +1,6 @@
 # scheduler — Phase 1: Matchup Inventory
 
-Phase 1 — [`matchup_builder.py`](../src/athc/scheduler/schedulers/matchup_builder.py). Structure fixes the same-conference games; the rest of each team's weeks are non-conference. Some non-conference games are fixed — the same-place pairs (a league with divisions) and any cross-conference rivalry — and one CP-SAT solve picks the rest, along the difficulty line or at random. Produces the full inventory (`weeks` × 9 pairings) and feeds [Phase 2](scheduler-phase-2-schedule.md).
+Phase 1 — [`matchup_builder.py`](../../src/athc/scheduler/schedulers/matchup_builder.py). Structure fixes the same-conference games; the rest of each team's weeks are non-conference. Some non-conference games are fixed — the same-place pairs (a league with divisions) and any cross-conference rivalry — and one CP-SAT solve picks the rest, along the difficulty line or at random. Produces the full inventory (`weeks` × 9 pairings) and feeds [Phase 2](scheduler-phase-2-schedule.md).
 
 ## Fixed by league structure
 

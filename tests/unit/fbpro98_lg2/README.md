@@ -1,6 +1,6 @@
 # fbpro98_lg2 — Test Matrix
 
-Cases covered for the `.lg2` league file library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md).
+Cases covered for the `.lg2` league file library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
 
 One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` = constructed bytes, `golden` = real `.lg2` in `data/` (`PNFL.lg2` custom, `NFLPI97.LG2` modern stock, `08_TEAMS.LG2` old stock). Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_lg2` → 38 passing.
 

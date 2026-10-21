@@ -757,14 +757,14 @@ Applied to [stats.md](../formats/stats.md) and `stats.hexpat` on 2026-10-20; tic
 
 ## 15. Other planned changes
 
-- **[fbpro98-game-behavior.md](../fbpro98-game-behavior.md):**
+- **[fbpro98-game-behavior.md](fbpro98-game-behavior.md):**
   - add sections 2-5, 10.4, 11 and 12: potential boosts and key ratings; creation, camp, aging, retirement; injuries; computer teams; standings; draft order; season stages; awards; weather rolls;
   - healing by EN fills the rows the doc has not seen yet;
   - weeks out truncates 1.5 × EN first;
   - an existing injury level can grow in the source (engine use unknown);
   - the standings note: the source's quarter-win tie and tie-breaker list, against athc's half win and the manual's list.
 - **Code comments:**
-  - `fbpro98_profile/model.py`: drop "non-editable groups" and "the game's 80/90 default" (also in `profile/rules.py` and [fbpro98_profile.md](../fbpro98_profile.md)).
+  - `fbpro98_profile/model.py`: drop "non-editable groups" and "the game's 80/90 default" (also in `profile/rules.py` and [fbpro98_profile.md](../design/fbpro98_profile.md)).
   - `fbpro98_gameplan/model.py`: the stock offset and size point into the stock play data file, not `STOCK98.MAP`.
 - **Decoder `research/pnfl_decode.py`:**
   - T03: the head coach is 25 bytes, not "owner" (17 read).
@@ -776,7 +776,7 @@ Applied to [stats.md](../formats/stats.md) and `stats.hexpat` on 2026-10-20; tic
   - Weight: read as the real data shows.
 - **Other docs:**
   - [pnfl-formats.md](pnfl-formats.md): the `.dft` header is u8 count, u8 current pick, u8 round; `.tmn` is team news; the R03 and T03 unknowns are named.
-  - The standings docs ([fbpro98_lge.md](../fbpro98_lge.md), [fbpro98_standings.md](../fbpro98_standings.md), [standings-tie-breakers.md](standings-tie-breakers.md)): revisit with ties and tie-breakers.
+  - The standings docs ([fbpro98_lge.md](../design/fbpro98_lge.md), [fbpro98_standings.md](../design/fbpro98_standings.md), [standings-tie-breakers.md](standings-tie-breakers.md)): revisit with ties and tie-breakers.
 - **athc code differences to weigh** (none breaks the PNFL today):
   - Tie value: half a win, against the source's quarter.
   - Tie-breakers: the manual's list, against the source's.

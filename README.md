@@ -36,7 +36,7 @@ mytool = "mypkg.cli:mytool"
 
 The umbrella discovers them at runtime — no changes to `athc` needed.
 
-See [docs/architecture.md](docs/architecture.md) for the full architecture and the conventions every command follows.
+See [docs/design/architecture.md](docs/design/architecture.md) for the full architecture and the conventions every command follows.
 
 ## Development
 

@@ -1,6 +1,6 @@
 # Integration — Test Matrix
 
-CLI end-to-end cases. Convention in [../../docs/testing-integration.md](../../docs/testing-integration.md).
+CLI end-to-end cases. Convention in [../../docs/design/testing-integration.md](../../docs/design/testing-integration.md).
 
 One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + rules; `tmp` = constructed. Exit: 0 done / 1 findings / 2 error / 130 Ctrl-C. Expected names the stream: results, `OK` / `SKIP` lines and tallies on stdout; progress, `WARN` / `FAIL` lines and Click's usage text on stderr. A stream of one line is pinned whole (`== "...\n"`); a substring only picks a line out of many. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/integration` passes.
 

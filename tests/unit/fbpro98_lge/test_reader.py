@@ -505,7 +505,7 @@ def test_error_names_the_path_first():
 # it: Miami above Buffalo (both 10-6) on the tie-breakers (a split series,
 # equal division records, Miami's better conference record), though Buffalo
 # scored 97 more points. In season the screen sorts tied teams by points for
-# instead; see docs/fbpro98-game-behavior.md.
+# instead; see docs/research/fbpro98-game-behavior.md.
 PNFL_2048_FINAL = (
     ("Miami", "Buffalo", "New England", "Jacksonville"),
     ("Cincinnati", "Pittsburgh", "Las Vegas", "Denver", "Los Angeles"),

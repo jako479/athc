@@ -1,6 +1,6 @@
 # scheduler — Test Matrix: Phase 1 (Matchups)
 
-Cases for `matchup_builder.py`, in `test_matchups.py`. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). Design: [scheduler-phase-1-matchups.md](../../../docs/scheduler-phase-1-matchups.md).
+Cases for `matchup_builder.py`, in `test_matchups.py`. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). Design: [scheduler-phase-1-matchups.md](../../../docs/design/scheduler-phase-1-matchups.md).
 
 Every row runs for each distinct league (two divisional standings variants, the conference league) unless noted. Status: ☑ covered · ☐ no test yet. The phase-1 solve is multithreaded and fast (about 2 s at worst), so every row runs in the default suite.
 

@@ -3,7 +3,7 @@ athc - USAGE
 
 Each athc command's help as it was before 1.0, kept for reference; run
 --help for the current help. For what each tool does, with examples, see
-COMMANDS.txt in this same folder.
+its command's file in this same folder (gameplan.txt, profile.txt, ...).
 
 
 athc --help

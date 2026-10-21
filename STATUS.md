@@ -5,7 +5,7 @@ is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
 Updated 2026-10-20. Task list: [TODO.md](TODO.md). History:
-[WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
+[WORKLOG.md](WORKLOG.md). Detail: [docs/](docs).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
 Nine commands are in. Nothing has been released.
@@ -45,7 +45,7 @@ athc standings                  DONE
   from its current `.lge`; `--view game` (default, the game's screen),
   `league`, `conference`, `division` (ESPN's tabs); `--method scheduler`
   (default), `game`, `nfl`; one fixed coin toss. Docs:
-  [standings.md](docs/standings.md).
+  [standings.md](docs/design/standings.md).
 
 ## athc
 
@@ -56,15 +56,15 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 - Help wording (2026-10-18): `use '-' for stdout` / `stdin`; every default as
   `(default: ...)`; commands and settings named in help in single quotes; an
   option that overrides a setting never states its value. Rules:
-  [docs/architecture.md](docs/architecture.md#cli).
+  [docs/design/architecture.md](docs/design/architecture.md#cli).
 - `OUTPUT` (`convert-pdb`, `list-normals`, `list-specials`) takes a file or a
   folder, and a name with no extension gets the command's; `generate-schedule`
   takes `OUTPUT_FOLDER`. Rules:
-  [docs/architecture.md](docs/architecture.md#output-files).
+  [docs/design/architecture.md](docs/design/architecture.md#output-files).
 - Every command's help is in one style, Click's own (8.5): `[OPTIONS]` then
   UPPERCASE placeholders, a line per argument, a summary of 55 characters or
   fewer, a description of one to four lines, one to six examples. Rules:
-  [docs/architecture.md](docs/architecture.md#cli).
+  [docs/design/architecture.md](docs/design/architecture.md#cli).
 - athc expands wildcards itself (Click's Windows expansion is off), and a name
   that exists is never a wildcard.
 - Your team: `team` and `ppp_path` in `league.toml`, `--team NAME` for one
@@ -85,7 +85,7 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   list and the real line. A key never starts a sentence (it joins the
   location), unknown keys are one line per table with the valid ones, and a
   config file athc cannot open fails instead of reading as empty. Rules:
-  [docs/architecture.md](docs/architecture.md#console-run-log-and-errors).
+  [docs/design/architecture.md](docs/design/architecture.md#console-run-log-and-errors).
 - Done the pdf-converter way (2026-10-08): `athc/console.py` (Rich, one
   instance) prints every line; `athc/log.py` writes the rotating run log under
   `%LOCALAPPDATA%\athc\Logs` (`ATHC_LOG_DIR` overrides it); `athc/errors.py`
@@ -99,7 +99,7 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   `progress` callback; nothing in a library prints or logs.
 - CLI tests assert stdout and stderr apart; console, `NO_COLOR` and run-log
   tests cover the pieces. Rules:
-  [docs/architecture.md](docs/architecture.md#console-run-log-and-errors).
+  [docs/design/architecture.md](docs/design/architecture.md#console-run-log-and-errors).
 - Errors carry the path as data: `AthcError(reason, path)` composes
   `<path>: <reason>` itself, the readers and loaders pass the path instead of
   writing it into the message, and a batch `FAIL` line names the file once.
@@ -112,10 +112,10 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
   tables included; an array or a scalar replaces whole. convert-pdb is the
   first tool on it, and `pdbtoexcel.toml` is gone. Every message names the
   file a value came from. Rules:
-  [docs/architecture.md](docs/architecture.md#config).
+  [docs/design/architecture.md](docs/design/architecture.md#config).
 - Tests of an add, update or remove compare the whole result, not just the
   changed item; command tests keep spot checks. Rules:
-  [docs/testing-unit.md](docs/testing-unit.md#expected-results).
+  [docs/design/testing-unit.md](docs/design/testing-unit.md#expected-results).
 - `docs/` is one folder per kind of doc, flat inside: one doc per module (its
   README and ARCHITECTURE merged), `formats/` (every file spec with its
   patterns), `research/` and `proposals/` (pending designs and plans; a
@@ -125,7 +125,7 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 - `league.toml`, the rule files and `scheduler.toml` may start with a UTF-8 BOM
   (Notepad, Excel); it is skipped.
 - Every frozen dataclass, the Config ones included, uses `slots=True`.
-- The design docs are one `docs/architecture.md`: the architecture plus a
+- The design docs are one `docs/design/architecture.md`: the architecture plus a
   Cross-cutting conventions section (CLI; console, run log and errors; output
   files; config); `cli.md`, `config.md` and `logging.md` are gone, their rules
   folded in. New rule: a produced file's missing folders are created in full
@@ -208,7 +208,7 @@ leagues\
 
 ## autocontinue
 
-Working. Docs: [autocontinue.md](docs/autocontinue.md)
+Working. Docs: [autocontinue.md](docs/design/autocontinue.md)
 
 - With `drive_league_pregame` on (shipped on, off when missing), it clicks
   through the league play pre-game screen (Plans/Profiles, Visitor,
@@ -249,7 +249,7 @@ Working. Docs: [autocontinue.md](docs/autocontinue.md)
 ## check-ppp
 
 Working. Checks profiles with their gameplans, and how they fit. Docs:
-[check_ppp.md](docs/check_ppp.md)
+[check_ppp.md](docs/design/check_ppp.md)
 
 - With no path, checks your team's files (`team` in `league.toml`) where the
   league file puts them, or in `ppp_path`; `--team NAME` picks another team,
@@ -328,7 +328,7 @@ stats). Docs:
   `.dat` + `.idx` with every header field named after c-tree's file header
   (a few flag meanings unknown).
 - How the game updates `.dat` + `.idx` each week:
-  [game behavior](docs/fbpro98-game-behavior.md#statistics).
+  [game behavior](docs/research/fbpro98-game-behavior.md#statistics).
 - `research/pnfl_decode.py` reads them all (stdlib, read-only).
 
 ## fbpro98_play (library)
@@ -362,7 +362,7 @@ Reads and writes `.prf` coaching profiles. Docs:
 
 Ranks a league's teams from its `.lge` files: division, conference and league
 standings by the game's, the scheduler's or the NFL's tie-breakers. Docs:
-[fbpro98_standings.md](docs/fbpro98_standings.md) (the design doc: each
+[fbpro98_standings.md](docs/design/fbpro98_standings.md) (the design doc: each
 method's steps),
 [tie-breakers research](docs/research/standings-tie-breakers.md).
 
@@ -375,7 +375,7 @@ method's steps),
 
 Reads a league's `.dat`: player, team and opponents stats for the last game,
 season and career, and the honors. Docs:
-[fbpro98_stats.md](docs/fbpro98_stats.md), [spec](docs/formats/stats.md).
+[fbpro98_stats.md](docs/design/fbpro98_stats.md), [spec](docs/formats/stats.md).
 
 - Reader in, with unit tests on the 2047 PNFL season (after weeks 1, 9 and
   16 and the Super Bowl), checked against the `.lge` scores.
@@ -385,7 +385,7 @@ season and career, and the honors. Docs:
 ## gameplan
 
 Working. Validates and edits `.pln` game plans. Docs:
-[gameplan.md](docs/gameplan.md) · [rules](config/release/leagues/PNFL/gameplan.toml)
+[gameplan.md](docs/design/gameplan.md) · [rules](config/release/leagues/PNFL/gameplan.toml)
 
 - `set-normals` reports every bad line of a play list in one run.
 - Tests reviewed 2026-10-18: every rule limit is tested at the limit and one
@@ -430,7 +430,7 @@ Open: `replace-play` should take a list of plays for bulk swaps.
 ## pdbtoexcel — `convert-pdb`
 
 Working. Extracts a WinLogStats database into an Excel workbook. Docs:
-[pdbtoexcel.md](docs/pdbtoexcel.md)
+[pdbtoexcel.md](docs/design/pdbtoexcel.md)
 
 - Row highlight (2026-10-17): an `.xlsm` always outlines the selected row;
   the Options sheet's Highlight Selected Row option is gone.
@@ -467,7 +467,7 @@ changes.
 ## playpool
 
 Working. Backs `gameplan` and `convert-pdb`; `playpool check` checks the pool.
-Docs: [playpool.md](docs/playpool.md)
+Docs: [playpool.md](docs/design/playpool.md)
 
 - QB run, rollout, pass logic and the defensive front come from the play file
   (`fbpro98_play`), by the rules in playpool.md. `playpool.toml` and
@@ -497,7 +497,7 @@ Open: count plays by file name type (TODO).
 ## profile
 
 Working. Validates and compares `.prf` coaching profiles. Docs:
-[profile.md](docs/profile.md) · [rules](config/release/leagues/PNFL/profile.toml)
+[profile.md](docs/design/profile.md) · [rules](config/release/leagues/PNFL/profile.toml)
 
 - `allowed_offensive_categories` / `allowed_defensive_categories` list the
   categories a profile may use, by the league's labels; special categories
@@ -531,9 +531,9 @@ per target).
 
 ## scheduler — `generate-schedule`
 
-Working. Docs: [scheduler.md](docs/scheduler.md) ·
-[phase 1](docs/scheduler-phase-1-matchups.md) ·
-[phase 2](docs/scheduler-phase-2-schedule.md)
+Working. Docs: [scheduler.md](docs/design/scheduler.md) ·
+[phase 1](docs/design/scheduler-phase-1-matchups.md) ·
+[phase 2](docs/design/scheduler-phase-2-schedule.md)
 
 - Phase 1 aims each team at a sum of opponent conference ranks, not an
   average: the slope tilts the league's smallest non-conference count and

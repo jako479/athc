@@ -1,6 +1,6 @@
 # autocontinue — Test Matrix
 
-Cases for `athc autocontinue`, in [test_autocontinue.py](test_autocontinue.py) and [test_autocontinue_game.py](test_autocontinue_game.py) (the Sandbox tests slow). Design: [autocontinue.md](../../docs/autocontinue.md).
+Cases for `athc autocontinue`, in [test_autocontinue.py](test_autocontinue.py) and [test_autocontinue_game.py](test_autocontinue_game.py) (the Sandbox tests slow). Design: [autocontinue.md](../../docs/design/autocontinue.md).
 
 Config is `athc.toml [autocontinue]`, every key optional; the `config_dir` fixture isolates `ATHC_CONFIG_DIR`. The CLI is tested with `auto_continue` stubbed, and the loop on a stand-in desktop (`Desktop`: the game window, the screen, pyautogui's mouse calls and the clock), so nothing touches the screen or the mouse; a pass that clicks takes two screenshots, the scan and the check just before the click. Exit 0 stopped (Ctrl+C, the hot corner or the end of the game) / 2 error. `[P]` parametrized. Status: ☑ covered · ☐ no test yet.
 

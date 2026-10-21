@@ -92,7 +92,7 @@ Write-Host "  Compiling installer with Inno Setup..."
     "/DAppVersion=$version" `
     "/DStagingDir=$staging" `
     "/DConfigDir=$release" `
-    "/DDocsDir=$(Join-Path $release 'docs')" `
+    "/DDocsDir=$(Join-Path $projectRoot 'docs\usage')" `
     "/DChangelogFile=$(Join-Path $projectRoot 'CHANGELOG.md')" `
     "/DLicenseFile=$(Join-Path $projectRoot 'LICENSE')" `
     "/DOutputDir=$distDir" `

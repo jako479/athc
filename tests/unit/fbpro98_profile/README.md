@@ -1,6 +1,6 @@
 # fbpro98_profile — Test Matrix
 
-Covers reader / model / writer for the `.prf` coaching-profile library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). **Implemented** — `pytest tests/unit/fbpro98_profile` → 152 passing. Status: ☑ done.
+Covers reader / model / writer for the `.prf` coaching-profile library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md). **Implemented** — `pytest tests/unit/fbpro98_profile` → 152 passing. Status: ☑ done.
 
 Inputs (`data/`): real `TST-OFF1/OFF2/DEF1/DEF2.prf`, `*-AUD.prf` (audibles on), `*-PL.prf` (gameplan-embedded), and `stock_profiles/*.PRF`. Error cases mutate real bytes.
 

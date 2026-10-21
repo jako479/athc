@@ -12,18 +12,20 @@ Precedents for the choices: [reference-projects.md](reference-projects.md).
 ```
 athc/
   pyproject.toml
-  docs/                                  # internal docs (markdown, for repo readers)
+  docs/
     README.md                            # index, one line per doc
-    <module>.md                          # one doc per tool or library
+    installer.md                         # the setup.exe
+    release.md                           # the release flow
+    usage/                               # the end-user docs the installer ships (plain text)
+    design/                              # the design docs: architecture, testing, one per tool and library
+      TODO/                              # pending designs and plans
     formats/                             # every file-format spec with its patterns
-    research/                            # research notes
-    proposals/                           # pending designs and plans
+    research/                            # research notes; what the game and the league do
   config/
     dev/                                 # dev config (ATHC_CONFIG_DIR), mirrors release\
       athc.toml
       leagues/                           # per-league league.toml and rule TOMLs
-    release/                             # source for the end-user release
-      docs/                              # user-facing docs (README, COMMANDS, ...)
+    release/                             # the seed config the installer installs
       athc.toml                           # example config
       leagues/                           # per-league league.toml and rule TOMLs
   src/athc/
@@ -99,12 +101,13 @@ CLI wiring is kept separate from tool logic: Click decorators live under `cli/`,
 
 ## Docs
 
-`docs/` is for repo readers (the end-user docs are `config/release/docs/`): one folder per kind of doc, flat inside, the file name the subject; a subfolder only when a kind outgrows one listing. [README.md](README.md) indexes every doc, one line each.
+`docs/` holds `release.md` and `installer.md` beside one folder per kind of doc, flat inside, the file name the subject. [README.md](../README.md) indexes every doc, one line each.
 
-- `docs/<module>.md`, one doc per tool or library, named after its package (`fbpro98_lge.md`, `check_ppp.md`): for a tool its usage, lines and exit codes; for a library Features, Setup, Usage, then an API section listing the public functions, classes and exceptions, one short entry each; then `## How it works`, the layout and the design. A module's extra docs take its name as a prefix (`scheduler-phase-1-matchups.md`).
+- `docs/usage/`: the end-user docs the installer ships, plain text: `README.txt`, one file per command (`gameplan.txt`, `profile.txt`, ...: what it does, examples, options, settings, lines and exit codes) and `USAGE_ORIGINAL.txt`.
+- `docs/design/`: the design docs. `architecture.md`, `testing-unit.md`, `testing-integration.md` and `reference-projects.md`, then one doc per tool or library, named after its package (`fbpro98_lge.md`, `check_ppp.md`): for a tool `## How it works`, the layout, the boundaries and the design, its usage being in `docs/usage/`; for a library Features, Setup, Usage, then an API section listing the public functions, classes and exceptions, one short entry each, then `## How it works`. A module's extra docs take its name as a prefix (`scheduler-phase-1-matchups.md`).
+- `docs/design/TODO/`: pending designs and plans, `<topic>-design.md` and `<topic>-plan.md`; a finished pair folds what lasts into the docs and goes (the hand-off rule in `AGENTS.md`), so finished work has no doc of its own beyond the design docs and `CHANGELOG.md`.
 - `docs/formats/`: every file-format spec with its ImHex (`.hexpat`) and Hex Workshop (`.hsl`) patterns, and a README saying what each game file holds. A spec holds only the byte layout, the validity rules and the open questions of the format, never function names or exceptions. A format takes its extension where one format owns it (`lge.md`), the file's content where it does not (`cities.md`, `stats.md`) and its purpose where it is not a game file (`schedule-import.md`); a pattern shares its spec's stem.
-- `docs/research/`: research notes.
-- `docs/proposals/`: pending designs and plans, `<topic>-design.md` and `<topic>-plan.md`; a finished pair folds what lasts into the docs and goes (the hand-off rule in `AGENTS.md`), so finished work has no doc of its own beyond the design docs and `CHANGELOG.md`.
+- `docs/research/`: research notes, and what was learned about the game and the league (`fbpro98-game-behavior.md`, `pnfl-history.md`).
 - Everything else is kebab-case.
 
 ## Extension mechanism
@@ -122,14 +125,14 @@ Extension packages can also extend athc libraries (e.g., a separate package impo
 
 ## Running from source
 
-Source runs read a per-machine **dev config** instead of the installed one: `ATHC_CONFIG_DIR`, if set, replaces the whole config dir (resolution: [`athc.config.config_dir()`](../src/athc/config.py)); else the default `%LOCALAPPDATA%\athc` wins. The dev config is a full `athc.toml` plus league folders in `config/dev/` (mirrors `config/release/`). `ATHC_LOG_DIR` does the same for the run log folder ([Console, run log and errors](#console-run-log-and-errors)); the test suite sets both, so no test touches the real config or log. End users never set either. Where to set them for VS Code and one-off runs: [README.md](../README.md#development).
+Source runs read a per-machine **dev config** instead of the installed one: `ATHC_CONFIG_DIR`, if set, replaces the whole config dir (resolution: [`athc.config.config_dir()`](../../src/athc/config.py)); else the default `%LOCALAPPDATA%\athc` wins. The dev config is a full `athc.toml` plus league folders in `config/dev/` (mirrors `config/release/`). `ATHC_LOG_DIR` does the same for the run log folder ([Console, run log and errors](#console-run-log-and-errors)); the test suite sets both, so no test touches the real config or log. End users never set either. Where to set them for VS Code and one-off runs: [README.md](../../README.md#development).
 
 ## Windows version support
 
 **Windows 10 / 11 (default target):**
 - Python 3.13+.
 - uv (binding constraint — uv requires Windows 10 or newer).
-- Distribution: a per-user `athc-<ver>-setup.exe`, a PyInstaller bundle wrapped by Inno Setup, carrying its own Python ([installer.md](installer.md)).
+- Distribution: a per-user `athc-<ver>-setup.exe`, a PyInstaller bundle wrapped by Inno Setup, carrying its own Python ([installer.md](../installer.md)).
 - No package-version pins required for this path; all athc deps have modern wheels.
 
 **Windows 7 (special-case path, not currently planned):**
@@ -152,11 +155,11 @@ Source runs read a per-machine **dev config** instead of the installed one: `ATH
 - `uv build` writes wheel + sdist to `dist/`.
 
 **End-user install**
-- `packaging/release-build.ps1` builds `dist/athc-<ver>-setup.exe`; `packaging/release-test.ps1` tests it in Windows Sandbox. Build, config deploy and upgrade rules: [installer.md](installer.md). Versioning and release flow: [release.md](release.md).
+- `packaging/release-build.ps1` builds `dist/athc-<ver>-setup.exe`; `packaging/release-test.ps1` tests it in Windows Sandbox. Build, config deploy and upgrade rules: [installer.md](../installer.md). Versioning and release flow: [release.md](../release.md).
 
 ## Cross-cutting conventions
 
-Rules that hold across every command and library. Each tool's own behavior is in its `docs/<tool>.md`.
+Rules that hold across every command and library. Each tool's own behavior is in its `docs/usage/<tool>.txt`, its design in `docs/design/<tool>.md`.
 
 ### CLI
 
@@ -280,5 +283,5 @@ A command that writes several files takes an optional `OUTPUT_FOLDER` (`generate
 - `athc config path | edit | reveal | get | set` locate, open, reveal, read and write the settings files: `path`, `edit` and `reveal` take FILE (`athc.toml`, the default, or `league.toml`) and `--league NAME`; `get` reads `league` from `athc.toml` and `path`, `play_path`, `team`, `ppp_path` from the league's `league.toml`; `set` writes `league` to `athc.toml`, validating the league folder first, and `path`, `play_path`, `team`, `ppp_path` to the league's `league.toml`, both through tomlkit so comments survive (a missing `[athc]` table leads the file, or ends it when a key sits above the first table, so the key stays where it was), a new league key on the line after its commented example (`# team = ...`), else after `[league]`'s last key; `edit` opens through `os.startfile`, `reveal` through `click.launch`.
 - An unreadable `athc.toml` or `league.toml` (wrong value type, bad label) raises `ConfigFileError`; a missing or unknown league raises `LeagueError`.
 - Each tool owns `<tool>/config.py`: a frozen `Config` dataclass with typed defaults and a `load(league)` that asks the resolved `LeagueConfig` for what the tool needs (`string(key)`, `path(key)`, `rules_file(name)` / `rule_files(key, default)`, `categories`). `athc.toml` values come back TOML-typed (`config_table(section)`); checking each type is the tool's job, and TOML's types are not interchangeable (`1` is not `true`, `"1.0"` is not a number).
-- In-code defaults are authoritative: missing file, table or key means defaults; a tool errors only when a value it needs at runtime can't be resolved (`play_path` not on disk). A new tool's `[table]` runs on defaults after an upgrade, which never overwrites `athc.toml`; to customize, the user adds the table to their own (the pgcli/mycli model; deploy rules in [installer.md](installer.md)).
+- In-code defaults are authoritative: missing file, table or key means defaults; a tool errors only when a value it needs at runtime can't be resolved (`play_path` not on disk). A new tool's `[table]` runs on defaults after an upgrade, which never overwrites `athc.toml`; to customize, the user adds the table to their own (the pgcli/mycli model; deploy rules in [installer.md](../installer.md)).
 - A deprecated key keeps working for 2–3 releases with a one-line `WARN` at startup naming the replacement (VS Code's `deprecationMessage` pattern), then goes.

@@ -1,6 +1,6 @@
 # scheduler — Phase 2: Schedule Placement
 
-Phase 2 takes the fixed inventory from phase 1 (`weeks` × 9 pairings) and uses OR-Tools CP-SAT to assign every matchup a week (1–`weeks`) and a home team — [`schedule_builder.py`](../src/athc/scheduler/schedulers/schedule_builder.py).
+Phase 2 takes the fixed inventory from phase 1 (`weeks` × 9 pairings) and uses OR-Tools CP-SAT to assign every matchup a week (1–`weeks`) and a home team — [`schedule_builder.py`](../../src/athc/scheduler/schedulers/schedule_builder.py).
 
 ## Model
 
@@ -79,4 +79,4 @@ Without an objective the solver camps at the caps, so every season looks the sam
 
 The 5-team frontload band comes from just 3 seasons (1999–2001) and is noisy — hence its low weight; treat it as provisional.
 
-Rule provenance (NFL policy vs. measured NFL patterns): [nfl-schedules.md](research/nfl-schedules.md). Rule design patterns (hard/soft, anti-pileup): [cpsat-rule-patterns.md](research/cpsat-rule-patterns.md).
+Rule provenance (NFL policy vs. measured NFL patterns): [nfl-schedules.md](../research/nfl-schedules.md). Rule design patterns (hard/soft, anti-pileup): [cpsat-rule-patterns.md](../research/cpsat-rule-patterns.md).

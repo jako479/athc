@@ -62,7 +62,9 @@ function Short([string]$text, [string[]]$paths) {
 # --- install -----------------------------------------------------------
 Start-Process $setup -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=$out\install1.log" -Wait
 Check 'install: athc.exe present' (Test-Path $exe)
-foreach ($doc in 'README.txt', 'COMMANDS.txt', 'SCHEDULER-COMMANDS.txt', 'CHANGELOG.txt', 'LICENSE.txt') {
+foreach ($doc in 'README.txt', 'USAGE_ORIGINAL.txt', 'autocontinue.txt', 'check-ppp.txt', 'config.txt',
+                 'convert-pdb.txt', 'gameplan.txt', 'generate-schedule.txt', 'playpool.txt', 'profile.txt',
+                 'standings.txt', 'CHANGELOG.txt', 'LICENSE.txt') {
     Check "install: $doc in the install folder" (Test-Path (Join-Path $app $doc))
 }
 foreach ($file in 'athc.toml', 'leagues\PNFL\league.toml', 'leagues\PNFL\gameplan.toml',
@@ -287,7 +289,7 @@ $settings = Join-Path $cfgDir 'athc.toml'
 $rules   = Join-Path $leagues 'PNFL\gameplan.toml'
 $deleted = Join-Path $leagues 'PCFL\scheduler.toml'
 $readme  = Join-Path $app 'README.txt'
-$commands = Join-Path $app 'COMMANDS.txt'
+$commands = Join-Path $app 'gameplan.txt'
 Set-Content $marker 'left over from an older bundle'
 Add-Content $settings '# user-edit-marker'
 Add-Content $rules '# user-edit-marker'
@@ -299,7 +301,7 @@ Check 'upgrade: edited athc.toml left alone'      ((Get-Content $settings -Raw) 
 Check 'upgrade: edited rule TOML left alone'      ((Get-Content $rules -Raw) -match 'user-edit-marker')
 Check 'upgrade: missing seeded file added back'   (Test-Path $deleted)
 Check 'upgrade: deleted README.txt added back'    (Test-Path $readme)
-Check 'upgrade: docs refreshed (old COMMANDS.txt replaced)' (
+Check 'upgrade: docs refreshed (old gameplan.txt replaced)' (
     (Test-Path $commands) -and -not ((Get-Content $commands -Raw) -match 'old-doc-marker'))
 Check 'upgrade: user-added league left alone'     (Test-Path (Join-Path $testLeague 'league.toml'))
 $ver2 = (& $exe --version 2>&1 | Out-String).Trim()

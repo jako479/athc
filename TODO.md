@@ -15,7 +15,7 @@
 - [x] athc: go through the CLI and help text for each command
 - [ ] athc: go through all messages, warnings and errors for each command — messages name the file and line number, then say the problem in plain words; see [docs/design/TODO/logging-updates.md](docs/design/TODO/logging-updates.md)
 - [ ] athc: look for gaps in test cases for each command and library
-- [ ] athc: update the release README with each command's warnings and errors, from the per-tool docs ([gameplan](docs/gameplan.md), [profile](docs/profile.md), [check-ppp](docs/check_ppp.md), [playpool](docs/playpool.md), [convert-pdb](docs/pdbtoexcel.md), [generate-schedule](docs/scheduler.md), [autocontinue](docs/autocontinue.md), [config](docs/config.md))
+- [ ] athc: update the release README with each command's warnings and errors, from the per-tool docs ([gameplan](docs/design/gameplan.md), [profile](docs/design/profile.md), [check-ppp](docs/design/check_ppp.md), [playpool](docs/design/playpool.md), [convert-pdb](docs/design/pdbtoexcel.md), [generate-schedule](docs/design/scheduler.md), [autocontinue](docs/design/autocontinue.md), [config](docs/design/config.md))
 - [ ] athc: convert the release notes from .txt to .md
 - [ ] athc: update the release docs to Markdown
 - [ ] athc: recommend Markdown plugins for Chrome or Notepad++ in the release README
@@ -51,7 +51,7 @@
 - [x] autocontinue: CLI plan and improvements (every setting optional with shipped defaults, `--delay`, `-n/--dry-run`, window lines, click on the button)
 - playpool: add a `playpool find-play` command
 - playpool: add a `playpool show` command
-- athc: list the players who show P-1 but will still be injured for the next game after weekly healing; chart in [game behavior](docs/fbpro98-game-behavior.md#p-1-that-stays-injured)
+- athc: list the players who show P-1 but will still be injured for the next game after weekly healing; chart in [game behavior](docs/research/fbpro98-game-behavior.md#p-1-that-stays-injured)
 - convert-pdb: Total Stats filtering (from pnfl's TODO): remove filtering via script? add filtering to config? convert to a table for filtering (greater-than, less-than)?
 - gameplan-check: rule for excluded files [ME ONLY?]
 - playpool-check: check that each play's name matches its play category

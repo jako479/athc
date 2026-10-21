@@ -1,8 +1,7 @@
-athc - SCHEDULER (Commissioner only)
-====================================
+athc generate-schedule (Commissioner only)
+==========================================
 
-Builds a league's season schedule. This tool is intentionally left out of the
-general COMMANDS.txt -- it is for the league Commissioner.
+Builds a league's season schedule. This tool is for the league Commissioner.
 
 The scheduler uses the OR-Tools solver, which the installer already includes.
 (If a broken install is missing it, athc says so; re-run the setup.)
@@ -62,10 +61,12 @@ generate-schedule  --  build the season schedule
    A file's season cannot be read from it, so a --previous of the wrong
    season shows only through its team names (Team(s) not in <file>: ...).
 
-   Progress prints as it runs; each file written gets an OK line, then
-   "Generated <n> games (seed <s>)". Exit 0 = written, 2 = bad arguments
-   or an error (league, config, a league file, no feasible schedule),
-   130 = Ctrl+C.
+   Progress prints as it runs (Generating the <season> schedule,
+   Phase 1: ..., Phase 2: ..., on stderr); each file written gets an OK
+   line, then "Generated <n> games (seed <s>)". Exit 0 = written, 2 = bad
+   arguments or an error (FAIL <why>: league, config, a league file, no
+   feasible schedule, I/O, Missing ortools. Reinstall athc.), 130 = Ctrl+C.
+   The shared scheme: EXIT CODES in README.txt.
 
    Ctrl+C stops the run: FAIL Interrupted., and nothing is written; during
    a solve the search stops at the press. A press while the three files are
@@ -73,12 +74,19 @@ generate-schedule  --  build the season schedule
 
    An unfinished season (games not played) is a warning, WARN <file>:
    Season not finished. <n> game(s) not played., and the run goes on with
-   the games played. Teams rank by playoff finish, then record, then
-   strength of schedule (opponents' combined record), then their previous
-   season's division finish, then point differential, then a coin toss
-   drawn from the seed; each division's finish order ranks its upcoming
-   members by their records, with the same coin toss last. No file's team
-   order breaks a tie.
+   the games played; a new league with no game played is ordered by the
+   coin toss. Teams rank by playoff finish (champion, runner-up, then the
+   round each team went out in, then the teams that missed the playoffs),
+   then record, then strength of schedule (opponents' combined record,
+   tougher first), then their previous season's division finish, then
+   point differential, then a coin toss drawn from the seed; this
+   reproduces the PNFL's own published order. Each division's finish order
+   ranks its upcoming members by their previous season the way the game
+   ranks a finished season (record, then the manual's tie-breakers under
+   the previous season's divisions), with the same coin toss last, so a
+   division whose membership changed still gets an order. The coin toss is
+   one shuffle of the previous season's teams drawn from the run's seed; no
+   file's team order breaks a tie.
 
    A team that moved keeps its previous season. Renamed in the same
    division: list it under [renames.<season>] and it keeps its place under
@@ -88,6 +96,29 @@ generate-schedule  --  build the season schedule
    (11-5 as Houston) and Jacksonville (5-11) came over from the West,
    Buffalo (10-6) and New England (3-13) stayed, so the East's order became
    Miami, Buffalo, Jacksonville, New England.
+
+   League shapes:
+
+                             with divisions (PNFL)     conferences only (PCFL)
+      League file            two or more divisions     one division per
+                             in a conference           conference
+      Weeks                  16 ([league] weeks, the   12
+                             default)
+      Same-conference games  division rivals twice,    every conference team
+                             rest of the conference    once
+                             once
+      Non-conference         same-place pairs fixed,   the cross-conference
+                             rest by the difficulty    rivalry fixed, rest by
+                             line                      the line or at random
+      Season shape           NFL-style rules           opening non-conference
+                                                       weeks, conference-
+                                                       sequence cap, rivalry
+                                                       week last
+
+      Conferences and divisions go by their position in the league file
+      (names may be empty or repeat); division sizes are their team counts.
+      athc ships leagues\PNFL\ and leagues\PCFL\, each with its
+      scheduler.toml.
 
 
 CONFIG FILES (in %LOCALAPPDATA%\athc\leagues\<NAME>\)
@@ -105,4 +136,6 @@ CONFIG FILES (in %LOCALAPPDATA%\athc\leagues\<NAME>\)
 
    Every other key defaults if absent; edit only to change a default.
    phase1_time_limit and phase2_time_limit must be positive numbers. See the
-   comments in the shipped PNFL and PCFL files.
+   comments in the shipped PNFL and PCFL files. Find the folder with
+   athc config path.
+

@@ -1,7 +1,7 @@
 # Logging audit
 
 Review checklist, not a design. Run it on each tool after that tool has
-been wired to the logging design in [docs/architecture.md](docs/architecture.md#output-streams).
+been wired to the logging design in [docs/design/architecture.md](docs/design/architecture.md#output-streams).
 
 ## Check per tool
 

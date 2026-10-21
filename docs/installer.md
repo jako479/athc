@@ -29,8 +29,8 @@ with a Python they already have.
 
 The build files live in a top-level `packaging/` folder, the most common home
 for them in Python apps that ship a Windows installer (Thonny, Rare, Cura,
-Gaphor). `config/release/` holds only the files that get installed:
-`athc.toml`, `docs\` and `leagues\`.
+Gaphor). `config/release/` holds the seed config that gets installed,
+`athc.toml` and `leagues\`; the end-user docs it installs are `docs/usage/`.
 
 | File | What it does |
 |---|---|
@@ -69,9 +69,9 @@ feature with its `wsb` command line for the test.
   PyInstaller renames internals between builds.
 - Adds the install folder to the user's PATH.
 - Installs the release docs into the install folder, refreshed on every
-  install: `README.txt`, `COMMANDS.txt`, `SCHEDULER-COMMANDS.txt`,
-  `CHANGELOG.txt` and `LICENSE.txt`. Adds a Start-menu shortcut to the README
-  and opens it after install.
+  install: every `.txt` in `docs/usage/` (`README.txt`, one file per command,
+  `USAGE_ORIGINAL.txt`), `CHANGELOG.txt` and `LICENSE.txt`. Adds a Start-menu
+  shortcut to the README and opens it after install.
 - Seeds every file in `%LOCALAPPDATA%\athc` only if it is missing: `athc.toml`,
   and each league's `league.toml` and rule TOMLs.
 - Uninstall removes the program, its PATH entry, the Start-menu shortcut and
@@ -80,7 +80,7 @@ feature with its `wsb` command line for the test.
 The seeded `athc.toml` selects PNFL; the only value a user must edit is
 `play_path` in `leagues\PNFL\league.toml` (`athc config edit league.toml`
 opens it), plus `path` and `team` to work on your team's files (check-ppp,
-gameplan, profile, convert-pdb). Layout: [architecture.md](architecture.md#config).
+gameplan, profile, convert-pdb). Layout: [architecture.md](design/architecture.md#config).
 
 ## Install, upgrade, reinstall, uninstall
 

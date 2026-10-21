@@ -122,9 +122,9 @@ The first steps sort every team; after the semicolon come the tie-breakers; the 
 
 ### Sources
 
-- The game's list, and how it was checked against the PNFL's seasons: [fbpro98-game-behavior.md](fbpro98-game-behavior.md#tie-breakers).
-- The game's, the NFL's, pnfl.biz's and the scheduler's rules side by side: [standings-tie-breakers.md](research/standings-tie-breakers.md).
+- The game's list, and how it was checked against the PNFL's seasons: [fbpro98-game-behavior.md](../research/fbpro98-game-behavior.md#tie-breakers).
+- The game's, the NFL's, pnfl.biz's and the scheduler's rules side by side: [standings-tie-breakers.md](../research/standings-tie-breakers.md).
 
 ### Testing
 
-- `tests/unit/fbpro98_standings/`: each step on built leagues, each method on built leagues and the PNFL's real files, two seasons, every error. Matrix: [tests/unit/fbpro98_standings/README.md](../tests/unit/fbpro98_standings/README.md).
+- `tests/unit/fbpro98_standings/`: each step on built leagues, each method on built leagues and the PNFL's real files, two seasons, every error. Matrix: [tests/unit/fbpro98_standings/README.md](../../tests/unit/fbpro98_standings/README.md).

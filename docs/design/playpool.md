@@ -2,6 +2,8 @@
 
 Library + CLI for a league's play pool: builds it from a folder of Front Page Sports Football Pro '98 play (`.ply`) files, each classified from its own bytes, and checks it with `athc playpool check`.
 
+The command's usage, lines and exit codes: [usage/playpool.txt](../usage/playpool.txt).
+
 ## Features
 
 - Walks a folder tree of `.ply` files, any layout
@@ -53,54 +55,6 @@ A pass can be both a rollout and a timed pass.
 - `folder_warnings(rel_path, play, labels)`: the folder/file mismatch warnings for one play, as the pool reports them.
 - `PlayPool`: `root_dir`, `offensive_plays`, `defensive_plays`, `special_plays`, `issues` (every problem, word for word); `find_by_name(name)` (case-insensitive); `add(play)` files an `OffensivePlay` / `DefensivePlay` / `SpecialPlay` under its side and indexes it.
 - `Play`: `name`, `play_file` (the parsed `PlayFile`), `file_path`, `category` (an `fbpro98_play` enum member), `play_category`, `special_category`, `user_category`; `to_dict()`. `OffensivePlay` adds `screen`, `rollout`, `qb_run`, `pass_logic` (`PassLogic.TIMED` / `CHECK_RECEIVERS`); `DefensivePlay` adds `defensive_front` (an `fbpro98_play` `DefensiveFront`: `THREE_FOUR` / `FOUR_THREE` / `TWO_DL`, or `None`); `SpecialPlay` adds nothing. Each attribute is set as [How athc reads a play](#how-athc-reads-a-play) describes; the rollout margin is `ROLLOUT_MARGIN` in `playpool.reader`.
-
-## CLI
-
-`athc playpool check [OPTIONS] [FOLDER]` checks the play pool for problems:
-plays in the wrong folder, duplicate play names, and invalid play files.
-
-```bash
-athc playpool check
-athc playpool check .
-athc playpool check newplays
-athc playpool check --league PCFL
-```
-
-With no FOLDER, it checks the league's `play_path` (from `--league`, or
-`[athc] league` in `athc.toml`). A `play_path` that is missing on disk ends its
-line with `Run 'athc config set play_path FOLDER'.`; no `play_path` at all says
-`Play pool folder is not set. Run 'athc config set play_path FOLDER' or pass the
-folder.`
-
-With a FOLDER (`.` for the current one), it checks that folder's whole tree
-instead and never reads `play_path`. A FOLDER needs no league; a league that
-resolves still lends its category names to the folders, and without one no
-folder name means a category. A FOLDER that is missing gets Windows' plain
-line, with no hint.
-
-It checks the same things pool loading checks for every other command, with
-the same messages:
-
-- A play in a side folder, or a category folder named by the league's labels,
-  that contradicts its file (wrong side or category).
-- A play name used more than once.
-- A `.ply` file that isn't a valid play file.
-
-Each issue prints on its own line (a result, on stdout, never a `WARN`), then a
-blank line and `<folder>: <n> play(s) checked, <n> issue(s)`, the folder
-as typed. Shared console and codes:
-[architecture](architecture.md#console-run-log-and-errors).
-
-| Exit | Meaning |
-|---|---|
-| `0` | Done: no issues. |
-| `1` | Findings: one or more issues. |
-| `2` | Error: no league; no `play_path` (`FAIL <league.toml>: Play pool folder is not set. Run 'athc config set play_path FOLDER' or pass the folder.`); a `play_path` that is not a folder, with the hint (`FAIL <play_path>: The system cannot find the path specified. Run 'athc config set play_path FOLDER'.`); a missing FOLDER (`FAIL <folder>: The system cannot find the path specified.`) or a file in its place (`FAIL <folder>: The directory name is invalid.`); a second FOLDER (Click's usage error); or a file or folder the system can't read (`FAIL <why>`). |
-
-`src/athc/cli/playpool/check.py` is the leaf command of the
-`src/athc/cli/playpool/` group. It loads the pool with `read_play_pool`, and
-the library keeps its findings in `PlayPool.issues`. Tests:
-`tests/integration/test_playpool_check.py`.
 
 ## Testing
 

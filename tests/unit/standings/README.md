@@ -1,6 +1,6 @@
 # standings — Test Matrix
 
-Cases covered for the standings command's tool package. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md).
+Cases covered for the standings command's tool package. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
 
 One row per behavior. `[P]` = parametrized. Input: `built` = a league built in code; `golden` = a real `.lge` from `tests/unit/fbpro98_lge/data/`. Status: ☑ done.
 

@@ -1,6 +1,6 @@
 # fbpro98_play — Test Matrix
 
-Cases covered for the `.ply` parser library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md).
+Cases covered for the `.ply` parser library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
 
 One row per behavior. `[P]` = parametrized over variants. Input: `make_ply()` = constructed bytes, `golden` = real `.ply` in `data/`. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_play` passes.
 

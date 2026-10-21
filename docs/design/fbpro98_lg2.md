@@ -75,7 +75,7 @@ The model nests each team's eight files by half, then side, then profile and gam
 - Write `.lg2` files.
 - Know where a league's files are; the caller supplies the folder.
 
-See [formats/lg2.md](formats/lg2.md) for the format and the reader contract.
+See [formats/lg2.md](../formats/lg2.md) for the format and the reader contract.
 
 ### Testing
 

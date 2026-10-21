@@ -134,15 +134,15 @@ The League Standings screen sorts tied teams two ways:
   order the playoff bracket used.
 
 The `fbpro98_lge` library and the standings library's `game` method
-([fbpro98_standings](fbpro98_standings.md#how-it-works)) give the
+([fbpro98_standings](../design/fbpro98_standings.md#how-it-works)) give the
 season-end order; the game's list beside the NFL's, pnfl.biz's and the
-scheduler's: [standings-tie-breakers.md](research/standings-tie-breakers.md).
+scheduler's: [standings-tie-breakers.md](standings-tie-breakers.md).
 
 ## Statistics
 
 How the game keeps the stats files, `.dat` and `.idx`, learned from the PNFL
 2047 files saved after each week (16 regular-season weeks, 3 playoff rounds).
-Layout: [stats spec](formats/stats.md).
+Layout: [stats spec](../formats/stats.md).
 
 ### Weekly update
 

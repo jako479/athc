@@ -1,0 +1,181 @@
+athc autocontinue
+=================
+
+
+autocontinue  --  auto-click the FbPro '98 'Continue' button between plays
+   -----------------------------------------------------------------------
+
+   Watches for the 'Continue' button and clicks it between plays. At halftime
+   it moves the mouse to Return, waits halftime_pause seconds (8 by default)
+   and clicks; at the end of the game it moves the mouse to Return and stops.
+   With drive_league_pregame on (as shipped), it clicks through the league
+   play pre-game screen (Plans/Profiles, Visitor, Conditions, Venues) and
+   clicks Game; a pause of 0 skips its click. Settings live in athc.toml
+   ([autocontinue] mouse_move_duration, continue_pause, halftime_pause,
+   hot_corner, drive_league_pregame, plans_profiles_pause, conditions_pause,
+   venues_pause); every one is optional (a missing one uses the shipped value,
+   except drive_league_pregame, which is off when missing), and the file is
+   re-read whenever it changes. It only clicks while the game is the active
+   window, so switching to another app (which pauses the game) is safe, and
+   it checks a button is still there just before clicking it, so clicking
+   one yourself is safe too. Run the game on your primary monitor
+   (autocontinue only watches that display; a single-display VM works too,
+   and keeps your other monitors free). Stop it with Ctrl+C, or by moving
+   the mouse to the top-left screen corner (the "hot corner", on by
+   default), or let it stop at the end of the game. Run one copy at a time;
+   two copies both click. Keep the PC unlocked and the screensaver off:
+   Windows hides a locked screen, so nothing can be found or clicked.
+
+   --continue-pause SECONDS sets the wait before each Continue click for one
+   run; it does not change halftime_pause. -n, --dry-run reports what it finds
+   each time and never moves the mouse or clicks: a way to check a new monitor
+   or display scaling before trusting it.
+
+   Set hot_corner = false (or pass --no-hot-corner) to turn the corner off and
+   use Ctrl+C only; --hot-corner forces it on for one run.
+
+   Show help:
+      athc autocontinue --help
+
+   Example terminal calls:
+      athc autocontinue                     settings from athc.toml, or the defaults
+      athc autocontinue --continue-pause 3  wait 3 s before each Continue click, this run only
+      athc autocontinue --dry-run           report what it finds, never click
+      athc autocontinue --no-hot-corner
+
+   Options:
+      --continue-pause SECONDS
+                           seconds to wait before each Continue click, 0 or
+                           more; overrides continue_pause for one run, through
+                           live reloads. Not the halftime wait.
+      -n, --dry-run        scans as usual and reports each sighting (Continue,
+                           halftime, the end of the game), never moving the
+                           mouse or clicking. --continue-pause and the hot
+                           corner have no effect.
+      --hot-corner / --no-hot-corner
+                           overrides hot_corner for one run.
+
+   Settings ([autocontinue] in athc.toml):
+
+      The file is found through the settings folder (see README.txt); there
+      is no --config flag. Every key is optional: a missing file, section or
+      key means the default, the value the shipped athc.toml has, except
+      drive_league_pregame, which the shipped file turns on. A key that is
+      present but wrong is an error.
+
+      mouse_move_duration   0.0    seconds to move the mouse to the button,
+                                   0 or more (0.0 = instant)
+      continue_pause        1.0    seconds to wait before each Continue
+                                   click, 0 or more (0.0 = instant)
+      halftime_pause        8.0    seconds to wait at halftime before
+                                   clicking Return, 0 or more
+      hot_corner            true   stop when the mouse hits the top-left
+                                   corner
+      drive_league_pregame  false  click through the league play pre-game
+                                   screen, then Game (true in the shipped
+                                   file)
+      plans_profiles_pause  1.5    seconds to wait after clicking
+                                   Plans/Profiles, and again after Visitor;
+                                   0 skips both clicks
+      conditions_pause      2.5    seconds to wait after clicking Conditions;
+                                   0 skips the click
+      venues_pause          1.5    seconds to wait after clicking Venues;
+                                   0 skips the click
+
+      The timings have no upper limit. halftime_pause has no command-line
+      option, and --continue-pause does not affect it. The file is re-read
+      whenever it changes, so edits apply while it runs; a value held by
+      --continue-pause or a hot-corner flag is not affected. A deleted file
+      means the defaults again; a file that comes back is read like any
+      change.
+
+   Lines and exit codes:
+
+      Status lines go to stderr and the run log; a dry run's sightings and
+      "Stopped." go to stdout and the run log.
+
+      start:
+         Watching for the Continue button. Press Ctrl+C to stop.
+      the settings, at start and when a reload changes one:
+         mouse_move_duration = 0.0, continue_pause = 1.0,
+         halftime_pause = 8.0, drive_league_pregame = true,
+         plans_profiles_pause = 1.5, conditions_pause = 2.5,
+         venues_pause = 1.5; with --continue-pause 3,
+         continue_pause = 3.0 (--continue-pause) once at start
+      hot corner on:
+         Hot corner on: move the mouse to the top-left corner to stop.
+      hot corner off, or a dry run:
+         Hot corner off: press Ctrl+C to stop.
+      a dry run, at start:
+         Dry run: what it finds is reported, never clicked.
+      the first check, and each time the game stops being the active window:
+         Waiting for the game window.
+      the first check, and each time the game becomes the active window:
+         Game window active.
+      a dry run, each sighting:
+         Continue button found at 812, 640.
+      halftime:
+         Halftime label found at 400, 120., Return button found at 960, 700.,
+         Waiting 8 seconds., then Return button clicked.
+      the end of the game (exit 0):
+         Results label found at 400, 120., Return button found at 960, 700.,
+         then Stopped.
+      a dry run, at halftime or the end of the game:
+         the same label and Return lines, without "Waiting ..."; the end of
+         the game stops it
+      the league play pre-game screen, with drive_league_pregame on:
+         League play label found at 571, 38., then
+         Plans/profiles button clicked., Visitor button clicked.,
+         Conditions button clicked., Venues button clicked.,
+         Game button clicked., less any a pause of 0 skips
+      a dry run, on the pre-game screen:
+         the label line, then Plans/profiles button found at 154, 496. or
+         Plans/profiles button not found., and so on for each button it
+         would click
+      just before a pre-game click, the screen gone (the coach clicked Game)
+      or the button not found:
+         League play label gone; Visitor button not clicked. or
+         Visitor button not found; not clicked.
+      just before a click, the button already gone (the coach clicked it):
+         Continue button gone; not clicked.; at halftime
+         Halftime label gone; Return not clicked. or
+         Return button gone; not clicked.
+      just before a click, the button no longer under the spot found (the
+      window was dragged):
+         Continue button moved; not clicked. or
+         Return button moved; not clicked.
+      a reload that fails:
+         WARN <athc.toml>: <why> Keeping the previous settings.
+      the screen hidden:
+         WARN The screen is locked, a screensaver is on, or Remote Desktop is
+         disconnected. Retrying in 60 seconds.
+      any other failure in a pass, the first of its kind:
+         WARN Unexpected <error type>: <why>. See <athc.log> for details.
+         Retrying in 5 seconds., the traceback in the run log
+      the same failure again:
+         WARN Unexpected <error type>: <why>. Retrying in 5 seconds.
+      stop by Ctrl+C (exit 0):
+         Ctrl+C pressed., then Stopped.
+      stop by the hot corner (exit 0):
+         Hot corner hit., then Stopped.
+      stop at the end of the game (exit 0):
+         Stopped. (the Results lines say why)
+      a bad timing at start (exit 2):
+         FAIL <athc.toml>: [autocontinue] continue_pause: Must be a number,
+         0 or more, got -1.0.
+      a bad hot_corner at start (exit 2):
+         FAIL <athc.toml>: [autocontinue] hot_corner: Must be true or false,
+         got 'maybe'.
+      pyautogui missing (exit 2):
+         FAIL Missing pyautogui. Reinstall athc.
+      an image missing or unreadable (exit 2):
+         FAIL <image>: <why> Reinstall athc.
+      an argument, or a --continue-pause that is not a number 0 or more
+      (exit 2):
+         Click's Error: ... line
+
+      "Waiting" says "1 second" for a pause of 1. Every click is said except
+      Continue, which comes 100 or more times a game. At start: the start
+      line, the seven settings, the hot-corner line, the dry-run line, then
+      the first window line. The shared scheme: EXIT CODES in README.txt.
+

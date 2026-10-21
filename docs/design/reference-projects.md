@@ -39,7 +39,7 @@ Default location for a produced file when no path is given.
 - [cookiecutter](https://github.com/cookiecutter/cookiecutter) — generates into CWD; `-o` defaults to `.`.
 - [ffmpeg](https://ffmpeg.org/ffmpeg.html) — output is a required positional (relative → CWD).
 
-**Adaptation for athc**: produced output (schedule, report, convert-pdb `.xlsx`, diff export) stays CWD-relative or explicit, like CLI paths in [config.py](../src/athc/config.py). `platformdirs` is config-only; fixed dirs are for state, not output ([clig.dev](https://clig.dev/)). Rules in [architecture.md](architecture.md#output-files).
+**Adaptation for athc**: produced output (schedule, report, convert-pdb `.xlsx`, diff export) stays CWD-relative or explicit, like CLI paths in [config.py](../../src/athc/config.py). `platformdirs` is config-only; fixed dirs are for state, not output ([clig.dev](https://clig.dev/)). Rules in [architecture.md](architecture.md#output-files).
 
 ## Output argument (a file or a folder)
 

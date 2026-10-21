@@ -1,0 +1,137 @@
+athc convert-pdb
+================
+
+
+convert-pdb  --  convert a WinLogStats PDB to an Excel workbook
+   ------------------------------------------------------------
+
+   Builds an Excel workbook from a WinLogStats .pdb (FbPro '98 game stats):
+   Run Plays, Pass Plays and Def Plays sheets (one row per team and play,
+   plus a Total Stats team summing every team), a Tendencies sheet
+   (run/pass counts by down and distance) and an Options sheet. One PDB per
+   run; the Windows for loop below converts several. With no output file
+   it writes <name>.xlsm beside the PDB, replacing any existing copy; name
+   an .xlsx or .xlsm output file, or a folder (one that exists, or a path
+   ending in \), to write elsewhere (a name with no extension gets .xlsm;
+   missing folders are created). An .xlsm has the built-in sorting:
+   double-click a column to sort by it (stat columns toggle between
+   descending and ascending; Team, Category, Slot, Play and Type sort
+   ascending only), and the row you select is outlined; an .xlsx is plain.
+   Excel opens an .xlsm with its macros disabled until you click Enable
+   Content, and a copy sent by email opens with them blocked (unblock it in
+   the file's Properties, or make an .xlsx to share).
+
+   Plays are grouped by their category, shown under the league's name for
+   it (PSL, RunLeft) and sorted in the league's order.
+
+   Slot 1 and Slot 2 show where each play sits in your team's 1st- and
+   2nd-half game plans, per side. With no game plan option, they come from
+   the league file: --path FOLDER, else ppp_path in league.toml for your
+   team, else where the league file puts them; team in league.toml is your
+   team and --team NAME picks another. A missing plan is a WARN and hides its
+   column. With -o, -o2, -d or -d2, only the game plans given are used, each
+   must be the right side, and the league file is not read. Without a team
+   and with no game plan option, the Slot columns are hidden.
+
+   league.toml names the league's categories (RL, PSL, RunLeft, ...). The
+   settings live in athc.toml under [convert-pdb]: the workbook options
+   (percentage columns, sacks excluded from pass attempts), the order the
+   categories sort in ([convert-pdb.category_order]) and the deleted plays to
+   skip. A league that differs puts the same tables in its league.toml with
+   only the keys that differ. The Type column's QB run and defensive front
+   come from each play file, Screen from a Screens folder. --percentages /
+   --no-percentages override the percentage columns for one run.
+
+   Show help:
+      athc convert-pdb --help
+
+   Example terminal calls:
+      athc convert-pdb 49W6.pdb
+      athc convert-pdb 49W6.pdb reports\week6.xlsx
+      athc convert-pdb 49W6.pdb reports\
+      athc convert-pdb 49W6.pdb --team Broncos
+      athc convert-pdb 49W6.pdb -o try3.pln -o2 plans\DEN-OGP1.pln
+      athc convert-pdb 49W5.pdb --path plans\wk5
+      athc convert-pdb 2045-2047.pdb --no-percentages --league PCFL
+      for %f in (*.pdb) do athc convert-pdb "%f"
+
+   Where the game plans come from (the Slot columns):
+
+      any of -o, -o2, -d, -d2    --path not allowed; the files given, the
+                                 other columns hidden. A missing plan:
+                                 FAIL, exit 2.
+      none, --path a folder      that folder, each plan by its league-file
+                                 name, without case. A missing plan: WARN,
+                                 its column hidden.
+      none, no --path,           ppp_path, the same way. A missing plan:
+      ppp_path set, your team    WARN, its column hidden.
+      none, no --path            where the game reads them: path joined with
+                                 the .lg2 folder. A missing plan: WARN with
+                                 the ppp_path hint, its column hidden.
+      none, no team, no --path   nothing; the Slot columns hidden, no line.
+
+      - The team is team in league.toml, or --team NAME for one run: its
+        name, nickname or both, without case. --team and --path cannot be
+        used with a game plan option.
+      - ppp_path is for your team only (the one team names).
+      - --path is a folder; its subfolders are not searched.
+      - Each plan taken from the league file prints a line:
+        <path>: Denver 1st-half offense, Slot 1. One plan for both halves
+        fills Slot 1 alone: <path>: Las Vegas offense, both halves, Slot 1.
+      - A plan on the wrong side is Not an offense game plan. (or defense):
+        a FAIL when named, a WARN with its column hidden when taken from
+        the league file. So is one that can't be read.
+      - None of the team's plans in a folder is one WARN (No Denver game
+        plans. ...), not four.
+      - athc gameplan check checks the game plans; convert-pdb only reads
+        their slots.
+
+   Settings:
+
+      The league folder leagues\<NAME>\ (picked by --league / [athc]
+      league): league.toml gives play_path (the .ply pool, required) and the
+      league's category names ([categories.*]); for the Slot columns, team
+      (your team), path (the folder with the league's .lg2 and .lge) and,
+      optionally, ppp_path (where you keep your game plans).
+
+      The settings are [convert-pdb] in athc.toml:
+
+         [convert-pdb]
+         calculate_percentages = true
+         exclude_sacks_from_pass_attempts = false
+         # Plays removed from the league's play pool: their stat lines are skipped
+         # quietly instead of warning "Play file not found".
+         deleted_plays = ["ATF0ELOB"]
+
+         # The order of the play categories in the workbook, named by the league's
+         # category names from league.toml (the game name for a category the league
+         # leaves unnamed). A category not listed stays out of the workbook.
+         [convert-pdb.category_order]
+         run = ["RL", "RM", "RR", "GLR"]
+         pass = ["PSL", "PSM", "PSR", "PML", "PMM", "PMR", "PLR", "PRD", "GLP"]
+         defense = ["RunLeft", "RunMiddle", "RunRight", "RunDazzle", "PassShort", "PassMedium", "PassLong", "PassDazzle", "GLrun", "GLpass"]
+
+      A league that differs puts the same tables in its league.toml with
+      only the keys that differ; each key it sets replaces athc.toml's, a
+      list whole. Every key is optional: a missing option keeps its default
+      (include_category_worksheets is off and left out of the shipped
+      file), a missing list is empty. --percentages / --no-percentages
+      override calculate_percentages for one run.
+
+   Lines and exit codes:
+
+      - Progress on stderr: the game plans' lines, then Creating <workbook>.
+      - A WARN line per notice (a missing game plan, a play not in the play
+        pool, a stale deleted_plays entry, invalid PDB data, a play-pool
+        issue), each naming its file first where one is to blame; then
+        OK   <workbook>: <n> play(s). athc playpool check lists the
+        play-pool issues on their own, with an exit code.
+      - A setting that is wrong (team, path, ppp_path, the league files, a
+        [convert-pdb] key) is a FAIL naming the file it came from, as in
+        check-ppp; without path the line suggests a game plan option
+        instead.
+      - Exit 0 done (warnings included), 2 on an error (a missing or bad
+        file, config, no play_path, I/O) or usage (bad extension, --team
+        with -o, etc.); FAIL <why> names the problem. The shared scheme:
+        EXIT CODES in README.txt.
+

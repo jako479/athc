@@ -107,7 +107,7 @@ one exists, sits beside it.
 ## Not game files
 
 - `.pdb`: WinLogStats database of game stats, read by `convert-pdb`. Docs:
-  [pdbtoexcel](../pdbtoexcel.md#how-it-works).
+  [pdbtoexcel](../design/pdbtoexcel.md#how-it-works).
 
 ## Masks
 

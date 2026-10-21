@@ -1,6 +1,6 @@
 # fbpro98_stats — Test Matrix
 
-Cases covered for the `.dat` stats file library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md).
+Cases covered for the `.dat` stats file library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
 
 One row per behavior. `[P]` = parametrized over variants. Input: `make_dat()` = constructed bytes (records from `make_record()`, deleted slots from `make_deleted()`), `golden` = real files in `data/` from the 2047 PNFL season: `PNFL-after-week1.dat` (1,703 deleted slots) and its `PNFL-after-week1.lge`, `PNFL-after-week9.dat` (no deleted slots), `PNFL-after-week16.dat`, `PNFL-after-super-bowl.dat`; the last two are checked against `../fbpro98_lge/data/PNFL-after-week16.lge` and `PNFL-after-super-bowl.lge`. Golden expected values are the bytes at the offset each test names, or the `.lge`. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_stats` → 181 passing.
 
