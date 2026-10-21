@@ -65,6 +65,6 @@ Docs for repo readers; the end-user docs are in `config/release/docs/`. One fold
 
 Pending designs and plans; a finished pair folds into the docs and goes (the rule in AGENTS.md).
 
-- [logging-updates.md](proposals/logging-updates.md) — Proposal — logging updates
-- [quirk-budget.md](proposals/quirk-budget.md) — Proposal — schedule quirk budget
-- [stat-corrections.md](proposals/stat-corrections.md) — Proposal — stat corrections
+- [logging-updates.md](design/TODO/logging-updates.md) — Proposal — logging updates
+- [quirk-budget.md](design/TODO/quirk-budget.md) — Proposal — schedule quirk budget
+- [stat-corrections.md](design/TODO/stat-corrections.md) — Proposal — stat corrections

@@ -4,7 +4,7 @@ Status: idea for later; nothing implemented.
 
 ## Why
 
-The game engine records some stats wrong. athc should fix them in the league's stats file, `<league>.dat` (spec: [formats/stats.md](../formats/stats.md)).
+The game engine records some stats wrong. athc should fix them in the league's stats file, `<league>.dat` (spec: [formats/stats.md](../../formats/stats.md)).
 
 ## How
 

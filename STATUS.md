@@ -600,7 +600,7 @@ Working. Docs: [scheduler.md](docs/scheduler.md) ·
 
 Open: simplify the ruleset — 50 `[phase2]` keys, some redundant by
 construction, never pruned · then the quirk budget in
-[quirk-budget.md](docs/proposals/quirk-budget.md) · delete the obsolete
+[quirk-budget.md](docs/design/TODO/quirk-budget.md) · delete the obsolete
 `TEST_DATA/scheduler_integration/` at the workspace root.
 
 ## Decisions
