@@ -80,8 +80,8 @@ def _team_numbers(lge: LgeFile) -> dict[int, int]:
 
 
 def test_read_returns_stats_file_and_matches_parse():
+    # Equality also checks the class: a dataclass equals only its own kind.
     stats = _stats(WEEK16)
-    assert isinstance(stats, StatsFile)
     assert parse_stats((FIXTURE_DIR / f"{WEEK16}.dat").read_bytes()) == stats
 
 
@@ -185,6 +185,17 @@ def test_player_career_record():
             count=27604, conference=0, points=9709
         ),
         two_point_conversions=TwoPointConversions(attempts=17, made=6),  # 0x3C064
+    )
+
+
+def test_player_last_game_record():
+    # Player 5595, the one player with a penalty in week 1.
+    assert _stats(WEEK1).player_last_game[5595] == PlayerStats(
+        tackles=2,  # 0x3B81C
+        hall_of_fame_points=HallOfFamePoints(  # 0x465DC
+            count=0, conference=1, points=-15
+        ),
+        penalties=1,  # 0xA7F8
     )
 
 
@@ -502,20 +513,30 @@ def test_last_game_block_holds_the_last_games_teams(league: str, teams: set[int]
     assert set(_stats(league).team_last_game) == teams
 
 
+def _last_game(team: TeamStats) -> tuple[int, int, int] | None:
+    # Opponent, own score, opponent's score.
+    details = team.game_details
+    if details is None:
+        return None
+    return (details.opponent, details.score, details.opponent_score)
+
+
 @pytest.mark.parametrize("league", [WEEK16, SUPER_BOWL])
 def test_last_game_matches_the_lge(league: str):
     lge = read_lge(league, LGE_DIR)
     number = _team_numbers(lge)
-    # Each team's last game in the .lge: opponent, own score, opponent's.
-    last: dict[int, tuple[int, int, int]] = {}
-    for game in (game for week in (*lge.weeks, *lge.playoffs) for game in week):
+    # The teams of the .lge's last played week or round, each with that game.
+    rounds = [week for week in (*lge.weeks, *lge.playoffs) if week]
+    expected: dict[int, tuple[int, int, int] | None] = {}
+    for game in rounds[-1]:
         home, away = number[id(game.home)], number[id(game.away)]
-        last[home] = (away, game.home_score, game.away_score)
-        last[away] = (home, game.away_score, game.home_score)
-    for team, record in _stats(league).team_last_game.items():
-        details = record.game_details
-        assert details is not None
-        assert (details.opponent, details.score, details.opponent_score) == last[team]
+        expected[home] = (away, game.home_score, game.away_score)
+        expected[away] = (home, game.away_score, game.home_score)
+    found = {
+        team: _last_game(record)
+        for team, record in _stats(league).team_last_game.items()
+    }
+    assert found == expected
 
 
 def test_playoffs_leave_season_and_career_unchanged():
@@ -612,6 +633,32 @@ def test_record_count_must_match_live_slots(
 def test_record_count_of_live_slots_accepted(make_dat, make_record, make_deleted):
     buffer = make_dat(_live_deleted_live(make_record, make_deleted), records=2)
     assert parse_stats(buffer) == TWO_RUSHERS
+
+
+@pytest.mark.parametrize(
+    ("overrides", "reason"),
+    [
+        pytest.param(
+            {"file_end": 158, "record_size": 21},
+            "File end",
+            id="file end, then record size",
+        ),
+        pytest.param(
+            {"record_size": 21, "slots_end": 138},
+            "Record size",
+            id="record size, then slots end",
+        ),
+        pytest.param({"slots_end": 138}, "Slots end", id="slots end, then the slot"),
+        pytest.param({"records": 2}, "Type 18", id="the slot, then the record count"),
+    ],
+)
+def test_first_problem_in_check_order_reported(
+    make_dat, make_record, overrides: dict[str, int], reason: str
+):
+    # The one slot has an unknown type, so each buffer has two problems.
+    buffer = make_dat([make_record(18, 1, [1])], **overrides)
+    with pytest.raises(InvalidStatsError, match=reason):
+        parse_stats(buffer)
 
 
 def test_error_names_the_path_first(make_dat):

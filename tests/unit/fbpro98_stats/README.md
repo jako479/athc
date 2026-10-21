@@ -2,7 +2,7 @@
 
 Cases covered for the `.dat` stats file library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md).
 
-One row per behavior. `[P]` = parametrized over variants. Input: `make_dat()` = constructed bytes (records from `make_record()`, deleted slots from `make_deleted()`), `golden` = real files in `data/` from the 2047 PNFL season: `PNFL-after-week1.dat` (1,703 deleted slots) and its `PNFL-after-week1.lge`, `PNFL-after-week9.dat` (no deleted slots), `PNFL-after-week16.dat`, `PNFL-after-super-bowl.dat`; the last two are checked against `../fbpro98_lge/data/PNFL-after-week16.lge` and `PNFL-after-super-bowl.lge`. Golden expected values are the bytes at the offset each test names, or the `.lge`. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_stats` → 176 passing.
+One row per behavior. `[P]` = parametrized over variants. Input: `make_dat()` = constructed bytes (records from `make_record()`, deleted slots from `make_deleted()`), `golden` = real files in `data/` from the 2047 PNFL season: `PNFL-after-week1.dat` (1,703 deleted slots) and its `PNFL-after-week1.lge`, `PNFL-after-week9.dat` (no deleted slots), `PNFL-after-week16.dat`, `PNFL-after-super-bowl.dat`; the last two are checked against `../fbpro98_lge/data/PNFL-after-week16.lge` and `PNFL-after-super-bowl.lge`. Golden expected values are the bytes at the offset each test names, or the `.lge`. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_stats` → 181 passing.
 
 No `test_model.py` and no `test_schema.py`: the model has no logic, and the reader tests pin every constant (the builders use the spec's literal offsets, not the schema's).
 
@@ -16,6 +16,7 @@ No `test_model.py` and no `test_schema.py`: the model has no logic, and the read
 | Every record read, 4 files | golden | the header's record count | `test_every_record_is_read` `[P]` | ☑ |
 | Ids per block, 4 files | golden | hand-counted sizes | `test_block_sizes` `[P]` | ☑ |
 | A quarterback's season and career | golden | whole `PlayerStats`, week 16 | `test_player_season_record` / `test_player_career_record` | ☑ |
+| A player's last game, with a penalty | golden | whole `PlayerStats`, week 1 | `test_player_last_game_record` | ☑ |
 | A career total past 32,767 | golden | player 550's passing yards read −22,826 | `test_career_total_past_32767_reads_negative` | ☑ |
 | A team's season, own and opponents' | golden | whole `TeamStats`, every category | `test_team_and_opponents_season_record` `[P]` | ☑ |
 | Players of the Game, week 1 | golden | ids 1-9 and the Player of the Week | `test_players_of_the_game_after_week_one` | ☑ |
@@ -26,7 +27,7 @@ No `test_model.py` and no `test_schema.py`: the model has no logic, and the read
 | Hall of Fame nominees, elected and not | golden | whole `HallOfFameNominee` | `test_hall_of_fame_nominee` `[P]` | ☑ |
 | Season points, week 1 | golden + `.lge` | each team's points for and against | `test_season_points_match_the_lge_after_week_one` | ☑ |
 | Last-game teams, week 16 and the Super Bowl | golden | all 18 / teams 4 and 17 | `test_last_game_block_holds_the_last_games_teams` `[P]` | ☑ |
-| Last game, week 16 and the Super Bowl | golden + `.lge` | opponent and both scores | `test_last_game_matches_the_lge` `[P]` | ☑ |
+| Last game, week 16 and the Super Bowl | golden + `.lge` | every team of the last week or round: opponent and both scores | `test_last_game_matches_the_lge` `[P]` | ☑ |
 | Playoffs touch last game only | golden | season, career and honors unchanged | `test_playoffs_leave_season_and_career_unchanged` | ☑ |
 
 ### Header → `InvalidStatsError`
@@ -41,6 +42,7 @@ No `test_model.py` and no `test_schema.py`: the model has no logic, and the read
 | Slots end one byte and one slot past the file end / at its last byte | make_dat | "past" / accepted | `test_slots_running_past_the_file_end_rejected` `[P]` / `test_slots_end_at_whole_records_accepted` | ☑ |
 | `0xFF` or `0x00` bytes after the slots | make_dat | ignored | `test_bytes_after_the_slots_ignored` `[P]` | ☑ |
 | Records live + 1, live − 1 / live, with a deleted slot | make_dat | "Records" / both read | `test_record_count_must_match_live_slots` `[P]` / `test_record_count_of_live_slots_accepted` | ☑ |
+| Two problems: file end and record size, record size and slots end, slots end and a slot, a slot and the record count | make_dat | the first in check order | `test_first_problem_in_check_order_reported` `[P]` | ☑ |
 | Error names the path first | make_dat | "league.dat: ..." and `.path` | `test_error_names_the_path_first` | ☑ |
 | Missing file | league + tmp folder | `OSError` naming `<league_dir>/<league>.dat` | `test_missing_file_raises_oserror_for_built_path` | ☑ |
 
