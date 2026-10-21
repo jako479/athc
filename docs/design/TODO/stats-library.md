@@ -34,7 +34,3 @@ Status: proposal; nothing implemented.
 3. `fbpro98_stats`: the record layer and in-place value changes.
 4. `fbpro98_stats`: adds, with `.idx` inserts and splits.
 5. Stat corrections, on top of steps 3 and 4.
-
-## Open questions
-
-- How the game makes a new root when the root node splits ([formats/stats.md](../../formats/stats.md), section 8); step 4 needs it.

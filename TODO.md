@@ -13,7 +13,7 @@
 - [x] check-ppp: team and league modes (`team` and `ppp_path` in league.toml, `--team`, `--all-teams`); `gameplan check` and `profile check` stay
 - [x] athc: reorganize the docs folders and set the rule for design docs and plans
 - [x] athc: go through the CLI and help text for each command
-- [ ] athc: go through all messages, warnings and errors for each command — messages name the file and line number, then say the problem in plain words; see [docs/proposals/logging-updates.md](docs/proposals/logging-updates.md)
+- [ ] athc: go through all messages, warnings and errors for each command — messages name the file and line number, then say the problem in plain words; see [docs/design/TODO/logging-updates.md](docs/design/TODO/logging-updates.md)
 - [ ] athc: look for gaps in test cases for each command and library
 - [ ] athc: update the release README with each command's warnings and errors, from the per-tool docs ([gameplan](docs/gameplan.md), [profile](docs/profile.md), [check-ppp](docs/check_ppp.md), [playpool](docs/playpool.md), [convert-pdb](docs/pdbtoexcel.md), [generate-schedule](docs/scheduler.md), [autocontinue](docs/autocontinue.md), [config](docs/config.md))
 - [ ] athc: convert the release notes from .txt to .md
@@ -39,7 +39,8 @@
 
 ## 2.0.0
 
-- athc: stat corrections — fix stats the game records wrong in `<league>.dat`; see [docs/proposals/stat-corrections.md](docs/proposals/stat-corrections.md)
+- fbpro98_stats: net touchdowns in the standings and a `.dat` writer; prerequisite for stat corrections; see [docs/design/TODO/stats-library.md](docs/design/TODO/stats-library.md)
+- athc: stat corrections — fix stats the game records wrong in `<league>.dat`; see [docs/design/TODO/stat-corrections.md](docs/design/TODO/stat-corrections.md)
 - gameplan: set-normals checks the resulting game plan and, if it fails, asks for confirmation before replacing
 - athc: update the file specs and their ImHex patterns from the Sierra source findings; see [docs/research/sierra-source.md](docs/research/sierra-source.md#14-planned-spec-changes)
 - athc: document the game behaviors and fix comments and code from the Sierra source findings and the updated specs; see [docs/research/sierra-source.md](docs/research/sierra-source.md#15-other-planned-changes)
@@ -63,4 +64,4 @@
 - profile: revisit edit\copy options
 - generate-schedule: generate schedules for PCFL
 - generate-schedule: review and simplify the ruleset — 50 `[phase2]` keys, some redundant; consider simple vs. full ruleset switch. Reasoning and plan in [STATUS.md](STATUS.md)
-- generate-schedule: quirk budget — allow a few rare NFL-style one-offs per season; see [docs/proposals/quirk-budget.md](docs/proposals/quirk-budget.md). Do the ruleset simplification first
+- generate-schedule: quirk budget — allow a few rare NFL-style one-offs per season; see [docs/design/TODO/quirk-budget.md](docs/design/TODO/quirk-budget.md). Do the ruleset simplification first
