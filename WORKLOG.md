@@ -4,6 +4,17 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-20 — **fbpro98_stats**: the standings' net-touchdowns tie-breaker
+  needs touchdowns the `.lge` does not have, and stat corrections will need a
+  writer, so the `.dat` got a read-only library in the shape of the other
+  readers. Tests run on four of the 2047 PNFL season's files; season points
+  rebuilt from the stats match the `.lge` at week 1 (from week 3 the `.dat`
+  gives Pittsburgh a touchdown the `.lge` score lacks). The real files also
+  showed that game details keep the team's own opponent and score in its
+  opponents' blocks too, and the latest regular-season game in season
+  blocks; and that a Hall of Fame points record can hold a zero count,
+  conference and points. The stats
+  spec and the stat-corrections proposal were updated to match.
 - 2026-10-17 — **athc**: the setup.exe now reads the installed version and
   refuses to install over a newer one; the same version or an older one is
   replaced as before. The sandbox test fakes a newer install to prove it.

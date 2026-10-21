@@ -35,6 +35,7 @@ Docs for repo readers; the end-user docs are in `config/release/docs/`. One fold
 - [fbpro98_play.md](fbpro98_play.md) — `.ply` plays
 - [fbpro98_profile.md](fbpro98_profile.md) — `.prf` coaching profiles, read and write
 - [fbpro98_standings.md](fbpro98_standings.md) — standings by the game's, the scheduler's or the NFL's tie-breakers
+- [fbpro98_stats.md](fbpro98_stats.md) — `.dat`: player and team stats, and the honors
 
 ## Formats
 

@@ -1,9 +1,9 @@
 # .dat and .idx - Front Page Sports Football Pro '98 Statistics File Format
 
-- **Owner:** none yet
+- **Owner:** FBPro98 Stats Library
 - **Encoding:** Integers little-endian, except the index keys (big-endian). Not masked; unused bytes hold leftover memory.
 
-A `.dat` holds a league's player and team statistics (last game, season and career), awards and Hall of Fame records. The `.idx` beside it is a B-tree index of the `.dat` records by type and id. The pair is a FairCom c-tree database; if it will not open, the game deletes both files and starts empty. Both are named after their league (`PNFL.dat`, `PNFL.idx`) and sit in the game folder. Stock (1994-1997) and custom leagues use the same layout; a fresh stock league ships an empty pair (140 and 512 bytes).
+A `.dat` holds a league's player and team statistics (last game, season and career), awards and Hall of Fame records. The `.idx` beside it is a B-tree index of the `.dat` records by type and id. The pair is a FairCom c-tree database; if it will not open, the game deletes both files and starts empty. Both are named after their league (`PNFL.dat`, `PNFL.idx`) and sit with the league's other files. Stock (1994-1997) and custom leagues use the same layout; a fresh stock league ships an empty pair (140 and 512 bytes).
 
 ---
 
@@ -81,7 +81,7 @@ Starts at 0x8C + 20 × slot.
 |   0x02 |    2 | u16    | Id     | Player id (`.pyr`) in player blocks, team number (`.lge`) in team blocks; category 15 player records have their own ids (section 5.2) |
 |   0x04 |   16 | s16[8] | Values | Values 0-7, by category (section 5); values past a category's last one hold leftover memory |
 
-Each type and id pair appears once. A missing record means all its values are zero.
+Each type and id pair appears once. A missing record means all its values are zero. In the 2047 PNFL season files no record has all eight values zero, but a Hall of Fame points record can hold a zero count, conference and points.
 
 Values are signed: rushing yards can go below zero. Totals above 32,767 wrap below zero, and the game shows them that way.
 
@@ -173,6 +173,8 @@ Team and opponents' blocks:
 |     `14` | first downs: total, rushing, passing, penalty                                                                                |
 |     `15` | first downs, third-down attempts, third downs made, fourth-down attempts, fourth downs made                                   |
 |     `16` | opponent's team number, penalties, penalty yards, time of possession in seconds, score (own × 256 + opponent's), fumbles lost |
+
+Category 16's opponent and score are the team's own, in its opponents' blocks too: the last game's in last-game blocks, the latest regular-season game's in season blocks. The other values are the block's own, season totals in season blocks.
 
 Player blocks:
 

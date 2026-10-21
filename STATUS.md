@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-18. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-20. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs/).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -317,8 +317,9 @@ from a league's `.lge`. Docs: [spec](docs/formats/lge.md)
 
 ## fbpro98 league files (specs)
 
-Reverse engineered from the PNFL's game files; only `.lge` has a library so
-far (`fbpro98_lge`, names and standings). Docs:
+Reverse engineered from the PNFL's game files; only `.lge` and `.dat` have a
+library so far (`fbpro98_lge`, names and standings; `fbpro98_stats`, the
+stats). Docs:
 [overview](docs/formats/README.md), [lge spec](docs/formats/lge.md),
 [pyr spec](docs/formats/pyr.md), [cities spec](docs/formats/cities.md),
 [stats spec](docs/formats/stats.md), [notes](docs/research/pnfl-formats.md).
@@ -366,6 +367,17 @@ method's steps),
   teams, with team moves for teams whose name changed; a seeded coin toss.
 - Library in, with unit tests. Used by `athc standings`; `fbpro98_lge` and
   `generate-schedule` keep their own ranking for now.
+
+## fbpro98_stats (library)
+
+Reads a league's `.dat`: player, team and opponents stats for the last game,
+season and career, and the honors. Docs:
+[fbpro98_stats.md](docs/fbpro98_stats.md), [spec](docs/formats/stats.md).
+
+- Reader in, with unit tests on the 2047 PNFL season (after weeks 1, 9 and
+  16 and the Super Bowl), checked against the `.lge` scores.
+- Read only; never touches the `.idx`. Nothing uses it yet; first consumer:
+  the standings' net-touchdowns tie-breaker.
 
 ## gameplan
 

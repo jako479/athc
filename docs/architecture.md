@@ -74,6 +74,7 @@ athc/
     fbpro98_play/              py.typed  model.py  reader.py
     fbpro98_profile/           py.typed  model.py  reader.py  writer.py
     fbpro98_standings/         py.typed  standings.py  methods.py  steps.py  moves.py  season.py
+    fbpro98_stats/             py.typed  model.py  reader.py
 ```
 
 ## Tools vs libraries

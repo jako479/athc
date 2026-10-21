@@ -59,8 +59,9 @@ one exists, sits beside it.
 - `.dat` + `.idx` statistics: 20-byte records keyed by type (block +
   category) and id (player or team). Unused fields hold leftover memory. The
   index is a B-tree of 512-byte blocks over (type, id) that points at each
-  record. Not masked. Spec: [stats.md](stats.md). No library. Fresh stock
-  leagues ship an empty pair (140 and 512 bytes). Holds:
+  record. Not masked. Spec: [stats.md](stats.md). Library: `fbpro98_stats`
+  (the `.dat` only). Fresh stock leagues ship an empty pair (140 and 512
+  bytes). Holds:
   - Blocks: player last game, season and career; team and opponents last
     game and season.
   - Game stats, players and teams: extra points, field goals by distance,

@@ -12,6 +12,7 @@ uv.lock text eol=lf
 *.prf binary
 *.lg2 binary
 *.lge binary
+*.dat binary
 *.pdb binary
 *.bin binary
 
