@@ -126,14 +126,7 @@ Constructed plays: tackles at x -300 and 300 unless a row says otherwise; margin
 | Label equals other side's game name | defense `"Pass Short Right"` | accepted | `test_label_may_equal_the_other_sides_game_name` | ☑ |
 | Rejected tables | unknown key; non-string / empty / blank label; own-side game name; duplicate | `ValueError` naming the entry | `test_from_tables_rejects` `[P]` | ☑ |
 
-## schema.py
-
-| Case | Expected | Test | Status |
-|---|---|---|---|
-| Struct sizes | header 8, offsets 22, metadata 3, player-header 4, box count 2, box 6, command 2, argument 2 | `test_struct_sizes` | ☑ |
-| Derived offsets | metadata at `0x1E` (30); player-data base 8 | `test_derived_offsets` | ☑ |
-| Block id | `ID_P95 == b"P95:"` | `test_block_id` | ☑ |
-| Codes | Move to, Timed pass, Check receivers, Run; G, T, C, QB, DT, DE | `test_codes` | ☑ |
+No `test_schema.py`: the reader tests pin every constant.
 
 ---
 

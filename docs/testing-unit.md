@@ -24,13 +24,18 @@ tests/
       conftest.py              # make_ply() byte-builder fixture
       data/                    # curated real .ply files
       test_reader.py
-      test_model.py
-      test_schema.py
+      test_model.py            # only where the model has logic
       README.md                # this library's test matrix
   integration/                 # CLI end-to-end → output files — see testing-integration.md
 ```
 
 A unit test exercises one component alone — no IO, or only `tmp_path`. Reading a small committed fixture still counts as unit.
+
+A test checks athc's behavior, so none:
+
+- Restates constants (a `schema.py` checked against its own literals); the reader tests on real files pin them.
+- Checks what Python's `dataclass` already does (a frozen instance refusing assignment).
+- Lives in a `test_model.py` for a model with no logic of its own.
 
 ## Fixtures (binary inputs)
 

@@ -1,6 +1,6 @@
 # fbpro98_gameplan — Test Matrix
 
-Covers reader / model / writer / schema for the `.pln` gameplan library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). **Implemented** — `pytest tests/unit/fbpro98_gameplan` → 96 passing. Status: ☑ done.
+Covers reader / model / writer for the `.pln` gameplan library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). **Implemented** — `pytest tests/unit/fbpro98_gameplan` → 95 passing. Status: ☑ done.
 
 Inputs: real `offense.pln` / `defense.pln` in `data/` (+ `data/expected/*.txt` slot/name dumps); error cases mutate the real bytes (no hand-built `.pln`).
 
@@ -45,10 +45,7 @@ Inputs: real `offense.pln` / `defense.pln` in `data/` (+ `data/expected/*.txt` s
 | Empty slot → zero offset; `<64` pads; all 64 filled | ☑ |
 | J95 counts updated on write; too-many entries raises | ☑ |
 
-## schema.py — `test_schema.py`
-| Case | Status |
-|---|---|
-| Struct sizes; block IDs; `DEFAULT_AUDIBLE` / `S98_EXPECTED_DATA` | ☑ |
+No `test_schema.py`: the reader and writer tests pin every constant.
 
 ## Known gaps
 Two deep defensive reader branches — `"Truncated play header"` and `"Truncated stock play record"` — aren't exercised; reaching them needs surgical byte construction past the earlier checks. Low priority.

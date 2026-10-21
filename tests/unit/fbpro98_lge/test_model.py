@@ -1,7 +1,5 @@
 """Tests for athc.fbpro98_lge.model."""
 
-import dataclasses
-
 import pytest
 
 from athc.fbpro98_lge import (
@@ -49,12 +47,6 @@ def test_nested_access():
 def test_official_name(name: str, nickname: str, official_name: str):
     team = Team(name=name, nickname=nickname, record=NO_GAMES)
     assert team.official_name == official_name
-
-
-def test_frozen():
-    team = Team(name="Denver", nickname="Broncos", record=NO_GAMES)
-    with pytest.raises(dataclasses.FrozenInstanceError):
-        team.name = "Dallas"  # type: ignore[misc]
 
 
 @pytest.mark.parametrize(

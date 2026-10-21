@@ -4,6 +4,11 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-20 — **athc tests**: an audit of the file libraries' tests found
+  that every `test_schema.py` only restated its module's constants and that
+  the frozen-dataclass tests only checked Python. Those went, with the `.lg2`
+  model tests, whose model has no logic; `docs/testing-unit.md` now says so.
+  The audit's other findings are not acted on yet.
 - 2026-10-20 — **fbpro98_stats**: the standings' net-touchdowns tie-breaker
   needs touchdowns the `.lge` does not have, and stat corrections will need a
   writer, so the `.dat` got a read-only library in the shape of the other

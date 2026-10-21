@@ -2,7 +2,7 @@
 
 Cases covered for the `.lg2` league file library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md).
 
-One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` = constructed bytes, `golden` = real `.lg2` in `data/` (`PNFL.lg2` custom, `NFLPI97.LG2` modern stock, `08_TEAMS.LG2` old stock). Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_lg2` → 42 passing.
+One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` = constructed bytes, `golden` = real `.lg2` in `data/` (`PNFL.lg2` custom, `NFLPI97.LG2` modern stock, `08_TEAMS.LG2` old stock). Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_lg2` → 38 passing.
 
 ## reader.py — `parse_lg2` / `read_lg2`
 
@@ -54,16 +54,4 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` =
 | Error names the path first | make_team | "league.lg2: ..." and `.path` | `test_error_names_the_path_first` | ☑ |
 | Missing file | league + tmp folder | `OSError` naming `<league_dir>/<league>.lg2` | `test_missing_file_raises_oserror_for_built_path` | ☑ |
 
-## model.py
-
-| Case | Expected | Test | Status |
-|---|---|---|---|
-| Nested access | `league_type`; half → side → profile / gameplan | `test_nested_access` | ☑ |
-| Frozen | assignment raises | `test_frozen` | ☑ |
-
-## schema.py
-
-| Case | Expected | Test | Status |
-|---|---|---|---|
-| Field and record sizes | folder `0x105`, filename `0x106`, entry `0x20B`, 8 per team, trailer `0x9`, team `0x1061` | `test_field_and_record_sizes` | ☑ |
-| Stock signatures | modern `STOCK\0A\FBPRO97\STOCK\0`, old `\0` | `test_stock_signatures` | ☑ |
+No `test_model.py` and no `test_schema.py`: the model has no logic, and the reader tests pin every constant.

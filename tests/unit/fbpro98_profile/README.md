@@ -1,6 +1,6 @@
 # fbpro98_profile — Test Matrix
 
-Covers reader / model / writer / schema for the `.prf` coaching-profile library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). **Implemented** — `pytest tests/unit/fbpro98_profile` → 154 passing. Status: ☑ done.
+Covers reader / model / writer for the `.prf` coaching-profile library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). **Implemented** — `pytest tests/unit/fbpro98_profile` → 152 passing. Status: ☑ done.
 
 Inputs (`data/`): real `TST-OFF1/OFF2/DEF1/DEF2.prf`, `*-AUD.prf` (audibles on), `*-PL.prf` (gameplan-embedded), and `stock_profiles/*.PRF`. Error cases mutate real bytes.
 
@@ -43,10 +43,7 @@ Inputs (`data/`): real `TST-OFF1/OFF2/DEF1/DEF2.prf`, `*-AUD.prf` (audibles on),
 | Mutation round-trips (field_goal_range, use_audibles); `*-AUD` preserved | ☑ |
 | Workflow: update existing in place; write new from scratch; reconstructed == fixture bytes (offense + defense) | ☑ |
 
-## schema.py — `test_schema.py`
-| Case | Status |
-|---|---|
-| Struct sizes; block IDs; data sizes; stock sizes; `STOP_CLOCK_BIT` / `WEIGHT_MASK` | ☑ |
+No `test_schema.py`: the reader and writer tests pin every constant.
 
 ## Known gaps
 The reader's `"wrong parity"` branch isn't separately exercised — trailer-length validation runs first and likely makes it unreachable. The `"Invalid PAT situation record"` branch shares its shape with the regular situation-record test. Both low priority.

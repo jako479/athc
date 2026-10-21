@@ -2,7 +2,7 @@
 
 Cases covered for the `.lge` league file library. Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md).
 
-One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()` = constructed bytes (one team unless a shape is given), `golden` = real `.lge` in `data/` (`08_TEAMS.lge`, `10_TEAMS.LGE`, `12_TEAMS.LGE` one conference; `PNFL.lge` 18 teams, custom, 2049 after week 6; `NFLPA94.lge` 28; `NFLPI97R.LGE` 30; grouped by chunk kind: `NFLPA93E.LGE` 28, `_default.lge` 30; the PNFL's 2047 season: `PNFL-before-week1.lge`, `PNFL-after-week16.lge`, `PNFL-after-super-bowl.lge`; seasons' ends for the tie-breakers: `PNFL-2043-after-super-bowl.lge`, `PNFL-2046-after-super-bowl.lge`, `PNFL-2048-after-week16.lge`). Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_lge` → 135 passing.
+One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()` = constructed bytes (one team unless a shape is given), `golden` = real `.lge` in `data/` (`08_TEAMS.lge`, `10_TEAMS.LGE`, `12_TEAMS.LGE` one conference; `PNFL.lge` 18 teams, custom, 2049 after week 6; `NFLPA94.lge` 28; `NFLPI97R.LGE` 30; grouped by chunk kind: `NFLPA93E.LGE` 28, `_default.lge` 30; the PNFL's 2047 season: `PNFL-before-week1.lge`, `PNFL-after-week16.lge`, `PNFL-after-super-bowl.lge`; seasons' ends for the tie-breakers: `PNFL-2043-after-super-bowl.lge`, `PNFL-2046-after-super-bowl.lge`, `PNFL-2048-after-week16.lge`). Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_lge` → 129 passing.
 
 ## reader.py — `parse_lge` / `read_lge`
 
@@ -87,7 +87,6 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()`
 |---|---|---|---|
 | Nested access | conference → division → team | `test_nested_access` | ☑ |
 | Official name, either part empty | `"Denver Broncos"`, `"Denver"`, `"Broncos"`, `""` | `test_official_name` `[P]` | ☑ |
-| Frozen | assignment raises | `test_frozen` | ☑ |
 | Record totals | games, win percentage (ties half, 0.0 with no games), point differential | `test_record_totals` `[P]` | ☑ |
 | `ranked` orders from the games, not the records | winner first though listed second | `test_ranked_orders_from_the_files_games_not_the_records` | ☑ |
 | `ranked` with no teams given | every team of the file | `test_ranked_defaults_to_every_team_of_the_file` | ☑ |
@@ -106,12 +105,4 @@ Built seasons: three divisions, two conferences; `_win(a, b, by)`.
 | Each step decides when the earlier ones are level | head-to-head; division record; conference record; net points in division games; net points in all games; strength of schedule | `test_head_to_head_breaks_a_tie`, `test_division_record_breaks_a_split_series`, `test_conference_record_breaks_equal_division_records`, `test_net_points_in_division_games_breaks_equal_records`, `test_net_points_in_all_games_breaks_equal_division_net_points`, `test_strength_of_schedule_breaks_everything_else_level` | ☑ |
 | A step places one team | the rest start over at head-to-head | `test_a_step_that_places_one_team_restarts_for_the_rest` | ☑ |
 
-## schema.py
-
-| Case | Expected | Test | Status |
-|---|---|---|---|
-| Chunk header and ids | `<4sI`, 8 bytes; `L03:` ... `S03:` | `test_chunk_header_and_ids` | ☑ |
-| Chunk sizes | L03 89+, C03 and D03 29+, T03 171, R03 325 | `test_chunk_sizes` | ☑ |
-| Field offsets | counts, names `0x04` (25), team name `0x36`, nickname `0x47` (17) | `test_field_offsets` | ☑ |
-| Mask factor | `0x69` | `test_mask_factor` | ☑ |
-| Schedule layout | 3-byte header, weeks at `0x00`, rounds at `0x01`, 6-byte game, played `0` | `test_schedule_layout` | ☑ |
+No `test_schema.py`: the reader tests pin every constant.

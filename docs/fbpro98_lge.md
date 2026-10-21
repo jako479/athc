@@ -100,8 +100,7 @@ See [formats/lge.md](formats/lge.md) for the format.
 ### Testing
 
 - `tests/unit/fbpro98_lge/test_reader.py` — real fixtures for every league size and both chunk orders, a season's weekly files for standings, built bytes for each check and limit.
-- `tests/unit/fbpro98_lge/test_model.py` — nesting, official name, records, games, immutability, `ranked` on built files.
+- `tests/unit/fbpro98_lge/test_model.py` — nesting, official name, records, games, `ranked` on built files.
 - `tests/unit/fbpro98_lge/test_standings.py` — each tie-breaker on built seasons, the restart after a placement, level teams keeping their order.
-- `tests/unit/fbpro98_lge/test_schema.py` — layout constants.
 
 Fixtures in `tests/unit/fbpro98_lge/data/` are real game files.

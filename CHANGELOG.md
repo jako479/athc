@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: library tests no longer restate layout constants or check that frozen dataclasses refuse changes
 - fbpro98_stats: reads a league's .dat stats file: player, team and opponents stats for the last game, season and career, and the honors
 - athc: the `.dat` / `.idx` spec now decodes field goal ranges, safeties, blocked punts, fair catches, first downs, third and fourth downs, penalties, awards and the Hall of Fame
 - gameplan: set-normals leaves a slot empty for each blank line in the list again; the help says set-normals replaces all 64 normal plays and set-specials only the listed ones
