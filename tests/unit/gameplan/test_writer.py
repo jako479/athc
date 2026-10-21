@@ -206,6 +206,79 @@ def test_offensive_special_play_in_a_defense_game_plan_is_rejected() -> None:
     ]
 
 
+def test_normal_play_name_matches_any_case() -> None:
+    """A list name finds its pool play in any case; the slot gets the pool's file."""
+    pool = _pool_with("RUNA", special_category=0)
+    gp = _offense_gameplan()
+    updated = apply_normal_plays(gp, [PlayLine(1, "runa")], pool)
+    assert updated.normal_plays[0] == _ref("RUNA", 0)
+
+
+def test_every_bad_normal_line_is_reported_at_once() -> None:
+    pool = _pool_with("RUNA", special_category=0)
+    lines = [PlayLine(1, "GHOST"), PlayLine(2, "RUNA"), PlayLine(4, "GHOST2")]
+    with pytest.raises(InvalidPlayListError) as exc:
+        apply_normal_plays(_offense_gameplan(), lines, pool)
+    assert exc.value.invalid_plays == [
+        InvalidPlay(1, "'GHOST' is not in the play pool (slot 1-1)."),
+        InvalidPlay(4, "'GHOST2' is not in the play pool (slot 1-3)."),
+    ]
+    assert str(exc.value) == "2 invalid play(s)."
+
+
+def test_normal_plays_fill_all_64_slots() -> None:
+    """The 64th line is read: a bad play there is reported."""
+    pool = _pool_with("RUNA", special_category=0)
+    lines = [PlayLine(n, "RUNA") for n in range(1, 64)] + [PlayLine(64, "GHOST")]
+    with pytest.raises(InvalidPlayListError) as exc:
+        apply_normal_plays(_offense_gameplan(), lines, pool)
+    assert exc.value.invalid_plays == [
+        InvalidPlay(64, "'GHOST' is not in the play pool (slot 16-4).")
+    ]
+
+
+def test_normal_plays_past_64_are_dropped() -> None:
+    """A 65th line has no slot, so it is never read."""
+    pool = _pool_with("RUNA", special_category=0)
+    lines = [PlayLine(n, "RUNA") for n in range(1, 65)] + [PlayLine(65, "GHOST")]
+    gp = _offense_gameplan()
+    updated = apply_normal_plays(gp, lines, pool)
+    assert updated == replace(gp, normal_plays=(_ref("RUNA", 0),) * 64)
+
+
+def test_duplicate_special_play_is_rejected_any_case() -> None:
+    pool = _pool_with("KICKPLY", special_category=2)
+    lines = [PlayLine(1, "KICKPLY"), PlayLine(2, "kickply")]
+    with pytest.raises(InvalidPlayListError) as exc:
+        apply_special_plays(_offense_gameplan(), lines, pool)
+    assert exc.value.invalid_plays == [
+        InvalidPlay(
+            2, "Duplicate special play 'kickply', already used for special category 2."
+        )
+    ]
+
+
+def test_two_special_plays_for_one_category_are_rejected() -> None:
+    pool = _pool_with("KICKA", "KICKB", special_category=2)
+    lines = [PlayLine(1, "KICKA"), PlayLine(3, "KICKB")]
+    with pytest.raises(InvalidPlayListError) as exc:
+        apply_special_plays(_offense_gameplan(), lines, pool)
+    assert exc.value.invalid_plays == [
+        InvalidPlay(
+            3, "'KICKB' targets special category 2, already filled by another play."
+        )
+    ]
+
+
+def test_special_play_not_in_the_pool_is_rejected() -> None:
+    pool = _pool_with("KICKPLY", special_category=2)
+    with pytest.raises(InvalidPlayListError) as exc:
+        apply_special_plays(_offense_gameplan(), [PlayLine(2, "GHOST")], pool)
+    assert exc.value.invalid_plays == [
+        InvalidPlay(2, "'GHOST' is not in the play pool.")
+    ]
+
+
 def test_play_line_and_invalid_play_are_named_tuples() -> None:
     line, name = PlayLine(3, "Play A")
     assert (line, name) == (3, "Play A")

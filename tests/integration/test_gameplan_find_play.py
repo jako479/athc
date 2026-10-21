@@ -27,6 +27,7 @@ from athc.fbpro98_gameplan import (
     ProfileType,
     SpecialSlot,
     StockPlayRef,
+    read_gameplan,
     write_gameplan,
 )
 from athc.fbpro98_lge import read_lge
@@ -207,10 +208,6 @@ def test_format_defense_special() -> None:
 
 def run(runner, *args: Path | str) -> Result:
     return runner.invoke(find_play, [str(a) for a in args])
-
-
-def test_cli_requires_args(runner) -> None:
-    assert runner.invoke(find_play, []).exit_code == 2
 
 
 def test_cli_bare_is_missing_play(runner) -> None:
@@ -414,6 +411,34 @@ def test_cli_malformed_pln_exit_2(runner, tmp_path: Path) -> None:
     assert (
         result.stderr
         == f"FAIL {bad}: File too small to contain PLN header and offsets table.\n"
+    )
+
+
+def test_cli_bug_in_one_file_keeps_the_batch_going(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, log_dir: Path
+) -> None:
+    """A bug on one file is reported as unexpected, the other file is still
+    searched, and the run exits 2 though the play was found."""
+    doomed = tmp_path / "doomed.pln"
+    good = tmp_path / "good.pln"
+    shutil.copy2(GP_OFFENSE, doomed)
+    shutil.copy2(GP_OFFENSE, good)
+
+    def read(path: str) -> GamePlan:
+        if Path(path) == doomed:
+            raise RuntimeError("kaboom")
+        return read_gameplan(path)
+
+    monkeypatch.setattr("athc.cli.gameplan.find_play.read_gameplan", read)
+    result = run(runner, KNOWN_NORMAL, "--path", tmp_path)
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {doomed}: Unexpected error. See {log_dir / 'athc.log'} for details.\n"
+    )
+    assert result.stdout == (
+        f"{good}: '{KNOWN_NORMAL}' found in slot 1-1\n"
+        "\n"
+        f"'{KNOWN_NORMAL}': found 1 instance(s) in 1 game plan(s)\n"
     )
 
 

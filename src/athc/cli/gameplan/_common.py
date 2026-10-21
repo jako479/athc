@@ -386,8 +386,7 @@ def parse_play_list(text: str) -> list[PlayLine]:
         idx = line.find(f" {COMMENT_TOKEN}")
         if idx >= 0:
             line = line[:idx].rstrip()
-        if line:
-            out.append(PlayLine(number, line))
+        out.append(PlayLine(number, line))
     while out and not out[-1].name:
         out.pop()
     return out

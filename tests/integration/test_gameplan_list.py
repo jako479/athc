@@ -52,14 +52,13 @@ def _expected(name: str) -> list[str]:
 # ── list-normals ──────────────────────────────────────────────────────────────
 
 
-def test_normals_requires_path(runner) -> None:
-    assert runner.invoke(list_normals, []).exit_code == 2
-
-
-def test_normals_rejects_invalid_sort(runner) -> None:
-    assert (
-        runner.invoke(list_normals, [str(GP_OFFENSE), "--sort", "bogus"]).exit_code == 2
-    )
+def test_normals_rejects_invalid_sort(runner, tmp_path: Path) -> None:
+    gp = tmp_path / "OFF.pln"
+    shutil.copy2(GP_OFFENSE, gp)
+    result = runner.invoke(list_normals, [str(gp), "--sort", "bogus"])
+    assert result.exit_code == 2
+    assert "Error: Invalid value for '--sort': 'bogus' is not one of" in result.stderr
+    assert not (tmp_path / "OFF.normals.txt").exists()
 
 
 def test_normals_help_uses_uppercase_names(runner) -> None:
@@ -182,6 +181,22 @@ def test_normals_sort_category_game_name_without_label(runner, tmp_path: Path) -
     ]  # fmt: skip
 
 
+def test_normals_sort_name_drops_blanks_and_ignores_case(
+    runner, tmp_path: Path
+) -> None:
+    """A plain sort would put CHARLIE before bravo."""
+    plays = {
+        5: offense_normal("bravo"),
+        9: offense_normal("Alpha"),
+        20: offense_normal("CHARLIE"),
+    }
+    path = tmp_path / "OFF.pln"
+    write_gameplan(build_gameplan(ProfileType.OFFENSE, normals=plays), path)
+    result = runner.invoke(list_normals, [str(path), "-", "--sort", "name"])
+    assert result.exit_code == 0
+    assert result.stdout.splitlines() == ["Alpha", "bravo", "CHARLIE"]
+
+
 def test_normals_sort_category_without_league_labels(runner, league: Path) -> None:
     (league / "league.toml").write_text(league_toml(labels=False), encoding="utf-8")
     result = runner.invoke(list_normals, [str(GP_OFFENSE), "-", "--sort", "category"])
@@ -200,6 +215,18 @@ def test_normals_league_option_picks_league(runner, make_league: MakeLeague) -> 
     )
     assert result.exit_code == 0
     assert result.stdout.splitlines()[0] == ":: Run Left"
+
+
+def test_normals_league_that_does_not_exist_fails_first(
+    runner, config_dir: Path, tmp_path: Path
+) -> None:
+    """Before the game plan, which is missing too."""
+    result = runner.invoke(
+        list_normals, [str(tmp_path / "nope.pln"), "-", "--league", "NOPE"]
+    )
+    assert result.exit_code == 2
+    assert result.stderr == league_not_found(config_dir, "NOPE", LEAGUE)
+    assert result.stdout == ""
 
 
 def test_normals_no_league_exit_2(
@@ -295,10 +322,6 @@ def test_normals_malformed_file_mode_no_output(runner, tmp_path: Path) -> None:
 
 
 # ── list-specials ─────────────────────────────────────────────────────────────
-
-
-def test_specials_requires_path(runner) -> None:
-    assert runner.invoke(list_specials, []).exit_code == 2
 
 
 def test_specials_help_uses_uppercase_names(runner) -> None:

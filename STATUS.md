@@ -387,6 +387,9 @@ season and career, and the honors. Docs:
 Working. Validates and edits `.pln` game plans. Docs:
 [gameplan.md](docs/gameplan.md) · [rules](config/release/leagues/PNFL/gameplan.toml)
 
+- `set-normals` reports every bad line of a play list in one run.
+- Tests reviewed 2026-10-18: every rule limit is tested at the limit and one
+  past it, and every rule message is pinned word for word.
 - `set-normals` clears all 64 normal slots, then fills them in list order; a
   blank line leaves its slot empty. `set-specials` replaces only the listed
   plays and skips blank lines.

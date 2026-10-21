@@ -4,6 +4,11 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-21 — **gameplan**: set-normals checked a list for special plays
+  first and stopped there, so a missing or wrong-side play on another line
+  showed only after the special one was fixed. It now reports every bad line
+  in one run, the special ones still pointing to set-specials. A check in the
+  play-list reader that could never be false went.
 - 2026-10-20 — **stats files**: compared the 2047 season's weekly `.dat` and
   `.idx` pairs to see how the game maintains them (updated in place,
   last-game records deleted and re-added, deleted slots reused, playoffs
@@ -28,6 +33,16 @@ Where things stand now: [STATUS.md](STATUS.md).
   blocks; and that a Hall of Fame points record can hold a zero count,
   conference and points. The stats
   spec and the stat-corrections proposal were updated to match.
+- 2026-10-18 — **gameplan**: a review of the tests found rule limits tested
+  on one side only, validator messages checked only through the two golden
+  reports, the duplicate-play rule with no test of its own, untested rules-file
+  keys (`custom_special_play_required`, the shapes of
+  `required_special_categories`, a bad fraction), and tests that only checked
+  the exit code. Each limit is now tested at the limit and one past it on both
+  sides, every violation message is pinned, the clean `check` runs on real
+  rules instead of a mock, and duplicate usage-error tests went. New command
+  tests cover a wrong `--league`, a bug in one file of a batch and a play list
+  that does not fit; the test matrices follow.
 - 2026-10-17 — **athc**: the setup.exe now reads the installed version and
   refuses to install over a newer one; the same version or an older one is
   replaced as before. The sandbox test fakes a newer install to prove it.

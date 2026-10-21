@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- gameplan: set-normals reports every bad line of a play list in one run; a special play no longer hides the others
+- gameplan: tests check both sides of every rule limit and the wording of every rule message, plus a wrong `--league`, a bug in one file and a play list that does not fit
 - athc: the `.dat` / `.idx` spec names every header field after FairCom's c-tree file header and states how deleted slots and index nodes are reused and how full nodes split
 - athc: the game-behavior doc says how the game updates the stats files each week, at the end of the regular season and through the playoffs
 - athc: library tests no longer restate layout constants or check that frozen dataclasses refuse changes

@@ -84,7 +84,7 @@ The league folder `leagues\<NAME>\` (see [architecture.md](architecture.md#confi
 
 ## Tests
 
-`pytest tests/integration/test_gameplan_check.py`
+`tests/unit/gameplan/` and `tests/integration/test_gameplan_*.py`; each folder's `README.md` lists the cases.
 
 ## How it works
 

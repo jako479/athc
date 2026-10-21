@@ -28,7 +28,14 @@ from athc.fbpro98_gameplan import (
 from athc.gameplan import OffenseCategoryRule, Rules
 from athc.gameplan.writer import build_custom_play
 from athc.playpool import PlayPool, read_play_pool
-from tests.conftest import LEAGUE, PNFL_LABELS, athc_toml, league_toml, toml_error
+from tests.conftest import (
+    LEAGUE,
+    PNFL_LABELS,
+    athc_toml,
+    league_not_found,
+    league_toml,
+    toml_error,
+)
 from tests.integration.conftest import (
     GP_DEFENSE,
     GP_OFFENSE,
@@ -396,10 +403,6 @@ def test_format_lines_special_slot() -> None:
 # ── command: usage / replacement resolution ───────────────────────────────────
 
 
-def test_cli_requires_args(runner) -> None:
-    assert runner.invoke(replace_play, []).exit_code == 2
-
-
 def test_cli_bare_is_missing_play(runner) -> None:
     result = runner.invoke(replace_play, [])
     assert result.exit_code == 2
@@ -472,10 +475,27 @@ def test_cli_every_replacement_must_be_in_pool(runner, tmp_path: Path) -> None:
 
 def test_cli_no_quiet_option(runner, tmp_path: Path) -> None:
     p = _write(_offense_gameplan(normals={0: offense_normal("OLDRUN")}), tmp_path)
+    original = p.read_bytes()
     result = runner.invoke(
-        replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(p), "-q"]
+        replace_play, ["OLDRUN", NORMAL_REPL, "--path", str(p), "-q"]
     )
     assert result.exit_code == 2
+    assert result.stderr.endswith("Error: No such option '-q'.\n")
+    assert p.read_bytes() == original
+
+
+def test_cli_league_that_does_not_exist_fails_first(
+    runner, config_dir: Path, tmp_path: Path
+) -> None:
+    """Before the path, which is missing too."""
+    missing = tmp_path / "nope.pln"
+    result = runner.invoke(
+        replace_play,
+        ["OLDRUN", NORMAL_REPL, "--path", str(missing), "--league", "NOPE"],
+    )
+    assert result.exit_code == 2
+    assert result.stderr == league_not_found(config_dir, "NOPE", LEAGUE)
+    assert result.stdout == ""
 
 
 def test_cli_replacement_not_in_pool_exit_2(runner, tmp_path: Path) -> None:
@@ -967,6 +987,38 @@ def test_cli_continues_past_failed_file(runner, tmp_path: Path) -> None:
     )
     assert result.exit_code == 2
     assert "replaced 1 instance(s) in 1 game plan(s), 1 failed" in result.stdout
+
+
+def test_cli_bug_in_one_file_keeps_the_batch_going(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, log_dir: Path
+) -> None:
+    """A bug on one file is reported as unexpected and leaves it as it was;
+    the other file is still edited, and the run exits 2."""
+    doomed = _target_plan(tmp_path, "doomed.pln")
+    good = _target_plan(tmp_path, "good.pln")
+    original = doomed.read_bytes()
+
+    def read(path: str) -> GamePlan:
+        if Path(path) == doomed:
+            raise RuntimeError("kaboom")
+        return read_gameplan(path)
+
+    monkeypatch.setattr("athc.cli.gameplan.replace_play.read_gameplan", read)
+    result = runner.invoke(
+        replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(tmp_path)]
+    )
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {doomed}: Unexpected error. See {log_dir / 'athc.log'} for details.\n"
+    )
+    assert result.stdout == (
+        f"OK   {good}: '{NORMAL_TARGET}' (RL) replaced with '{NORMAL_REPL}' (RM) "
+        "[1-1]\n"
+        "\n"
+        f"'{NORMAL_TARGET}' -> '{NORMAL_REPL}': replaced 1 instance(s) in "
+        "1 game plan(s), 1 failed, 0 not replaced\n"
+    )
+    assert doomed.read_bytes() == original
 
 
 # ── your team's game plans ────────────────────────────────────────────────────

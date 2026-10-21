@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from athc.fbpro98_play import CategoryLabels
-from athc.gameplan import OffenseCategoryRule, Rules
+from athc.gameplan import DefenseCategoryRule, OffenseCategoryRule, Rules
 from athc.gameplan import load_rules as _load_rules
 from athc.gameplan.rules import RulesFileError
 from tests.conftest import PNFL_LABELS, shipped_files, shipped_id
@@ -148,6 +148,51 @@ def test_required_special_rejects_unknown_name(tmp_path: Path) -> None:
         load_rules([write(tmp_path, text)])
 
 
+def test_required_special_accepts_all_twelve_names(tmp_path: Path) -> None:
+    names = (
+        "Field Goal/PAT", "Kickoff", "Punt", "Onside Kick", "Fake FG Run",
+        "Fake FG Pass", "Fake Punt Run", "Fake Punt Pass", "Free Kick",
+        "Squib Kick", "Run Clock", "Stop Clock",
+    )  # fmt: skip
+    listed = ", ".join(f'"{name}"' for name in names)
+    text = MINIMAL + f"required_special_categories = [{listed}]\n"
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.required_special_categories == frozenset(range(1, 13))
+
+
+def test_required_special_must_be_list(tmp_path: Path) -> None:
+    text = MINIMAL + 'required_special_categories = "Punt"\n'
+    with pytest.raises(
+        RulesFileError, match="required_special_categories: Must be a list"
+    ):
+        load_rules([write(tmp_path, text)])
+
+
+def test_required_special_entries_must_be_strings(tmp_path: Path) -> None:
+    text = MINIMAL + "required_special_categories = [3]\n"
+    with pytest.raises(
+        RulesFileError, match="required_special_categories: Entries must be strings"
+    ):
+        load_rules([write(tmp_path, text)])
+
+
+def test_custom_special_play_required_defaults_false(tmp_path: Path) -> None:
+    assert load_rules([write(tmp_path, MINIMAL)]).custom_special_play_required is False
+
+
+def test_custom_special_play_required_parses(tmp_path: Path) -> None:
+    text = MINIMAL + "custom_special_play_required = true\n"
+    assert load_rules([write(tmp_path, text)]).custom_special_play_required is True
+
+
+def test_custom_special_play_required_must_be_bool(tmp_path: Path) -> None:
+    text = MINIMAL + 'custom_special_play_required = "yes"\n'
+    with pytest.raises(
+        RulesFileError, match="custom_special_play_required: Must be a boolean"
+    ):
+        load_rules([write(tmp_path, text)])
+
+
 # ── min_count / max_count ─────────────────────────────────────────────────────
 
 
@@ -204,6 +249,13 @@ def test_min_count_must_be_int(tmp_path: Path) -> None:
         load_rules([write(tmp_path, text)])
 
 
+def test_count_rejects_a_boolean(tmp_path: Path) -> None:
+    """TOML's `true` is not a count, though Python counts it as an int."""
+    text = MINIMAL + "[offense.RM]\nmin_count = true\n"
+    with pytest.raises(RulesFileError, match="min_count: Must be an integer"):
+        load_rules([write(tmp_path, text)])
+
+
 # ── run/pass cap gating still applies ─────────────────────────────────────────
 
 
@@ -213,6 +265,24 @@ def test_run_cap_rejected_on_pass(tmp_path: Path) -> None:
         + "[offense.PSL]\nrequired = true\nmin_count = 5\nmax_qb_runs_count = 1\n"
     )
     with pytest.raises(RulesFileError, match="Unknown key"):
+        load_rules([write(tmp_path, text)])
+
+
+def test_pass_cap_rejected_on_run(tmp_path: Path) -> None:
+    text = MINIMAL + "[offense.RM]\nmax_rollouts_count = 1\n"
+    with pytest.raises(
+        RulesFileError,
+        match=re.escape("[offense.RM]: Unknown key(s): max_rollouts_count."),
+    ):
+        load_rules([write(tmp_path, text)])
+
+
+def test_offense_cap_rejected_on_defense(tmp_path: Path) -> None:
+    text = MINIMAL + "[defense.PassShort]\nmax_qb_runs_count = 1\n"
+    with pytest.raises(
+        RulesFileError,
+        match=re.escape("[defense.PassShort]: Unknown key(s): max_qb_runs_count."),
+    ):
         load_rules([write(tmp_path, text)])
 
 
@@ -237,6 +307,21 @@ ATTRIBUTES = [
     ("[defense.PassShort]", "max_two_dl"),
 ]
 
+# Each section the tables here use: its side and the game name its rule is
+# filed under.
+SECTIONS = {
+    "[offense.RM]": ("offense", "Run Middle"),
+    "[offense.PSL]": ("offense", "Pass Short Left"),
+    "[defense.PassShort]": ("defense", "Pass Short"),
+}
+
+
+def rule_of(rules: Rules, section: str) -> OffenseCategoryRule | DefenseCategoryRule:
+    side, name = SECTIONS[section]
+    if side == "offense":
+        return rules.offense_categories[name]
+    return rules.defense_categories[name]
+
 
 @pytest.mark.parametrize("section,attr", ATTRIBUTES)
 def test_two_forms_of_one_attribute_rejected(
@@ -249,12 +334,17 @@ def test_two_forms_of_one_attribute_rejected(
 
 @pytest.mark.parametrize("section,attr", ATTRIBUTES)
 @pytest.mark.parametrize(
-    "form,value", [("count", "2"), ("ratio", '"1/2"'), ("percent", "50")]
+    "form,value,parsed",
+    [("count", "2", 2), ("ratio", '"1/2"', Fraction(1, 2)), ("percent", "50", 50)],
 )
 def test_one_form_of_one_attribute_accepted(
-    tmp_path: Path, section: str, attr: str, form: str, value: str
+    tmp_path: Path, section: str, attr: str, form: str, value: str, parsed: object
 ) -> None:
-    load_rules([write(tmp_path, MINIMAL + f"{section}\n{attr}_{form} = {value}\n")])
+    text = MINIMAL + f"{section}\n{attr}_{form} = {value}\n"
+    rule = rule_of(load_rules([write(tmp_path, text)]), section)
+    assert getattr(rule, f"{attr}_{form}") == parsed
+    others = [f for f in ("count", "ratio", "percent") if f != form]
+    assert all(getattr(rule, f"{attr}_{f}") is None for f in others)
 
 
 # ── count ranges (>= 0, no upper bound) ───────────────────────────────────────
@@ -270,9 +360,8 @@ COUNT_SETTINGS = [
 
 @pytest.mark.parametrize("section,key", COUNT_SETTINGS)
 def test_count_zero_ok(tmp_path: Path, section: str, key: str) -> None:
-    load_rules(
-        [write(tmp_path, MINIMAL + f"{section}\n{key} = 0\n")]
-    )  # 0 = lower limit
+    text = MINIMAL + f"{section}\n{key} = 0\n"  # 0 = lower limit
+    assert getattr(rule_of(load_rules([write(tmp_path, text)]), section), key) == 0
 
 
 @pytest.mark.parametrize("section,key", COUNT_SETTINGS)
@@ -316,6 +405,18 @@ def test_ratio_out_of_range_rejected(
 def test_ratio_must_be_string(tmp_path: Path) -> None:
     text = MINIMAL + "[offense.PSL]\nmax_timed_ratio = 0.5\n"
     with pytest.raises(RulesFileError, match='Must be a string like "1/2"'):
+        load_rules([write(tmp_path, text)])
+
+
+@pytest.mark.parametrize(
+    "val", ["half", "1/0"], ids=["not a number", "zero denominator"]
+)
+def test_ratio_not_a_fraction_rejected(tmp_path: Path, val: str) -> None:
+    text = MINIMAL + f'[offense.PSL]\nmax_timed_ratio = "{val}"\n'
+    with pytest.raises(
+        RulesFileError,
+        match=re.escape(f"[offense.PSL].max_timed_ratio: Invalid fraction '{val}': "),
+    ):
         load_rules([write(tmp_path, text)])
 
 
@@ -520,6 +621,27 @@ def test_layering_replaces_allowed_list(tmp_path: Path) -> None:
         allowed_offensive_categories=frozenset({"Pass Short Left"}),
         allowed_defensive_categories=frozenset({"Run Left"}),
     )
+
+
+def test_layering_replaces_special_keys(tmp_path: Path) -> None:
+    """A later file's special keys replace the earlier ones; an omitted key
+    keeps the earlier value."""
+    a = tmp_path / "a.toml"
+    a.write_text(
+        'required_special_categories = ["Punt", "Kickoff"]\n'
+        "custom_special_play_required = true\n",
+        "utf-8",
+    )
+    b = tmp_path / "b.toml"
+    b.write_text('required_special_categories = ["Field Goal/PAT"]\n', "utf-8")
+    rules = load_rules([a, b])
+    assert rules == Rules(
+        required_special_categories=frozenset({1}),
+        custom_special_play_required=True,
+    )
+    c = tmp_path / "c.toml"
+    c.write_text("custom_special_play_required = false\n", "utf-8")
+    assert load_rules([a, c]).custom_special_play_required is False
 
 
 def test_bom_is_skipped(tmp_path: Path) -> None:

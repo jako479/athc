@@ -23,11 +23,7 @@ from athc.console import console
 from athc.errors import AthcError
 from athc.fbpro98_gameplan import GamePlan, read_gameplan, write_gameplan
 from athc.gameplan.config import load_config
-from athc.gameplan.writer import (
-    InvalidPlay,
-    InvalidPlayListError,
-    apply_normal_plays,
-)
+from athc.gameplan.writer import InvalidPlayListError, apply_normal_plays
 
 NORMAL_COUNT = GamePlan.NUMBER_NORMAL_PLAYS
 
@@ -79,27 +75,23 @@ def set_normals(
     config = load_config(league, rule_files=())  # no gameplan rules needed
     pool = build_pool(config.play_path, config.categories)
 
-    specials = [
-        InvalidPlay(
-            play.line,
-            f"'{play.name}' is a special play. Run 'athc gameplan set-specials'.",
-        )
+    # A special play's line points to set-specials, in place of the writer's
+    # plain reason; every bad line is still reported in one run.
+    specials = {
+        play.line: f"'{play.name}' is a special play. Run 'athc gameplan set-specials'."
         for play in plays
         if play.name
         and (r := pool.find_by_name(play.name)) is not None
         and r.play_file.is_special
-    ]
-    if specials:
-        for invalid in specials:
-            console.fail(f"{source}line {invalid.line}: {invalid.reason}")
-        ctx.exit(2)
+    }
 
     gp = read_gameplan(target)
     try:
         updated = apply_normal_plays(gp, plays, pool)
     except InvalidPlayListError as error:
         for invalid in error.invalid_plays:
-            console.fail(f"{source}line {invalid.line}: {invalid.reason}")
+            reason = specials.get(invalid.line, invalid.reason)
+            console.fail(f"{source}line {invalid.line}: {reason}")
         ctx.exit(2)
     write_gameplan(updated, target)
     count = sum(1 for p in updated.normal_plays if p is not None)

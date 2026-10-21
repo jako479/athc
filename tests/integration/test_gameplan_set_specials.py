@@ -10,8 +10,8 @@ import pytest
 
 from athc.cli.gameplan.set_specials import set_specials
 from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
-from athc.fbpro98_gameplan import PlayRef, read_gameplan, write_gameplan
-from tests.conftest import LEAGUE, athc_toml, league_toml
+from athc.fbpro98_gameplan import GamePlan, PlayRef, read_gameplan, write_gameplan
+from tests.conftest import LEAGUE, athc_toml, league_not_found, league_toml
 from tests.integration.conftest import (
     GP_DEFENSE,
     GP_OFFENSE,
@@ -101,10 +101,24 @@ def test_extra_argument_rejected(runner, tmp_path: Path) -> None:
 
 def test_no_quiet_option(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
+    original = p.read_bytes()
     result = runner.invoke(
         set_specials, ["--path", str(p), str(_input(tmp_path, SPECIAL + "\n")), "-q"]
     )
     assert result.exit_code == 2
+    assert result.stderr.endswith("Error: No such option '-q'.\n")
+    assert p.read_bytes() == original
+
+
+def test_league_that_does_not_exist_fails_first(
+    runner, config_dir: Path, tmp_path: Path
+) -> None:
+    """Before the list, which is missing too."""
+    result = runner.invoke(
+        set_specials, [str(tmp_path / "nope.txt"), "--league", "NOPE"]
+    )
+    assert result.exit_code == 2
+    assert result.stderr == league_not_found(config_dir, "NOPE", LEAGUE)
 
 
 @pytest.mark.parametrize(
@@ -264,6 +278,36 @@ def test_rejects_duplicate_play(runner, tmp_path: Path) -> None:
     )
 
 
+def test_rejects_two_plays_for_one_category(runner, tmp_path: Path) -> None:
+    """LIONKICK and CIN-KR are both special category 2 (Kickoff, Kick Return)."""
+    p = _copy(tmp_path)
+    original = p.read_bytes()
+    inp = _input(tmp_path, f"{SPECIAL}\nCIN-KR\n")
+    result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {inp}: line 2: 'CIN-KR' targets special category 2, already "
+        f"filled by '{SPECIAL}'.\n"
+    )
+    assert p.read_bytes() == original
+
+
+def test_other_side_play_fails_the_game_plan(runner, tmp_path: Path) -> None:
+    """The first play makes the list offense; the defense play SKINPRW6 then
+    fails each offense game plan, naming its list line, and nothing is written."""
+    p = _copy(tmp_path)
+    original = p.read_bytes()
+    inp = _input(tmp_path, f"{SPECIAL}\nSKINPRW6\n")
+    result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {p}: 'SKINPRW6' is a defensive special play, but the game plan is "
+        f"offensive ({inp} line 2).\n"
+    )
+    assert result.stdout == "\n1 file(s) processed, 0 updated, 0 skipped, 1 failed\n"
+    assert p.read_bytes() == original
+
+
 def test_as_many_plays_as_slots_pass_the_count(runner, tmp_path: Path) -> None:
     """Ten plays are within the limit: the run gets past the count check (here
     to the duplicate check, since the pool has one play to repeat)."""
@@ -301,10 +345,11 @@ def test_too_many_plays_rejected(runner, tmp_path: Path) -> None:
 
 def test_missing_target(runner, tmp_path: Path) -> None:
     inp = _input(tmp_path, SPECIAL + "\n")
-    result = runner.invoke(
-        set_specials, ["--path", str(tmp_path / "nope.pln"), str(inp)]
-    )
+    missing = tmp_path / "nope.pln"
+    result = runner.invoke(set_specials, ["--path", str(missing), str(inp)])
     assert result.exit_code == 2
+    assert result.stderr == f"FAIL {missing}: {FILE_NOT_FOUND}\n"
+    assert result.stdout == "\n0 file(s) processed, 0 updated, 0 skipped, 1 failed\n"
 
 
 def test_missing_play_list(runner, tmp_path: Path) -> None:
@@ -376,6 +421,56 @@ def test_offense_input_skips_defense_files(runner, tmp_path: Path) -> None:
     assert f"SKIP {deff}: defense game plan" in result.stdout
     assert "2 file(s) processed, 1 updated, 1 skipped, 0 failed" in result.stdout
     assert deff.read_bytes() == def_pre
+
+
+def test_defense_input_skips_offense_files(runner, tmp_path: Path) -> None:
+    plans = _plans(tmp_path)
+    off = _copy(plans, "off.pln")
+    off_pre = off.read_bytes()
+    deff = _without_special(_copy(plans, "def.pln", src=GP_DEFENSE))
+    result = runner.invoke(
+        set_specials, ["--path", str(plans), str(_input(tmp_path, "CIN-KR\n"))]
+    )
+    assert result.exit_code == 0
+    assert result.stdout == (
+        f"OK   {deff}: updated (9 special play(s))\n"
+        f"SKIP {off}: offense game plan\n"
+        "\n"
+        "2 file(s) processed, 1 updated, 1 skipped, 0 failed\n"
+    )
+    assert _name(read_gameplan(deff).custom_special_plays[1]) == "CIN-KR"
+    assert off.read_bytes() == off_pre
+
+
+def test_bug_in_one_file_keeps_the_batch_going(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, log_dir: Path
+) -> None:
+    """A bug on one file is reported as unexpected and leaves it as it was;
+    the other file is still updated, and the run exits 2."""
+    plans = _plans(tmp_path)
+    doomed = _copy(plans, "doomed.pln")
+    good = _copy(plans, "good.pln")
+    original = doomed.read_bytes()
+
+    def read(path: str) -> GamePlan:
+        if Path(path) == doomed:
+            raise RuntimeError("kaboom")
+        return read_gameplan(path)
+
+    monkeypatch.setattr("athc.cli.gameplan.set_specials.read_gameplan", read)
+    result = runner.invoke(
+        set_specials, ["--path", str(plans), str(_input(tmp_path, SPECIAL + "\n"))]
+    )
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {doomed}: Unexpected error. See {log_dir / 'athc.log'} for details.\n"
+    )
+    assert result.stdout == (
+        f"OK   {good}: updated (6 special play(s))\n"
+        "\n"
+        "2 file(s) processed, 1 updated, 0 skipped, 1 failed\n"
+    )
+    assert doomed.read_bytes() == original
 
 
 def test_continues_past_failed_file(runner, tmp_path: Path) -> None:

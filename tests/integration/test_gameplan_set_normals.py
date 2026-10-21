@@ -12,7 +12,7 @@ from athc.cli.gameplan.list_normals import list_normals
 from athc.cli.gameplan.set_normals import set_normals
 from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_gameplan import CustomPlayRef, PlayRef, read_gameplan, write_gameplan
-from tests.conftest import LEAGUE, athc_toml, league_toml
+from tests.conftest import LEAGUE, athc_toml, league_not_found, league_toml
 from tests.integration.conftest import (
     EMPTY_SLOTS_PLAYS,
     GP_DEFENSE,
@@ -26,6 +26,7 @@ from tests.integration.conftest import (
 
 NORMAL = "OR45RL01"  # a real normal offense play in the pool
 SPECIAL = "SFFGXPAT"  # a real special offense play in the pool
+DEFENSE = "NY31RL01"  # a real normal defense play in the pool
 MakeLeague = Callable[..., Path]
 WriteConfig = Callable[..., Path]
 
@@ -66,17 +67,16 @@ def _input(tmp_path: Path, text: str) -> Path:
 # ── usage ─────────────────────────────────────────────────────────────────────
 
 
-def test_requires_gameplan(runner) -> None:
-    assert runner.invoke(set_normals, []).exit_code == 2
-
-
 def test_bare_is_missing_game_plan(runner) -> None:
     result = runner.invoke(set_normals, [])
+    assert result.exit_code == 2
     assert result.stderr.endswith("Error: Missing argument 'GAME_PLAN'.\n")
 
 
 def test_requires_play_list(runner, tmp_path: Path) -> None:
-    assert runner.invoke(set_normals, [str(_copy(tmp_path))]).exit_code == 2
+    result = runner.invoke(set_normals, [str(_copy(tmp_path))])
+    assert result.exit_code == 2
+    assert result.stderr.endswith("Error: Missing argument 'INPUT_FILE'.\n")
 
 
 def test_key_alone_is_missing_input_file(runner) -> None:
@@ -344,6 +344,25 @@ def test_rejects_special_play(runner, tmp_path: Path) -> None:
     assert p.read_bytes() == original
 
 
+def test_special_play_does_not_hide_other_bad_lines(runner, tmp_path: Path) -> None:
+    """Every bad line is a FAIL in one run, in list order, the special one
+    pointing to set-specials."""
+    p = _copy(tmp_path)
+    original = p.read_bytes()
+    inp = _input(tmp_path, f"NOTAREALPLAY\n{SPECIAL}\n{DEFENSE}\n")
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {inp}: line 1: 'NOTAREALPLAY' is not in the play pool (slot 1-1).\n"
+        f"FAIL {inp}: line 2: '{SPECIAL}' is a special play. Run 'athc gameplan "
+        "set-specials'.\n"
+        f"FAIL {inp}: line 3: '{DEFENSE}' is a defensive play, but the game plan "
+        "is offensive.\n"
+    )
+    assert result.stdout == ""
+    assert p.read_bytes() == original
+
+
 def test_missing_play_aborts(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
     original = p.read_bytes()
@@ -355,6 +374,54 @@ def test_missing_play_aborts(runner, tmp_path: Path) -> None:
         in result.stderr
     )
     assert p.read_bytes() == original
+
+
+def test_every_bad_line_is_a_fail_line(runner, tmp_path: Path) -> None:
+    """One FAIL per bad line, in list order; the good line is not written."""
+    p = _copy(tmp_path)
+    original = p.read_bytes()
+    inp = _input(tmp_path, f"NOTAREALPLAY\n{NORMAL}\n{DEFENSE}\n")
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {inp}: line 1: 'NOTAREALPLAY' is not in the play pool (slot 1-1).\n"
+        f"FAIL {inp}: line 3: '{DEFENSE}' is a defensive play, but the game plan "
+        "is offensive.\n"
+    )
+    assert result.stdout == ""
+    assert p.read_bytes() == original
+
+
+def test_play_names_match_any_case(runner, tmp_path: Path) -> None:
+    p = _copy(tmp_path)
+    result = runner.invoke(
+        set_normals, [str(p), str(_input(tmp_path, NORMAL.lower() + "\n"))]
+    )
+    assert result.exit_code == 0
+    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
+
+
+def test_malformed_game_plan(runner, tmp_path: Path) -> None:
+    bad = tmp_path / "broken.pln"
+    bad.write_bytes(b"\x00\x01\x02")
+    result = runner.invoke(set_normals, [str(bad), str(_input(tmp_path, NORMAL))])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {bad}: File too small to contain PLN header and offsets table.\n"
+    )
+    assert bad.read_bytes() == b"\x00\x01\x02"
+
+
+def test_league_that_does_not_exist_fails_first(
+    runner, config_dir: Path, tmp_path: Path
+) -> None:
+    """Before the game plan and the list, which are missing too."""
+    result = runner.invoke(
+        set_normals,
+        [str(tmp_path / "nope.pln"), str(tmp_path / "nope.txt"), "--league", "NOPE"],
+    )
+    assert result.exit_code == 2
+    assert result.stderr == league_not_found(config_dir, "NOPE", LEAGUE)
 
 
 def test_too_many_plays_rejected(runner, tmp_path: Path) -> None:

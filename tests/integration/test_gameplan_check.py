@@ -15,13 +15,14 @@ from athc.cli.gameplan._common import collect_files
 from athc.cli.gameplan.check import check, check_file
 from athc.errors import ACCESS_DENIED, FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_gameplan import InvalidGamePlanError
-from athc.gameplan import load_rules
+from athc.gameplan import Rules, load_rules
 from athc.playpool import read_play_pool
 from tests.conftest import (
     CATEGORIES_TOML,
     LEAGUE,
     PNFL_LABELS,
     athc_toml,
+    league_not_found,
     league_toml,
     no_league_selected,
     no_rules_configured,
@@ -144,13 +145,12 @@ def test_check_file_defense_format() -> None:
     assert "defense" in line.splitlines()[0]
 
 
-def test_check_file_clean(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "athc.cli.gameplan.check.validate_gameplan", lambda gp, rules, pool: ()
+def test_check_file_clean() -> None:
+    """No rules: offense.pln, with no repeat and every play in the pool, is clean."""
+    assert check_file(GP_OFFENSE, Rules(), POOL) == (
+        0,
+        f"{GP_OFFENSE}: offense, 64 normal",
     )
-    count, line = check_file(GP_OFFENSE, RULES, POOL)
-    assert count == 0
-    assert line.startswith(f"{GP_OFFENSE}: offense, ")
 
 
 def test_check_file_malformed_raises(tmp_path: Path) -> None:
@@ -280,15 +280,45 @@ def test_cli_wildcard_path(
     assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
 
 
-@pytest.mark.usefixtures("league")
-def test_cli_clean_exit_0(runner, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "athc.cli.gameplan.check.validate_gameplan", lambda gp, rules, pool: ()
-    )
+def test_cli_clean_exit_0(runner, league: Path) -> None:
+    """An empty rules file: offense.pln passes."""
+    (league / "gameplan.toml").write_text("", encoding="utf-8")
     result = runner.invoke(check, [str(GP_OFFENSE)])
     assert result.exit_code == 0
-    assert result.stdout.startswith(f"OK   {GP_OFFENSE}: offense, ")
-    assert "1 file(s) checked, 0 with violations, 0 failed" in result.stdout
+    assert result.stdout == (
+        f"OK   {GP_OFFENSE}: offense, 64 normal\n"
+        "\n"
+        "1 file(s) checked, 0 with violations, 0 failed\n"
+    )
+    assert result.stderr == ""
+
+
+def test_cli_pool_issue_is_a_warning(runner, league: Path, tmp_path: Path) -> None:
+    """A play filed in the wrong folder is a WARN line; the run stays clean."""
+    plays = shutil.copytree(PLAYS, tmp_path / "plays")
+    shutil.copy2(
+        plays / "Offense" / "RL" / "OR45RL01.ply",
+        plays / "Offense" / "RM" / "MISFILE.ply",
+    )
+    (league / "league.toml").write_text(league_toml(plays), encoding="utf-8")
+    (league / "gameplan.toml").write_text("", encoding="utf-8")
+    result = runner.invoke(check, [str(GP_OFFENSE)])
+    assert result.exit_code == 0
+    assert result.stderr == (
+        "WARN Offense/RM/MISFILE.ply: Run Left play in a Run Middle folder.\n"
+    )
+    assert result.stdout.startswith(f"OK   {GP_OFFENSE}: offense, 64 normal\n")
+
+
+def test_cli_league_that_does_not_exist_fails_first(
+    runner, config_dir: Path, tmp_path: Path
+) -> None:
+    """Before the path, which is missing too."""
+    missing = tmp_path / "nope.pln"
+    result = runner.invoke(check, [str(missing), "--league", "NOPE"])
+    assert result.exit_code == 2
+    assert result.stderr == league_not_found(config_dir, "NOPE")
+    assert result.stdout == ""
 
 
 @pytest.mark.usefixtures("league")
@@ -401,6 +431,17 @@ def test_cli_missing_play_path(runner, league: Path, tmp_path: Path) -> None:
         f"FAIL {tmp_path / 'nope'}: {PATH_NOT_FOUND} "
         "Run 'athc config set play_path FOLDER'.\n"
     )
+
+
+def test_cli_play_path_not_set(runner, league: Path) -> None:
+    (league / "league.toml").write_text(league_toml(), encoding="utf-8")
+    result = runner.invoke(check, [str(GP_OFFENSE)])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {league / 'league.toml'}: Play pool folder is not set. "
+        "Run 'athc config set play_path FOLDER'.\n"
+    )
+    assert result.stdout == ""
 
 
 def test_cli_no_rules_in_league_folder(runner, make_league: MakeLeague) -> None:

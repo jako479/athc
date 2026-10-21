@@ -1,5 +1,5 @@
-"""Unit tests for gameplan validators: max_count, allowed categories, attribute
-caps.
+"""Unit tests for gameplan validators: counts and their limits, allowed
+categories, attribute caps, duplicates, special categories, and each message.
 
 Defense gameplans are used because they need no clock plays. Each play's game
 category comes from its pool record (`user_category`), and the validator reads
@@ -11,6 +11,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from fractions import Fraction
 from pathlib import Path
+
+import pytest
 
 from athc.fbpro98_gameplan import GamePlan, ProfileType
 from athc.fbpro98_gameplan.model import CustomPlayRef, SpecialSlot, StockPlayRef
@@ -71,6 +73,18 @@ def defense_gameplan(names: list[str]) -> GamePlan:
     )
 
 
+def defense_gameplan_at(slots: dict[int, str]) -> GamePlan:
+    """A defense gameplan with a play in each given 0-based normal slot."""
+    normal: list[CustomPlayRef | None] = [None] * 64
+    for slot, name in slots.items():
+        normal[slot] = make_play(name)
+    return GamePlan(
+        profile_type=ProfileType.DEFENSE,
+        normal_plays=tuple(normal),
+        special_plays=empty_specials(),
+    )
+
+
 def def_rules(**over: object) -> Rules:
     """All `Rules` fields default to empty; override only what a test needs."""
     return Rules(**over)  # type: ignore[arg-type]
@@ -84,6 +98,7 @@ def fired(gp: GamePlan, rules: Rules, pool: PlayPool) -> set[RuleName]:
 
 
 def test_max_count_fires() -> None:
+    """One past the cap: 3 plays over a cap of 2."""
     pool = make_pool(make_record(f"RL{i}", user_category=RUN_LEFT) for i in range(3))
     gp = defense_gameplan(["RL0", "RL1", "RL2"])
     rules = def_rules(
@@ -91,18 +106,24 @@ def test_max_count_fires() -> None:
             "Run Left": DefenseCategoryRule(required=False, min_count=1, max_count=2)
         }
     )
-    assert RuleName.CATEGORY_MAX_COUNT in fired(gp, rules, pool)
+    assert validate_gameplan(gp, rules, pool) == (
+        RuleViolation(
+            RuleName.CATEGORY_MAX_COUNT,
+            "Defensive category 'Run Left' has 3 plays; allows at most 2.",
+            "Run Left",
+        ),
+    )
 
 
-def test_max_count_clean_within_limit() -> None:
+def test_max_count_clean_at_limit() -> None:
     pool = make_pool(make_record(f"RL{i}", user_category=RUN_LEFT) for i in range(2))
     gp = defense_gameplan(["RL0", "RL1"])
     rules = def_rules(
         defense_categories={
-            "Run Left": DefenseCategoryRule(required=False, min_count=1, max_count=5)
+            "Run Left": DefenseCategoryRule(required=False, min_count=1, max_count=2)
         }
     )
-    assert RuleName.CATEGORY_MAX_COUNT not in fired(gp, rules, pool)
+    assert validate_gameplan(gp, rules, pool) == ()
 
 
 # ── allowed categories ────────────────────────────────────────────────────────
@@ -164,7 +185,30 @@ def test_two_dl_cap_fires() -> None:
             )
         }
     )
-    assert RuleName.CATEGORY_MAX_TWO_DL in fired(gp, rules, pool)
+    assert validate_gameplan(gp, rules, pool) == (
+        RuleViolation(
+            RuleName.CATEGORY_MAX_TWO_DL,
+            "Defensive category 'Pass Short' has 2 of 2 2-DL plays; "
+            "allows at most 1/2.",
+            "Pass Short",
+        ),
+    )
+
+
+def test_two_dl_percent_cap_names_the_percent() -> None:
+    """2 of 3 is over 50%; the message gives the cap as the rules file does."""
+    fronts = [DefensiveFront.TWO_DL, DefensiveFront.TWO_DL, DefensiveFront.THREE_FOUR]
+    pool = make_pool(
+        make_record(f"PS{i}", user_category=PASS_SHORT, front=front)
+        for i, front in enumerate(fronts)
+    )
+    gp = defense_gameplan(["PS0", "PS1", "PS2"])
+    rules = def_rules(
+        defense_categories={"Pass Short": DefenseCategoryRule(max_two_dl_percent=50)}
+    )
+    assert _messages(gp, rules, pool) == [
+        "Defensive category 'Pass Short' has 2 of 3 2-DL plays; allows at most 50%."
+    ]
 
 
 def test_two_dl_cap_clean_with_other_front() -> None:
@@ -220,12 +264,42 @@ def test_all_issues_reported_including_not_allowed() -> None:
 
 
 def test_min_count_fires() -> None:
-    pool = make_pool([make_record("RL0", user_category=RUN_LEFT)])
-    gp = defense_gameplan(["RL0"])
+    """One below the minimum: 2 plays for a minimum of 3."""
+    pool = make_pool(make_record(f"RL{i}", user_category=RUN_LEFT) for i in range(2))
+    gp = defense_gameplan(["RL0", "RL1"])
     rules = def_rules(
         defense_categories={"Run Left": DefenseCategoryRule(required=True, min_count=3)}
     )
-    assert RuleName.CATEGORY_MIN_COUNT in fired(gp, rules, pool)
+    assert validate_gameplan(gp, rules, pool) == (
+        RuleViolation(
+            RuleName.CATEGORY_MIN_COUNT,
+            "Defensive category 'Run Left' has 2 plays; requires at least 3.",
+            "Run Left",
+        ),
+    )
+
+
+def test_min_count_clean_at_limit() -> None:
+    pool = make_pool(make_record(f"RL{i}", user_category=RUN_LEFT) for i in range(3))
+    gp = defense_gameplan(["RL0", "RL1", "RL2"])
+    rules = def_rules(
+        defense_categories={"Run Left": DefenseCategoryRule(required=True, min_count=3)}
+    )
+    assert validate_gameplan(gp, rules, pool) == ()
+
+
+def test_defense_required_names_the_category() -> None:
+    gp = defense_gameplan([])
+    rules = def_rules(
+        defense_categories={"Pass Short": DefenseCategoryRule(required=True)}
+    )
+    assert validate_gameplan(gp, rules, make_pool([])) == (
+        RuleViolation(
+            RuleName.CATEGORY_REQUIRED,
+            "Required defensive category 'Pass Short' has no plays",
+            "Pass Short",
+        ),
+    )
 
 
 def test_min_count_not_checked_when_category_empty() -> None:
@@ -255,6 +329,51 @@ def test_unresolved_play_message_names_the_play_and_its_slot() -> None:
     (violation,) = validate_gameplan(gp, def_rules(), make_pool([]))
     assert violation.rule_name == RuleName.UNRESOLVED_PLAY
     assert violation.message == "Play 'GHOST' at slot 1 (1-1) is not in the play pool"
+    assert violation.category is None
+
+
+def test_unresolved_play_is_not_counted_in_its_category() -> None:
+    """GHOST is dropped from the counts, so Run Left holds one play, not two."""
+    pool = make_pool([make_record("RL0", user_category=RUN_LEFT)])
+    gp = defense_gameplan(["RL0", "GHOST"])
+    rules = def_rules(defense_categories={"Run Left": DefenseCategoryRule(max_count=1)})
+    assert fired(gp, rules, pool) == {RuleName.UNRESOLVED_PLAY}
+
+
+def test_duplicate_play_names_both_slots_any_case() -> None:
+    """Each repeat names its slot and the first one's; the first is not flagged.
+    Slot 5 starts grid row 2 and slot 64 is the last."""
+    pool = make_pool([make_record("RL0", user_category=RUN_LEFT)])
+    gp = defense_gameplan_at({0: "RL0", 4: "rl0", 63: "Rl0"})
+    assert validate_gameplan(gp, def_rules(), pool) == (
+        RuleViolation(
+            RuleName.DUPLICATE_PLAY,
+            "Duplicate play 'rl0' at slot 5 (2-1) (already at slot 1 (1-1))",
+        ),
+        RuleViolation(
+            RuleName.DUPLICATE_PLAY,
+            "Duplicate play 'Rl0' at slot 64 (16-4) (already at slot 1 (1-1))",
+        ),
+    )
+
+
+def test_different_plays_are_not_duplicates() -> None:
+    pool = make_pool(make_record(f"RL{i}", user_category=RUN_LEFT) for i in range(2))
+    gp = defense_gameplan(["RL0", "RL1"])
+    assert validate_gameplan(gp, def_rules(), pool) == ()
+
+
+# ── side ──────────────────────────────────────────────────────────────────────
+
+
+def test_defense_gameplan_ignores_offense_rules() -> None:
+    pool = make_pool([make_record("RL0", user_category=RUN_LEFT)])
+    gp = defense_gameplan(["RL0"])
+    rules = def_rules(
+        offense_categories={"Run Left": OffenseCategoryRule(max_count=0)},
+        allowed_offensive_categories=frozenset({"Run Middle"}),
+    )
+    assert validate_gameplan(gp, rules, pool) == ()
 
 
 # ── offense harness ───────────────────────────────────────────────────────────
@@ -320,15 +439,43 @@ def off_rules(**over: object) -> Rules:
 # ── offense: count rules ──────────────────────────────────────────────────────
 
 
+def run_middle(count: int, *, qb_run: bool = False) -> tuple[PlayPool, GamePlan]:
+    """`count` Run Middle plays, in the pool and in an offense gameplan."""
+    pool = make_off_pool(
+        make_off_record(f"RM{i}", user_category=OFF_RUN_MIDDLE, qb_run=qb_run)
+        for i in range(count)
+    )
+    gp = offense_gameplan(
+        [make_off_play(f"RM{i}", user_category=OFF_RUN_MIDDLE) for i in range(count)]
+    )
+    return pool, gp
+
+
 def test_offense_min_count_fires() -> None:
-    pool = make_off_pool([make_off_record("RM0", user_category=OFF_RUN_MIDDLE)])
-    gp = offense_gameplan([make_off_play("RM0", user_category=OFF_RUN_MIDDLE)])
+    """One below the minimum: 2 plays for a minimum of 3."""
+    pool, gp = run_middle(2)
     rules = off_rules(
         offense_categories={
             "Run Middle": OffenseCategoryRule(required=True, min_count=3)
         }
     )
-    assert RuleName.CATEGORY_MIN_COUNT in fired(gp, rules, pool)
+    assert validate_gameplan(gp, rules, pool) == (
+        RuleViolation(
+            RuleName.CATEGORY_MIN_COUNT,
+            "Offensive category 'Run Middle' has 2 plays; requires at least 3.",
+            "Run Middle",
+        ),
+    )
+
+
+def test_offense_min_count_clean_at_limit() -> None:
+    pool, gp = run_middle(3)
+    rules = off_rules(
+        offense_categories={
+            "Run Middle": OffenseCategoryRule(required=True, min_count=3)
+        }
+    )
+    assert validate_gameplan(gp, rules, pool) == ()
 
 
 def test_offense_required_fires() -> None:
@@ -337,44 +484,75 @@ def test_offense_required_fires() -> None:
     rules = off_rules(
         offense_categories={"Run Middle": OffenseCategoryRule(required=True)}
     )
-    assert RuleName.CATEGORY_REQUIRED in fired(gp, rules, make_off_pool([]))
+    assert validate_gameplan(gp, rules, make_off_pool([])) == (
+        RuleViolation(
+            RuleName.CATEGORY_REQUIRED,
+            "Required offensive category 'Run Middle' has no plays",
+            "Run Middle",
+        ),
+    )
 
 
 def test_offense_max_count_fires() -> None:
-    pool = make_off_pool(
-        make_off_record(f"RM{i}", user_category=OFF_RUN_MIDDLE) for i in range(3)
-    )
-    gp = offense_gameplan(
-        [make_off_play(f"RM{i}", user_category=OFF_RUN_MIDDLE) for i in range(3)]
-    )
+    """One past the cap: 3 plays over a cap of 2."""
+    pool, gp = run_middle(3)
     rules = off_rules(
         offense_categories={"Run Middle": OffenseCategoryRule(max_count=2)}
     )
-    assert RuleName.CATEGORY_MAX_COUNT in fired(gp, rules, pool)
+    assert validate_gameplan(gp, rules, pool) == (
+        RuleViolation(
+            RuleName.CATEGORY_MAX_COUNT,
+            "Offensive category 'Run Middle' has 3 plays; allows at most 2.",
+            "Run Middle",
+        ),
+    )
+
+
+def test_offense_max_count_clean_at_limit() -> None:
+    pool, gp = run_middle(2)
+    rules = off_rules(
+        offense_categories={"Run Middle": OffenseCategoryRule(max_count=2)}
+    )
+    assert validate_gameplan(gp, rules, pool) == ()
 
 
 def test_offense_not_allowed_fires() -> None:
     pool = make_off_pool([make_off_record("RR0", user_category=OFF_RUN_RIGHT)])
     gp = offense_gameplan([make_off_play("RR0", user_category=OFF_RUN_RIGHT)])
     rules = off_rules(allowed_offensive_categories=frozenset({"Run Middle"}))
-    assert RuleName.CATEGORY_NOT_ALLOWED in fired(gp, rules, pool)
+    assert validate_gameplan(gp, rules, pool) == (
+        RuleViolation(
+            RuleName.CATEGORY_NOT_ALLOWED,
+            "Offensive category 'Run Right' is not allowed; has 1 play(s).",
+            "Run Right",
+        ),
+    )
+
+
+def test_offense_gameplan_ignores_defense_rules() -> None:
+    pool, gp = run_middle(1)
+    rules = off_rules(
+        defense_categories={"Run Middle": DefenseCategoryRule(max_count=0)},
+        allowed_defensive_categories=frozenset({"Run Left"}),
+    )
+    assert validate_gameplan(gp, rules, pool) == ()
 
 
 # ── offense: attribute caps ───────────────────────────────────────────────────
 
 
 def test_offense_max_qb_runs_count_fires() -> None:
-    pool = make_off_pool(
-        make_off_record(f"RM{i}", user_category=OFF_RUN_MIDDLE, qb_run=True)
-        for i in range(2)
-    )
-    gp = offense_gameplan(
-        [make_off_play(f"RM{i}", user_category=OFF_RUN_MIDDLE) for i in range(2)]
-    )
+    pool, gp = run_middle(2, qb_run=True)
     rules = off_rules(
         offense_categories={"Run Middle": OffenseCategoryRule(max_qb_runs_count=1)}
     )
-    assert RuleName.CATEGORY_MAX_QB_RUNS in fired(gp, rules, pool)
+    assert validate_gameplan(gp, rules, pool) == (
+        RuleViolation(
+            RuleName.CATEGORY_MAX_QB_RUNS,
+            "Offensive category 'Run Middle' has 2 of 2 QB runs; allows at most 1.",
+            "Run Middle",
+        ),
+    )
 
 
 def test_offense_max_qb_runs_count_clean() -> None:
@@ -401,7 +579,14 @@ def test_offense_max_rollouts_count_fires() -> None:
             "Pass Short Right": OffenseCategoryRule(max_rollouts_count=1)
         }
     )
-    assert RuleName.CATEGORY_MAX_ROLLOUTS in fired(gp, rules, pool)
+    assert validate_gameplan(gp, rules, pool) == (
+        RuleViolation(
+            RuleName.CATEGORY_MAX_ROLLOUTS,
+            "Offensive category 'Pass Short Right' has 2 of 2 rollouts; "
+            "allows at most 1.",
+            "Pass Short Right",
+        ),
+    )
 
 
 def test_offense_max_rollouts_count_clean() -> None:
@@ -495,7 +680,10 @@ def test_offense_max_timed_percent_fires() -> None:
             "Pass Medium Right": OffenseCategoryRule(max_timed_percent=50)
         }
     )
-    assert RuleName.CATEGORY_MAX_TIMED in fired(gp, rules, pool)
+    assert _messages(gp, rules, pool) == [
+        "Offensive category 'Pass Medium Right' has 2 of 3 timed passes; "
+        "allows at most 50%."
+    ]
 
 
 def test_offense_max_timed_percent_clean_at_cap() -> None:
@@ -547,6 +735,54 @@ def test_custom_special_play_required_fires() -> None:
     )
     rules = def_rules(custom_special_play_required=True)
     assert RuleName.CUSTOM_SPECIAL_PLAY_REQUIRED in fired(gp, rules, make_pool([]))
+
+
+def special_gameplan(slot: SpecialSlot) -> GamePlan:
+    """A defense gameplan whose special category 1 holds `slot`."""
+    slots = list(empty_specials())
+    slots[0] = slot
+    return GamePlan(
+        profile_type=ProfileType.DEFENSE,
+        normal_plays=(None,) * 64,
+        special_plays=tuple(slots),
+    )
+
+
+CUSTOM_FG = CustomPlayRef(
+    filename="FGDEF.PLY", play_category=0x00, special_category=1, user_category=0
+)
+STOCK_FG = StockPlayRef("STOCK1", 0, 0, 0x00, 1, 0x00)
+
+
+@pytest.mark.parametrize(
+    "slot",
+    [SpecialSlot(custom=CUSTOM_FG), SpecialSlot(stock=STOCK_FG)],
+    ids=["custom", "stock"],
+)
+def test_special_category_required_met_by_either_play(slot: SpecialSlot) -> None:
+    rules = def_rules(required_special_categories=frozenset({1}))
+    assert validate_gameplan(special_gameplan(slot), rules, make_pool([])) == ()
+
+
+@pytest.mark.parametrize(
+    "slot",
+    [
+        SpecialSlot(custom=CUSTOM_FG),
+        SpecialSlot(stock=STOCK_FG, custom=CUSTOM_FG),
+        SpecialSlot(),
+    ],
+    ids=["custom", "stock and custom", "empty"],
+)
+def test_custom_special_play_required_clean(slot: SpecialSlot) -> None:
+    """Only a stock play with no custom one trips the rule; an empty slot is
+    the required-special rule's concern."""
+    rules = def_rules(custom_special_play_required=True)
+    assert validate_gameplan(special_gameplan(slot), rules, make_pool([])) == ()
+
+
+def test_custom_special_play_not_required_by_default() -> None:
+    gp = special_gameplan(SpecialSlot(stock=STOCK_FG))
+    assert validate_gameplan(gp, def_rules(), make_pool([])) == ()
 
 
 def test_required_clock_category_satisfied_on_offense() -> None:

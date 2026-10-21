@@ -1,6 +1,6 @@
 # gameplan — Test Matrix
 
-Tool-logic unit cases (rules loader). Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). CLI cases live in [../../integration/README.md](../../integration/README.md).
+Tool-logic unit cases (rules loader, play-list writer, validators). Convention in [../../../docs/testing-unit.md](../../../docs/testing-unit.md). CLI cases live in [../../integration/README.md](../../integration/README.md).
 
 One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `leagues/<league>/gameplan.toml` in `config/dev/` and `config/release/`; `str` = a play list's text written in the test. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/gameplan` passes.
 
@@ -25,6 +25,11 @@ One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `league
 | Unknown-label message lists game names | tmp | message contains "Pass Long Left" | `test_unknown_label_message_lists_game_name_labels` | ☑ |
 | Clock names in `required_special_categories` | tmp | → `{11, 12}` | `test_required_special_accepts_clock_categories` | ☑ |
 | Unknown name in `required_special_categories` | tmp | "unknown name 'Spike'" | `test_required_special_rejects_unknown_name` | ☑ |
+| All twelve special names | tmp | → `{1..12}` | `test_required_special_accepts_all_twelve_names` | ☑ |
+| `required_special_categories` not a list | tmp | "must be a list" | `test_required_special_must_be_list` | ☑ |
+| `required_special_categories` entry not a string | tmp | "entries must be strings" | `test_required_special_entries_must_be_strings` | ☑ |
+| `custom_special_play_required` omitted / `true` | tmp | False / True | `test_custom_special_play_required_defaults_false` / `..._parses` | ☑ |
+| `custom_special_play_required` not a bool | tmp | "must be a boolean" | `test_custom_special_play_required_must_be_bool` | ☑ |
 
 ### min_count / max_count
 | Case | Input | Expected | Test | Status |
@@ -37,11 +42,14 @@ One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `league
 | `max_count` optional (defense) | tmp | parsed | `test_max_count_optional_defense` | ☑ |
 | `max_count` absent → None | tmp | None | `test_max_count_absent_is_none` | ☑ |
 | `max_count` must be int | tmp | "must be an integer" | `test_max_count_must_be_int` | ☑ |
+| A boolean is not a count | tmp, `min_count = true` | "must be an integer" | `test_count_rejects_a_boolean` | ☑ |
 
 ### caps gating
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Run cap on pass category | tmp | "unknown key" | `test_run_cap_rejected_on_pass` | ☑ |
+| Pass cap on run category | tmp | "[offense.RM]: Unknown key(s): max_rollouts_count." | `test_pass_cap_rejected_on_run` | ☑ |
+| Offense cap on defense category | tmp | "[defense.PassShort]: Unknown key(s): max_qb_runs_count." | `test_offense_cap_rejected_on_defense` | ☑ |
 | Pass caps parse | tmp | rollouts count + timed ratio | `test_pass_caps_parse` | ☑ |
 
 ### one form per attribute
@@ -49,7 +57,7 @@ Each attribute (`qb_runs`, `rollouts`, `timed`, `two_dl`) takes exactly one of
 `_count` / `_ratio` / `_percent`.
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Any single form | tmp | loads | `test_one_form_of_one_attribute_accepted` `[P]` | ☑ |
+| Any single form | tmp | that form parsed, the other two None | `test_one_form_of_one_attribute_accepted` `[P]` | ☑ |
 | Two forms of one attribute | tmp | "at most one of" | `test_two_forms_of_one_attribute_rejected` `[P]` | ☑ |
 
 ### value ranges
@@ -57,11 +65,12 @@ Counts (`min_count`, `max_count`, `max_<attr>_count`) >= 0; ratios in [0, 1];
 percents in [0, 100]: limit ok + one outside. One test per shared validator.
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Count at lower limit 0 | tmp | loads | `test_count_zero_ok` `[P]` | ☑ |
+| Count at lower limit 0 | tmp | parsed as 0 | `test_count_zero_ok` `[P]` | ☑ |
 | Count below 0 | tmp | ">= 0" | `test_count_negative_rejected` `[P]` | ☑ |
 | Ratio at limits 0 / 1 | tmp | parsed | `test_ratio_in_range_ok` `[P]` | ☑ |
 | Ratio below 0 / above 1 | tmp | "[0, 1]" | `test_ratio_out_of_range_rejected` `[P]` | ☑ |
 | Ratio not a string | tmp | 'must be a string like "1/2"' | `test_ratio_must_be_string` | ☑ |
+| Ratio not a fraction | tmp, `"half"` / `"1/0"` | "Invalid fraction '...'" | `test_ratio_not_a_fraction_rejected` `[P]` | ☑ |
 | Percent at limits 0 / 100 | tmp | parsed | `test_percent_in_range_ok` `[P]` | ☑ |
 | Percent below 0 / above 100 | tmp | "[0, 100]" | `test_percent_out_of_range_rejected` `[P]` | ☑ |
 | Percent not an int | tmp | "must be an integer" | `test_percent_must_be_int` | ☑ |
@@ -100,6 +109,7 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 | Empty path list | — | "at least one" | `test_empty_paths_rejected` | ☑ |
 | Later file replaces a category rule | tmp ×2 | whole rule replaced | `test_layering_replaces_category_rule` | ☑ |
 | Later file replaces an allowed list; omitted key keeps it | tmp ×2 | later list wins | `test_layering_replaces_allowed_list` | ☑ |
+| Later file replaces the special keys; omitted key keeps it | tmp ×3 | later value wins | `test_layering_replaces_special_keys` | ☑ |
 | UTF-8 BOM skipped | tmp | loads | `test_bom_is_skipped` | ☑ |
 
 ### shipped rules
@@ -121,6 +131,13 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 | Normal play in the specials list | make | "'RUNPLAY' is not a special play." | `test_normal_play_in_the_specials_list_is_rejected` | ☑ |
 | Defensive special play in an offense game plan | make | "'DEFKICK' is a defensive special play, but the game plan is offensive." | `test_defensive_special_play_in_an_offense_game_plan_is_rejected` | ☑ |
 | Offensive special play in a defense game plan | make | "'OFFKICK' is an offensive special play, but the game plan is defensive." | `test_offensive_special_play_in_a_defense_game_plan_is_rejected` | ☑ |
+| Normal name in another case | make | the pool's play placed | `test_normal_play_name_matches_any_case` | ☑ |
+| Several bad normal lines | make | each named by its line and slot; "2 invalid play(s)." | `test_every_bad_normal_line_is_reported_at_once` | ☑ |
+| 64th line | make | read: a bad play there is reported (slot 16-4) | `test_normal_plays_fill_all_64_slots` | ☑ |
+| 65th line | make | dropped, never read | `test_normal_plays_past_64_are_dropped` | ☑ |
+| Special play listed twice, any case | make | "Duplicate special play 'kickply', already used for special category 2." | `test_duplicate_special_play_is_rejected_any_case` | ☑ |
+| Two special plays for one category | make | "'KICKB' targets special category 2, already filled by another play." | `test_two_special_plays_for_one_category_are_rejected` | ☑ |
+| Special play not in the pool | make | "'GHOST' is not in the play pool." | `test_special_play_not_in_the_pool_is_rejected` | ☑ |
 
 ## _common.py — `parse_play_list`
 
@@ -133,36 +150,43 @@ percents in [0, 100]: limit ok + one outside. One test per shared validator.
 
 ## validators.py — `validate_gameplan`
 
-Constructed gameplan + pool (records carry typed playpool attributes). Each side has its own harness; offense gameplans also carry the two required clock plays.
+Constructed gameplan + pool (records carry typed playpool attributes). Each side has its own harness; offense gameplans also carry the two required clock plays. A "fires" row checks the whole violation: rule, message and category. Each count limit is tested at the limit and one past it.
 
 ### Offense
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| `min_count` short | make | `CATEGORY_MIN_COUNT` | `test_offense_min_count_fires` | ☑ |
-| Required category absent | make | `CATEGORY_REQUIRED` | `test_offense_required_fires` | ☑ |
-| `max_count` exceeded | make | `CATEGORY_MAX_COUNT` | `test_offense_max_count_fires` | ☑ |
-| Category outside the allowed list | make | `CATEGORY_NOT_ALLOWED` | `test_offense_not_allowed_fires` | ☑ |
-| `max_qb_runs_count` exceeded | make | `CATEGORY_MAX_QB_RUNS` | `test_offense_max_qb_runs_count_fires` | ☑ |
+| `min_count` one short (2 of 3) | make | "Offensive category 'Run Middle' has 2 plays; requires at least 3." | `test_offense_min_count_fires` | ☑ |
+| `min_count` met exactly | make | no violation | `test_offense_min_count_clean_at_limit` | ☑ |
+| Required category absent | make | "Required offensive category 'Run Middle' has no plays" | `test_offense_required_fires` | ☑ |
+| `max_count` one past (3 of 2) | make | "Offensive category 'Run Middle' has 3 plays; allows at most 2." | `test_offense_max_count_fires` | ☑ |
+| `max_count` met exactly | make | no violation | `test_offense_max_count_clean_at_limit` | ☑ |
+| Category outside the allowed list | make | "Offensive category 'Run Right' is not allowed; has 1 play(s)." | `test_offense_not_allowed_fires` | ☑ |
+| Defense rules and allowed list | make | ignored | `test_offense_gameplan_ignores_defense_rules` | ☑ |
+| `max_qb_runs_count` exceeded | make | "... has 2 of 2 QB runs; allows at most 1." | `test_offense_max_qb_runs_count_fires` | ☑ |
 | `max_qb_runs_count` within limit | make | no violation | `test_offense_max_qb_runs_count_clean` | ☑ |
-| `max_rollouts_count` exceeded | make | `CATEGORY_MAX_ROLLOUTS` | `test_offense_max_rollouts_count_fires` | ☑ |
+| `max_rollouts_count` exceeded | make | "... has 2 of 2 rollouts; allows at most 1." | `test_offense_max_rollouts_count_fires` | ☑ |
 | `max_rollouts_count` within limit | make | no violation | `test_offense_max_rollouts_count_clean` | ☑ |
 | `max_timed_ratio` exceeded | make | `CATEGORY_MAX_TIMED` | `test_offense_max_timed_ratio_fires` | ☑ |
 | `max_timed_ratio` within limit | make | no violation | `test_offense_max_timed_ratio_clean` | ☑ |
-| `max_timed_percent` exceeded (2/3 > 50%) | make | `CATEGORY_MAX_TIMED` | `test_offense_max_timed_percent_fires` | ☑ |
+| `max_timed_percent` exceeded (2/3 > 50%) | make | "... has 2 of 3 timed passes; allows at most 50%." | `test_offense_max_timed_percent_fires` | ☑ |
 | `max_timed_percent` exactly at cap (1/2 = 50%) | make | no violation | `test_offense_max_timed_percent_clean_at_cap` | ☑ |
 
 ### Defense
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| `min_count` short | make | `CATEGORY_MIN_COUNT` | `test_min_count_fires` | ☑ |
+| `min_count` one short (2 of 3) | make | "Defensive category 'Run Left' has 2 plays; requires at least 3." | `test_min_count_fires` | ☑ |
+| `min_count` met exactly | make | no violation | `test_min_count_clean_at_limit` | ☑ |
+| Required category absent | make | "Required defensive category 'Pass Short' has no plays" | `test_defense_required_names_the_category` | ☑ |
 | Optional empty category | make | no min_count / required | `test_min_count_not_checked_when_category_empty` | ☑ |
-| `max_count` exceeded | make | `CATEGORY_MAX_COUNT` | `test_max_count_fires` | ☑ |
-| `max_count` within limit | make | no violation | `test_max_count_clean_within_limit` | ☑ |
+| `max_count` one past (3 of 2) | make | "Defensive category 'Run Left' has 3 plays; allows at most 2." | `test_max_count_fires` | ☑ |
+| `max_count` met exactly | make | no violation | `test_max_count_clean_at_limit` | ☑ |
 | Category outside the allowed list | make | `CATEGORY_NOT_ALLOWED`, "'User Specific'", `category` set | `test_not_allowed_names_the_category` | ☑ |
 | Several categories outside the list | make | reported in name order | `test_not_allowed_reports_categories_in_name_order` | ☑ |
 | Every category allowed | make | no violation | `test_allowed_clean_when_every_category_is_allowed` | ☑ |
 | Empty allowed list | make | no violation | `test_allowed_empty_is_not_enforced` | ☑ |
-| 2-DL front over cap | make | `CATEGORY_MAX_TWO_DL` | `test_two_dl_cap_fires` | ☑ |
+| Offense rules and allowed list | make | ignored | `test_defense_gameplan_ignores_offense_rules` | ☑ |
+| 2-DL front over cap (ratio) | make | "... has 2 of 2 2-DL plays; allows at most 1/2." | `test_two_dl_cap_fires` | ☑ |
+| 2-DL front over cap (percent) | make | "... has 2 of 3 2-DL plays; allows at most 50%." | `test_two_dl_percent_cap_names_the_percent` | ☑ |
 | 2-DL front under cap | make | no violation | `test_two_dl_cap_clean_with_other_front` | ☑ |
 | All issues reported (incl. not allowed) | make | not allowed + max_count + required all present | `test_all_issues_reported_including_not_allowed` | ☑ |
 
@@ -170,7 +194,10 @@ Constructed gameplan + pool (records carry typed playpool attributes). Each side
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Required special missing | make | `SPECIAL_CATEGORY_REQUIRED` | `test_special_category_required_fires` | ☑ |
+| Required special met by a custom or a stock play | make | no violation | `test_special_category_required_met_by_either_play` `[P]` | ☑ |
 | Stock-only special | make | `CUSTOM_SPECIAL_PLAY_REQUIRED` | `test_custom_special_play_required_fires` | ☑ |
+| Custom, stock and custom, or empty slot | make | no `CUSTOM_SPECIAL_PLAY_REQUIRED` | `test_custom_special_play_required_clean` `[P]` | ☑ |
+| Stock-only special, rule not set | make | no violation | `test_custom_special_play_not_required_by_default` | ☑ |
 | Required clock category on offense | make | no `SPECIAL_CATEGORY_REQUIRED` (stock clock plays present) | `test_required_clock_category_satisfied_on_offense` | ☑ |
 | Required clock category on defense | make | `SPECIAL_CATEGORY_REQUIRED` | `test_required_clock_category_fires_on_defense` | ☑ |
 | Clock categories exempt from custom-required | make | no `CUSTOM_SPECIAL_PLAY_REQUIRED` | `test_custom_special_play_required_ignores_clock_categories` | ☑ |
@@ -182,4 +209,7 @@ Constructed gameplan + pool (records carry typed playpool attributes). Each side
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Unresolved play | make | `UNRESOLVED_PLAY` | `test_unresolved_play_fires` | ☑ |
-| Unresolved play message names the play and its slot | make | "Play 'GHOST' at slot 1 (1-1) is not in the play pool" | `test_unresolved_play_message_names_the_play_and_its_slot` | ☑ |
+| Unresolved play message names the play and its slot | make | "Play 'GHOST' at slot 1 (1-1) is not in the play pool"; no category | `test_unresolved_play_message_names_the_play_and_its_slot` | ☑ |
+| Unresolved play not counted | make, `max_count = 1` | only `UNRESOLVED_PLAY` | `test_unresolved_play_is_not_counted_in_its_category` | ☑ |
+| Repeated play, any case, slots 5 and 64 | make | "Duplicate play 'rl0' at slot 5 (2-1) (already at slot 1 (1-1))", then slot 64 (16-4); the first not flagged | `test_duplicate_play_names_both_slots_any_case` | ☑ |
+| Different plays | make | no violation | `test_different_plays_are_not_duplicates` | ☑ |
