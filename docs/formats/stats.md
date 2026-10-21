@@ -2,72 +2,98 @@
 
 - **Owner:** FBPro98 Stats Library
 - **Encoding:** Integers little-endian, except the index keys (big-endian). Not masked; unused bytes hold leftover memory.
+- **Sources:** the PNFL's files; the header field names from FairCom's c-tree file header as laid out in [HPCC-Platform's ctfile.hpp](https://github.com/hpcc-systems/HPCC-Platform/blob/community_7.12.0-1/system/jhtree/ctfile.hpp); deleted records, the serial number and the header size from the [c-tree Plus 6.0 manuals](https://archive.org/details/c-tree-plus-installation-guide) (1990); the game's rules from the [Sierra source notes](../research/sierra-source.md).
 
-A `.dat` holds a league's player and team statistics (last game, season and career), awards and Hall of Fame records. The `.idx` beside it is a B-tree index of the `.dat` records by type and id. The pair is a FairCom c-tree database; if it will not open, the game deletes both files and starts empty. Both are named after their league (`PNFL.dat`, `PNFL.idx`) and sit with the league's other files. Stock (1994-1997) and custom leagues use the same layout; a fresh stock league ships an empty pair (140 and 512 bytes).
+A `.dat` holds a league's player and team statistics (last game, season and career), awards and Hall of Fame records. The `.idx` beside it is a B-tree index of the `.dat` records by type and id. The pair is a FairCom c-tree Plus database in c-tree's standard (V6) file format, so both files start with its 128-byte file header. If the pair will not open, the game deletes both files and starts empty. Both are named after their league (`PNFL.dat`, `PNFL.idx`) and sit with the league's other files. Stock (1994-1997) and custom leagues use the same layout; a fresh stock league ships an empty pair (140 and 512 bytes).
 
 ---
 
 ## 1. File Layout
 
-`.dat`: a 140-byte header, then 20-byte slots back to back. A slot holds a record or is deleted. Records are not sorted; the index or a scan of every slot finds them.
+`.dat`: the 128-byte header (section 2), 12 bytes of fill, then 20-byte slots back to back from offset 140, the first multiple of 20 past the header. A slot holds a record or is deleted. Records are not sorted; the index or a scan of every slot finds them.
 
 ```
 header
+fill
 slot 0
 slot 1
 ...
 unused, all 0xFF
 ```
 
-| Offset            |   Size | Name   | Description                      | Section |
-| :---------------- | -----: | :----- | :------------------------------- | :------ |
-| 0x0000            |    140 | Header | Header                           | 2       |
-| 0x008C            |     20 | Slot 0 | Record, or a deleted slot        | 3, 6    |
-| 0x00A0            |     20 | Slot 1 | Record, or a deleted slot        | 3, 6    |
-| ...               |    ... | ...    | Slot n at 0x8C + 20 × n          | 3, 6    |
+| Offset            |   Size | Name   | Description                       | Section |
+| :---------------- | -----: | :----- | :-------------------------------- | :------ |
+| 0x0000            |    128 | Header | File header                       | 2       |
+| 0x0080            |     12 | Fill   | All `0xFF`, up to the first slot  |         |
+| 0x008C            |     20 | Slot 0 | Record, or a deleted slot         | 3, 6    |
+| 0x00A0            |     20 | Slot 1 | Record, or a deleted slot         | 3, 6    |
+| ...               |    ... | ...    | Slot n at 0x8C + 20 × n           | 3, 6    |
 | last slot end + 1 | varies | Unused | All `0xFF` to the end of the file |         |
 
-`.idx`: 512-byte blocks. Block 0 is the header; the others are tree nodes or unused.
+`.idx`: 512-byte blocks. Block 0 is the file header and fill; the others are tree nodes, freed nodes or unused.
 
-| Offset    | Size | Name   | Description                                      | Section |
-| :-------- | ---: | :----- | :----------------------------------------------- | :------ |
-| 0x0000    |  512 | Header | Block 0                                          | 7       |
-| 0x200 × n |  512 | Node   | Block n, a tree node; unused blocks are all `0xFF` | 8     |
+| Offset    | Size | Name   | Description                                                        | Section |
+| :-------- | ---: | :----- | :----------------------------------------------------------------- | :------ |
+| 0x0000    |  128 | Header | File header                                                        | 2       |
+| 0x0080    |  384 | Fill   | All `0xFF`, the rest of block 0                                    |         |
+| 0x200 × n |  512 | Node   | Block n, a tree node or a freed node; unused blocks are all `0xFF` | 7       |
 
-Both files are a multiple of 4,096 bytes once they hold records.
+Both files grow by 4,096 bytes at a time (Growth = `4096`, header 0x2E), so each is a multiple of 4,096 once it holds records.
 
 ---
 
-## 2. .dat Header (140 bytes)
+## 2. File Header (128 bytes)
 
-Starts at 0x0000. Bytes 0x28-0x8B are the same in every sample except 0x30.
+Starts at 0x0000 in both files. It is c-tree's file header, with c-tree's names; a field only an index uses is `0` in the `.dat`, and one only a data file uses is `0` in the `.idx`. Bytes 0x28-0x7F are set when the file is created and never change, except First leaf (0x48); they are the same in every sample except File mode (0x30).
 
-| Offset | Size | Type   | Name         | Description                                                                         |
-| -----: | ---: | :----- | :----------- | :---------------------------------------------------------------------------------- |
-|   0x00 |    4 | u32    | File end     | File size − 1 (`348159`)                                                            |
-|   0x04 |    4 | u32    | Deleted list | Offset of the first deleted slot (section 6); `0` when none                         |
-|   0x08 |    4 | u32    | Slots end    | Offset of the last byte of the last slot; slots = (value − 139) / 20 (`17362`)      |
-|   0x0C |    8 | u8[8]  | Zero         |                                                                                     |
-|   0x14 |    4 | u32    | Unknown      | `565021` in `PNFL.dat`; equals the record count in every sample with no deleted slot |
-|   0x18 |    4 | u32    | Records      | Records in use (`17002`); also the `.idx` entry count                               |
-|   0x1C |   12 | u8[12] | Zero         |                                                                                     |
-|   0x28 |    2 | u16    | Unknown      | `0x0081`                                                                            |
-|   0x2A |    2 | u16    | Zero         |                                                                                     |
-|   0x2C |    2 | u16    | Record size  | `20`                                                                                |
-|   0x2E |    2 | u16    | Growth       | `4096`, the file's growth step; a `.dat` with records is a multiple of it            |
-|   0x30 |    2 | u16    | Unknown      | `1`; `0` in `1994.DAT` and `NFLPA93.dat`                                            |
-|   0x32 |    8 | u8[8]  | Zero         |                                                                                     |
-|   0x3A |    2 | u16    | Unknown      | `1`                                                                                 |
-|   0x3C |    2 | u16    | Unknown      | `512`                                                                               |
-|   0x3E |    2 | u16    | Unknown      | `1`                                                                                 |
-|   0x40 |   32 | u8[32] | Zero         |                                                                                     |
-|   0x60 |    1 | u8     | Unknown      | `0xFF`                                                                              |
-|   0x61 |    3 | u8[3]  | Zero         |                                                                                     |
-|   0x64 |    1 | u8     | Unknown      | `1`                                                                                 |
-|   0x65 |   27 | u8[27] | Zero         |                                                                                     |
-|   0x80 |   12 | u8[12] | Fill         | All `0xFF`                                                                          |
+| Offset | Size | Type   | Name             | Description                                                                                                | `.dat`                  | `.idx`                 |
+| -----: | ---: | :----- | :--------------- | :--------------------------------------------------------------------------------------------------------- | :---------------------- | :--------------------- |
+|   0x00 |    4 | u32    | File end         | File size − 1                                                                                              | `348159`                | `225279`               |
+|   0x04 |    4 | u32    | Delete stack     | Offset of the last deleted slot (section 6) or the last freed node (section 7); `0` when there is none              |                         |                        |
+|   0x08 |    4 | u32    | Used end         | Offset of the last byte ever used; never decreases. `.dat` slots = (value − 139) / 20; `.idx` blocks = (value + 1) / 512  | `347379` (17,362 slots) | `0x363FF` (434 blocks) |
+|   0x0C |    4 | u32    | Resource header  | `0`                                                                                                        |                         |                        |
+|   0x10 |    4 | u32    | Last member      | `0`                                                                                                        |                         |                        |
+|   0x14 |    4 | u32    | Serial number    | Count of records ever added, re-adds included; +1 per add, never decreases                                    | `565021`                | `0`                    |
+|   0x18 |    4 | u32    | Entries          | `.dat`: records in use; `.idx`: index entries; the two are always equal                                                        | `17002`                 | `17002`                |
+|   0x1C |    4 | u32    | Root             | Offset of the root node; `0` when empty                                                                    | `0`                     | `0x8200`               |
+|   0x20 |    4 | u32    | File id          | `0`                                                                                                        |                         |                        |
+|   0x24 |    4 | u32    | Server id        | `0`                                                                                                        |                         |                        |
+|   0x28 |    2 | u16    | Version          | c-tree's configuration when the file was created; bits unknown                                            | `0x81`                  | `0x81`                 |
+|   0x2A |    2 | u16    | Node size        |                                                                                                            | `0`                     | `512`                  |
+|   0x2C |    2 | u16    | Record size      |                                                                                                            | `20`                    | `0`                    |
+|   0x2E |    2 | u16    | Growth           | Bytes added each time the file grows                                                                       | `4096`                  | `4096`                 |
+|   0x30 |    2 | u16    | File mode        | c-tree open-mode bits, `1` = shared; `0` in the 1994 and NFLPA93 pairs                                     | `1`                     | `1`                    |
+|   0x32 |    2 | u16    | Permanent mode   | The file mode's permanent bits                                                                             | `0`                     | `0`                    |
+|   0x34 |    2 | u16    | Leaf bytes       | Maximum entry bytes in a leaf node = 60 entries                                                                     | `0`                     | `484`                  |
+|   0x36 |    2 | u16    | Non-leaf bytes   | Maximum entry bytes in a non-leaf node = 61 entries                                                            | `0`                     | `494`                  |
+|   0x38 |    1 | u8     | Update flag      | `0` = clean; anything else marks the file corrupt                                                          | `0`                     | `0`                    |
+|   0x39 |    1 | u8     | Key type         |                                                                                                            | `0`                     | `0`                    |
+|   0x3A |    1 | u8     | Duplicates       | Duplicate-key flag; why the `.dat` holds `1` is unknown                                                    | `1`                     | `0`                    |
+|   0x3B |    1 | u8     | Delete type      | Meaning unknown                                                                                            | `0`                     | `0`                    |
+|   0x3C |    1 | u8     | Key padding      | The byte that pads short keys                                                                              | `0`                     | `0x20`                 |
+|   0x3D |    1 | u8     | Flavor           | Byte-order code                                                                                            | `2`                     | `2`                    |
+|   0x3E |    1 | u8     | Alignment        | `1` = byte                                                                                                 | `1`                     | `1`                    |
+|   0x3F |    1 | u8     | Pointer size     |                                                                                                            | `0`                     | `0`                    |
+|   0x40 |    2 | u16    | File type        | `0` = data file, `1` = index                                                                                 | `0`                     | `1`                    |
+|   0x42 |    2 | u16    | Key size         |                                                                                                            | `0`                     | `4`                    |
+|   0x44 |    2 | u16    | Members          | `0`                                                                                                        |                         |                        |
+|   0x46 |    2 | u16    | Member number    | `0`                                                                                                        |                         |                        |
+|   0x48 |    4 | u32    | First leaf       | Offset of the leftmost leaf; `0` when empty                                                                | `0`                     | `0x200`                |
+|   0x4C |    4 | u32    | Superfile member | `0`                                                                                                        |                         |                        |
+|   0x50 |    4 | u32    | Header position  | `0`                                                                                                        |                         |                        |
+|   0x54 |    4 | u32    | Superfile header | `0`                                                                                                        |                         |                        |
+|   0x58 |    4 | u32    | Time id          | `0`                                                                                                        |                         |                        |
+|   0x5C |    2 | u16    | Superfile type   | `0`                                                                                                        |                         |                        |
+|   0x5E |    2 | u16    | Mark entries     | Meaning unknown                                                                                            | `0`                     | `0x80`                 |
+|   0x60 |    2 | u16    | Name length      | Maximum file name length at creation                                                            | `255`                   | `255`                  |
+|   0x62 |    2 | u16    | Extended mode    | `0`                                                                                                        |                         |                        |
+|   0x64 |    4 | u32    | Definition mask  | Meaning unknown                                                                                            | `1`                     | `0`                    |
+|   0x68 |    4 | u32    | Transaction mark | `0`                                                                                                        |                         |                        |
+|   0x6C |    4 | u32    | Header sequence  | `0`                                                                                                        |                         |                        |
+|   0x70 |    4 | u32    | Time stamp       | `0`                                                                                                        |                         |                        |
+|   0x74 |   12 | u8[12] | Reserved         | `0`                                                                                                        |                         |                        |
 
-An empty `.dat` is this header alone: file end and slots end are both `139`, the counts `0`.
+An empty `.dat` is the header and its fill alone (140 bytes): File end = `139`, Used end = `139`, Serial number = `0`, Entries = `0`. An empty `.idx` is block 0 alone: File end = `511`, Used end = `511`, Root = `0`, First leaf = `0`.
 
 ---
 
@@ -200,66 +226,35 @@ Player blocks:
 
 ## 6. Deleted Slots
 
-A deleted slot starts with `0xFF`, which no type uses. The deleted slots form a list headed by the header's deleted list offset (0x04).
+A deleted slot starts with `0xFF`, which no type uses. Deleted slots form a stack: Delete stack (0x04) holds the last deleted slot, and each deleted slot holds the one deleted before it.
 
-| Offset | Size | Type   | Name     | Description                                        |
-| -----: | ---: | :----- | :------- | :------------------------------------------------- |
-|   0x00 |    1 | u8     | Mark     | `0xFF`                                             |
-|   0x01 |    4 | u32    | Next     | Offset of the next deleted slot; `0` ends the list |
-|   0x05 |   15 | u8[15] | Leftover |                                                    |
+| Offset | Size | Type   | Name     | Description                                                    |
+| -----: | ---: | :----- | :------- | :------------------------------------------------------------- |
+|   0x00 |    1 | u8     | Mark     | `0xFF`                                                         |
+|   0x01 |    4 | u32    | Next     | Offset of the slot deleted before this one; `0` ends the stack |
+|   0x05 |   15 | u8[15] | Leftover | Bytes 5-19 of the deleted record                               |
 
----
-
-## 7. .idx Header (512 bytes)
-
-Block 0, starts at 0x0000. Bytes 0x28-0x1FF are the same in every sample except 0x30 and 0x48.
-
-| Offset | Size | Type    | Name       | Description                                                                   |
-| -----: | ---: | :------ | :--------- | :---------------------------------------------------------------------------- |
-|   0x00 |    4 | u32     | File end   | File size − 1 (`225279`)                                                      |
-|   0x04 |    4 | u32     | Unknown    | `0` in every sample                                                           |
-|   0x08 |    4 | u32     | Blocks end | Offset of the last byte of the last block in use (`0x363FF`: blocks 0-433)     |
-|   0x0C |   12 | u8[12]  | Zero       |                                                                               |
-|   0x18 |    4 | u32     | Entries    | Leaf entries; equals the `.dat` record count (`17002`)                        |
-|   0x1C |    4 | u32     | Root       | Offset of the root node (`0x8200`, block 65); `0` when empty                  |
-|   0x20 |    8 | u8[8]   | Zero       |                                                                               |
-|   0x28 |    2 | u16     | Unknown    | `0x0081`, as in the `.dat` header                                             |
-|   0x2A |    2 | u16     | Block size | `512`                                                                         |
-|   0x2C |    2 | u16     | Zero       |                                                                               |
-|   0x2E |    2 | u16     | Growth     | `4096`, the file's growth step; an `.idx` with entries is a multiple of it     |
-|   0x30 |    2 | u16     | Unknown    | `1`; `0` in `1994.IDX` and `NFLPA93.idx`                                      |
-|   0x32 |    2 | u16     | Zero       |                                                                               |
-|   0x34 |    2 | u16     | Unknown    | `484`; a node holds at most 60 entries (480 bytes) in `PNFL.idx`              |
-|   0x36 |    2 | u16     | Unknown    | `494`, which is 512 less the 18-byte node header                              |
-|   0x38 |    4 | u8[4]   | Zero       |                                                                               |
-|   0x3C |    2 | u16     | Unknown    | `0x0220`                                                                      |
-|   0x3E |    2 | u16     | Unknown    | `1`                                                                           |
-|   0x40 |    2 | u16     | Unknown    | `1`                                                                           |
-|   0x42 |    2 | u16     | Key size   | `4`                                                                           |
-|   0x44 |    4 | u8[4]   | Zero       |                                                                               |
-|   0x48 |    4 | u32     | First leaf | Offset of the leftmost leaf; `0` when empty                                   |
-|   0x4C |   18 | u8[18]  | Zero       |                                                                               |
-|   0x5E |    2 | u16     | Unknown    | `0x0080`                                                                      |
-|   0x60 |    1 | u8      | Unknown    | `0xFF`                                                                        |
-|   0x61 |   31 | u8[31]  | Zero       |                                                                               |
-|   0x80 |  384 | u8[384] | Fill       | All `0xFF`                                                                    |
-
-An empty `.idx` is this block alone: file end and blocks end are both `511`, root and first leaf `0`.
+- A delete writes the mark and the link over the record's first 5 bytes, pushes the slot on the stack, removes the record's index entry and lowers Entries (0x18) by one; Serial number does not change.
+- An add takes the slot on top of the stack; with the stack empty it takes the slot after Used end (0x08), growing the file by Growth (0x2E) bytes when that slot would pass File end. It raises Entries and Serial number (0x14) by one and inserts an index entry.
+- A value change rewrites the record where it is and changes nothing else.
+- The file never shrinks: Used end only grows, and a deleted slot stays until reused.
 
 ---
 
-## 8. Index Node (512 bytes)
+## 7. Index Node (512 bytes)
 
-Starts at 0x200 × block. An 18-byte header, then the entries, sorted by key. Bytes after the last entry are leftover.
+The index is a tree of nodes: the root (Root in the header) at the top, non-leaf nodes below it, and the leaves at the bottom; the PNFL's has three levels. A leaf's entries point at `.dat` records, one entry per record; a non-leaf node's entries point at the nodes below it. The nodes of each level are chained left to right by Next, and the leaves also right to left by Previous, so the first leaf (First leaf in the header) starts a walk through every record in key order. A lookup walks from the root down to the leaf that holds the key.
+
+A node starts at 0x200 × block: an 18-byte header, then the entries, sorted by key. Bytes after the last entry are leftover.
 
 | Offset | Size | Type     | Name     | Description                                                                 |
 | -----: | ---: | :------- | :------- | :-------------------------------------------------------------------------- |
 |   0x00 |    4 | u32      | Next     | Offset of the next node on the same level, left to right; `0` on the last   |
-|   0x04 |    4 | u32      | Previous | Offset of the previous leaf; `0` on the first leaf and on every non-leaf node |
+|   0x04 |    4 | u32      | Previous | Offset of the previous leaf; `0` on the first leaf and on every non-leaf node; `0xFFFFFFFF` on a freed node |
 |   0x08 |    2 | u16      | Entries  | Entry count                                                                 |
 |   0x0A |    2 | u16      | Bytes    | 8 × entries                                                                 |
 |   0x0C |    5 | u8[5]    | Zero     |                                                                             |
-|   0x11 |    1 | u8       | Leaf     | `1` leaf, `0` non-leaf                                                      |
+|   0x11 |    1 | u8       | Leaf     | `1` = leaf, `0` = non-leaf                                                  |
 |   0x12 |  8×n | entry[n] | Entries  | n = the entry count                                                         |
 
 Entry (8 bytes):
@@ -271,9 +266,14 @@ Entry (8 bytes):
 |   0x06 |    2 | u16 BE | Id      | Record id, big-endian                                                   |
 
 - The key is type then id, so entries sort by type, then id.
-- Leaves hold one entry per record.
+- Leaves hold one entry per record; Entries (0x18) in the header is their total.
+- A leaf holds at most 60 entries (Leaf bytes = `484`), a non-leaf node 61 (Non-leaf bytes = `494`).
+- When a 61st entry must go into a full leaf, the leaf splits: the lower 31 of the 61 entries stay, and the upper 30 move to a new node (taken from the delete stack, else appended) linked after it on its level, with Previous = the split node and Next = the split node's old Next. The parent gets an entry for the split node with its new highest key, placed before the old entry, which now points at the new node. A full non-leaf node (61 entries) splits the same way, its upper half moving to the new node.
+- A root split is not described: the root holds at most 61 entries and has never held more than 12 in any PNFL file, so it does not split at a league's size.
 - A non-leaf key is at or above every key under its child; the last entry of each non-leaf level is `FF FF FF FF`.
 - Lookup: from the root, follow the first entry whose key is at or above the wanted key; in the leaf, the entry with that key points at the record.
+- A delete removes the entry at once; nodes are never merged, so a leaf can run down to a few entries.
+- A leaf that runs empty is freed: its entry is removed from its parent, it is unlinked from its level, with Entries = `0`, Bytes = `0`, Previous = `0xFFFFFFFF` and Next = the node freed before it, and Delete stack (0x04) in the header points at it; its old entries stay as leftover. A node is taken from that stack before the file grows.
 
 Example, `PNFL.idx` block 55, entry 20, at 0x6EB2: Stroud's season passing.
 
@@ -282,10 +282,3 @@ Example, `PNFL.idx` block 55, entry 20, at 0x6EB2: Stroud's season passing.
 0x04  00 23         type    = 35
 0x06  18 8b         id      = 6283
 ```
-
----
-
-## 9. Open Questions
-
-- `.dat` header bytes 0x14, 0x28, 0x30, 0x3A-0x3F, 0x60 and 0x64; `.idx` header bytes 0x04, 0x28, 0x30, 0x34-0x37, 0x3C-0x41, 0x5E and 0x60
-- Whether the game reuses deleted slots before growing the file, and what it does with a stale `.idx`

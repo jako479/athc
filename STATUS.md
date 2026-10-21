@@ -325,7 +325,10 @@ stats). Docs:
 [stats spec](docs/formats/stats.md), [notes](docs/research/pnfl-formats.md).
 
 - `.lge`, `.rst`, `.pyr`, `.PYF`, `.dft`, `.tmn` and `.lgc` decoded in full;
-  `.dat` + `.idx` mostly (a few header bytes unmapped).
+  `.dat` + `.idx` with every header field named after c-tree's file header
+  (a few flag meanings unknown).
+- How the game updates `.dat` + `.idx` each week:
+  [game behavior](docs/fbpro98-game-behavior.md#statistics).
 - `research/pnfl_decode.py` reads them all (stdlib, read-only).
 
 ## fbpro98_play (library)

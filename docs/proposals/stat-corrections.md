@@ -21,4 +21,3 @@ The game engine records some stats wrong. athc should fix them in the league's s
 ## Open questions
 
 - Whether the game recalculates Hall of Fame points or awards from the stats.
-- What the game does with an out-of-date `.idx` (an open question in the spec).

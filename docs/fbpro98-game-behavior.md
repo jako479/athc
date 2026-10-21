@@ -138,6 +138,32 @@ The `fbpro98_lge` library and the standings library's `game` method
 season-end order; the game's list beside the NFL's, pnfl.biz's and the
 scheduler's: [standings-tie-breakers.md](research/standings-tie-breakers.md).
 
+## Statistics
+
+How the game keeps the stats files, `.dat` and `.idx`, learned from the PNFL
+2047 files saved after each week (16 regular-season weeks, 3 playoff rounds).
+Layout: [stats spec](formats/stats.md).
+
+### Weekly update
+
+- The files are updated in place, never rewritten.
+- Every last-game record is deleted, in index order (type, then id); the
+  week's last-game records are then added game by game.
+- Season and career records are rewritten where they are; a player's or
+  team's first stat of the season or career in a category adds a record.
+- Deleted slots are reused, most recently deleted first; the files grow only
+  when none is free.
+
+### End of the regular season
+
+- When the last regular-season week is played, the All-Pro team records are
+  deleted and re-added, and four Hall of Fame nominee records were deleted.
+
+### Playoffs
+
+- Playoff games change last-game records only; every season, career and award
+  record is byte for byte the same before and after the playoffs.
+
 ## Positions
 
 Notes specific to each position.

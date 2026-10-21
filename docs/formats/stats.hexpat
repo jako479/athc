@@ -255,39 +255,63 @@ struct Category16<auto Type> {
         Unmapped values [[inline]];
 };
 
-// ---- .dat ----
+// ---- File header (stats.md section 2): c-tree's, the same in both files ----
 
-struct DatHeader {
+struct FileHeader {
     u32 fileEnd [[comment("File size - 1")]];
-    u32 deletedList [[comment("Offset of the first deleted slot; 0 when none")]];
-    u32 slotsEnd [[comment("Offset of the last byte of the last slot")]];
-    u8 zero0C[8];
-    u32 unknown14;
-    u32 records [[comment("Records in use")]];
-    u8 zero1C[12];
-    u16 unknown28;
-    u16 zero2A;
+    u32 deleteStack [[comment("Last deleted slot (.dat) or last freed node (.idx); 0 when none")]];
+    u32 usedEnd [[comment("Last byte ever used; never shrinks")]];
+    u32 resourceHeader;
+    u32 lastMember;
+    u32 serialNumber [[comment("Records ever added")]];
+    u32 entries [[comment("Records in use, or index entries")]];
+    u32 root [[comment("Root node; 0 when empty")]];
+    u32 fileId;
+    u32 serverId;
+    u16 version [[comment("c-tree configuration at creation")]];
+    u16 nodeSize;
     u16 recordSize;
     u16 growth [[comment("File growth step")]];
-    u16 unknown30;
-    u8 zero32[8];
-    u16 unknown3A;
-    u16 unknown3C;
-    u16 unknown3E;
-    u8 zero40[32];
-    u8 unknown60;
-    u8 zero61[3];
-    u8 unknown64;
-    u8 zero65[27];
-    u8 fill[12];
+    u16 fileMode;
+    u16 permanentMode;
+    u16 leafBytes [[comment("Most entry bytes in a leaf")]];
+    u16 nonLeafBytes [[comment("Most entry bytes in a non-leaf node")]];
+    u8 updateFlag [[comment("0 clean")]];
+    u8 keyType;
+    u8 duplicates;
+    u8 deleteType;
+    u8 keyPadding;
+    u8 flavor;
+    u8 alignment;
+    u8 pointerSize;
+    u16 fileType [[comment("0 data, 1 index")]];
+    u16 keySize;
+    u16 members;
+    u16 memberNumber;
+    u32 firstLeaf [[comment("Leftmost leaf; 0 when empty")]];
+    u32 superfileMember;
+    u32 headerPosition;
+    u32 superfileHeader;
+    u32 timeId;
+    u16 superfileType;
+    u16 markEntries;
+    u16 nameLength;
+    u16 extendedMode;
+    u32 definitionMask;
+    u32 transactionMark;
+    u32 headerSequence;
+    u32 timeStamp;
+    u8 reserved[12];
 };
+
+// ---- .dat ----
 
 // A slot holds a record, or is deleted: a deleted slot starts with 0xFF,
 // which no record type uses.
 struct Slot {
     if (std::mem::read_unsigned($, 1) == 0xFF) {
         u8 mark;
-        u32 next [[comment("Offset of the next deleted slot; 0 ends the list")]];
+        u32 next [[comment("Slot deleted before this one; 0 ends the stack")]];
         u8 leftover[15];
     } else {
         u16 type [[format("type_format")]];
@@ -323,43 +347,14 @@ fn slot_format(ref auto s) {
 };
 
 struct Dat {
-    DatHeader header;
-    Slot slots[(header.slotsEnd - 139) / 20];
+    FileHeader header;
+    u8 fill[12] [[comment("All 0xFF, up to the first slot")]];
+    Slot slots[(header.usedEnd - 139) / 20];
     if (!std::mem::eof())
         u8 unused[std::mem::size() - $] [[comment("All 0xFF")]];
 };
 
 // ---- .idx ----
-
-struct IdxHeader {
-    u32 fileEnd [[comment("File size - 1")]];
-    u32 unknown04;
-    u32 blocksEnd [[comment("Offset of the last byte of the last block in use")]];
-    u8 zero0C[12];
-    u32 entries [[comment("Leaf entries; the .dat record count")]];
-    u32 root [[comment("Offset of the root node; 0 when empty")]];
-    u8 zero20[8];
-    u16 unknown28;
-    u16 blockSize;
-    u16 zero2C;
-    u16 growth [[comment("File growth step")]];
-    u16 unknown30;
-    u16 zero32;
-    u16 unknown34;
-    u16 unknown36;
-    u8 zero38[4];
-    u16 unknown3C;
-    u16 unknown3E;
-    u16 unknown40;
-    u16 keySize;
-    u8 zero44[4];
-    u32 firstLeaf [[comment("Offset of the leftmost leaf; 0 when empty")]];
-    u8 zero4C[18];
-    u16 unknown5E;
-    u8 unknown60;
-    u8 zero61[31];
-    u8 fill[384];
-};
 
 // The key is type then id, big-endian, so entries sort by type, then id.
 struct Entry {
@@ -376,7 +371,7 @@ fn entry_format(ref auto e) {
 
 struct Node {
     u32 next [[comment("Next node on the same level; 0 on the last")]];
-    u32 previous [[comment("Previous leaf; 0 on the first leaf and every non-leaf node")]];
+    u32 previous [[comment("Previous leaf; 0 on the first leaf and every non-leaf node; 0xFFFFFFFF on a freed node")]];
     u16 entryCount;
     u16 bytes [[comment("8 x entries")]];
     u8 zero[5];
@@ -393,16 +388,16 @@ fn node_format(ref auto n) {
 };
 
 struct Idx {
-    IdxHeader header;
-    Node nodes[(header.blocksEnd + 1) / 512 - 1];
+    FileHeader header;
+    u8 fill[384] [[comment("All 0xFF, the rest of block 0")]];
+    Node nodes[(header.usedEnd + 1) / 512 - 1];
     if (!std::mem::eof())
         u8 unused[std::mem::size() - $] [[comment("All 0xFF")]];
 };
 
 // ---- File ----
 
-// A .dat header holds the record size (20) at 0x2C; an .idx header holds the
-// block size (512) at 0x2A.
+// The header's node size (0x2A) is 512 in an .idx and 0 in a .dat.
 struct StatsFile {
     if (std::mem::read_unsigned(0x2A, 2) == 512)
         Idx idx [[inline]];

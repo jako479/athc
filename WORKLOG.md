@@ -4,6 +4,14 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-20 — **stats files**: compared the 2047 season's weekly `.dat` and
+  `.idx` pairs to see how the game maintains them (updated in place,
+  last-game records deleted and re-added, deleted slots reused, playoffs
+  touching only last-game records) and matched the header to FairCom's
+  c-tree Plus V6 file header. The weekly behavior went into
+  `docs/fbpro98-game-behavior.md`; the header mapping, the delete-stack and
+  reuse rules, the index's free-node stack and the node capacities went into
+  `docs/formats/stats.md` and its pattern.
 - 2026-10-20 — **athc tests**: an audit of the file libraries' tests found
   that every `test_schema.py` only restated its module's constants and that
   the frozen-dataclass tests only checked Python. Those went, with the `.lg2`
