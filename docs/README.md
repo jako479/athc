@@ -66,3 +66,4 @@ Pending designs and plans; a finished pair folds into the docs and goes (the rul
 
 - [logging-updates.md](proposals/logging-updates.md) — Proposal — logging updates
 - [quirk-budget.md](proposals/quirk-budget.md) — Proposal — schedule quirk budget
+- [stat-corrections.md](proposals/stat-corrections.md) — Proposal — stat corrections
