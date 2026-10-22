@@ -5,7 +5,7 @@ Status: proposal; nothing implemented.
 ## Why
 
 - The standings skip net touchdowns, the last step before the coin toss in the game's and the NFL's tie-breakers, because the `.lge` has no touchdowns; the `.dat` does.
-- Stat corrections ([stat-corrections.md](stat-corrections.md)) need the stats library to write the `.dat`, not only read it.
+- Stat corrections ([game-stats-correction.md](game-stats-correction.md)) need the stats library to write the `.dat`, not only read it.
 
 ## How: net touchdowns
 
