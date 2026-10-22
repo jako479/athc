@@ -54,9 +54,11 @@ Libraries:
 
 Pending designs and plans, in `design/TODO/`; a finished pair folds into the docs and goes (the rule in AGENTS.md).
 
+- [game-stats-correction.md](design/TODO/game-stats-correction.md) — Proposal — game stats correction
 - [logging-updates.md](design/TODO/logging-updates.md) — Proposal — logging updates
 - [quirk-budget.md](design/TODO/quirk-budget.md) — Proposal — schedule quirk budget
 - [stat-corrections.md](design/TODO/stat-corrections.md) — Proposal — stat corrections
+- [stats-library.md](design/TODO/stats-library.md) — Proposal — stats library: net touchdowns and writing
 
 ## Formats
 
