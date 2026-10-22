@@ -2,6 +2,27 @@
 
 ## 1.0.0
 
+- [ ] For each subpackage: run a code review specifically on the tests to find: gaps, non-ideal source data and goldens, and non-ideal test patterns.
+  - [ ] autocontinue
+  - [ ] cli
+  - [ ] fbpro98_gameplan
+  - [ ] fbpro98_lg2
+  - [ ] fbpro98_lge
+  - [ ] fbpro98_play
+  - [ ] fbpro98_profile
+  - [ ] fbpro98_standings
+  - [ ] fbpro98_stats
+  - [ ] gameplan
+  - [ ] pdbtoexcel
+  - [ ] playpool
+  - [ ] profile
+  - [ ] scheduler
+  - [ ] standings
+  - [ ] fbpro98_lg2
+  - [ ] fbpro98_lg2
+  - [ ] fbpro98_lg2
+  - [ ] fbpro98_lg2
+  - [ ] fbpro98_lg2
 - [x] profile: `copy` errors when the source and the single target are the same file (non-bulk copy)
 - [x] athc: an output folder for convert-pdb, list-normals, list-specials and generate-schedule
 - [x] profile: CLI plan (profile keys `off1 def1 off2 def2` on check, diff and copy, `--team`, `copy SOURCE TARGET...`, `--substitutions`)
@@ -14,16 +35,12 @@
 - [x] athc: reorganize the docs folders and set the rule for design docs and plans
 - [x] athc: go through the CLI and help text for each command
 - [ ] athc: go through all messages, warnings and errors for each command — messages name the file and line number, then say the problem in plain words; see [docs/design/TODO/logging-updates.md](docs/design/TODO/logging-updates.md)
-- [ ] athc: look for gaps in test cases for each command and library
-- [ ] athc: update the release README with each command's warnings and errors, from the per-tool docs ([gameplan](docs/design/gameplan.md), [profile](docs/design/profile.md), [check-ppp](docs/design/check_ppp.md), [playpool](docs/design/playpool.md), [convert-pdb](docs/design/pdbtoexcel.md), [generate-schedule](docs/design/scheduler.md), [autocontinue](docs/design/autocontinue.md), [config](docs/design/config.md))
-- [ ] athc: convert the release notes from .txt to .md
-- [ ] athc: update the release docs to Markdown
-- [ ] athc: recommend Markdown plugins for Chrome or Notepad++ in the release README
+- [ ] athc: update the release README with each command's warnings and errors, from the per-tool docs ([gameplan](docs/gameplan.md), [profile](docs/profile.md), [check-ppp](docs/check_ppp.md), [playpool](docs/playpool.md), [convert-pdb](docs/pdbtoexcel.md), [generate-schedule](docs/scheduler.md), [autocontinue](docs/autocontinue.md), [config](docs/config.md))
 - [ ] athc: create a fancy project README for GitHub
+- [ ] athc: make an HTML user guide for the release
 - [ ] athc: go through and clean up the project README, TODO, STATUS, CHANGELOG and WORKLOG
-- [ ] athc: go through and reorganize the flood of design docs
-- [ ] athc: go through and reorganize the flood of file specs
 - [ ] athc: go through and update the release documentation (README, CHANGELOG, commands and errors/warnings, etc.)
+- [x] athc: go through and reorganize the flood of design docs and file specs
 - [x] gameplan: set-normals: decide whether to keep `-q/--quiet`, the only quiet option in athc: drop it, keep it, or give every file-writing command one; pdf-converter has none
 - [ ] gameplan: `replace-play` takes a list of play/replacement pairs to swap in one run, through an option that reads a file (`-` for the console), which makes both positionals optional
 - [ ] check-ppp: league plan and profile names
