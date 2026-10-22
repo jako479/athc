@@ -57,7 +57,7 @@ Pending designs and plans, in `design/TODO/`; a finished pair folds into the doc
 - [game-stats-correction.md](design/TODO/game-stats-correction.md) — Proposal — game stats correction
 - [logging-updates.md](design/TODO/logging-updates.md) — Proposal — logging updates
 - [quirk-budget.md](design/TODO/quirk-budget.md) — Proposal — schedule quirk budget
-- [stats-library.md](design/TODO/stats-library.md) — Proposal — stats library: net touchdowns and writing
+- [standings-net-touchdowns.md](design/TODO/standings-net-touchdowns.md) — Proposal — net touchdowns in the standings
 
 ## Formats
 

@@ -39,7 +39,7 @@
 
 ## 2.0.0
 
-- fbpro98_stats: net touchdowns in the standings and a `.dat` writer; prerequisite for stat corrections; see [docs/design/TODO/stats-library.md](docs/design/TODO/stats-library.md)
+- standings: net touchdowns in the tie-breakers, from `<league>.dat`; see [docs/design/TODO/standings-net-touchdowns.md](docs/design/TODO/standings-net-touchdowns.md)
 - athc: stat corrections — fix stats the game records wrong in `<league>.dat`; see [docs/design/TODO/game-stats-correction.md](docs/design/TODO/game-stats-correction.md)
 - gameplan: set-normals checks the resulting game plan and, if it fails, asks for confirmation before replacing
 - athc: update the file specs and their ImHex patterns from the Sierra source findings; see [docs/research/sierra-source.md](docs/research/sierra-source.md#14-planned-spec-changes)
