@@ -9,7 +9,7 @@
   - [ ] fbpro98_lg2
   - [ ] fbpro98_lge
   - [ ] fbpro98_play
-  - [ ] fbpro98_profile
+  - [x] fbpro98_profile
   - [ ] fbpro98_standings
   - [ ] fbpro98_stats
   - [ ] gameplan

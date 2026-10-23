@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: the `.prf` spec says where the game puts an embedded game plan: a G95 + S98 pair before I95, whose count field counts those blocks
+- athc: the profile library's tests check the situation layout at the start of every group, every reader check and limit, the PAT weight rule and an edit of every profile field; cases the byte-identical round trip already proved are gone
 - athc: docs regrouped: `docs/design/` holds the design docs, `docs/usage/` the end-user docs the installer ships (one file per command, each with its options, settings, lines and exit codes), `docs/research/` the game and league notes
 - gameplan: set-normals reports every bad line of a play list in one run; a special play no longer hides the others
 - gameplan: tests check both sides of every rule limit and the wording of every rule message, plus a wrong `--league`, a bug in one file and a play list that does not fit

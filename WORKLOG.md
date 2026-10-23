@@ -4,6 +4,16 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-22 — **fbpro98_profile tests**: a review of the profile library's
+  tests found the situation layout pinned only at situations 1 and 2520 (a
+  consistent swap of two buckets would have passed), the PAT weight rule and
+  three I95 checks untested, the field goal range tested past one limit only,
+  and a third of the writer cases and a quarter of the reader cases restating
+  what the byte-identical round trip or the model already proved. The gaps got
+  tests from the spec's layout and offsets; the redundant cases went; the
+  pinned values became one table per fixture; missing fixtures now fail
+  instead of skipping; two stock profiles no test opened went. A situation's
+  range message had the wrong closing bracket.
 - 2026-10-21 — **gameplan**: set-normals checked a list for special plays
   first and stopped there, so a missing or wrong-side play on another line
   showed only after the special one was fixed. It now reports every bad line

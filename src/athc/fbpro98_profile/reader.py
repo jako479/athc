@@ -64,7 +64,7 @@ def read_profile(path: StrPath) -> Profile:
         InvalidProfileError: If the file is not a structurally valid .prf (bad
             block IDs, mismatched sizes, F95/I95 field disagreement, invalid
             substitution / situation / field-goal-range / use-audibles values,
-            invalid trailer, or wrong file-size parity for the profile type).
+            or an invalid trailer).
         UnsupportedProfileError: If the file is structurally valid but uses an
             unsupported variant (stock layout, or has embedded game-plan
             blocks). See docs/formats/prf.md section 4.
@@ -91,8 +91,7 @@ def parse_profile(buffer: bytes, path: StrPath = "<buffer>") -> Profile:
             block sequence with a correct trailer. Triggered by wrong block
             IDs, mismatched sizes, F95/I95 field disagreement, invalid
             substitution / situation / field-goal-range / use-audibles values,
-            invalid trailer bytes, or wrong file-size parity for the profile
-            type.
+            or invalid trailer bytes.
         UnsupportedProfileError: If the buffer is structurally valid but uses
             an unsupported variant (stock layout, or has embedded game-plan
             blocks).
@@ -380,12 +379,3 @@ def _validate_trailer(
             raise InvalidProfileError(
                 f"Trailer byte at {offset:#x} is {byte:#04x}; only 0x00 accepted.", path
             )
-
-    expected_parity = 0 if profile_type == ProfileType.OFFENSE else 1
-    if len(buffer) % 2 != expected_parity:
-        expected_word = "even" if expected_parity == 0 else "odd"
-        raise InvalidProfileError(
-            f"File size {len(buffer)} has wrong parity for {profile_type.name.lower()} "
-            f"profile (expected {expected_word}).",
-            path,
-        )

@@ -48,7 +48,7 @@ write_profile(modified, "TST-OFF1.prf")
 - `InvalidProfileError`: malformed bytes; the conditions are the validity rules in [`formats/prf.md`](../formats/prf.md).
 - `UnsupportedProfileError`: a structurally valid profile in a variant the library does not handle:
   - **Stock layout** — the older format of game-shipped profiles (`OFF1.PRF`, `DEF1.PRF`), detected by an F95 size of `0x3F69` or `0x4509`. Re-saving a stock profile in the game converts it to the saved layout (`0x3C9D`).
-  - **Embedded game plans** — a profile saved with game plans appended after I95, detected by a non-zero I95 game plan block count or a `G95:` / `J95:` / `S98:` ID after I95.
+  - **Embedded game plans** — a profile saved with a game plan holds a G95 + S98 pair where a plain profile's I95 sits, then I95; detected by a non-zero I95 game plan block count or a `G95:` / `J95:` / `S98:` ID in I95's place or after it.
 - The writer never emits either variant. It rebuilds every byte from the model, mirrors the field goal range and use audibles into I95, packs the Stop Clock flag into bit 7 of weight 1 and ends with the NUL trailer; `write_profile(read_profile(p), q)` reproduces `p` byte for byte.
 
 ## Testing
@@ -78,13 +78,13 @@ The domain (`model.py`) owns the situation-number ↔ game-state mapping (see [f
 ### What this package does
 
 - Reads `.prf` files into a typed in-memory model and writes them back, including in-place updates of existing files and from-scratch construction.
-- Validates structural correctness on read (block magics, sizes, redundant F95/I95 agreement, trailer length and bytes, file-size parity).
+- Validates structural correctness on read (block magics, sizes, redundant F95/I95 agreement, trailer length and bytes).
 - Decodes situation numbers into game-state buckets; exposes `Profile.stop_clock_situations` for situations with the Stop-Clock flag set.
 
 ### What this package does NOT do
 
 - Handle the older "stock" on-disk layout — `F95.size` ∈ {`0x3F69`, `0x4509`} → `UnsupportedProfileError`.
-- Handle profiles saved with embedded game plans — `I95.num_game_plan_blocks ≠ 0` or G95/J95/S98 magic after I95 → `UnsupportedProfileError`.
+- Handle profiles saved with embedded game plans — `I95.num_game_plan_blocks ≠ 0` or G95/J95/S98 magic in I95's place or after I95 → `UnsupportedProfileError`.
 
 See [formats/prf.md](../formats/prf.md) sections 6-7 for the full reader validation and writer contract.
 

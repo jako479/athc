@@ -11,66 +11,6 @@ from dataclasses import dataclass
 from enum import Enum, IntEnum
 from typing import ClassVar
 
-OFFENSIVE_CATEGORIES = {
-    0x01: "Run Right",
-    0x03: "Pass Short Right",
-    0x05: "Run Left",
-    0x07: "Pass Short Left",
-    0x09: "Run Middle",
-    0x0B: "Pass Short Middle",
-    0x0D: "Razzle Dazzle Run",
-    0x0F: "Razzle Dazzle Pass",
-    0x13: "Pass Medium Right",
-    0x17: "Pass Medium Left",
-    0x1B: "Pass Medium Middle",
-    0x23: "Pass Long Right",
-    0x27: "Pass Long Left",
-    0x2B: "Pass Long Middle",
-    0x31: "Goal Line Run",
-    0x33: "Goal Line Pass",
-    0xFF: "User Specific",
-}
-
-DEFENSIVE_CATEGORIES = {
-    0x00: "Run Right",
-    0x02: "Pass Short",
-    0x04: "Run Left",
-    0x08: "Run Middle",
-    0x0C: "Run Dazzle",
-    0x0E: "Pass Dazzle",
-    0x12: "Pass Medium",
-    0x22: "Pass Long",
-    0x30: "Goal Line Run",
-    0x32: "Goal Line Pass",
-    0xFE: "User Specific",
-}
-
-SPECIAL_OFFENSIVE_CATEGORIES = {
-    0x01: "Field Goal/PAT",
-    0x02: "Kickoff",
-    0x03: "Punt",
-    0x04: "Onside Kick",
-    0x05: "Fake FG Run",
-    0x06: "Fake FG Pass",
-    0x07: "Fake Punt Run",
-    0x08: "Fake Punt Pass",
-    0x09: "Free Kick",
-    0x0A: "Squib Kick",
-}
-
-SPECIAL_DEFENSIVE_CATEGORIES = {
-    0x01: "Field Goal/PAT Defense",
-    0x02: "Kick Return",
-    0x03: "Punt Return",
-    0x04: "Onside Return",
-    0x05: "Fake FG Run Defense",
-    0x06: "Fake FG Pass Defense",
-    0x07: "Fake Punt Run Defense",
-    0x08: "Fake Punt Pass Defense",
-    0x09: "Free Kick Return",
-    0x0A: "Squib Return",
-}
-
 
 class ProfileType(IntEnum):
     """Whether a profile is for defense (0) or offense (1). Encoded in I95 data."""
@@ -257,7 +197,7 @@ class Situation:
     def __post_init__(self) -> None:
         if not 1 <= self.situation_number <= 2520:
             raise ValueError(
-                f"situation_number must be in [1, 2520), got {self.situation_number}"
+                f"situation_number must be in [1, 2520], got {self.situation_number}"
             )
         expected = self._situation_number_from_game_state(
             self.minutes_remaining,

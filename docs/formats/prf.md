@@ -26,7 +26,7 @@ trailer
 
 Each block: ID (4 bytes) + size (4 bytes) + data, where size excludes the 8-byte header.
 
-Profiles can also be saved with embedded game plans (G95/J95/S98 trios after I95); see section 4.
+A profile can also be saved with an embedded game plan (a G95 + S98 pair before I95); see section 4.
 
 ---
 
@@ -194,7 +194,7 @@ End of F95 data at offset 0x3C9D (file offset 0x3CA5).
 
 ## 3. Block: I95 — Profile Metadata
 
-Starts at 0x3CA5; its data at 0x3CAD.
+Starts at 0x3CA5 in a plain profile, its data at 0x3CAD; with an embedded game plan (section 4) it follows the game plan blocks.
 
 ### 3.1 Header (8 bytes)
 
@@ -210,7 +210,7 @@ Starts at 0x3CA5; its data at 0x3CAD.
 |     +0 |    1 | u8   | Profile type     | `0` = defense, `1` = offense                                   |
 |     +1 |    2 | u16  | Reserved         | Always `0x0000`                                                |
 |     +3 |    1 | u8   | Field goal range | Yards `5`–`50`; mirrors the F95 field goal range               |
-|     +4 |    2 | u16  | Game plan blocks | Count of embedded game plans; supported profiles have `0` here |
+|     +4 |    2 | u16  | Game plan blocks | Embedded blocks, `2` per game plan; `0` in supported profiles  |
 |     +6 |    4 | u32  | Use audibles     | `0` or `1`; mirrors the F95 use audibles                       |
 
 Field goal range and use audibles are stored redundantly in F95 and I95; a mismatch is invalid. A game plan block count other than `0` signals the embedded-game-plans variant (section 4).
@@ -219,15 +219,15 @@ Field goal range and use audibles are stored redundantly in F95 and I95; a misma
 
 ## 4. Embedded Game Plans
 
-When present, the extra blocks start at 0x3CB7, where the trailer would be.
+A profile saved with an embedded game plan holds F95, then a G95 + S98 pair starting at 0x3CA5, where a plain profile's I95 sits, then I95, then the trailer. The I95 game plan blocks field counts the embedded blocks (`2` for one plan), not plans. The trailer is 2 bytes for offense and 3 for defense, keeping the file-size parity of section 5.
 
-Profiles saved with embedded game plans append one G95/J95/S98 trio per plan after I95. The variant shows as an I95 game plan block count other than `0`, bytes other than the trailer after I95, or a `G95:` / `J95:` / `S98:` ID after I95.
+The variant shows as an I95 game plan block count other than `0`, or a `G95:` / `S98:` ID where I95 would be.
 
 ---
 
 ## 5. Trailer
 
-Starts at 0x3CB7.
+Starts at 0x3CB7 in a plain profile.
 
 Every profile ends with **1 byte (offense)** or **2 bytes (defense)** so the total file size has the parity FbPro98's file-open dialog uses to filter by profile type:
 
