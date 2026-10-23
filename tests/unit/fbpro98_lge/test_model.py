@@ -23,16 +23,18 @@ def _names(teams: tuple[Team, ...]) -> tuple[str, ...]:
     return tuple(team.name for team in teams)
 
 
-def test_nested_access():
-    team = Team(name="Denver", nickname="Broncos", record=NO_GAMES)
-    division = Division(name="West", teams=(team,), standings=(team,))
-    conference = Conference(name="AFC", divisions=(division,), standings=(team,))
-    lge = LgeFile(conferences=(conference,))
-    assert lge.conferences[0].name == "AFC"
-    assert lge.conferences[0].divisions[0].name == "West"
-    assert lge.conferences[0].divisions[0].teams[0].nickname == "Broncos"
-    assert lge.teams == (team,)
-    assert ranked(lge) == (team,)
+def test_teams_walks_conferences_divisions_and_teams_in_order():
+    a, b, c, d = (_team(name, (0, 0, 0, 0, 0)) for name in "abcd")
+    east = Division(name="East", teams=(a,), standings=(a,))
+    west = Division(name="West", teams=(b, c), standings=(b, c))
+    south = Division(name="South", teams=(d,), standings=(d,))
+    lge = LgeFile(
+        conferences=(
+            Conference(name="AFC", divisions=(east, west), standings=(a, b, c)),
+            Conference(name="NFC", divisions=(south,), standings=(d,)),
+        )
+    )
+    assert lge.teams == (a, b, c, d)
 
 
 @pytest.mark.parametrize(

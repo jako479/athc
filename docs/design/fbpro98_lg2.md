@@ -79,6 +79,6 @@ See [formats/lg2.md](../formats/lg2.md) for the format and the reader contract.
 
 ### Testing
 
-- `tests/unit/fbpro98_lg2/test_reader.py` — real fixtures (custom, modern stock, old stock), league type, limits.
+- `tests/unit/fbpro98_lg2/test_reader.py` — real fixtures (custom, modern stock, old stock), the custom league's team order against its `.lge`, league type, limits.
 
 Fixtures in `tests/unit/fbpro98_lg2/data/` are real game files.

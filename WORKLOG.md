@@ -4,6 +4,16 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-22 — **fbpro98_lge, fbpro98_lg2 tests**: a review of the two
+  league-file test suites found the fixtures and goldens sound (every file
+  real and used, every tie recomputed from the games) but a few gaps: the
+  strength-of-schedule test could not tell each-opponent-once from
+  every-game counting, a tree with more divisions or teams than its counts
+  say was untested, as were an empty week, the playoff rounds' week
+  numbering, the `<buffer>` path, the `.lg2` error offsets and its
+  size-before-fields order. Each got a test; the `.lg2` team order is now
+  checked against the `.lge`; a dataclass-access test, a redundant `ranked`
+  test and a duplicate team walk went.
 - 2026-10-22 — **fbpro98_profile tests**: a review of the profile library's
   tests found the situation layout pinned only at situations 1 and 2520 (a
   consistent swap of two buckets would have passed), the PAT weight rule and

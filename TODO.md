@@ -6,8 +6,8 @@
   - [ ] autocontinue
   - [ ] cli
   - [ ] fbpro98_gameplan
-  - [ ] fbpro98_lg2
-  - [ ] fbpro98_lge
+  - [x] fbpro98_lg2
+  - [x] fbpro98_lge
   - [ ] fbpro98_play
   - [x] fbpro98_profile
   - [ ] fbpro98_standings

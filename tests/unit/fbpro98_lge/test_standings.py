@@ -72,16 +72,19 @@ def test_net_points_in_all_games_breaks_equal_division_net_points():
     assert rank([2, 1], season) == (1, 2)
 
 
-def test_strength_of_schedule_breaks_everything_else_level():
-    # 1 and 2 split and each beat another team twice by the same margin; 1's
-    # other opponent (4) went 2-2, 2's (5) went 0-2.
+def test_strength_of_schedule_counts_each_opponent_once():
+    # 1 and 2 are level through net points: 1 beat division rival 3 twice and
+    # 4 once, 2 beat 3, 4 and 5 once each. Each opponent once, 1's opponents
+    # went 3-5 (3 is 0-3, 4 is 3-2) and 2's 3-6 (5 is 0-1), so 1 ranks first;
+    # counting 3's 0-3 twice for 1 would rank 2 first.
     season = _season(
-        _win(1, 2),
-        _win(2, 1),
+        _win(1, 3, by=5),
+        _win(1, 3, by=5),
         _win(1, 4),
-        _win(1, 4),
-        _win(2, 5),
-        _win(2, 5),
+        _win(2, 3),
+        _win(2, 4, by=5),
+        _win(2, 5, by=5),
+        _win(4, 6),
         _win(4, 6),
         _win(4, 6),
     )

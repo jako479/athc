@@ -2,7 +2,7 @@
 
 Cases covered for the `.lge` league file library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
 
-One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()` = constructed bytes (one team unless a shape is given), `golden` = real `.lge` in `data/` (`08_TEAMS.lge`, `10_TEAMS.LGE`, `12_TEAMS.LGE` one conference; `PNFL.lge` 18 teams, custom, 2049 after week 6; `NFLPA94.lge` 28; `NFLPI97R.LGE` 30; grouped by chunk kind: `NFLPA93E.LGE` 28, `_default.lge` 30; the PNFL's 2047 season: `PNFL-before-week1.lge`, `PNFL-after-week16.lge`, `PNFL-after-super-bowl.lge`; seasons' ends for the tie-breakers: `PNFL-2043-after-super-bowl.lge`, `PNFL-2046-after-super-bowl.lge`, `PNFL-2048-after-week16.lge`). Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_lge` → 129 passing.
+One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()` = constructed bytes (one team unless a shape is given), `golden` = real `.lge` in `data/` (`08_TEAMS.lge`, `10_TEAMS.LGE`, `12_TEAMS.LGE` one conference; `PNFL.lge` 18 teams, custom, 2049 after week 6; `NFLPA94.lge` 28; `NFLPI97R.LGE` 30; grouped by chunk kind: `NFLPA93E.LGE` 28, `_default.lge` 30; the PNFL's 2047 season: `PNFL-before-week1.lge`, `PNFL-after-week16.lge`, `PNFL-after-super-bowl.lge`; seasons' ends for the tie-breakers: `PNFL-2043-after-super-bowl.lge`, `PNFL-2046-after-super-bowl.lge`, `PNFL-2048-after-week16.lge`). Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_lge` → 133 passing.
 
 ## reader.py — `parse_lge` / `read_lge`
 
@@ -46,16 +46,18 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()`
 | League counts 2 conferences, file has 1 | make_chunks | "Expected C03 ..., found S03" | `test_fewer_conferences_than_counted_rejected` | ☑ |
 | League counts 1 conference, file has 2 | make_chunks | "Expected S03 ..., found C03" | `test_more_conferences_than_counted_rejected` | ☑ |
 | Division counts 2 teams, file has 1 | make_chunks | "Expected T03 ..., found S03" | `test_fewer_teams_than_counted_rejected` | ☑ |
-| Unprintable tag | bytes | shown as hex | `test_unprintable_tag_shown_as_hex` | ☑ |
+| Division counts 1 team, file has 2 | make_chunks | "Expected S03 ..., found T03" | `test_more_teams_than_counted_rejected` | ☑ |
+| Conference counts 1 division, file has 2 | make_chunks | "Expected S03 ..., found D03" | `test_more_divisions_than_counted_rejected` | ☑ |
+| Unprintable or non-ASCII tag | bytes | shown as hex | `test_unprintable_or_non_ascii_tag_shown_as_hex` `[P]` | ☑ |
 | Error names the path first | bytes | "league.lge: ..." and `.path` | `test_error_names_the_path_first` | ☑ |
+| No path given | bytes | "<buffer>: ..." and `.path` | `test_error_names_buffer_when_no_path_given` | ☑ |
 
 ### Standings
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Division order as on the game's season-end screen (2048) | golden | Miami above Buffalo on conference record, not points | `test_division_standings_match_the_games_season_end_screen` | ☑ |
-| Division ties by division record, head-to-head, conference record | golden | 2043 and 2046 orders | `test_division_ties_follow_the_manuals_steps` | ☑ |
+| Division ties by division record, head-to-head, conference record | golden | 2043 and 2046 orders, the manual's steps by hand | `test_division_ties_follow_the_manuals_steps` | ☑ |
 | Any teams of the file ranked | golden | 2048 wild cards Buffalo over Pittsburgh head-to-head | `test_ranked_orders_any_teams_of_the_file` | ☑ |
-| `ranked` default covers the whole file | golden | all 18 teams, each once | `test_ranked_default_covers_every_team_of_the_file` | ☑ |
 | Final regular season, incl. tie games | golden | records; wins + tie games = 144 | `test_final_regular_season_records` | ☑ |
 | Conference order, ties broken by the manual's steps | golden | AFC and NFC order | `test_conference_standings_break_ties_by_the_manuals_steps` | ☑ |
 | Built file: split series broken on division net points | make_chunks | winner by more first in division and conference | `test_built_standings_break_a_split_series_on_division_net_points` | ☑ |
@@ -63,7 +65,8 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()`
 | Playoff games not counted | golden | records after the Super Bowl = after week 16 | `test_playoff_games_do_not_count` | ☑ |
 | Before week 1 | golden | all records zero; standings in file order | `test_before_week_one_records_are_zero_and_standings_keep_file_order` | ☑ |
 | A win and an overtime tie | make_chunks | 1-0-1 31-24 / 0-1-1 24-31 | `test_record_counts_played_regular_season_games` | ☑ |
-| Unplayed game, `0xFF` teams | make_chunks | skipped | `test_unplayed_games_skipped` | ☑ |
+| Unplayed game, `0xFF` teams | make_chunks | skipped; empty week, 1 unplayed | `test_unplayed_games_skipped_and_counted` | ☑ |
+| Week with 0 games | make_chunks | empty week, 0 unplayed | `test_week_with_no_games_read_as_empty` | ☑ |
 | Played playoff game | make_chunks | skipped | `test_playoff_games_skipped` | ☑ |
 | Played game with team 1 / N, team 0 / N+1 | make_chunks | counted / "no team T (teams are 1-N)" | `test_played_game_with_first_and_last_team_accepted` `[P]` / `test_played_game_with_unknown_team_rejected` `[P]` | ☑ |
 | Schedule 2 bytes / 3 (header alone) | make_chunks | "expected at least 3" / parsed | `test_schedule_shorter_than_its_header_rejected` / `test_built_file_parses` | ☑ |
@@ -79,13 +82,13 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()`
 | Games name the file's team objects | golden | 54 games after six weeks; records = two per game | `test_games_reference_the_file_teams` | ☑ |
 | Tie | make_chunks | `winner` and `loser` None | `test_tied_game_has_no_winner_or_loser` | ☑ |
 | Unplayed playoff game with teams set | make_chunks | skipped, counted | `test_unplayed_playoff_game_skipped_and_counted` | ☑ |
-| Played playoff game with team 1 / N, team 0 / N+1 | make_chunks | read / "no team T (teams are 1-N)" | `test_played_playoff_game_with_first_and_last_team_read` `[P]` / `test_played_playoff_game_with_unknown_team_rejected` `[P]` | ☑ |
+| Played playoff game with team 1 / N, team 0 / N+1 | make_chunks | read / "week 2: No team T (teams are 1-N)", numbered on from the regular season | `test_played_playoff_game_with_first_and_last_team_read` `[P]` / `test_played_playoff_game_with_unknown_team_rejected` `[P]` | ☑ |
 
 ## model.py
 
 | Case | Expected | Test | Status |
 |---|---|---|---|
-| Nested access | conference → division → team | `test_nested_access` | ☑ |
+| `teams` walks conferences, divisions and teams in order | four teams over two conferences | `test_teams_walks_conferences_divisions_and_teams_in_order` | ☑ |
 | Official name, either part empty | `"Denver Broncos"`, `"Denver"`, `"Broncos"`, `""` | `test_official_name` `[P]` | ☑ |
 | Record totals | games, win percentage (ties half, 0.0 with no games), point differential | `test_record_totals` `[P]` | ☑ |
 | `ranked` orders from the games, not the records | winner first though listed second | `test_ranked_orders_from_the_files_games_not_the_records` | ☑ |
@@ -102,7 +105,7 @@ Built seasons: three divisions, two conferences; `_win(a, b, by)`.
 | Percentage | tie half a win; 0 with no game | `test_percentage_counts_a_tie_as_half_a_win_and_no_game_as_zero` | ☑ |
 | Percentage first | 1-0, 0-0-1, 0-1-1 | `test_rank_by_percentage_first` | ☑ |
 | Level teams | given order, either way round | `test_level_teams_keep_the_given_order` `[P]` | ☑ |
-| Each step decides when the earlier ones are level | head-to-head; division record; conference record; net points in division games; net points in all games; strength of schedule | `test_head_to_head_breaks_a_tie`, `test_division_record_breaks_a_split_series`, `test_conference_record_breaks_equal_division_records`, `test_net_points_in_division_games_breaks_equal_records`, `test_net_points_in_all_games_breaks_equal_division_net_points`, `test_strength_of_schedule_breaks_everything_else_level` | ☑ |
+| Each step decides when the earlier ones are level | head-to-head; division record; conference record; net points in division games; net points in all games; strength of schedule, each opponent once | `test_head_to_head_breaks_a_tie`, `test_division_record_breaks_a_split_series`, `test_conference_record_breaks_equal_division_records`, `test_net_points_in_division_games_breaks_equal_records`, `test_net_points_in_all_games_breaks_equal_division_net_points`, `test_strength_of_schedule_counts_each_opponent_once` | ☑ |
 | A step places one team | the rest start over at head-to-head | `test_a_step_that_places_one_team_restarts_for_the_rest` | ☑ |
 
 No `test_schema.py`: the reader tests pin every constant.

@@ -6,7 +6,7 @@ parsing; built bytes cover the limits and edge cases no real file holds.
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pytest
 
@@ -21,8 +21,11 @@ from athc.fbpro98_lg2 import (
     read_lg2,
 )
 from athc.fbpro98_lg2.schema import FILENAME_SIZE, FOLDER_SIZE, TEAM_RECORD_SIZE
+from athc.fbpro98_lge import read_lge
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "data"
+# The same league's .lge, for the team order.
+LGE_DIR = FIXTURE_DIR.parents[1] / "fbpro98_lge" / "data"
 LEAGUE = "PNFL"
 CUSTOM = FIXTURE_DIR / "PNFL.lg2"
 MODERN_STOCK = FIXTURE_DIR / "NFLPI97.LG2"
@@ -47,8 +50,15 @@ def _team(folder: str, names: tuple[str, ...]) -> TeamFiles:
 # --- real files ---
 
 
-def test_custom_league_team_count():
-    assert len(read_lg2(LEAGUE, FIXTURE_DIR).teams) == 18
+def test_custom_league_teams_follow_the_lge_order():
+    # Each coach's folder is named after the team: `PNFL\2049\Plans\Denver
+    # (Brian)`. The 18 folders match the .lge's 18 teams in order.
+    folders = [
+        PureWindowsPath(team.first_half.offense.profile).parent.name
+        for team in read_lg2(LEAGUE, FIXTURE_DIR).teams
+    ]
+    names = [team.name for team in read_lge(LEAGUE, LGE_DIR).teams]
+    assert [folder.split(" (")[0] for folder in folders] == names
 
 
 @pytest.mark.parametrize(
@@ -139,14 +149,14 @@ def test_modern_stock_league_type_and_team_count():
     [(0, "BILLS"), (1, "COLTS"), (29, "RAMS")],
 )
 def test_modern_stock_league_team_files(index: int, prefix: str):
-    # Game plans end in a zero, not an O: BILLS0.PLN.
+    # These teams' game plans end in a zero, not an O: BILLS0.PLN.
     names = ("O1.PRF", "0.PLN", "D1.PRF", "D.PLN", "O2.PRF", "0.PLN", "D2.PRF", "D.PLN")
     expected = _team("STOCK", tuple(prefix + name for name in names))
     assert parse_lg2(MODERN_STOCK.read_bytes()).teams[index] == expected
 
 
 def test_old_stock_league():
-    """Every team uses the same files, with no folder."""
+    # Every team uses the same files, with no folder.
     lg2 = parse_lg2(OLD_STOCK.read_bytes())
     names = (
         "OFF1.PRF",
@@ -244,7 +254,8 @@ def test_stock_league_fields_checked(
 ):
     stock = make_entries(0, make_entry(folder=folder))
     stock[3] = make_entry(filename=b"")
-    with pytest.raises(InvalidLg2Error, match="Empty filename"):
+    # Entry 3's filename: three entries in, past the folder.
+    with pytest.raises(InvalidLg2Error, match=r"Empty filename at 0x726\.$"):
         parse_lg2(make_team(stock))
 
 
@@ -254,6 +265,13 @@ def test_stock_league_fields_checked(
 def test_empty_file_rejected():
     with pytest.raises(InvalidLg2Error, match="Empty file"):
         parse_lg2(b"")
+
+
+def test_size_checked_before_fields(make_entry, make_team, make_entries):
+    # One byte too long and an empty filename: the size is reported.
+    entries = make_entries(0, make_entry(filename=b""))
+    with pytest.raises(InvalidLg2Error, match="not a whole number"):
+        parse_lg2(make_team(entries) + b"\x00")
 
 
 @pytest.mark.parametrize("size", [TEAM_RECORD_SIZE - 1, TEAM_RECORD_SIZE + 1])
@@ -275,7 +293,7 @@ def test_folder_at_max_length_accepted(make_entry, make_team, make_entries):
 
 def test_folder_without_nul_rejected(make_entry, make_team, make_entries):
     folder = b"A" * FOLDER_SIZE
-    with pytest.raises(InvalidLg2Error, match="No NUL in folder"):
+    with pytest.raises(InvalidLg2Error, match=r"No NUL in folder field at 0x0\.$"):
         parse_lg2(make_team(make_entries(0, make_entry(folder=folder))))
 
 
@@ -287,7 +305,7 @@ def test_filename_at_max_length_accepted(make_entry, make_team, make_entries):
 
 def test_filename_without_nul_rejected(make_entry, make_team, make_entries):
     filename = b"B" * FILENAME_SIZE
-    with pytest.raises(InvalidLg2Error, match="No NUL in filename"):
+    with pytest.raises(InvalidLg2Error, match=r"No NUL in filename field at 0x105\.$"):
         parse_lg2(make_team(make_entries(0, make_entry(filename=filename))))
 
 
@@ -301,11 +319,12 @@ def test_empty_filename_rejected(make_entry, make_team, make_entries):
         parse_lg2(make_team(make_entries(0, make_entry(filename=b""))))
 
 
-# --- review focus ---
+# --- edge ---
 
 
 def test_team_with_no_files_rejected(make_team):
-    with pytest.raises(InvalidLg2Error, match="Empty filename"):
+    # The second team's first filename: one team record in, past the folder.
+    with pytest.raises(InvalidLg2Error, match=r"Empty filename at 0x1166\.$"):
         parse_lg2(make_team() + bytes(TEAM_RECORD_SIZE))
 
 
@@ -319,3 +338,10 @@ def test_error_names_the_path_first(make_team):
     with pytest.raises(InvalidLg2Error, match=r"^league\.lg2: ") as exc:
         parse_lg2(make_team()[:-1], "league.lg2")
     assert exc.value.path == Path("league.lg2")
+
+
+def test_error_names_buffer_when_no_path_given():
+    with pytest.raises(InvalidLg2Error) as exc:
+        parse_lg2(b"")
+    assert str(exc.value) == "<buffer>: Empty file."
+    assert exc.value.path == Path("<buffer>")
