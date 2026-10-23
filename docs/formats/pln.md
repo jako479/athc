@@ -17,7 +17,7 @@ G95  index + play records
   play records  one per filled slot, custom or stock
 J95  summary counts
 S98  stock map filename
-pad  defense only
+pad  when needed
 ```
 
 | Offset        |     Size | Name | Description                       | Section |
@@ -28,7 +28,7 @@ pad  defense only
 | 0x00B8        | variable | G95  | Play records, packed back-to-back | 2.3, 3  |
 | 8 + G95 size  |       15 | J95  | Header + 7 bytes of counts        | 4       |
 | 23 + G95 size |       20 | S98  | Header + `"STOCK98.MAP\0"`        | 5       |
-| 43 + G95 size |   0 or 1 | —    | Trailing parity pad, defense only | 6       |
+| 43 + G95 size |   0 or 1 | —    | Trailing parity pad, when needed  | 6       |
 
 ---
 
@@ -202,7 +202,7 @@ ASCII `"STOCK98.MAP"` followed by a single NUL (`0x00`). Total data size: 12 byt
 
 The pad, when present, starts at 43 + G95 size.
 
-Total file size: **even** for offense, **odd** for defense. FbPro98's file-open dialog filters by parity. A defense file is padded with a trailing `0x00` when needed.
+Total file size: **even** for offense, **odd** for defense. FbPro98's file-open dialog filters by parity. Either file is padded with a trailing `0x00` when its size would otherwise have the wrong parity.
 
 ---
 

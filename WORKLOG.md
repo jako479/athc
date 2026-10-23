@@ -11,9 +11,10 @@ Where things stand now: [STATUS.md](STATUS.md).
   goldens that only sorted another golden. The tests now cut and shift the
   fixture bytes at each limit, write a stock play and a custom special play
   through the writer, pad both sides, and fail instead of skipping; the
-  name-sorted goldens went and the special-play names moved inline. Found
-  but left alone: `docs/formats/pln.md` says only defense files carry the
-  parity pad, yet the game-saved offense plans carry it too.
+  name-sorted goldens went and the special-play names moved inline.
+  `docs/formats/pln.md` said only defense files carry the parity pad, yet
+  the game-saved offense plans carry it too; it now says either file, when
+  the size needs it.
 - 2026-10-22 — **fbpro98_lge, fbpro98_lg2 tests**: a review of the two
   league-file test suites found the fixtures and goldens sound (every file
   real and used, every tie recomputed from the games) but a few gaps: the
