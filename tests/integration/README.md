@@ -561,6 +561,7 @@ In [test_profile_copy.py](test_profile_copy.py). Inputs: real `TST-OFF1/DEF1.prf
 | Copy stop-clock (offense / defense) | mutated src | exit 0; bits copied | `test_cli_copies_stop_clock_offense` / `_defense` | ☑ |
 | Copy substitutions / field-goal-range | mutated src | exit 0; field copied; stdout: "updated (substitutions)" | `test_cli_copies_sub_percent` / `_field_goal_range` | ☑ |
 | Goal-line + stop-clock combined | mutated src | exit 0; both applied | `test_cli_copies_goal_line_and_stop_clock_combined` | ☑ |
+| Copy fourth-down | src differing in every situation | exit 0; only the 4th-down situations copied; stdout: "updated (fourth-down)" | `test_cli_copies_fourth_down` | ☑ |
 | Copy pat-logic / help lists it | mutated src / `--help` | exit 0; PAT table copied; stdout: "updated (pat-logic)" | `test_cli_copies_pat_logic` / `test_cli_help_lists_pat_logic` | ☑ |
 | Updated line + summary | mutated src | stdout: `OK   <file>: updated (stop-clock)`; tally | `test_cli_prints_updated_line_and_summary` | ☑ |
 

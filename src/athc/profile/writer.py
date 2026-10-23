@@ -87,14 +87,14 @@ def _copy_situations(
     copy the whole situation (stop_clock + weights) where the predicate matches.
     Whole-situation copy wins on overlap."""
     situations: list[Situation] = []
-    for t, s in zip(target.situations, source.situations, strict=True):
-        whole = (fourth_down and t.down == Down.FOURTH) or (
-            goal_line and t.field_position in GOAL_LINE_POSITIONS
+    for (_, state, t), s in zip(
+        target.iter_situations(), source.situations, strict=True
+    ):
+        whole = (fourth_down and state.down == Down.FOURTH) or (
+            goal_line and state.field_position in GOAL_LINE_POSITIONS
         )
         if whole:
-            situations.append(
-                replace(t, stop_clock=s.stop_clock, category_weights=s.category_weights)
-            )
+            situations.append(s)
         elif stop_clock:
             situations.append(replace(t, stop_clock=s.stop_clock))
         else:

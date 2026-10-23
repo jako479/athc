@@ -13,6 +13,7 @@ from athc.cli import cli
 from athc.cli.profile.copy import copy
 from athc.errors import FILE_NOT_FOUND
 from athc.fbpro98_profile import (
+    Down,
     FieldPosition,
     SubstitutionPair,
     SubstitutionSettings,
@@ -238,14 +239,12 @@ def test_cli_copies_goal_line_and_stop_clock_combined(runner, tmp_path: Path) ->
     sits = tuple(
         replace(
             s,
-            stop_clock=(not s.stop_clock)
-            if s.situation_number in flips
-            else s.stop_clock,
+            stop_clock=(not s.stop_clock) if n in flips else s.stop_clock,
             category_weights=marker
-            if s.field_position in _GOAL_LINE
+            if state.field_position in _GOAL_LINE
             else s.category_weights,
         )
-        for s in base.situations
+        for n, state, s in base.iter_situations()
     )
     source = tmp_path / "source.prf"
     write_profile(replace(base, situations=sits), str(source))
@@ -260,8 +259,36 @@ def test_cli_copies_goal_line_and_stop_clock_combined(runner, tmp_path: Path) ->
     assert tuple(s.stop_clock for s in result.situations) == tuple(
         s.stop_clock for s in sits
     )
-    goal_line = [s for s in result.situations if s.field_position in _GOAL_LINE]
+    goal_line = [
+        s
+        for _, state, s in result.iter_situations()
+        if state.field_position in _GOAL_LINE
+    ]
     assert goal_line and all(s.category_weights == marker for s in goal_line)
+
+
+def test_cli_copies_fourth_down(runner, tmp_path: Path) -> None:
+    """Every source situation differs, so only the 4th-down ones may arrive."""
+    base = read_profile(str(OFF1))
+    sits = tuple(
+        replace(
+            s,
+            stop_clock=not s.stop_clock,
+            category_weights=_bumped(s.category_weights),
+        )
+        for s in base.situations
+    )
+    source = tmp_path / "source.prf"
+    write_profile(replace(base, situations=sits), str(source))
+    target = _copy_prf(OFF1, tmp_path, name="target.prf")
+    result = runner.invoke(copy, [str(source), str(target), "--fourth-down"])
+    assert result.exit_code == 0
+    assert f"OK   {target}: updated (fourth-down)" in result.stdout
+    expected = tuple(
+        s if state.down == Down.FOURTH else t
+        for (_, state, t), s in zip(base.iter_situations(), sits, strict=True)
+    )
+    assert read_profile(str(target)) == replace(base, situations=expected)
 
 
 # ── console output ────────────────────────────────────────────────────────────

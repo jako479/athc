@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from athc.fbpro98_profile import PatSituation, ProfileType, Situation
+from athc.fbpro98_profile import Profile, ProfileType
 from athc.profile import category_label, pat_label, situation_label
 from athc.profile.display import sub_label
 from athc.profile.rules import (
@@ -17,7 +17,7 @@ from athc.profile.rules import (
     RAZZLE_DAZZLE_RUN,
     RUN_MIDDLE,
 )
-from tests.unit.profile.conftest import make_profile, weights
+from tests.unit.profile.conftest import make_profile
 
 OFFENSE = ProfileType.OFFENSE
 DEFENSE = ProfileType.DEFENSE
@@ -49,17 +49,11 @@ def test_codes_outside_side_set_fall_back_to_hex() -> None:
 
 
 def test_situation_label_format() -> None:
-    s = Situation.from_situation_number(
-        8, stop_clock=False, category_weights=weights(RUN_MIDDLE, 4, 0x0D, 3, 0x0A, 3)
-    )
-    assert situation_label(s) == ">5 1st 0-1 DEF5-35 Ahd8+"
+    assert situation_label(Profile.game_state(8)) == ">5 1st 0-1 DEF5-35 Ahd8+"
 
 
 def test_pat_label_format() -> None:
-    p = PatSituation.from_situation_number(
-        7, category_weights=weights(0x10, 10, 0x11, 0, 0x12, 0)
-    )
-    assert pat_label(p) == ">5 Ahd1"
+    assert pat_label(Profile.pat_game_state(7)) == ">5 Ahd1"
 
 
 def test_sub_label() -> None:
@@ -69,5 +63,11 @@ def test_sub_label() -> None:
 
 def test_every_situation_and_pat_labels_without_keyerror() -> None:
     profile = make_profile(OFFENSE)
-    assert all(len(situation_label(s).split()) == 5 for s in profile.situations)
-    assert all(len(pat_label(p).split()) == 2 for p in profile.pat_situations)
+    assert all(
+        len(situation_label(state).split()) == 5
+        for _, state, _ in profile.iter_situations()
+    )
+    assert all(
+        len(pat_label(state).split()) == 2
+        for _, state, _ in profile.iter_pat_situations()
+    )

@@ -10,13 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from athc.errors import StrPath
-from athc.fbpro98_profile import (
-    CategoryWeights,
-    PatSituation,
-    Profile,
-    ProfileType,
-    Situation,
-)
+from athc.fbpro98_profile import CategoryWeights, Profile, ProfileType
 from athc.profile.display import SUB_GROUPS, pat_label, situation_label, sub_label
 from athc.profile.errors import ProfileTypeMismatchError
 
@@ -83,8 +77,8 @@ def diff_profiles(
     return ProfileDiff(
         profile_type=a.profile_type,
         profile=_scalar_changes(a, b),
-        situations=_situation_changes(a.situations, b.situations),
-        pat=_pat_changes(a.pat_situations, b.pat_situations),
+        situations=_situation_changes(a, b),
+        pat=_pat_changes(a, b),
     )
 
 
@@ -114,30 +108,26 @@ def _scalar_changes(a: Profile, b: Profile) -> tuple[ScalarChange, ...]:
     return tuple(changes)
 
 
-def _situation_changes(
-    a: tuple[Situation, ...], b: tuple[Situation, ...]
-) -> tuple[SituationChange, ...]:
+def _situation_changes(a: Profile, b: Profile) -> tuple[SituationChange, ...]:
     out: list[SituationChange] = []
-    for sa, sb in zip(a, b, strict=True):
+    for (number, state, sa), sb in zip(a.iter_situations(), b.situations, strict=True):
         stop = None
         if sa.stop_clock != sb.stop_clock:
             stop = ScalarChange("stop", _no_yes(sa.stop_clock), _no_yes(sb.stop_clock))
         slots = _slot_changes(sa.category_weights, sb.category_weights)
         if stop is not None or slots:
-            out.append(
-                SituationChange(sa.situation_number, situation_label(sa), stop, slots)
-            )
+            out.append(SituationChange(number, situation_label(state), stop, slots))
     return tuple(out)
 
 
-def _pat_changes(
-    a: tuple[PatSituation, ...], b: tuple[PatSituation, ...]
-) -> tuple[SituationChange, ...]:
+def _pat_changes(a: Profile, b: Profile) -> tuple[SituationChange, ...]:
     out: list[SituationChange] = []
-    for pa, pb in zip(a, b, strict=True):
+    for (number, state, pa), pb in zip(
+        a.iter_pat_situations(), b.pat_situations, strict=True
+    ):
         slots = _slot_changes(pa.category_weights, pb.category_weights)
         if slots:
-            out.append(SituationChange(pa.situation_number, pat_label(pa), None, slots))
+            out.append(SituationChange(number, pat_label(state), None, slots))
     return tuple(out)
 
 

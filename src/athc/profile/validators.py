@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final
 
-from athc.fbpro98_profile import CategoryWeights, Profile, Situation
+from athc.fbpro98_profile import CategoryWeights, Profile
 from athc.profile.model import RuleName, RuleViolation
 from athc.profile.rules import (
     DEFENSE_LIST_SCOPE,
@@ -153,28 +153,26 @@ def _validate_situations(profile: Profile, rules: ProfileRules) -> list[RuleViol
     disallowed = scope - allowed if allowed else frozenset()
 
     violations: list[RuleViolation] = []
-    for situation in profile.situations:
+    for number, state, situation in profile.iter_situations():
         cats = _categories_with_weight(situation.category_weights)
         matching = [
             rule
             for rule in side_rules
             if rule.matches(
-                situation.minutes_remaining,
-                situation.down,
-                situation.yards_to_go,
-                situation.field_position,
+                state.minutes_remaining,
+                state.down,
+                state.yards_to_go,
+                state.field_position,
             )
         ]
         violations.extend(
-            _check_situation(
-                situation, cats, matching, disallowed, exempt, names, rules
-            )
+            _check_situation(number, cats, matching, disallowed, exempt, names, rules)
         )
     return violations
 
 
 def _check_situation(
-    situation: Situation,
+    n: int,
     cats: frozenset[int],
     matching: list[SituationRule],
     disallowed: frozenset[int],
@@ -183,7 +181,6 @@ def _check_situation(
     rules: ProfileRules,
 ) -> list[RuleViolation]:
     violations: list[RuleViolation] = []
-    n = situation.situation_number
 
     disallowed = disallowed.union(*(rule.disallowed_categories for rule in matching))
     used_disallowed = sorted(cats & disallowed)

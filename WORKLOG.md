@@ -4,6 +4,12 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-22 — **fbpro98_profile situations**: a situation stored its number
+  and five game-state buckets, all fixed by its place in the profile, and its
+  constructor cross-checked them. It now holds only its rules, as a game
+  plan's slots do; the profile decodes the place into the game state and walks
+  the situations with both, and profile check, diff and copy read them from
+  that walk. Files, checks and command output are unchanged.
 - 2026-10-22 — **fbpro98_play follow-ups**: the review's open points, settled.
   A record offset below 25 (inside the header or category bytes) parsed as
   garbage, so the reader rejects it and ply.md lists the rule. The game's

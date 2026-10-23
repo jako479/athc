@@ -2,7 +2,7 @@
 
 Cases covered for the `.prf` coaching-profile library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
 
-One row per behavior. `[P]` = parametrized over variants. Input: `golden` = the real game-produced profiles in `data/`: `TST-OFF1/OFF2/DEF1/DEF2.prf`, `TST-OFF1-AUD.prf` (OFF1 with audibles on), `TST-DEF1-AUD.prf` (DEF1 with audibles on and OFF1's situation 1), `TST-OFF1-PL.prf` / `TST-DEF1-PL.prf` (saved with an embedded game plan: `G95:` and `S98:` blocks between F95 and I95, then a 2- or 3-byte trailer) and the game-shipped `stock_profiles/OFF1.PRF` / `DEF1.PRF`; `mutated` = a golden's bytes changed at an offset from [prf.md](../../../docs/formats/prf.md) (the tests use the spec's literal offsets, not the schema's); `constructed` = a `Profile` built in the test. Golden expected values are the bytes at the spec's offsets. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_profile` → 151 passing.
+One row per behavior. `[P]` = parametrized over variants. Input: `golden` = the real game-produced profiles in `data/`: `TST-OFF1/OFF2/DEF1/DEF2.prf`, `TST-OFF1-AUD.prf` (OFF1 with audibles on), `TST-DEF1-AUD.prf` (DEF1 with audibles on and OFF1's situation 1), `TST-OFF1-PL.prf` / `TST-DEF1-PL.prf` (saved with an embedded game plan: `G95:` and `S98:` blocks between F95 and I95, then a 2- or 3-byte trailer) and the game-shipped `stock_profiles/OFF1.PRF` / `DEF1.PRF`; `mutated` = a golden's bytes changed at an offset from [prf.md](../../../docs/formats/prf.md) (the tests use the spec's literal offsets, not the schema's); `constructed` = a `Profile` built in the test. Golden expected values are the bytes at the spec's offsets. Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_profile` → 152 passing.
 
 No `test_schema.py`: the reader and writer tests pin every constant.
 
@@ -54,16 +54,17 @@ No `test_schema.py`: the reader and writer tests pin every constant.
 | `SubstitutionSettings.default` | every group 80/90 | `test_substitution_settings_default_uses_80_90` | ☑ |
 | `CategoryWeights` valid; play category 0x00 / 0x1A; weight 0 / 10 | accepted | `test_category_weights_accepts_valid_values`, `test_category_weights_accepts_play_category_at_limits` `[P]`, `test_category_weights_accepts_weight_at_limits` `[P]` | ☑ |
 | `CategoryWeights` play category −1 / 0x1B; weight −1 / 11 | `ValueError` | `test_category_weights_rejects_play_category_past_limits` `[P]`, `test_category_weights_rejects_weight_past_limits` `[P]` | ☑ |
-| `Situation` 1 and 2520 | decoded game state | `test_situation_from_first_situation_number_yields_expected_game_state`, `test_situation_from_last_situation_number_yields_expected_game_state` | ☑ |
-| `Situation` first number of each bucket group: 2, 8, 36, 71, 99, 127, 505 | game state from prf.md 2.3.4 | `test_situation_decodes_the_first_number_of_each_group` `[P]` | ☑ |
-| Every situation number 1..2520 | decodes and re-encodes to itself | `test_every_situation_number_round_trips_through_its_game_state` | ☑ |
-| `Situation` number 0 / 2521, decoded and constructed | `ValueError` "[1, 2520]" | `test_situation_rejects_situation_number_past_limits` `[P]`, `test_situation_constructor_rejects_situation_number_past_limits` `[P]` | ☑ |
-| 6-10 / >10 yards inside the DEF 5; number not matching the state | `ValueError` | `test_situation_rejects_six_to_ten_yards_inside_def_5`, `test_situation_rejects_over_ten_yards_inside_def_5`, `test_situation_rejects_mismatched_situation_number` | ☑ |
-| `PatSituation` 1 and 60; 2 and 16 (first of each group); every number 1..60; 0 / 61 decoded and constructed; mismatched | as for `Situation` | `test_pat_situation_*` | ☑ |
+| `Situation` / `PatSituation` fields | `stop_clock`, `category_weights` / `category_weights` only | `test_situation_holds_only_its_rules` | ☑ |
+| `Profile.game_state` 1 and 2520; first and last cell of each yards-to-go group (1/35, 36/70, 71/98, 99/126); within a group 7/8; down start 127; minutes boundary 504/505 | game state from prf.md 2.3.4 | `test_game_state_decodes_the_layout_corners` `[P]` | ☑ |
+| `Profile.game_state` 0 / 2521 | `ValueError` "[1, 2520]" | `test_game_state_rejects_numbers_past_limits` `[P]` | ☑ |
+| `Profile.pat_game_state` 1 and 60; minutes boundary 15/16 | game state from prf.md 2.5.1 | `test_pat_game_state_decodes_the_layout_corners` `[P]` | ☑ |
+| `Profile.pat_game_state` 0 / 61 | `ValueError` "[1, 60]" | `test_pat_game_state_rejects_numbers_past_limits` `[P]` | ☑ |
+| `iter_situations` / `iter_pat_situations` | every slot once, in order, numbered from 1, with its game state and the tuple's own element | `test_iter_situations_walks_every_slot_in_order`, `test_iter_pat_situations_walks_every_slot_in_order` | ☑ |
+| `iter_situations`, every slot the same `Situation` | numbers 1..2520, 2520 distinct game states | `test_iter_situations_numbers_slots_holding_the_same_situation` | ☑ |
 | `Profile` offense / defense | `is_offense` / `is_defense` | `test_profile_accepts_valid_offense_construction`, `test_profile_accepts_valid_defense_construction` | ☑ |
-| `Profile` 10 situations / 5 PAT situations | `ValueError` | `test_profile_situations_wrong_length_raises`, `test_profile_pat_situations_wrong_length_raises` | ☑ |
+| `Profile` 2519 / 2521 situations; 59 / 61 PAT situations | `ValueError` | `test_profile_situations_wrong_length_raises` `[P]`, `test_profile_pat_situations_wrong_length_raises` `[P]` | ☑ |
 | `Profile` field goal range 0, 4, 51, 100 / 5, 25, 50 | `ValueError` / accepted | `test_profile_field_goal_range_out_of_bounds_raises` `[P]` / `test_profile_field_goal_range_at_bounds_accepted` `[P]` | ☑ |
-| `stop_clock_situations`: none flagged; 5, 100 and 2520 flagged | `()` / `((5, s), (100, s), (2520, s))` | `test_stop_clock_situations_empty_when_no_flags_set`, `test_stop_clock_situations_pairs_each_flagged_entry_with_its_number` | ☑ |
+| `stop_clock_situations`: none flagged; 5, 100 and 2520 flagged | `()` / `((5, state, s), (100, state, s), (2520, state, s))` | `test_stop_clock_situations_empty_when_no_flags_set`, `test_stop_clock_situations_give_each_flagged_entry_its_number_and_state` | ☑ |
 
 ## writer.py — `test_writer.py`
 | Case | Input | Expected | Test | Status |

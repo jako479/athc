@@ -504,9 +504,12 @@ def test_multiple_mandatory_categories_each_required() -> None:
         for v in validate_profile(make_profile(), rules)
         if v.rule_name == RuleName.OFFENSE_MANDATORY_CATEGORY
     ]
-    assert flagged  # the cell's seven point-spread situations each fire once
-    assert all("0x02" in v.message for v in flagged)  # RUN_LEFT missing
-    assert all("0x03" not in v.message for v in flagged)  # RUN_MIDDLE satisfied
+    # The cell is situations 8-14, one per point spread (prf.md 2.3.4); each
+    # fires once, for RUN_LEFT only.
+    assert [(v.situation_number, v.message) for v in flagged] == [
+        (n, f"Situation {n} is missing a mandatory category (one of: 0x02)")
+        for n in range(8, 15)
+    ]
 
 
 # ── disallowed categories ─────────────────────────────────────────────────────

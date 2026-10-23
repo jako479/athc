@@ -120,7 +120,7 @@ One row per behavior. `[P]` = parametrized. Input: `data/` real `.prf` + `profil
 | Rule minimum applies without baseline | built + make | >5:00 flagged, others not | `test_rule_minimum_applies_without_baseline` | ☑ |
 | Matrix rule fires in non-OVER_FIVE bucket | built + make | flags TWO_TO_FIVE sit, not OVER_FIVE | `test_matrix_rule_fires_in_non_over_five_bucket` | ☑ |
 | Omitted buckets match all | built + make | matches whole time bucket | `test_omitted_buckets_match_all` | ☑ |
-| Multiple `mandatory` each required | built + make | flags missing one, not the satisfied one | `test_multiple_mandatory_categories_each_required` | ☑ |
+| Multiple `mandatory` each required | built + make | situations 8-14 each flagged once, for the missing category only | `test_multiple_mandatory_categories_each_required` | ☑ |
 | Category outside the allowed list banned | built + make | "Situation N uses banned categories: 0x03", every situation | `test_category_outside_allowed_list_is_banned` | ☑ |
 | Allowed list clean when every used category listed | built + make | no violation | `test_allowed_list_clean_when_every_used_category_is_listed` | ☑ |
 | Empty allowed list enforces nothing, both sides | built + make | no violation | `test_empty_allowed_list_enforces_nothing` `[P]` | ☑ |
@@ -165,7 +165,7 @@ One row per behavior. Input: `built` = `Profile`/`GamePlan` constructed in-test.
 | Identical → empty | built | `is_empty` | `test_identical_profiles_have_empty_diff` | ☑ |
 | Profile type recorded | built | side preserved | `test_profile_type_recorded` | ☑ |
 | FG range / audibles / sub change | built | one `ScalarChange` each | `test_field_goal_range_change` / `test_audibles_change` / `test_substitution_change` | ☑ |
-| Stop-clock change | built | `SituationChange.stop` | `test_situation_stop_clock_change` | ☑ |
+| Stop-clock change | built | `SituationChange.stop`; number 8, label `>5 1st 0-1 DEF5-35 Ahd8+` | `test_situation_stop_clock_change` | ☑ |
 | Weight-only / category / multi-slot | built | `SlotChange` shapes | `test_situation_weight_only_change` / `_category_change` / `_multiple_slot_changes` | ☑ |
 | Unchanged excluded | built | only changed kept | `test_unchanged_situations_excluded` | ☑ |
 | PAT change | built | `pat` populated, no `stop` | `test_pat_change` | ☑ |
@@ -179,9 +179,9 @@ One row per behavior. Input: `built` = `Profile`/`GamePlan` constructed in-test.
 | Offense caps | code | `RM`, `PSL`, `PRD`, `GLR` | `test_offense_category_labels_are_caps` | ☑ |
 | Defense words + collapse | code | `RunMiddle`; 3 dirs → `PassShort` | `test_defense_labels_words_and_collapse_directions` | ☑ |
 | Code outside side → hex | code | `0x01`, `0x07`, `0x13` | `test_codes_outside_side_set_fall_back_to_hex` | ☑ |
-| situation / pat label format | sit | `>5 1st 0-1 DEF5-35 Ahd8+`; `>5 Ahd1` | `test_situation_label_format` / `test_pat_label_format` | ☑ |
+| situation / pat label format | game state of situation 8 / PAT 7 | `>5 1st 0-1 DEF5-35 Ahd8+`; `>5 Ahd1` | `test_situation_label_format` / `test_pat_label_format` | ☑ |
 | sub label | str | `QB`, `DB` | `test_sub_label` | ☑ |
-| Exhaustive labels (no KeyError) | built | 5 / 2 tokens each | `test_every_situation_and_pat_labels_without_keyerror` | ☑ |
+| Exhaustive labels (no KeyError) | built, every walked game state | 5 / 2 tokens each | `test_every_situation_and_pat_labels_without_keyerror` | ☑ |
 
 ## writer.py — `ProfileWriter.apply` (real `.prf` + mutated sources)
 | Case | Input | Expected | Test | Status |
@@ -193,6 +193,7 @@ One row per behavior. Input: `built` = `Profile`/`GamePlan` constructed in-test.
 | field-goal-range: replace / leave situations | OFF1 | FG copied, situations intact | `test_copy_field_goal_range_replaces_value` / `_leaves_situations_alone` | ☑ |
 | fourth-down only / on defense | OFF1 / DEF1 | only 4th-down situations copied | `test_copy_fourth_down_copies_only_fourth_down_situations` / `_works_on_defense` | ☑ |
 | goal-line only / both inside-5 buckets | OFF1 | only goal-line copied | `test_copy_goal_line_copies_only_goal_line_situations` / `_covers_both_inside_5_buckets` | ☑ |
+| fourth-down / goal-line / both slot counts | OFF1 | 630 / 840 / 1260 situations copied | `test_copy_fourth_down_and_goal_line_slot_counts` `[P]` | ☑ |
 | pat-logic: replace all / leave others / on defense / untouched without flag | OFF1 / DEF1 | PAT table copied, rest intact | `test_copy_pat_logic_replaces_every_pat_situation` / `_leaves_other_fields_alone` / `_works_on_defense` / `test_copy_without_pat_logic_leaves_pat_situations_alone` | ☑ |
 | Combined flags independent | OFF1 | each field applied | `test_combined_flags_apply_each_independently` | ☑ |
 | fourth-down + stop-clock combine | OFF1 | clean overlap | `test_fourth_down_and_stop_clock_combine_cleanly` | ☑ |

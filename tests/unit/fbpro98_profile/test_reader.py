@@ -220,9 +220,8 @@ def test_substitutions(expected: FixtureExpectation) -> None:
 @pytest.mark.parametrize("expected", EXPECTATIONS, ids=_expectation_id)
 def test_first_and_last_situation(expected: FixtureExpectation) -> None:
     profile = read_profile(expected.path)
-    first, last = profile.situations[0], profile.situations[-1]
-    assert (first.situation_number, _as_record(first)) == (1, expected.first_situation)
-    assert (last.situation_number, _as_record(last)) == (2520, expected.last_situation)
+    assert _as_record(profile.situations[0]) == expected.first_situation
+    assert _as_record(profile.situations[-1]) == expected.last_situation
 
 
 @pytest.mark.parametrize(
@@ -243,16 +242,15 @@ def test_situation_record_at_the_limits(
 @pytest.mark.parametrize("expected", EXPECTATIONS, ids=_expectation_id)
 def test_first_and_last_pat_situation(expected: FixtureExpectation) -> None:
     profile = read_profile(expected.path)
-    first, last = profile.pat_situations[0], profile.pat_situations[-1]
-    assert (first.situation_number, first.category_weights) == (1, PAT_FIELD_GOAL)
-    assert (last.situation_number, last.category_weights) == (60, PAT_FIELD_GOAL)
+    assert profile.pat_situations[0].category_weights == PAT_FIELD_GOAL
+    assert profile.pat_situations[-1].category_weights == PAT_FIELD_GOAL
 
 
 @pytest.mark.parametrize("expected", EXPECTATIONS, ids=_expectation_id)
 def test_stop_clock_situations(expected: FixtureExpectation) -> None:
     flagged = read_profile(expected.path).stop_clock_situations
     assert len(flagged) == expected.stop_clock_count
-    ends = tuple((n, _as_record(s)) for n, s in flagged[:1] + flagged[-1:])
+    ends = tuple((n, _as_record(s)) for n, _, s in flagged[:1] + flagged[-1:])
     assert ends == expected.stop_clock_ends
 
 

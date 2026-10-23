@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- fbpro98_profile: a situation holds only its play-calling rules; its number and game state come from its place in the profile
 - athc: the defensive Dazzle categories carry the game's names, Razzle Dazzle Run and Razzle Dazzle Pass, in every tool
 - fbpro98_play: a play whose record offset points inside the header or category bytes is rejected as damaged
 - fbpro98_play: tests reviewed: gaps filled, error messages pinned in full, size limits probed at the edge, redundant tests dropped

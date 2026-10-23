@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import fields, replace
 
 import pytest
 
@@ -8,7 +8,9 @@ from athc.fbpro98_profile import (
     CategoryWeights,
     Down,
     FieldPosition,
+    GameState,
     MinutesRemaining,
+    PatGameState,
     PatMinutesRemaining,
     PatPointSpread,
     PatSituation,
@@ -33,34 +35,22 @@ def _default_weights(*, play_category: int = 0x00, weight1: int = 0) -> Category
     )
 
 
-def _default_situation(
-    *,
-    situation_number: int = 1,
-    stop_clock: bool = False,
-    weight1: int = 0,
-    play_category: int = 0x00,
-) -> Situation:
-    return Situation.from_situation_number(
-        situation_number=situation_number,
-        stop_clock=stop_clock,
-        category_weights=_default_weights(play_category=play_category, weight1=weight1),
+def _default_situation(*, stop_clock: bool = False, weight1: int = 0) -> Situation:
+    return Situation(
+        stop_clock=stop_clock, category_weights=_default_weights(weight1=weight1)
     )
 
 
-def _default_pat_situation(*, situation_number: int = 1) -> PatSituation:
-    return PatSituation.from_situation_number(
-        situation_number=situation_number, category_weights=_default_weights()
-    )
+def _default_pat_situation() -> PatSituation:
+    return PatSituation(category_weights=_default_weights())
 
 
 def _empty_situations(count: int) -> tuple[Situation, ...]:
-    return tuple(_default_situation(situation_number=n) for n in range(1, count + 1))
+    return tuple(_default_situation() for _ in range(count))
 
 
 def _empty_pat_situations(count: int) -> tuple[PatSituation, ...]:
-    return tuple(
-        _default_pat_situation(situation_number=n) for n in range(1, count + 1)
-    )
+    return tuple(_default_pat_situation() for _ in range(count))
 
 
 def _make_profile(
@@ -168,257 +158,15 @@ def test_category_weights_rejects_weight_past_limits(weight: int) -> None:
         _default_weights(weight1=weight)
 
 
-# ---------- Situation ----------
+# ---------- Situation / PatSituation ----------
 
 
-def test_situation_from_first_situation_number_yields_expected_game_state() -> None:
-    situation = Situation.from_situation_number(
-        situation_number=1, stop_clock=False, category_weights=_default_weights()
+def test_situation_holds_only_its_rules() -> None:
+    assert tuple(f.name for f in fields(Situation)) == (
+        "stop_clock",
+        "category_weights",
     )
-    assert situation.minutes_remaining is MinutesRemaining.OVER_FIVE
-    assert situation.down is Down.FIRST
-    assert situation.yards_to_go is YardsToGo.ZERO_TO_ONE
-    assert situation.field_position is FieldPosition.INSIDE_DEF_5
-    assert situation.point_spread is PointSpread.AHEAD_8_OR_MORE
-
-
-def test_situation_from_last_situation_number_yields_expected_game_state() -> None:
-    situation = Situation.from_situation_number(
-        situation_number=2520, stop_clock=False, category_weights=_default_weights()
-    )
-    assert situation.minutes_remaining is MinutesRemaining.ZERO_TO_FIFTEEN_SEC
-    assert situation.down is Down.FOURTH
-    assert situation.yards_to_go is YardsToGo.OVER_TEN
-    assert situation.field_position is FieldPosition.INSIDE_OFF_5
-    assert situation.point_spread is PointSpread.BEHIND_8_OR_MORE
-
-
-# The first situation of each bucket group, from docs/formats/prf.md section 2.3.4.
-SITUATION_GROUP_STARTS = [
-    (
-        2,
-        (
-            MinutesRemaining.OVER_FIVE,
-            Down.FIRST,
-            YardsToGo.ZERO_TO_ONE,
-            FieldPosition.INSIDE_DEF_5,
-            PointSpread.AHEAD_4_TO_7,
-        ),
-    ),
-    (
-        8,
-        (
-            MinutesRemaining.OVER_FIVE,
-            Down.FIRST,
-            YardsToGo.ZERO_TO_ONE,
-            FieldPosition.DEF_5_TO_DEF_35,
-            PointSpread.AHEAD_8_OR_MORE,
-        ),
-    ),
-    (
-        36,
-        (
-            MinutesRemaining.OVER_FIVE,
-            Down.FIRST,
-            YardsToGo.TWO_TO_FIVE,
-            FieldPosition.INSIDE_DEF_5,
-            PointSpread.AHEAD_8_OR_MORE,
-        ),
-    ),
-    (
-        71,
-        (
-            MinutesRemaining.OVER_FIVE,
-            Down.FIRST,
-            YardsToGo.SIX_TO_TEN,
-            FieldPosition.DEF_5_TO_DEF_35,
-            PointSpread.AHEAD_8_OR_MORE,
-        ),
-    ),
-    (
-        99,
-        (
-            MinutesRemaining.OVER_FIVE,
-            Down.FIRST,
-            YardsToGo.OVER_TEN,
-            FieldPosition.DEF_5_TO_DEF_35,
-            PointSpread.AHEAD_8_OR_MORE,
-        ),
-    ),
-    (
-        127,
-        (
-            MinutesRemaining.OVER_FIVE,
-            Down.SECOND,
-            YardsToGo.ZERO_TO_ONE,
-            FieldPosition.INSIDE_DEF_5,
-            PointSpread.AHEAD_8_OR_MORE,
-        ),
-    ),
-    (
-        505,
-        (
-            MinutesRemaining.TWO_TO_FIVE,
-            Down.FIRST,
-            YardsToGo.ZERO_TO_ONE,
-            FieldPosition.INSIDE_DEF_5,
-            PointSpread.AHEAD_8_OR_MORE,
-        ),
-    ),
-]
-
-
-@pytest.mark.parametrize(("situation_number", "game_state"), SITUATION_GROUP_STARTS)
-def test_situation_decodes_the_first_number_of_each_group(
-    situation_number: int,
-    game_state: tuple[MinutesRemaining, Down, YardsToGo, FieldPosition, PointSpread],
-) -> None:
-    situation = _default_situation(situation_number=situation_number)
-    assert (
-        situation.minutes_remaining,
-        situation.down,
-        situation.yards_to_go,
-        situation.field_position,
-        situation.point_spread,
-    ) == game_state
-
-
-def test_every_situation_number_round_trips_through_its_game_state() -> None:
-    for situation_number in range(1, Profile.NUMBER_SITUATIONS + 1):
-        # Construction re-encodes the decoded state and raises on a mismatch.
-        _default_situation(situation_number=situation_number)
-
-
-@pytest.mark.parametrize("situation_number", [0, 2521])
-def test_situation_rejects_situation_number_past_limits(situation_number: int) -> None:
-    with pytest.raises(ValueError, match=r"\[1, 2520\]"):
-        _default_situation(situation_number=situation_number)
-
-
-@pytest.mark.parametrize("situation_number", [0, 2521])
-def test_situation_constructor_rejects_situation_number_past_limits(
-    situation_number: int,
-) -> None:
-    with pytest.raises(ValueError, match=r"\[1, 2520\]"):
-        Situation(
-            situation_number=situation_number,
-            minutes_remaining=MinutesRemaining.OVER_FIVE,
-            down=Down.FIRST,
-            yards_to_go=YardsToGo.ZERO_TO_ONE,
-            field_position=FieldPosition.INSIDE_DEF_5,
-            point_spread=PointSpread.AHEAD_8_OR_MORE,
-            stop_clock=False,
-            category_weights=_default_weights(),
-        )
-
-
-def test_situation_rejects_six_to_ten_yards_inside_def_5() -> None:
-    """6-10 yards-to-go from inside DEF 5 is structurally invalid."""
-    with pytest.raises(ValueError, match="invalid combo"):
-        Situation._situation_number_from_game_state(
-            MinutesRemaining.OVER_FIVE,
-            Down.FIRST,
-            YardsToGo.SIX_TO_TEN,
-            FieldPosition.INSIDE_DEF_5,
-            PointSpread.TIED,
-        )
-
-
-def test_situation_rejects_over_ten_yards_inside_def_5() -> None:
-    """>10 yards-to-go from inside DEF 5 is structurally invalid."""
-    with pytest.raises(ValueError, match="invalid combo"):
-        Situation._situation_number_from_game_state(
-            MinutesRemaining.OVER_FIVE,
-            Down.FIRST,
-            YardsToGo.OVER_TEN,
-            FieldPosition.INSIDE_DEF_5,
-            PointSpread.TIED,
-        )
-
-
-def test_situation_rejects_mismatched_situation_number() -> None:
-    with pytest.raises(ValueError, match="does not match game state"):
-        Situation(
-            situation_number=2,
-            minutes_remaining=MinutesRemaining.OVER_FIVE,
-            down=Down.FIRST,
-            yards_to_go=YardsToGo.ZERO_TO_ONE,
-            field_position=FieldPosition.INSIDE_DEF_5,
-            point_spread=PointSpread.AHEAD_8_OR_MORE,
-            stop_clock=False,
-            category_weights=_default_weights(),
-        )
-
-
-# ---------- PatSituation ----------
-
-
-def test_pat_situation_from_first_situation_number_yields_expected_game_state() -> None:
-    pat = PatSituation.from_situation_number(
-        situation_number=1, category_weights=_default_weights()
-    )
-    assert pat.minutes_remaining is PatMinutesRemaining.OVER_FIVE
-    assert pat.point_spread is PatPointSpread.AHEAD_12_OR_MORE
-
-
-def test_pat_situation_from_last_situation_number_yields_expected_game_state() -> None:
-    pat = PatSituation.from_situation_number(
-        situation_number=60, category_weights=_default_weights()
-    )
-    assert pat.minutes_remaining is PatMinutesRemaining.ZERO_TO_ONE
-    assert pat.point_spread is PatPointSpread.BEHIND_13_OR_MORE
-
-
-# The first PAT situation of each bucket group, from prf.md section 2.5.1.
-PAT_SITUATION_GROUP_STARTS = [
-    (2, (PatMinutesRemaining.OVER_FIVE, PatPointSpread.AHEAD_9_TO_11)),
-    (16, (PatMinutesRemaining.TWO_TO_FIVE, PatPointSpread.AHEAD_12_OR_MORE)),
-]
-
-
-@pytest.mark.parametrize(("situation_number", "game_state"), PAT_SITUATION_GROUP_STARTS)
-def test_pat_situation_decodes_the_first_number_of_each_group(
-    situation_number: int, game_state: tuple[PatMinutesRemaining, PatPointSpread]
-) -> None:
-    pat = _default_pat_situation(situation_number=situation_number)
-    assert (pat.minutes_remaining, pat.point_spread) == game_state
-
-
-def test_every_pat_situation_number_round_trips_through_its_game_state() -> None:
-    for situation_number in range(1, Profile.NUMBER_PAT_SITUATIONS + 1):
-        # Construction re-encodes the decoded state and raises on a mismatch.
-        _default_pat_situation(situation_number=situation_number)
-
-
-@pytest.mark.parametrize("situation_number", [0, 61])
-def test_pat_situation_rejects_situation_number_past_limits(
-    situation_number: int,
-) -> None:
-    with pytest.raises(ValueError, match=r"\[1, 60\]"):
-        _default_pat_situation(situation_number=situation_number)
-
-
-@pytest.mark.parametrize("situation_number", [0, 61])
-def test_pat_situation_constructor_rejects_situation_number_past_limits(
-    situation_number: int,
-) -> None:
-    with pytest.raises(ValueError, match=r"\[1, 60\]"):
-        PatSituation(
-            situation_number=situation_number,
-            minutes_remaining=PatMinutesRemaining.OVER_FIVE,
-            point_spread=PatPointSpread.AHEAD_12_OR_MORE,
-            category_weights=_default_weights(),
-        )
-
-
-def test_pat_situation_rejects_mismatched_situation_number() -> None:
-    with pytest.raises(ValueError, match="does not match game state"):
-        PatSituation(
-            situation_number=2,
-            minutes_remaining=PatMinutesRemaining.OVER_FIVE,
-            point_spread=PatPointSpread.AHEAD_12_OR_MORE,
-            category_weights=_default_weights(),
-        )
+    assert tuple(f.name for f in fields(PatSituation)) == ("category_weights",)
 
 
 # ---------- Profile invariants ----------
@@ -436,14 +184,17 @@ def test_profile_accepts_valid_defense_construction() -> None:
     assert profile.is_offense is False
 
 
-def test_profile_situations_wrong_length_raises() -> None:
-    with pytest.raises(ValueError, match="situations must have exactly"):
-        _make_profile(situations=_empty_situations(10))
+# 2520 and 60 are accepted by every valid construction above.
+@pytest.mark.parametrize("count", [2519, 2521])
+def test_profile_situations_wrong_length_raises(count: int) -> None:
+    with pytest.raises(ValueError, match=r"^situations must have exactly 2520"):
+        _make_profile(situations=_empty_situations(count))
 
 
-def test_profile_pat_situations_wrong_length_raises() -> None:
-    with pytest.raises(ValueError, match="pat_situations must have exactly"):
-        _make_profile(pat_situations=_empty_pat_situations(5))
+@pytest.mark.parametrize("count", [59, 61])
+def test_profile_pat_situations_wrong_length_raises(count: int) -> None:
+    with pytest.raises(ValueError, match=r"^pat_situations must have exactly 60"):
+        _make_profile(pat_situations=_empty_pat_situations(count))
 
 
 @pytest.mark.parametrize("value", [0, 4, 51, 100])
@@ -458,6 +209,225 @@ def test_profile_field_goal_range_at_bounds_accepted(value: int) -> None:
     assert profile.field_goal_range == value
 
 
+# ---------- Profile game-state decode ----------
+
+
+# Both ends of the layout and the first and last cell of each yards-to-go group,
+# plus a down and a minutes boundary, from docs/formats/prf.md section 2.3.4.
+SITUATION_CORNERS = [
+    (
+        1,
+        GameState(
+            MinutesRemaining.OVER_FIVE,
+            Down.FIRST,
+            YardsToGo.ZERO_TO_ONE,
+            FieldPosition.INSIDE_DEF_5,
+            PointSpread.AHEAD_8_OR_MORE,
+        ),
+    ),
+    (
+        7,
+        GameState(
+            MinutesRemaining.OVER_FIVE,
+            Down.FIRST,
+            YardsToGo.ZERO_TO_ONE,
+            FieldPosition.INSIDE_DEF_5,
+            PointSpread.BEHIND_8_OR_MORE,
+        ),
+    ),
+    (
+        8,
+        GameState(
+            MinutesRemaining.OVER_FIVE,
+            Down.FIRST,
+            YardsToGo.ZERO_TO_ONE,
+            FieldPosition.DEF_5_TO_DEF_35,
+            PointSpread.AHEAD_8_OR_MORE,
+        ),
+    ),
+    (
+        35,
+        GameState(
+            MinutesRemaining.OVER_FIVE,
+            Down.FIRST,
+            YardsToGo.ZERO_TO_ONE,
+            FieldPosition.INSIDE_OFF_5,
+            PointSpread.BEHIND_8_OR_MORE,
+        ),
+    ),
+    (
+        36,
+        GameState(
+            MinutesRemaining.OVER_FIVE,
+            Down.FIRST,
+            YardsToGo.TWO_TO_FIVE,
+            FieldPosition.INSIDE_DEF_5,
+            PointSpread.AHEAD_8_OR_MORE,
+        ),
+    ),
+    (
+        70,
+        GameState(
+            MinutesRemaining.OVER_FIVE,
+            Down.FIRST,
+            YardsToGo.TWO_TO_FIVE,
+            FieldPosition.INSIDE_OFF_5,
+            PointSpread.BEHIND_8_OR_MORE,
+        ),
+    ),
+    (
+        71,
+        GameState(
+            MinutesRemaining.OVER_FIVE,
+            Down.FIRST,
+            YardsToGo.SIX_TO_TEN,
+            FieldPosition.DEF_5_TO_DEF_35,
+            PointSpread.AHEAD_8_OR_MORE,
+        ),
+    ),
+    (
+        98,
+        GameState(
+            MinutesRemaining.OVER_FIVE,
+            Down.FIRST,
+            YardsToGo.SIX_TO_TEN,
+            FieldPosition.INSIDE_OFF_5,
+            PointSpread.BEHIND_8_OR_MORE,
+        ),
+    ),
+    (
+        99,
+        GameState(
+            MinutesRemaining.OVER_FIVE,
+            Down.FIRST,
+            YardsToGo.OVER_TEN,
+            FieldPosition.DEF_5_TO_DEF_35,
+            PointSpread.AHEAD_8_OR_MORE,
+        ),
+    ),
+    (
+        126,
+        GameState(
+            MinutesRemaining.OVER_FIVE,
+            Down.FIRST,
+            YardsToGo.OVER_TEN,
+            FieldPosition.INSIDE_OFF_5,
+            PointSpread.BEHIND_8_OR_MORE,
+        ),
+    ),
+    (
+        127,
+        GameState(
+            MinutesRemaining.OVER_FIVE,
+            Down.SECOND,
+            YardsToGo.ZERO_TO_ONE,
+            FieldPosition.INSIDE_DEF_5,
+            PointSpread.AHEAD_8_OR_MORE,
+        ),
+    ),
+    (
+        504,
+        GameState(
+            MinutesRemaining.OVER_FIVE,
+            Down.FOURTH,
+            YardsToGo.OVER_TEN,
+            FieldPosition.INSIDE_OFF_5,
+            PointSpread.BEHIND_8_OR_MORE,
+        ),
+    ),
+    (
+        505,
+        GameState(
+            MinutesRemaining.TWO_TO_FIVE,
+            Down.FIRST,
+            YardsToGo.ZERO_TO_ONE,
+            FieldPosition.INSIDE_DEF_5,
+            PointSpread.AHEAD_8_OR_MORE,
+        ),
+    ),
+    (
+        2520,
+        GameState(
+            MinutesRemaining.ZERO_TO_FIFTEEN_SEC,
+            Down.FOURTH,
+            YardsToGo.OVER_TEN,
+            FieldPosition.INSIDE_OFF_5,
+            PointSpread.BEHIND_8_OR_MORE,
+        ),
+    ),
+]
+
+
+@pytest.mark.parametrize(("situation_number", "state"), SITUATION_CORNERS)
+def test_game_state_decodes_the_layout_corners(
+    situation_number: int, state: GameState
+) -> None:
+    assert Profile.game_state(situation_number) == state
+
+
+@pytest.mark.parametrize("situation_number", [0, 2521])
+def test_game_state_rejects_numbers_past_limits(situation_number: int) -> None:
+    with pytest.raises(ValueError, match=r"\[1, 2520\]"):
+        Profile.game_state(situation_number)
+
+
+# Both ends of the PAT layout and the minutes boundary, from prf.md section 2.5.1.
+PAT_CORNERS = [
+    (1, PatGameState(PatMinutesRemaining.OVER_FIVE, PatPointSpread.AHEAD_12_OR_MORE)),
+    (15, PatGameState(PatMinutesRemaining.OVER_FIVE, PatPointSpread.BEHIND_13_OR_MORE)),
+    (
+        16,
+        PatGameState(PatMinutesRemaining.TWO_TO_FIVE, PatPointSpread.AHEAD_12_OR_MORE),
+    ),
+    (
+        60,
+        PatGameState(PatMinutesRemaining.ZERO_TO_ONE, PatPointSpread.BEHIND_13_OR_MORE),
+    ),
+]
+
+
+@pytest.mark.parametrize(("situation_number", "state"), PAT_CORNERS)
+def test_pat_game_state_decodes_the_layout_corners(
+    situation_number: int, state: PatGameState
+) -> None:
+    assert Profile.pat_game_state(situation_number) == state
+
+
+@pytest.mark.parametrize("situation_number", [0, 61])
+def test_pat_game_state_rejects_numbers_past_limits(situation_number: int) -> None:
+    with pytest.raises(ValueError, match=r"\[1, 60\]"):
+        Profile.pat_game_state(situation_number)
+
+
+# ---------- Situation walks ----------
+
+
+def test_iter_situations_walks_every_slot_in_order() -> None:
+    profile = _make_profile()
+    walked = list(profile.iter_situations())
+    assert [number for number, _, _ in walked] == list(range(1, 2521))
+    for number, state, situation in walked:
+        assert state == Profile.game_state(number)
+        assert situation is profile.situations[number - 1]
+
+
+def test_iter_situations_numbers_slots_holding_the_same_situation() -> None:
+    shared = _default_situation()
+    profile = _make_profile(situations=(shared,) * Profile.NUMBER_SITUATIONS)
+    walked = list(profile.iter_situations())
+    assert [number for number, _, _ in walked] == list(range(1, 2521))
+    assert len({state for _, state, _ in walked}) == 2520
+
+
+def test_iter_pat_situations_walks_every_slot_in_order() -> None:
+    profile = _make_profile()
+    walked = list(profile.iter_pat_situations())
+    assert [number for number, _, _ in walked] == list(range(1, 61))
+    for number, state, pat in walked:
+        assert state == Profile.pat_game_state(number)
+        assert pat is profile.pat_situations[number - 1]
+
+
 # ---------- stop_clock_situations property ----------
 
 
@@ -466,14 +436,17 @@ def test_stop_clock_situations_empty_when_no_flags_set() -> None:
     assert profile.stop_clock_situations == ()
 
 
-def test_stop_clock_situations_pairs_each_flagged_entry_with_its_number() -> None:
-    first = _default_situation(situation_number=5, stop_clock=True, weight1=3)
-    middle = _default_situation(situation_number=100, stop_clock=True, weight1=7)
-    last = _default_situation(situation_number=2520, stop_clock=True, weight1=10)
+def test_stop_clock_situations_give_each_flagged_entry_its_number_and_state() -> None:
+    # first and middle hold equal values, so a number found by value shows.
+    first = _default_situation(stop_clock=True, weight1=3)
+    middle = _default_situation(stop_clock=True, weight1=3)
+    last = _default_situation(stop_clock=True, weight1=10)
     base = list(_empty_situations(Profile.NUMBER_SITUATIONS))
-    for situation in (first, middle, last):
-        # base[i] holds the situation with situation_number == i + 1
-        base[situation.situation_number - 1] = situation
+    base[4], base[99], base[2519] = first, middle, last
 
     profile = _make_profile(situations=tuple(base))
-    assert profile.stop_clock_situations == ((5, first), (100, middle), (2520, last))
+    assert profile.stop_clock_situations == (
+        (5, Profile.game_state(5), first),
+        (100, Profile.game_state(100), middle),
+        (2520, Profile.game_state(2520), last),
+    )

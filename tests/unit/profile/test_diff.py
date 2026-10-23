@@ -9,6 +9,7 @@ import pytest
 from athc.fbpro98_profile import (
     Down,
     FieldPosition,
+    Profile,
     ProfileType,
     SubstitutionPair,
     YardsToGo,
@@ -18,7 +19,6 @@ from athc.profile import (
     ScalarChange,
     SlotChange,
     diff_profiles,
-    situation_label,
 )
 from athc.profile.rules import (
     FIELD_GOAL_PAT,
@@ -77,7 +77,7 @@ def test_situation_stop_clock_change() -> None:
     assert len(d.situations) == 1
     c = d.situations[0]
     assert c.number == N
-    assert c.label == situation_label(a.situations[N - 1])
+    assert c.label == ">5 1st 0-1 DEF5-35 Ahd8+"
     assert c.stop == ScalarChange("stop", "No", "Yes")
     assert c.slots == ()
 
@@ -170,9 +170,9 @@ def test_type_mismatch_raises() -> None:
 
 def test_situation_n_game_state_and_baseline() -> None:
     """Guard N: it must be a 1st-and-0-1 cell with the assumed baseline."""
-    s = _offense().situations[N - 1]
-    assert s.down == Down.FIRST
-    assert s.yards_to_go == YardsToGo.ZERO_TO_ONE
-    assert s.field_position == FieldPosition.DEF_5_TO_DEF_35
-    cw = s.category_weights
+    state = Profile.game_state(N)
+    assert state.down == Down.FIRST
+    assert state.yards_to_go == YardsToGo.ZERO_TO_ONE
+    assert state.field_position == FieldPosition.DEF_5_TO_DEF_35
+    cw = _offense().situations[N - 1].category_weights
     assert (cw.play_category1, cw.weight1) == (RUN_MIDDLE, 4)

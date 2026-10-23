@@ -59,12 +59,12 @@ def make_profile(
         profile_type=profile_type,
         substitutions=substitutions or SubstitutionSettings.default(),
         situations=tuple(
-            Situation.from_situation_number(n, stop_clock=False, category_weights=base)
-            for n in range(1, Profile.NUMBER_SITUATIONS + 1)
+            Situation(stop_clock=False, category_weights=base)
+            for _ in range(Profile.NUMBER_SITUATIONS)
         ),
         pat_situations=tuple(
-            PatSituation.from_situation_number(n, category_weights=_PAT_BASE)
-            for n in range(1, Profile.NUMBER_PAT_SITUATIONS + 1)
+            PatSituation(category_weights=_PAT_BASE)
+            for _ in range(Profile.NUMBER_PAT_SITUATIONS)
         ),
         field_goal_range=field_goal_range,
         use_audibles=use_audibles,

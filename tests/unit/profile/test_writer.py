@@ -13,8 +13,8 @@ from athc.fbpro98_profile import (
     CategoryWeights,
     Down,
     FieldPosition,
+    GameState,
     Profile,
-    Situation,
     SubstitutionPair,
     SubstitutionSettings,
     read_profile,
@@ -107,22 +107,22 @@ def _source(src: Path, tmp_path: Path) -> Path:
 
 
 def _stamp_matching(
-    profile: Profile, *, predicate: Callable[[Situation], bool], marker: CategoryWeights
+    profile: Profile, *, predicate: Callable[[GameState], bool], marker: CategoryWeights
 ) -> Profile:
     """`profile` with `marker` as the weights of every situation `predicate` matches."""
     sits = tuple(
-        replace(s, category_weights=marker) if predicate(s) else s
-        for s in profile.situations
+        replace(s, category_weights=marker) if predicate(state) else s
+        for _, state, s in profile.iter_situations()
     )
     return replace(profile, situations=sits)
 
 
-def _is_fourth(s: Situation) -> bool:
-    return s.down == Down.FOURTH
+def _is_fourth(state: GameState) -> bool:
+    return state.down == Down.FOURTH
 
 
-def _is_goal_line(s: Situation) -> bool:
-    return s.field_position in GOAL_LINE_POSITIONS
+def _is_goal_line(state: GameState) -> bool:
+    return state.field_position in GOAL_LINE_POSITIONS
 
 
 def _with_stop_clock(target: Profile, source: Profile) -> Profile:
@@ -137,14 +137,16 @@ def _with_stop_clock(target: Profile, source: Profile) -> Profile:
 
 
 def _with_situations(
-    target: Profile, source: Profile, predicate: Callable[[Situation], bool]
+    target: Profile, source: Profile, predicate: Callable[[GameState], bool]
 ) -> Profile:
     """`target` with `source`'s whole situation wherever `predicate` matches."""
     return replace(
         target,
         situations=tuple(
-            s if predicate(t) else t
-            for t, s in zip(target.situations, source.situations, strict=True)
+            s if predicate(state) else t
+            for (_, state, t), s in zip(
+                target.iter_situations(), source.situations, strict=True
+            )
         ),
     )
 
@@ -256,8 +258,10 @@ def test_copy_fourth_down_copies_only_fourth_down_situations(tmp_path: Path) -> 
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_fourth_down=True)
-    for before, after in zip(original.situations, result.situations, strict=True):
-        if before.down == Down.FOURTH:
+    for (_, state, before), after in zip(
+        original.iter_situations(), result.situations, strict=True
+    ):
+        if state.down == Down.FOURTH:
             assert (
                 after.category_weights == marker
                 and after.stop_clock != before.stop_clock
@@ -280,7 +284,7 @@ def test_copy_fourth_down_works_on_defense(tmp_path: Path) -> None:
     target = _copy_prf(DEF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_fourth_down=True)
-    affected = [s for s in result.situations if s.down == Down.FOURTH]
+    affected = [s for _, state, s in result.iter_situations() if _is_fourth(state)]
     assert affected and all(s.category_weights == marker for s in affected)
     assert result == _with_situations(original, read_profile(str(source)), _is_fourth)
 
@@ -298,12 +302,10 @@ def test_copy_goal_line_copies_only_goal_line_situations(tmp_path: Path) -> None
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_goal_line=True)
-    for before, after in zip(original.situations, result.situations, strict=True):
-        expected = (
-            marker
-            if before.field_position in GOAL_LINE_POSITIONS
-            else before.category_weights
-        )
+    for (_, state, before), after in zip(
+        original.iter_situations(), result.situations, strict=True
+    ):
+        expected = marker if _is_goal_line(state) else before.category_weights
         assert after.category_weights == expected
     assert result == _with_situations(
         original, read_profile(str(source)), _is_goal_line
@@ -321,16 +323,47 @@ def test_copy_goal_line_covers_both_inside_5_buckets(tmp_path: Path) -> None:
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_goal_line=True)
     def_5 = [
-        s for s in result.situations if s.field_position == FieldPosition.INSIDE_DEF_5
+        s
+        for _, state, s in result.iter_situations()
+        if state.field_position == FieldPosition.INSIDE_DEF_5
     ]
     off_5 = [
-        s for s in result.situations if s.field_position == FieldPosition.INSIDE_OFF_5
+        s
+        for _, state, s in result.iter_situations()
+        if state.field_position == FieldPosition.INSIDE_OFF_5
     ]
     assert def_5 and off_5
     assert all(s.category_weights == marker for s in def_5 + off_5)
     assert result == _with_situations(
         original, read_profile(str(source)), _is_goal_line
     )
+
+
+# Per docs/formats/prf.md 2.3.4, over the 20 (minutes, down) blocks of 126: 4th
+# down is 5 blocks (630); the goal line is 14 cells inside the DEF 5 plus 28
+# inside the OFF 5 per block (840); the two share 42 cells in each of the 5
+# 4th-down blocks (210), so both flags copy 630 + 840 - 210.
+@pytest.mark.parametrize(
+    ("flags", "copied"),
+    [
+        (("copy_fourth_down",), 630),
+        (("copy_goal_line",), 840),
+        (("copy_fourth_down", "copy_goal_line"), 1260),
+    ],
+    ids=["fourth_down", "goal_line", "both"],
+)
+def test_copy_fourth_down_and_goal_line_slot_counts(
+    tmp_path: Path, flags: tuple[str, ...], copied: int
+) -> None:
+    source = _source(OFF1, tmp_path)
+    target = _copy_prf(OFF1, tmp_path, name="target.prf")
+    original = read_profile(str(target))
+    result = ProfileWriter(source, target).apply(**dict.fromkeys(flags, True))
+    changed = sum(
+        after != before
+        for before, after in zip(original.situations, result.situations, strict=True)
+    )
+    assert changed == copied
 
 
 # ── combinations ──────────────────────────────────────────────────────────────
@@ -350,12 +383,16 @@ def test_combined_flags_apply_each_independently(tmp_path: Path) -> None:
     assert result.substitutions == _custom_subs()
     assert result.field_goal_range == new_range
     assert all(
-        s.category_weights == marker for s in result.situations if s.down == Down.FOURTH
+        s.category_weights == marker
+        for _, state, s in result.iter_situations()
+        if _is_fourth(state)
     )
     non_fourth_changed = [
         a
-        for a, o in zip(result.situations, original.situations, strict=True)
-        if a.down != Down.FOURTH and a.category_weights != o.category_weights
+        for (_, state, a), o in zip(
+            result.iter_situations(), original.situations, strict=True
+        )
+        if not _is_fourth(state) and a.category_weights != o.category_weights
     ]
     assert non_fourth_changed == []
     assert result == replace(
@@ -375,9 +412,11 @@ def test_fourth_down_and_stop_clock_combine_cleanly(tmp_path: Path) -> None:
     result = ProfileWriter(source, target).apply(
         copy_stop_clock=True, copy_fourth_down=True
     )
-    for before, after in zip(original.situations, result.situations, strict=True):
+    for (_, state, before), after in zip(
+        original.iter_situations(), result.situations, strict=True
+    ):
         assert after.stop_clock != before.stop_clock
-        if before.down == Down.FOURTH:
+        if _is_fourth(state):
             assert after.category_weights == marker
         else:
             assert after.category_weights == before.category_weights

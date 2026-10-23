@@ -358,6 +358,8 @@ Reads `.ply` play files. Docs: [spec](docs/formats/ply.md)
 Reads and writes `.prf` coaching profiles. Docs:
 [spec](docs/formats/prf.md)
 
+- A situation holds only its rules; its number and game state come from its
+  place in the profile.
 - Reader and writer in, with unit tests.
 
 ## fbpro98_standings (library)

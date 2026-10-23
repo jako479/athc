@@ -1,12 +1,14 @@
 """In-memory data model for FbPro98 .prf coaching profile files.
 
 Defines the immutable types that the reader produces and the writer consumes:
-ProfileType, SubstitutionPair, SubstitutionSettings, CategoryWeights, and the
-top-level Profile dataclass.
+ProfileType, SubstitutionPair, SubstitutionSettings, Situation, PatSituation,
+CategoryWeights, and the top-level Profile dataclass, plus the GameState and
+PatGameState that Profile decodes from a situation's position.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import Enum, IntEnum
 from typing import ClassVar
@@ -167,226 +169,54 @@ class PatPointSpread(Enum):
 
 
 @dataclass(frozen=True, slots=True)
-class Situation:
-    """Game situation details and corresponding play-calling rules.
+class GameState:
+    """The five game-state buckets one regular situation slot stands for.
 
-    Each Situation holds the game situation details (minutes remaining bucket, down,
-    yard-to-go bucket, field position bucket, and point spread bucket) and the
-    corresponding play-calling rules: three weighted play categories and whether the
-    clock should be stopped such as by timeout or spiking the ball.
-
-    `situation_number` is the situation's domain identifier (1-based, 1..2520);
-    its game state is structurally determined by it. Construction validates
-    that all six values are mutually consistent.
+    `Profile.game_state` decodes a situation number into one.
     """
 
-    situation_number: int
-    """Domain identifier, 1-based (1..2520); encodes the game state below."""
-
-    # Game situation
     minutes_remaining: MinutesRemaining
     down: Down
     yards_to_go: YardsToGo
     field_position: FieldPosition
     point_spread: PointSpread
 
-    # Play-calling rules
+
+@dataclass(frozen=True, slots=True)
+class PatGameState:
+    """The two game-state buckets one PAT situation slot stands for.
+
+    `Profile.pat_game_state` decodes a PAT situation number into one.
+    """
+
+    minutes_remaining: PatMinutesRemaining
+    point_spread: PatPointSpread
+
+
+@dataclass(frozen=True, slots=True)
+class Situation:
+    """One regular situation's play-calling rules.
+
+    Three weighted play categories and whether the clock should be stopped, such
+    as by timeout or spiking the ball. The situation is its position in
+    `Profile.situations`; `Profile.game_state` decodes that position into the
+    game state.
+    """
+
     stop_clock: bool
     category_weights: CategoryWeights
-
-    def __post_init__(self) -> None:
-        if not 1 <= self.situation_number <= 2520:
-            raise ValueError(
-                f"situation_number must be in [1, 2520], got {self.situation_number}"
-            )
-        expected = self._situation_number_from_game_state(
-            self.minutes_remaining,
-            self.down,
-            self.yards_to_go,
-            self.field_position,
-            self.point_spread,
-        )
-        if expected != self.situation_number:
-            raise ValueError(
-                f"situation_number {self.situation_number} does not match "
-                f"game state (expected {expected})"
-            )
-
-    @classmethod
-    def from_situation_number(
-        cls,
-        situation_number: int,
-        stop_clock: bool,
-        category_weights: CategoryWeights,
-    ) -> Situation:
-        """Build a Situation by decoding situation_number into its game state."""
-        minutes, down, yards, field, spread = cls._game_state_from_situation_number(
-            situation_number
-        )
-        return cls(
-            situation_number=situation_number,
-            minutes_remaining=minutes,
-            down=down,
-            yards_to_go=yards,
-            field_position=field,
-            point_spread=spread,
-            stop_clock=stop_clock,
-            category_weights=category_weights,
-        )
-
-    @staticmethod
-    def _game_state_from_situation_number(
-        situation_number: int,
-    ) -> tuple[MinutesRemaining, Down, YardsToGo, FieldPosition, PointSpread]:
-        """Decode situation_number into the five game-state buckets.
-
-        Raises ValueError if situation_number is outside [1, 2520].
-        """
-        if not 1 <= situation_number <= 2520:
-            raise ValueError(
-                f"situation_number must be in [1, 2520], got {situation_number}"
-            )
-
-        # Convert 1-based situation_number to 0-based offset for the math, then
-        # decode by peeling off each bucket largest-stride-first.
-        offset = situation_number - 1
-        minutes_idx = offset // 504
-        rem = offset % 504
-        down_idx = rem // 126  # 0-based
-        rem = rem % 126
-
-        if rem < 35:
-            yards_idx, field_idx, spread_idx = 0, rem // 7, rem % 7
-        elif rem < 70:
-            rem -= 35
-            yards_idx, field_idx, spread_idx = 1, rem // 7, rem % 7
-        elif rem < 98:
-            rem -= 70
-            yards_idx, field_idx, spread_idx = 2, (rem // 7) + 1, rem % 7
-        else:  # rem < 126
-            rem -= 98
-            yards_idx, field_idx, spread_idx = 3, (rem // 7) + 1, rem % 7
-
-        return (
-            MinutesRemaining(minutes_idx),
-            Down(down_idx + 1),
-            YardsToGo(yards_idx),
-            FieldPosition(field_idx),
-            PointSpread(spread_idx),
-        )
-
-    @staticmethod
-    def _situation_number_from_game_state(
-        minutes_remaining: MinutesRemaining,
-        down: Down,
-        yards_to_go: YardsToGo,
-        field_position: FieldPosition,
-        point_spread: PointSpread,
-    ) -> int:
-        """Encode the five game-state buckets into situation_number.
-
-        Raises ValueError on the structurally-invalid combo (6-10 or >10
-        yards-to-go from inside the DEF 5).
-        """
-        yards_idx = yards_to_go.value
-        field_idx = field_position.value
-
-        if yards_idx >= 2 and field_idx == 0:
-            raise ValueError(
-                f"invalid combo: {yards_to_go.name} yards-to-go "
-                f"from {field_position.name}"
-            )
-
-        section_start = (minutes_remaining.value * 4 + (down.value - 1)) * 126
-
-        if yards_idx == 0:
-            within = field_idx * 7 + point_spread.value
-        elif yards_idx == 1:
-            within = 35 + field_idx * 7 + point_spread.value
-        elif yards_idx == 2:
-            within = 70 + (field_idx - 1) * 7 + point_spread.value
-        else:  # yards_idx == 3
-            within = 98 + (field_idx - 1) * 7 + point_spread.value
-
-        # Math yields a 0-based offset; situation_number is 1-based.
-        return section_start + within + 1
 
 
 @dataclass(frozen=True, slots=True)
 class PatSituation:
-    """PAT (point-after-touchdown) game situation and its play-calling rule.
+    """One PAT (point-after-touchdown) situation's play-calling rule.
 
-    PAT situations vary only by minutes remaining and point spread — down,
-    yards-to-go, field position, and stop_clock don't apply.
-
-    `situation_number` is the PAT situation's domain identifier (1-based, 1..60);
-    its game state is structurally determined by it. Construction validates that
-    the three values are mutually consistent.
+    PAT situations have no stop_clock. The situation is its position in
+    `Profile.pat_situations`; `Profile.pat_game_state` decodes that position
+    into the game state.
     """
 
-    situation_number: int
-    """Domain identifier, 1-based (1..60); encodes the game state below."""
-
-    # Game situation
-    minutes_remaining: PatMinutesRemaining
-    point_spread: PatPointSpread
-
-    # Play-calling rules
     category_weights: CategoryWeights
-
-    def __post_init__(self) -> None:
-        if not 1 <= self.situation_number <= 60:
-            raise ValueError(
-                f"situation_number must be in [1, 60], got {self.situation_number}"
-            )
-        expected = self._situation_number_from_game_state(
-            self.minutes_remaining, self.point_spread
-        )
-        if expected != self.situation_number:
-            raise ValueError(
-                f"situation_number {self.situation_number} does not match "
-                f"game state (expected {expected})"
-            )
-
-    @classmethod
-    def from_situation_number(
-        cls,
-        situation_number: int,
-        category_weights: CategoryWeights,
-    ) -> PatSituation:
-        """Build a PatSituation by decoding situation_number into its game state."""
-        minutes, spread = cls._game_state_from_situation_number(situation_number)
-        return cls(
-            situation_number=situation_number,
-            minutes_remaining=minutes,
-            point_spread=spread,
-            category_weights=category_weights,
-        )
-
-    @staticmethod
-    def _game_state_from_situation_number(
-        situation_number: int,
-    ) -> tuple[PatMinutesRemaining, PatPointSpread]:
-        """Decode situation_number into the two PAT game-state buckets.
-
-        Raises ValueError if situation_number is outside [1, 60].
-        """
-        if not 1 <= situation_number <= 60:
-            raise ValueError(
-                f"situation_number must be in [1, 60], got {situation_number}"
-            )
-        offset = situation_number - 1
-        minutes_idx = offset // 15
-        spread_idx = offset % 15
-        return PatMinutesRemaining(minutes_idx), PatPointSpread(spread_idx)
-
-    @staticmethod
-    def _situation_number_from_game_state(
-        minutes_remaining: PatMinutesRemaining,
-        point_spread: PatPointSpread,
-    ) -> int:
-        """Encode the two PAT game-state buckets into situation_number."""
-        return minutes_remaining.value * 15 + point_spread.value + 1
 
 
 # Display-name lookup sets per docs/formats/prf.md section 2.3.2. These describe which
@@ -498,15 +328,105 @@ class Profile:
     def is_defense(self) -> bool:
         return self.profile_type == ProfileType.DEFENSE
 
+    @staticmethod
+    def game_state(situation_number: int) -> GameState:
+        """Decode a 1-based situation number into its game state.
+
+        The layout is docs/formats/prf.md section 2.3.4.
+
+        Raises:
+            ValueError: situation_number is outside [1, 2520].
+        """
+        if not 1 <= situation_number <= Profile.NUMBER_SITUATIONS:
+            raise ValueError(
+                f"situation_number must be in [1, {Profile.NUMBER_SITUATIONS}], "
+                f"got {situation_number}"
+            )
+
+        # Convert 1-based situation_number to 0-based offset for the math, then
+        # decode by peeling off each bucket largest-stride-first.
+        offset = situation_number - 1
+        minutes_idx = offset // 504
+        rem = offset % 504
+        down_idx = rem // 126  # 0-based
+        rem = rem % 126
+
+        if rem < 35:
+            yards_idx, field_idx, spread_idx = 0, rem // 7, rem % 7
+        elif rem < 70:
+            rem -= 35
+            yards_idx, field_idx, spread_idx = 1, rem // 7, rem % 7
+        elif rem < 98:
+            rem -= 70
+            yards_idx, field_idx, spread_idx = 2, (rem // 7) + 1, rem % 7
+        else:  # rem < 126
+            rem -= 98
+            yards_idx, field_idx, spread_idx = 3, (rem // 7) + 1, rem % 7
+
+        return GameState(
+            minutes_remaining=MinutesRemaining(minutes_idx),
+            down=Down(down_idx + 1),
+            yards_to_go=YardsToGo(yards_idx),
+            field_position=FieldPosition(field_idx),
+            point_spread=PointSpread(spread_idx),
+        )
+
+    @staticmethod
+    def pat_game_state(situation_number: int) -> PatGameState:
+        """Decode a 1-based PAT situation number into its game state.
+
+        The layout is docs/formats/prf.md section 2.5.1.
+
+        Raises:
+            ValueError: situation_number is outside [1, 60].
+        """
+        if not 1 <= situation_number <= Profile.NUMBER_PAT_SITUATIONS:
+            raise ValueError(
+                f"situation_number must be in [1, {Profile.NUMBER_PAT_SITUATIONS}], "
+                f"got {situation_number}"
+            )
+        offset = situation_number - 1
+        return PatGameState(
+            minutes_remaining=PatMinutesRemaining(offset // 15),
+            point_spread=PatPointSpread(offset % 15),
+        )
+
+    def iter_situations(self) -> Iterator[tuple[int, GameState, Situation]]:
+        """Walk the situations in slot order with each one's number and game state.
+
+        Yields:
+            `(situation_number, GameState, Situation)` for every slot, numbers
+            from 1.
+        """
+        for number, situation in enumerate(self.situations, start=1):
+            yield number, self.game_state(number), situation
+
+    def iter_pat_situations(
+        self,
+    ) -> Iterator[tuple[int, PatGameState, PatSituation]]:
+        """Walk the PAT situations in slot order with each one's number and state.
+
+        Yields:
+            `(situation_number, PatGameState, PatSituation)` for every slot,
+            numbers from 1.
+        """
+        for number, pat in enumerate(self.pat_situations, start=1):
+            yield number, self.pat_game_state(number), pat
+
     @property
-    def stop_clock_situations(self) -> tuple[tuple[int, Situation], ...]:
-        """Return `(situation_number, Situation)` for situations with stop_clock set.
+    def stop_clock_situations(self) -> tuple[tuple[int, GameState, Situation], ...]:
+        """Return the walk's entries for the situations with stop_clock set.
 
         Only the 2520 regular game-state situations are inspected. PAT situations
         are not included since they have no stop_clock concept.
 
         Returns:
-            Tuple of `(situation_number, Situation)` pairs for situations where
-            `stop_clock` is True, in ascending situation_number order.
+            Tuple of `(situation_number, GameState, Situation)` triples for
+            situations where `stop_clock` is True, in ascending situation_number
+            order.
         """
-        return tuple((s.situation_number, s) for s in self.situations if s.stop_clock)
+        return tuple(
+            (number, state, situation)
+            for number, state, situation in self.iter_situations()
+            if situation.stop_clock
+        )

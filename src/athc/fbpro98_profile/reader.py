@@ -127,15 +127,10 @@ def parse_profile(buffer: bytes, path: StrPath = "<buffer>") -> Profile:
     _check_unsupported_variants(buffer, body_end, num_game_plan_blocks, file_path)
     _validate_trailer(buffer, body_end, profile_type, file_path)
 
-    # enumerate() yields 0-based array indices; the domain situation_number is 1-based.
     situations = tuple(
-        Situation.from_situation_number(idx + 1, stop_clock=sc, category_weights=cw)
-        for idx, (cw, sc) in enumerate(f95_paired_records)
+        Situation(stop_clock=sc, category_weights=cw) for cw, sc in f95_paired_records
     )
-    pat_situations = tuple(
-        PatSituation.from_situation_number(idx + 1, category_weights=cw)
-        for idx, cw in enumerate(f95_pat_records)
-    )
+    pat_situations = tuple(PatSituation(category_weights=cw) for cw in f95_pat_records)
 
     return Profile(
         profile_type=profile_type,

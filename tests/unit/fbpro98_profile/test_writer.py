@@ -68,14 +68,12 @@ def _profile_from_scratch(profile_type: ProfileType) -> Profile:
         profile_type=profile_type,
         substitutions=SubstitutionSettings.default(),
         situations=tuple(
-            Situation.from_situation_number(
-                n, stop_clock=False, category_weights=zero_weights
-            )
-            for n in range(1, Profile.NUMBER_SITUATIONS + 1)
+            Situation(stop_clock=False, category_weights=zero_weights)
+            for _ in range(Profile.NUMBER_SITUATIONS)
         ),
         pat_situations=tuple(
-            PatSituation.from_situation_number(n, category_weights=zero_weights)
-            for n in range(1, Profile.NUMBER_PAT_SITUATIONS + 1)
+            PatSituation(category_weights=zero_weights)
+            for _ in range(Profile.NUMBER_PAT_SITUATIONS)
         ),
         field_goal_range=30,
         use_audibles=False,
@@ -119,16 +117,16 @@ def _edit_substitutions(profile: Profile) -> Profile:
 
 def _edit_situation(profile: Profile) -> Profile:
     situations = list(profile.situations)
-    situations[0] = Situation.from_situation_number(
-        1, stop_clock=True, category_weights=_weights(0x16, 10, 0x1A, 3, 0x00, 0)
+    situations[0] = Situation(
+        stop_clock=True, category_weights=_weights(0x16, 10, 0x1A, 3, 0x00, 0)
     )
     return replace(profile, situations=tuple(situations))
 
 
 def _edit_pat_situation(profile: Profile) -> Profile:
     pat_situations = list(profile.pat_situations)
-    pat_situations[-1] = PatSituation.from_situation_number(
-        60, category_weights=_weights(0x11, 4, 0x12, 2, 0x10, 1)
+    pat_situations[-1] = PatSituation(
+        category_weights=_weights(0x11, 4, 0x12, 2, 0x10, 1)
     )
     return replace(profile, pat_situations=tuple(pat_situations))
 

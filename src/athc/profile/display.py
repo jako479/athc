@@ -11,13 +11,13 @@ from __future__ import annotations
 from athc.fbpro98_profile import (
     Down,
     FieldPosition,
+    GameState,
     MinutesRemaining,
+    PatGameState,
     PatMinutesRemaining,
     PatPointSpread,
-    PatSituation,
     PointSpread,
     ProfileType,
-    Situation,
     YardsToGo,
 )
 
@@ -120,17 +120,18 @@ def category_label(code: int, profile_type: ProfileType) -> str:
     return table.get(code, f"0x{code:02X}")
 
 
-def situation_label(s: Situation) -> str:
+def situation_label(state: GameState) -> str:
     """`>5 3rd 2-5 DEF35-OFF35 Tied` — the five game-state buckets."""
     return (
-        f"{_MINUTES[s.minutes_remaining]} {_DOWN[s.down]} {_YARDS[s.yards_to_go]} "
-        f"{_FIELD[s.field_position]} {_SPREAD[s.point_spread]}"
+        f"{_MINUTES[state.minutes_remaining]} {_DOWN[state.down]} "
+        f"{_YARDS[state.yards_to_go]} {_FIELD[state.field_position]} "
+        f"{_SPREAD[state.point_spread]}"
     )
 
 
-def pat_label(p: PatSituation) -> str:
+def pat_label(state: PatGameState) -> str:
     """`>5 Tied` — the two PAT game-state buckets."""
-    return f"{_PAT_MINUTES[p.minutes_remaining]} {_PAT_SPREAD[p.point_spread]}"
+    return f"{_PAT_MINUTES[state.minutes_remaining]} {_PAT_SPREAD[state.point_spread]}"
 
 
 def sub_label(group: str) -> str:
