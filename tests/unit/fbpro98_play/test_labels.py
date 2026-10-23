@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import pytest
@@ -82,31 +81,46 @@ def test_label_may_equal_the_other_sides_game_name() -> None:
             "[categories.defense] 'Pass Short Right': Not a game category name "
             "for defense.",
         ),
-        ({"Run Right": 1}, {}, "'Run Right': Label must be a non-empty string."),
-        ({"Run Right": ""}, {}, "'Run Right': Label must be a non-empty string."),
-        ({"Run Right": " "}, {}, "'Run Right': Label must be a non-empty string."),
+        (
+            {"Run Right": 1},
+            {},
+            "[categories.offense] 'Run Right': Label must be a non-empty string.",
+        ),
+        (
+            {"Run Right": ""},
+            {},
+            "[categories.offense] 'Run Right': Label must be a non-empty string.",
+        ),
+        (
+            {"Run Right": " "},
+            {},
+            "[categories.offense] 'Run Right': Label must be a non-empty string.",
+        ),
         (
             {"Run Right": "Run Left"},
             {},
-            "'Run Right': Label 'Run Left' is a game category name for offense.",
+            "[categories.offense] 'Run Right': Label 'Run Left' is a game category "
+            "name for offense.",
         ),
         (
             {},
             {"Run Right": "Pass Long"},
-            "'Run Right': Label 'Pass Long' is a game category name for defense.",
+            "[categories.defense] 'Run Right': Label 'Pass Long' is a game category "
+            "name for defense.",
         ),
         (
             {"Run Right": "X", "Run Left": "X"},
             {},
-            "'Run Left': Label 'X' already used by 'Run Right'.",
+            "[categories.offense] 'Run Left': Label 'X' already used by 'Run Right'.",
         ),
     ],
 )
 def test_from_tables_rejects(
     offense: dict[str, object], defense: dict[str, object], message: str
 ) -> None:
-    with pytest.raises(ConfigFileError, match=re.escape(message)):
+    with pytest.raises(ConfigFileError) as exc:
         CategoryLabels.from_tables(offense, defense)
+    assert str(exc.value) == message
 
 
 def test_from_tables_names_the_file() -> None:

@@ -35,7 +35,7 @@ print(play_file.defensive_front)
 
 - `read_play(path)` reads a `.ply` and returns a `PlayFile`; `parse_play(buffer, path)` parses raw bytes, `path` only naming the source in errors (`<path>: <reason>`).
 - `PlayFile`: `file_path`, `stream_length`, `player_offsets`, `player_headers`, `player_logic`, `play_category`, `special_category`, `user_category`; `is_offensive` / `is_defensive` / `is_special`; `category` (a category enum member, `UNKNOWN_CATEGORY` when unrecognized) and `category_name`.
-- Play attributes on `PlayFile`, normal plays only: `is_timed_pass`, `is_qb_run`, `is_rollout(margin)` (the caller picks the margin; 90 units to a yard) and `defensive_front` (`DefensiveFront.THREE_FOUR` / `FOUR_THREE` / `TWO_DL`, or `None`); the rules: [How athc reads a play](playpool.md#how-athc-reads-a-play).
+- Play attributes on `PlayFile`, normal plays only: `is_timed_pass`, `is_qb_run`, `is_rollout(margin)` (the caller picks the margin; 90 units to a yard) and `defensive_front` (`DefensiveFront.THREE_FOUR` / `FOUR_THREE` / `TWO_DL`, or `None`); the rules: [How athc reads a play](playpool.md#how-athc-reads-a-play), whose "it's a pass play" / "it's a run play" clauses playpool applies — `PlayFile` reads the players' logic alone.
 - `PlayerHeader`: `offset`, `rank`, `player_type`, `position`.
 - `PlayerLogic`: `pre_snap` and `after_snap`, each a tuple of `LogicBox` (`x`, `y`, `commands`); `Command`: `code`, `arguments`.
 - Categories: `OffensiveCategory`, `DefensiveCategory`, `SpecialOffensiveCategory`, `SpecialDefensiveCategory`; each member has `code`, `long`, `is_run`, `is_pass`. `resolve_category(play_category, special_category, user_category)` names one from raw bytes.
@@ -86,7 +86,7 @@ src/athc/fbpro98_play/
   rejects the file.
 - Holds a league's category labels: `CategoryLabels` (`labels.py`), built from the
   `[categories.offense]` / `[categories.defense]` tables of `league.toml` by
-  `CategoryLabels.from_tables` (ValueError on a bad entry). `label(category)` is the
+  `CategoryLabels.from_tables` (`ConfigFileError` on a bad entry). `label(category)` is the
   league label, else the game name; `offense_by_label` / `defense_by_label` resolve a
   label within one side. Special categories never have labels.
 - Validates structural correctness of `.ply` bytes
@@ -101,6 +101,7 @@ Raise `InvalidPlayFileError` for:
 - File too small to contain a header
 - Invalid block magic
 - Stream length / offset table not internally consistent
+- A player offset inside the header or category bytes (below 25)
 - Player record prefix corruption
 - A player record too short for its logic boxes
 - An unrecognized play category (`read_play` only)
@@ -117,6 +118,7 @@ file readers word a damaged file.
 ### Testing
 
 - `tests/unit/fbpro98_play/` — parsing real `.ply` fixtures, structural error paths,
-  play attributes
+  category resolution, play attributes, league labels; the matrix:
+  `tests/unit/fbpro98_play/README.md`
 
-Fixtures are real game-produced `.ply` files; that is the authoritative ground truth for any wire-format question.
+Fixtures are real game-produced `.ply` files, plus one zero-byte play from the pool for the damaged-file case; the real ones are the authoritative ground truth for any wire-format question.

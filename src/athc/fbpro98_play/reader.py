@@ -26,6 +26,7 @@ from athc.fbpro98_play.schema import (
     PLY_BOX,
     PLY_BOX_COUNT,
     PLY_COMMAND,
+    PLY_FIRST_PLAYER_OFFSET,
     PLY_HEADER,
     PLY_METADATA,
     PLY_METADATA_OFFSET,
@@ -91,8 +92,9 @@ def parse_play(buffer: bytes, path: StrPath = "<buffer>") -> PlayFile:
     Raises:
         InvalidPlayFileError: If the buffer does not contain a valid P95 block.
             Triggered by a wrong block ID, mismatched size field, a buffer
-            too short to contain the metadata or any player header, or a
-            player record too short for its logic boxes.
+            too short to contain the metadata or any player header, a player
+            offset inside the header or category bytes, or a player record
+            too short for its logic boxes.
     """
     file_path = Path(path)
 
@@ -113,6 +115,9 @@ def parse_play(buffer: bytes, path: StrPath = "<buffer>") -> PlayFile:
         raise InvalidPlayFileError(_INVALID_PLAY_FILE, file_path)
 
     player_offsets = PLY_PLAYER_OFFSETS.unpack_from(buffer, PLY_PLAYER_OFFSETS_OFFSET)
+    # A record below the first offset would sit on the offsets or category bytes.
+    if min(player_offsets) < PLY_FIRST_PLAYER_OFFSET:
+        raise InvalidPlayFileError(_INVALID_PLAY_FILE, file_path)
 
     play_category, special_category, user_category = PLY_METADATA.unpack_from(
         buffer,

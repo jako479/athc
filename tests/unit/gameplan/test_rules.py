@@ -46,7 +46,7 @@ def test_offense_short_label_maps_to_full_name(tmp_path: Path) -> None:
 def test_defense_short_label_maps_to_full_name(tmp_path: Path) -> None:
     text = MINIMAL + "[defense.RunDazzle]\nrequired = false\nmin_count = 4\n"
     rules = load_rules([write(tmp_path, text)])
-    assert "Run Dazzle" in rules.defense_categories
+    assert "Razzle Dazzle Run" in rules.defense_categories
 
 
 def test_unknown_offense_label(tmp_path: Path) -> None:
@@ -457,7 +457,7 @@ def test_allowed_categories_parse(tmp_path: Path) -> None:
     assert rules.allowed_offensive_categories == frozenset(
         {"Run Middle", "Pass Short Left"}
     )
-    assert rules.allowed_defensive_categories == frozenset({"Run Dazzle"})
+    assert rules.allowed_defensive_categories == frozenset({"Razzle Dazzle Run"})
 
 
 def test_allowed_game_name_rejected(tmp_path: Path) -> None:

@@ -10,7 +10,7 @@ One row per behavior. Input: `tmp` = constructed TOML; `shipped` = every `league
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | Offense label → full name | tmp | `[offense.RM]` → "Run Middle" | `test_offense_short_label_maps_to_full_name` | ☑ |
-| Defense label → full name | tmp | `[defense.RunDazzle]` → "Run Dazzle" | `test_defense_short_label_maps_to_full_name` | ☑ |
+| Defense label → full name | tmp | `[defense.RunDazzle]` → "Razzle Dazzle Run" | `test_defense_short_label_maps_to_full_name` | ☑ |
 | Unknown offense label | tmp | "not an offense category label" | `test_unknown_offense_label` | ☑ |
 | Unknown defense label | tmp | "not a defense category label" | `test_unknown_defense_label` | ☑ |
 | `offense` not a table | tmp | "[offense]: Must be a table." | `test_side_not_a_table_rejected` | ☑ |

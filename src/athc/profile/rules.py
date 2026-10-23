@@ -271,16 +271,16 @@ _OFFENSE_CODES: Final[Mapping[OffensiveCategory, frozenset[int]]] = {
     OffensiveCategory.PASS_SHORT_RIGHT:   frozenset({PASS_SHORT_RIGHT}),
 }  # fmt: skip
 _DEFENSE_CODES: Final[Mapping[DefensiveCategory, frozenset[int]]] = {
-    DefensiveCategory.GOAL_LINE_RUN:  frozenset({GOAL_LINE_RUN}),
-    DefensiveCategory.RUN_DAZZLE:     frozenset({RAZZLE_DAZZLE_RUN}),
-    DefensiveCategory.RUN_LEFT:       frozenset({RUN_LEFT}),
-    DefensiveCategory.RUN_MIDDLE:     frozenset({RUN_MIDDLE}),
-    DefensiveCategory.RUN_RIGHT:      frozenset({RUN_RIGHT}),
-    DefensiveCategory.GOAL_LINE_PASS: frozenset({GOAL_LINE_PASS}),
-    DefensiveCategory.PASS_DAZZLE:    frozenset({RAZZLE_DAZZLE_PASS}),
-    DefensiveCategory.PASS_LONG:      PASS_LONG_ANY,
-    DefensiveCategory.PASS_MEDIUM:    PASS_MEDIUM_ANY,
-    DefensiveCategory.PASS_SHORT:     PASS_SHORT_ANY,
+    DefensiveCategory.GOAL_LINE_RUN:      frozenset({GOAL_LINE_RUN}),
+    DefensiveCategory.RAZZLE_DAZZLE_RUN:  frozenset({RAZZLE_DAZZLE_RUN}),
+    DefensiveCategory.RUN_LEFT:           frozenset({RUN_LEFT}),
+    DefensiveCategory.RUN_MIDDLE:         frozenset({RUN_MIDDLE}),
+    DefensiveCategory.RUN_RIGHT:          frozenset({RUN_RIGHT}),
+    DefensiveCategory.GOAL_LINE_PASS:     frozenset({GOAL_LINE_PASS}),
+    DefensiveCategory.RAZZLE_DAZZLE_PASS: frozenset({RAZZLE_DAZZLE_PASS}),
+    DefensiveCategory.PASS_LONG:          PASS_LONG_ANY,
+    DefensiveCategory.PASS_MEDIUM:        PASS_MEDIUM_ANY,
+    DefensiveCategory.PASS_SHORT:         PASS_SHORT_ANY,
 }  # fmt: skip
 
 # Allowed keys at each nesting level. Any other key raises RulesFileError so

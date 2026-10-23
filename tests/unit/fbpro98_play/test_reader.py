@@ -1,8 +1,8 @@
 """Tests for athc.fbpro98_play.reader.
 
 Real golden fixtures (curated .ply files in data/) verify whole-file parsing
-and structural invariants; constructed make_ply() buffers cover the error and
-edge paths no real file can express.
+and, end to end, the category and play attributes of real plays; constructed
+make_ply() buffers cover the error and edge paths no real file can express.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from athc.fbpro98_play import (
+    UNKNOWN_CATEGORY,
     Command,
     DefensiveFront,
     InvalidPlayFileError,
@@ -80,6 +81,27 @@ VALID_FIXTURES = [
             (6, 0, 128),
             (2, 0, 1025),
             (2, 0, 512),
+        ),
+    ),
+    FixtureExpectation(
+        fixture_name="BCFGPATD.ply",
+        stream_length=273,
+        play_category=0x00,
+        special_category=0x01,
+        user_category=0x00,
+        player_offsets=(25, 47, 71, 93, 115, 139, 161, 183, 205, 227, 251),
+        player_headers=(
+            (1, 0, 17),
+            (4, 0, 258),
+            (3, 0, 258),
+            (3, 0, 16),
+            (5, 0, 512),
+            (3, 0, 512),
+            (6, 0, 512),
+            (4, 0, 512),
+            (4, 0, 1024),
+            (3, 0, 1025),
+            (3, 0, 1024),
         ),
     ),
     FixtureExpectation(
@@ -251,20 +273,6 @@ def test_reads_real_fixture_structure(expected: FixtureExpectation) -> None:
     )
 
 
-@pytest.mark.parametrize("expected", VALID_FIXTURES, ids=lambda e: e.fixture_name)
-def test_real_fixture_invariants(expected: FixtureExpectation) -> None:
-    path = FIXTURE_DIR / expected.fixture_name
-    data = path.read_bytes()
-    play = read_play(path)
-
-    assert len(data) == 8 + play.stream_length
-    assert len(play.player_offsets) == 11
-    assert play.player_offsets[0] == 25
-    assert tuple(sorted(play.player_offsets)) == play.player_offsets
-    assert all(offset > 0 for offset in play.player_offsets)
-    assert all(8 + header.offset + 4 <= len(data) for header in play.player_headers)
-
-
 def test_offensive_special_category_name() -> None:
     play = read_play(FIXTURE_DIR / "AF-KO.ply")
     assert play.is_special and play.is_offensive
@@ -317,7 +325,8 @@ def test_offensive_attributes_of_real_plays(
         ("MN22PLz.ply", DefensiveFront.TWO_DL),
         ("KCC33rmA.ply", DefensiveFront.THREE_FOUR),
         ("JJ43rlZB.ply", DefensiveFront.FOUR_THREE),
-        ("BCFGPATD.ply", None),  # FG/PAT defense: special plays have no front
+        # FG/PAT defense with two down linemen: a special play has no front.
+        ("BCFGPATD.ply", None),
     ],
 )
 def test_defensive_front_of_real_plays(
@@ -331,21 +340,32 @@ def test_defensive_front_of_real_plays(
 INVALID_PLAY = r"The play file is invalid or corrupted\."
 
 
-def test_rejects_known_invalid_fixture() -> None:
+def test_rejects_empty_real_file() -> None:
+    """PS7Xmids.ply is a zero-byte play from the pool: `read_play` rejects it
+    as damaged, naming the file."""
     path = FIXTURE_DIR / "PS7Xmids.ply"
     with pytest.raises(InvalidPlayFileError) as exc:
         read_play(path)
     assert str(exc.value) == f"{path}: The play file is invalid or corrupted."
 
 
+# The offsets of make_ply()'s 11 minimal records, each a 4-byte header plus
+# two empty box lists, starting right after the category bytes.
+MINIMAL_OFFSETS = (25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105)
+
+
 def test_parses_minimal_valid_buffer(make_ply) -> None:
-    # Each minimal record is its 4-byte header plus two empty box lists.
     play = parse_play(make_ply())
     assert play.stream_length == 113
-    assert play.player_offsets == (25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105)
-    assert len(play.player_headers) == 11
-    assert play.player_headers[0] == PlayerHeader(
-        offset=25, rank=1, player_type=1, position=0x20
+    assert (play.play_category, play.special_category, play.user_category) == (
+        0x01,
+        0x00,
+        0x01,
+    )
+    assert play.player_offsets == MINIMAL_OFFSETS
+    assert play.player_headers == tuple(
+        PlayerHeader(offset=offset, rank=1, player_type=1, position=0x20)
+        for offset in MINIMAL_OFFSETS
     )
     assert play.player_logic == (PlayerLogic(),) * 11
 
@@ -449,11 +469,19 @@ def test_read_play_accepts_str_and_pathlike(make_ply, tmp_path) -> None:
 def test_read_play_rejects_unknown_category(make_ply, tmp_path) -> None:
     path = tmp_path / "weird.ply"
     path.write_bytes(make_ply(user_category=0x3F))  # 0x3F is not a known category
-    with pytest.raises(
-        InvalidPlayFileError, match=r"weird\.ply: Unrecognized play category"
-    ) as exc:
+    with pytest.raises(InvalidPlayFileError) as exc:
         read_play(path)
+    assert str(exc.value) == (
+        f"{path}: Unrecognized play category (play_category=0x01, "
+        "special_category=0x00, user_category=0x3F)."
+    )
     assert exc.value.path == path
+
+
+def test_parse_play_keeps_an_unknown_category(make_ply) -> None:
+    """Only `read_play` rejects an unrecognized category; `parse_play` returns
+    the play with `UNKNOWN_CATEGORY`."""
+    assert parse_play(make_ply(user_category=0x3F)).category is UNKNOWN_CATEGORY
 
 
 @pytest.mark.parametrize("buffer", [b"", b"P95", b"P95:abc"])
@@ -463,30 +491,44 @@ def test_rejects_short_header(buffer: bytes) -> None:
 
 
 def test_rejects_bad_block_id(make_ply) -> None:
-    with pytest.raises(InvalidPlayFileError, match="Invalid header 'XXXX' at 0x0"):
+    with pytest.raises(InvalidPlayFileError) as exc:
         parse_play(make_ply(block_id=b"XXXX"))
+    assert str(exc.value) == "<buffer>: Invalid header 'XXXX' at 0x0."
 
 
 def test_bad_block_id_non_ascii_decodes(make_ply) -> None:
-    with pytest.raises(InvalidPlayFileError, match="Invalid header"):
+    """A block id that is not ASCII shows as replacement characters."""
+    with pytest.raises(InvalidPlayFileError) as exc:
         parse_play(make_ply(block_id=b"\xff\xff\xff\xff"))
+    assert str(exc.value) == ("<buffer>: Invalid header '����' at 0x0.")
 
 
-@pytest.mark.parametrize("declared", [999, 10])
+# The minimal buffer's data is 113 bytes; a size field one off either way is wrong.
+@pytest.mark.parametrize("declared", [114, 112], ids=["one-long", "one-short"])
 def test_rejects_size_mismatch(make_ply, declared: int) -> None:
     with pytest.raises(InvalidPlayFileError, match=INVALID_PLAY):
         parse_play(make_ply(stream_length=declared))
 
 
 def test_rejects_missing_metadata() -> None:
-    # valid id, size field matches the length, but too short to hold metadata
-    buffer = PLY_HEADER.pack(ID_P95, 20) + b"\x00" * 20
+    # Valid id, size field matching the length, one byte short of the 33 bytes
+    # the header, offsets and category bytes take.
+    buffer = PLY_HEADER.pack(ID_P95, 24) + b"\x00" * 24
     with pytest.raises(InvalidPlayFileError, match=INVALID_PLAY):
         parse_play(buffer)
 
 
 def test_rejects_offset_past_eof(make_ply) -> None:
-    offsets = (25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 9999)  # last points past EOF
+    # The minimal buffer is 121 bytes; a header at offset 110 ends one byte past it.
+    offsets = (*MINIMAL_OFFSETS[:10], 110)
+    with pytest.raises(InvalidPlayFileError, match=INVALID_PLAY):
+        parse_play(make_ply(player_offsets=offsets))
+
+
+def test_rejects_offset_inside_the_header(make_ply) -> None:
+    # Records start at offset 25, right after the category bytes; 24 puts the
+    # first record on the last category byte.
+    offsets = (24, *MINIMAL_OFFSETS[1:])
     with pytest.raises(InvalidPlayFileError, match=INVALID_PLAY):
         parse_play(make_ply(player_offsets=offsets))
 
@@ -494,11 +536,3 @@ def test_rejects_offset_past_eof(make_ply) -> None:
 def test_read_play_missing_file(tmp_path) -> None:
     with pytest.raises(FileNotFoundError):
         read_play(tmp_path / "does-not-exist.ply")
-
-
-def test_zero_offset_is_rejected(make_ply) -> None:
-    """Offset 0 puts the first record on top of the offsets table: its header
-    reads, but the box counts it then reads run past the record."""
-    offsets = (0, *(25 + 8 * i for i in range(1, 11)))
-    with pytest.raises(InvalidPlayFileError, match=INVALID_PLAY):
-        parse_play(make_ply(player_offsets=offsets))

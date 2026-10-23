@@ -163,11 +163,11 @@ def test_category_order_in_file_order() -> None:
         D.RUN_LEFT,
         D.RUN_MIDDLE,
         D.RUN_RIGHT,
-        D.RUN_DAZZLE,
+        D.RAZZLE_DAZZLE_RUN,
         D.PASS_SHORT,
         D.PASS_MEDIUM,
         D.PASS_LONG,
-        D.PASS_DAZZLE,
+        D.RAZZLE_DAZZLE_PASS,
         D.GOAL_LINE_RUN,
         D.GOAL_LINE_PASS,
     )

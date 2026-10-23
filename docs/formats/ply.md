@@ -323,6 +323,7 @@ A file is invalid when any of these holds:
 - A block ID other than `"P95:"`
 - A file length other than 8 + size
 - A file too short for the offsets and category bytes
+- A player record offset below `0x0019`, the first byte after the category bytes
 - A player record offset with no room for the record's first 4 bytes
 - A player record too short for its box lists (section 2)
 - Play category bytes that no category table recognizes (section 3)

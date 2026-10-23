@@ -1,9 +1,9 @@
 """Tests for athc.fbpro98_play.model — PlayFile properties, category_name and
 the play attributes.
 
-These build a PlayFile directly (no IO) so every category code can be covered
-exhaustively, including the User Specific (0xFF/0xFE) markers, and so each
-attribute rule can be pinned with exact spots.
+The category tests call `resolve_category` with raw bytes so every code can be
+covered, the User Specific (0xFF/0xFE) markers included; the attribute tests
+build a PlayFile directly (no IO) so each rule can be pinned with exact spots.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from athc.fbpro98_play import (
     DefensiveFront,
     LogicBox,
     OffensiveCategory,
+    PlayCategory,
     PlayerHeader,
     PlayerLogic,
     PlayFile,
@@ -77,76 +78,16 @@ def test_is_special():
     assert not _play(special_category=0x00).is_special
 
 
-@pytest.mark.parametrize("category", list(OffensiveCategory))
-def test_offensive_category_name(category):
-    play = _play(play_category=0x01, user_category=category.code)
-    assert play.category_name == category.long
-
-
-@pytest.mark.parametrize("category", list(DefensiveCategory))
-def test_defensive_category_name(category):
-    play = _play(play_category=0x00, user_category=category.code)
-    assert play.category_name == category.long
-
-
-@pytest.mark.parametrize("category", list(SpecialOffensiveCategory))
-def test_offensive_special_names(category):
-    play = _play(play_category=0x01, special_category=category.code)
-    assert play.category_name == category.long
-
-
-@pytest.mark.parametrize("category", list(SpecialDefensiveCategory))
-def test_defensive_special_names(category):
-    play = _play(play_category=0x00, special_category=category.code)
-    assert play.category_name == category.long
-
-
-def test_unknown_normal_code_is_unknown():
-    off = _play(play_category=0x01, user_category=0x3F)
-    assert off.category is UNKNOWN_CATEGORY and off.category_name == "Unknown"
-    assert _play(play_category=0x00, user_category=0x3F).category is UNKNOWN_CATEGORY
-
-
-def test_unknown_special_category_is_unknown():
-    assert _play(play_category=0x01, special_category=0x7F).category is UNKNOWN_CATEGORY
-
-
-def test_high_bits_are_masked():
-    # bits 7-6 vary across plays in the same category; the lookup ignores them
-    plain = _play(play_category=0x01, user_category=0x09).category_name
-    high = _play(
-        play_category=0x01, user_category=0xC9
-    ).category_name  # 0xC9 & 0x3F == 0x09
-    assert plain == high == "Run Middle"
-
-
-def test_user_specific_resolves():
-    # full-byte 0xFF/0xFE markers resolve despite the 0x3F mask
-    assert (
-        _play(play_category=0x01, user_category=0xFF).category_name == "User Specific"
-    )
-    assert (
-        _play(play_category=0x00, user_category=0xFE).category_name == "User Specific"
-    )
-
-
-# ── category enum + resolve_category ──────────────────────────────────────────
-
-
 def test_category_returns_enum_member():
     play = _play(play_category=0x01, user_category=0x03)
     assert play.category is OffensiveCategory.PASS_SHORT_RIGHT
     assert play.category_name == play.category.long == "Pass Short Right"
 
 
-def test_long_is_the_game_name():
-    assert OffensiveCategory.PASS_SHORT_RIGHT.long == "Pass Short Right"
-    assert DefensiveCategory.RUN_LEFT.long == "Run Left"
-    assert SpecialOffensiveCategory.PUNT.long == "Punt"
-
-
-def test_category_has_no_league_label():
-    assert not hasattr(OffensiveCategory.PASS_SHORT_RIGHT, "short")
+def test_category_name_of_an_unrecognized_code_is_unknown():
+    play = _play(play_category=0x01, user_category=0x3F)
+    assert play.category is UNKNOWN_CATEGORY
+    assert play.category_name == "Unknown"
 
 
 def test_is_run_is_pass():
@@ -157,28 +98,71 @@ def test_is_run_is_pass():
     assert not OffensiveCategory.USER_SPECIFIC.is_pass
 
 
-def test_resolve_category_picks_side_and_special():
-    assert resolve_category(0x01, 0x00, 0x03) is OffensiveCategory.PASS_SHORT_RIGHT
-    assert resolve_category(0x00, 0x00, 0x02) is DefensiveCategory.PASS_SHORT
-    assert resolve_category(0x01, 0x02, 0x00) is SpecialOffensiveCategory.KICKOFF
-    assert resolve_category(0x00, 0x02, 0x00) is SpecialDefensiveCategory.KICK_RETURN
+# ── resolve_category ──────────────────────────────────────────────────────────
 
 
-def test_resolve_category_mask_and_unknown():
-    # 0xC9 & 0x3F == 0x09 (Run Middle); 0xFF is the full-byte User Specific marker
+def _bytes_of(category: PlayCategory) -> tuple[int, int, int]:
+    """The play, special and user category bytes of a play saved as `category`:
+    a normal play carries its code in the user byte, a special play in the
+    special byte with the side's plain code in the other two."""
+    match category:
+        case OffensiveCategory():
+            return 0x01, 0x00, category.code
+        case DefensiveCategory():
+            return 0x00, 0x00, category.code
+        case SpecialOffensiveCategory():
+            return 0x01, category.code, 0x01
+        case SpecialDefensiveCategory():
+            return 0x00, category.code, 0x00
+    raise AssertionError(category)
+
+
+@pytest.mark.parametrize(
+    "category",
+    [
+        *OffensiveCategory,
+        *DefensiveCategory,
+        *SpecialOffensiveCategory,
+        *SpecialDefensiveCategory,
+    ],
+)
+def test_resolve_category_names_every_member(category: PlayCategory):
+    """Side from the play byte's parity, then the special table or the side's
+    normal table: every member resolves from its own code."""
+    assert resolve_category(*_bytes_of(category)) is category
+
+
+def test_high_bits_are_masked():
+    """Bits 7-6 vary across plays of one category; the lookup ignores them."""
     assert resolve_category(0x01, 0x00, 0xC9) is OffensiveCategory.RUN_MIDDLE
+    assert resolve_category(0x00, 0x00, 0xC8) is DefensiveCategory.RUN_MIDDLE
+
+
+def test_user_specific_is_a_full_byte_code():
+    """0xFF / 0xFE resolve as themselves, not as their masked 0x3F / 0x3E."""
     assert resolve_category(0x01, 0x00, 0xFF) is OffensiveCategory.USER_SPECIFIC
-    assert resolve_category(0x01, 0x00, 0x3F) is UNKNOWN_CATEGORY
+    assert resolve_category(0x00, 0x00, 0xFE) is DefensiveCategory.USER_SPECIFIC
 
 
-def test_clock_categories_are_offense_only():
-    assert resolve_category(0x01, 0x0B, 0x00) is SpecialOffensiveCategory.RUN_CLOCK
-    assert resolve_category(0x01, 0x0C, 0x00) is SpecialOffensiveCategory.STOP_CLOCK
-    assert SpecialOffensiveCategory.RUN_CLOCK.long == "Run Clock"
-    assert SpecialOffensiveCategory.STOP_CLOCK.long == "Stop Clock"
-    # Defense has no clock plays, so the same bytes on the defense side are unknown.
-    assert resolve_category(0x00, 0x0B, 0x00) is UNKNOWN_CATEGORY
-    assert resolve_category(0x00, 0x0C, 0x00) is UNKNOWN_CATEGORY
+@pytest.mark.parametrize(
+    ("play_category", "user_category"),
+    [(0x01, 0x3F), (0x00, 0x3E)],
+    ids=["offense", "defense"],
+)
+def test_unknown_normal_code(play_category, user_category):
+    assert resolve_category(play_category, 0x00, user_category) is UNKNOWN_CATEGORY
+
+
+@pytest.mark.parametrize(
+    ("play_category", "special_category"),
+    [(0x01, 0x0D), (0x00, 0x0B), (0x00, 0x0C)],
+    ids=["offense-past-stop-clock", "defense-run-clock", "defense-stop-clock"],
+)
+def test_unknown_special_code(play_category, special_category):
+    """One past Stop Clock (0x0C), the last offense code; and the clock codes
+    on defense, which has no clock plays."""
+    unknown = resolve_category(play_category, special_category, play_category)
+    assert unknown is UNKNOWN_CATEGORY
 
 
 # ── play attributes ───────────────────────────────────────────────────────────
@@ -276,23 +260,30 @@ def test_a_play_can_be_timed_and_a_rollout():
 
 
 @pytest.mark.parametrize(
-    ("qb_after_snap", "expected"),
+    ("margin", "qb_after_snap", "expected"),
     [
-        ((LogicBox(0, -300, (_move(400), TIMED)),), False),  # right, at the margin
-        ((LogicBox(0, -300, (_move(401), TIMED)),), True),  # right, one past
-        ((LogicBox(0, -300, ()), LogicBox(-400, -300, (CHECK,))), False),  # left, at
-        (
-            (LogicBox(0, -300, ()), LogicBox(-401, -300, (CHECK,))),
-            True,
-        ),  # left, one past
+        (100, (LogicBox(0, -300, (_move(400), TIMED)),), False),  # right, at
+        (100, (LogicBox(0, -300, (_move(401), TIMED)),), True),  # right, one past
+        (100, (LogicBox(0, -300, ()), LogicBox(-400, -300, (CHECK,))), False),
+        (100, (LogicBox(0, -300, ()), LogicBox(-401, -300, (CHECK,))), True),
+        (200, (LogicBox(0, -300, (_move(500), TIMED)),), False),  # at
+        (200, (LogicBox(0, -300, (_move(501), TIMED)),), True),  # one past
     ],
-    ids=["right-at-margin", "right-one-past", "left-at-margin", "left-one-past"],
+    ids=[
+        "right-at-margin",
+        "right-one-past",
+        "left-at-margin",
+        "left-one-past",
+        "margin-200-at",
+        "margin-200-one-past",
+    ],
 )
-def test_rollout_margin_on_both_sides(qb_after_snap, expected):
-    """Tackles at -300 and 300, margin 100: a rollout goes beyond the margin, so
-    a spot 101 units outside a tackle counts and 100 does not, whether reached
-    by a Move to or a box's spot."""
-    assert _passer(*qb_after_snap).is_rollout(100) is expected
+def test_rollout_margin_on_both_sides(margin, qb_after_snap, expected):
+    """Tackles at -300 and 300: a rollout goes beyond the caller's margin, so
+    with margin 100 a spot 101 units outside a tackle counts and 100 does not,
+    whether reached by a Move to or a box's spot; margin 200 moves the line
+    to 500."""
+    assert _passer(*qb_after_snap).is_rollout(margin) is expected
 
 
 def test_rollout_counts_spots_up_to_the_pass_only():
@@ -318,8 +309,15 @@ def test_rollout_needs_a_pass():
     assert not _passer(LogicBox(0, -300, (_move(1000), RUN))).is_rollout(100)
 
 
-def test_rollout_needs_a_line():
-    assert not _play_of(_qb(LogicBox(0, -300, (_move(1000), TIMED)))).is_rollout(100)
+@pytest.mark.parametrize(
+    "line",
+    [(), ((POSITION_T, PlayerLogic()), (POSITION_T, PlayerLogic()))],
+    ids=["no-linemen", "linemen-with-no-snap-spot"],
+)
+def test_rollout_needs_a_line(line):
+    """No C, G or T with a spot at the snap means no edge to get outside."""
+    qb = _qb(LogicBox(0, -300, (_move(1000), TIMED)))
+    assert not _play_of(*line, qb).is_rollout(100)
 
 
 # Unbalanced lines: both tackles right of the ball, so a guard or the center is
@@ -347,7 +345,8 @@ CENTER_ON_THE_LEFT = (
         (GUARD_ON_THE_LEFT, 551, True),  # one past
         (GUARD_ON_THE_LEFT, -250, False),  # left guard -150, at the margin
         (GUARD_ON_THE_LEFT, -251, True),  # one past
-        (CENTER_ON_THE_LEFT, 691, True),  # right tackle 590, one past
+        (CENTER_ON_THE_LEFT, 690, False),  # right tackle 590, at the margin
+        (CENTER_ON_THE_LEFT, 691, True),  # one past
         (CENTER_ON_THE_LEFT, -111, False),  # center -11, at the margin
         (CENTER_ON_THE_LEFT, -112, True),  # one past
     ],
@@ -390,14 +389,30 @@ def test_any_qb_counts():
     assert _play_of(_qb(), _qb(LogicBox(0, -300, (RUN,)))).is_qb_run
 
 
-def _defense(down_linemen: int, category: DefensiveCategory) -> PlayFile:
-    """A defensive play of `category` with `down_linemen` DE/DT, then LB/CB."""
+def _defense(down_linemen: int, code: int) -> PlayFile:
+    """A defensive play of category `code` with `down_linemen` DE/DT, then
+    LB/CB."""
     positions = [POSITION_DE, POSITION_DT] * 3
     linemen = [_player(p) for p in positions[:down_linemen]]
     others = [_player(LB if i % 2 else CB) for i in range(11 - down_linemen)]
-    return _play_of(*linemen, *others, play_category=category.code)
+    return _play_of(*linemen, *others, play_category=code)
 
 
+RUN_FRONT_CATEGORIES = [
+    DefensiveCategory.RUN_LEFT,
+    DefensiveCategory.RUN_MIDDLE,
+    DefensiveCategory.RUN_RIGHT,
+]
+PASS_CATEGORIES = [
+    DefensiveCategory.PASS_SHORT,
+    DefensiveCategory.PASS_MEDIUM,
+    DefensiveCategory.PASS_LONG,
+    DefensiveCategory.RAZZLE_DAZZLE_PASS,
+    DefensiveCategory.GOAL_LINE_PASS,
+]
+
+
+@pytest.mark.parametrize("category", RUN_FRONT_CATEGORIES)
 @pytest.mark.parametrize(
     ("down_linemen", "front"),
     [
@@ -407,77 +422,67 @@ def _defense(down_linemen: int, category: DefensiveCategory) -> PlayFile:
         (5, None),
     ],
 )
-def test_run_defense_front_from_down_linemen(down_linemen, front):
-    assert _defense(down_linemen, DefensiveCategory.RUN_LEFT).defensive_front is front
+def test_run_defense_front_from_down_linemen(category, down_linemen, front):
+    """On Run Left, Run Middle and Run Right, 3 down linemen are a 3-4 and 4 a
+    4-3; any other count has no front."""
+    assert _defense(down_linemen, category.code).defensive_front is front
 
 
+@pytest.mark.parametrize("category", PASS_CATEGORIES)
 @pytest.mark.parametrize(
     ("down_linemen", "front"), [(1, None), (2, DefensiveFront.TWO_DL), (3, None)]
 )
-def test_pass_defense_front_from_down_linemen(down_linemen, front):
-    assert _defense(down_linemen, DefensiveCategory.PASS_SHORT).defensive_front is front
+def test_pass_defense_front_from_down_linemen(category, down_linemen, front):
+    """On every pass defense, 2 down linemen are a 2-DL; any other count has no
+    front."""
+    assert _defense(down_linemen, category.code).defensive_front is front
+
+
+@pytest.mark.parametrize("down_linemen", [2, 3, 4])
+@pytest.mark.parametrize(
+    "code",
+    [
+        DefensiveCategory.RAZZLE_DAZZLE_RUN.code,
+        DefensiveCategory.GOAL_LINE_RUN.code,
+        DefensiveCategory.USER_SPECIFIC.code,
+        0x3E,
+    ],
+    ids=["run-dazzle", "goal-line-run", "user-specific", "unrecognized"],
+)
+def test_no_front_for_other_defenses(code, down_linemen):
+    """Razzle Dazzle Run, Goal Line Run, User Specific and an unrecognized category
+    have no front at any count that names one elsewhere."""
+    assert _defense(down_linemen, code).defensive_front is None
 
 
 @pytest.mark.parametrize(
-    "category",
-    [
-        DefensiveCategory.RUN_LEFT,
-        DefensiveCategory.RUN_MIDDLE,
-        DefensiveCategory.RUN_RIGHT,
-    ],
+    ("play_category", "special_category"),
+    [(0x02, 0x00), (0x01, 0x06)],
+    ids=["defense", "fake-fg-pass"],
 )
-def test_3_4_and_4_3_are_run_left_middle_right_fronts(category):
-    assert _defense(3, category).defensive_front is DefensiveFront.THREE_FOUR
-    assert _defense(4, category).defensive_front is DefensiveFront.FOUR_THREE
-    assert _defense(2, category).defensive_front is None
-
-
-@pytest.mark.parametrize(
-    "category",
-    [
-        DefensiveCategory.PASS_SHORT,
-        DefensiveCategory.PASS_MEDIUM,
-        DefensiveCategory.PASS_LONG,
-        DefensiveCategory.PASS_DAZZLE,
-        DefensiveCategory.GOAL_LINE_PASS,
-    ],
-)
-def test_2_dl_is_a_pass_front(category):
-    assert _defense(2, category).defensive_front is DefensiveFront.TWO_DL
-    assert _defense(3, category).defensive_front is None
-    assert _defense(4, category).defensive_front is None
-
-
-@pytest.mark.parametrize(
-    "category",
-    [
-        DefensiveCategory.RUN_DAZZLE,
-        DefensiveCategory.GOAL_LINE_RUN,
-        DefensiveCategory.USER_SPECIFIC,
-    ],
-)
-def test_no_front_for_other_defenses(category):
-    for down_linemen in (2, 3, 4):
-        assert _defense(down_linemen, category).defensive_front is None
-
-
-def test_offense_attributes_only_on_normal_offense():
+def test_offense_attributes_only_on_normal_offense(play_category, special_category):
     qb = _qb(LogicBox(0, -300, (RUN, _move(1000), TIMED)))
-    tackles = (_tackle(-300), _tackle(300))
-    for play in (
-        _play_of(*tackles, qb, play_category=0x02),  # defense
-        _play_of(*tackles, qb, play_category=0x01, special_category=0x06),  # fake FG
-    ):
-        assert not play.is_timed_pass
-        assert not play.is_qb_run
-        assert not play.is_rollout(100)
+    play = _play_of(
+        _tackle(-300),
+        _tackle(300),
+        qb,
+        play_category=play_category,
+        special_category=special_category,
+    )
+    assert not (play.is_timed_pass or play.is_qb_run or play.is_rollout(100))
 
 
-def test_front_only_on_normal_defense():
+@pytest.mark.parametrize(
+    ("play_category", "special_category"),
+    [(0x01, 0x00), (0x00, 0x02)],
+    ids=["offense", "kick-return"],
+)
+def test_front_only_on_normal_defense(play_category, special_category):
     linemen = [_player(POSITION_DT)] * 3
-    assert _play_of(*linemen, play_category=0x01).defensive_front is None  # offense
-    kick_return = _play_of(*linemen, play_category=0x00, special_category=0x02)
-    assert kick_return.defensive_front is None
+    play = _play_of(
+        *linemen, play_category=play_category, special_category=special_category
+    )
+    assert play.defensive_front is None
 
 
 def test_no_logic_means_no_attributes():

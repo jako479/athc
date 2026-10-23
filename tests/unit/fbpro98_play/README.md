@@ -9,76 +9,66 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_ply()` = 
 ### Normal
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Valid buffer parses; all fields + per-slot header | make_ply | stream_length, 3 category bytes, 11 offsets, 11 headers correct, empty logic | `test_parses_minimal_valid_buffer` | ☑ |
-| Real file parses; whole-file structure | golden | exact offsets + player-header tuples | `test_reads_real_fixture_structure` `[P]` | ☑ |
-| Real-file structural invariants | golden | `len==8+stream_length`, 11 offsets, offsets[0]==25, sorted, >0, headers in-bounds | `test_real_fixture_invariants` `[P]` | ☑ |
+| Smallest buffer that parses (11 header-only records with empty box lists) | make_ply | stream_length 113, the 3 category bytes, 11 offsets, 11 headers, empty logic | `test_parses_minimal_valid_buffer` | ☑ |
+| Real file parses; whole-file structure | golden (10) | exact stream_length, category bytes, offsets and player headers | `test_reads_real_fixture_structure` `[P]` | ☑ |
 | Logic boxes decode byte for byte | golden | `SF1YemTy` QB: pre-snap box, then a box with Timed pass + two commands | `test_decodes_player_logic` | ☑ |
-| Every real player has logic | golden | 11 `PlayerLogic`s, each with an after-snap box | `test_every_fixture_player_has_logic` `[P]` | ☑ |
+| Every real player has logic | golden (10) | 11 `PlayerLogic`s, each with an after-snap box | `test_every_fixture_player_has_logic` `[P]` | ☑ |
 | Built logic decodes | make_ply | boxes in order; commands with 2, 1 and 0 arguments | `test_decodes_built_logic` | ☑ |
 | Bytes after the logic | make_ply | ignored; logic still read | `test_bytes_after_the_logic_are_ignored` | ☑ |
-| Category names resolve on real files (4 branches) | golden | off/def normal + off/def special | `test_*_category_name` (4) | ☑ |
+| Unrecognized category (`parse_play`) | make_ply | parses; `category is UNKNOWN_CATEGORY` | `test_parse_play_keeps_an_unknown_category` | ☑ |
 | Default path sentinel | make_ply | `file_path == Path("<buffer>")` | `test_default_path_sentinel` | ☑ |
 | Explicit path | make_ply | `file_path == Path(path)` | `test_explicit_path` | ☑ |
 | `read_play` accepts str + PathLike | tmp_path | parses; `file_path` set | `test_read_play_accepts_str_and_pathlike` | ☑ |
 
+### Real plays end to end
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Category names (4 branches) | golden | offense / defense normal: Goal Line Pass, Run Middle; offense / defense special: Kickoff, Field Goal/PAT Defense | `test_offensive_normal_category_name`, `test_defensive_normal_category_name`, `test_offensive_special_category_name`, `test_defensive_special_category_name` | ☑ |
+| Offensive attributes | golden (5) | timed pass / rollout / QB run per play; no front | `test_offensive_attributes_of_real_plays` `[P]` | ☑ |
+| Defensive front | golden (4) | 2-DL, 3-4, 4-3; FG/PAT defense with 2 down linemen None; no offense attributes | `test_defensive_front_of_real_plays` `[P]` | ☑ |
+
 ### Error → `InvalidPlayFileError`
 
-Every damaged file gets one message, "The play file is invalid or corrupted."; only a wrong block id and an unrecognized category say what they found.
+Every damaged file gets one message, "The play file is invalid or corrupted."; only a wrong block id and an unrecognized category say what they found. Both sides of a size limit share that message, so each limit is probed one byte past it.
 
 | Case | Input | Expected message | Test | Status |
 |---|---|---|---|---|
-| Known invalid real file | golden (`PS7Xmids.ply`) | exactly `<path>: The play file is invalid or corrupted.` | `test_rejects_known_invalid_fixture` | ☑ |
-| Buffer < 8 bytes (incl. empty) | make_ply | "The play file is invalid or corrupted." | `test_rejects_short_header` `[P]` | ☑ |
-| Wrong block id | make_ply | "Invalid header '…' at 0x0" | `test_rejects_bad_block_id` | ☑ |
-| Non-ASCII block id | make_ply | bad id decoded with replacement | `test_bad_block_id_non_ascii_decodes` | ☑ |
-| `len != 8 + stream_length` (too large / small) | make_ply | "The play file is invalid or corrupted." | `test_rejects_size_mismatch` `[P]` | ☑ |
-| Size matches but < 33 bytes | make_ply | "The play file is invalid or corrupted." | `test_rejects_missing_metadata` | ☑ |
-| Player offset past EOF | make_ply | "The play file is invalid or corrupted." | `test_rejects_offset_past_eof` | ☑ |
+| Empty real file (`PS7Xmids.ply`, zero bytes) | golden | exactly `<path>: The play file is invalid or corrupted.` | `test_rejects_empty_real_file` | ☑ |
+| Buffer < 8 bytes (0, 3, 7) | bytes | "The play file is invalid or corrupted." | `test_rejects_short_header` `[P]` | ☑ |
+| Wrong block id | make_ply | exactly `<buffer>: Invalid header 'XXXX' at 0x0.` | `test_rejects_bad_block_id` | ☑ |
+| Non-ASCII block id | make_ply | exactly `<buffer>: Invalid header '����' at 0x0.` (replacement characters) | `test_bad_block_id_non_ascii_decodes` | ☑ |
+| Size field one off (114 / 112 for a 113-byte body) | make_ply | "The play file is invalid or corrupted." | `test_rejects_size_mismatch` `[P]` | ☑ |
+| Size matches, 32 bytes (one short of the category bytes) | bytes | "The play file is invalid or corrupted." | `test_rejects_missing_metadata` | ☑ |
+| Player header one byte past EOF | make_ply | "The play file is invalid or corrupted." | `test_rejects_offset_past_eof` | ☑ |
+| Player offset 24, one below the first record byte (25 is the minimal buffer) | make_ply | "The play file is invalid or corrupted." | `test_rejects_offset_inside_the_header` | ☑ |
 | Record too short for its logic (one byte short, no after-snap list, header only) | make_ply | "The play file is invalid or corrupted." | `test_rejects_truncated_player_record` `[P]` | ☑ |
 | Box count past the record | golden, count + 1 | "The play file is invalid or corrupted." | `test_rejects_box_count_past_the_record` | ☑ |
-| Player offset = 0 (record on top of the offsets table) | make_ply | "The play file is invalid or corrupted." | `test_zero_offset_is_rejected` | ☑ |
-| Unrecognized category (`read_play`) | make_ply | "Unrecognized play category in …" + file name | `test_read_play_rejects_unknown_category` | ☑ |
+| Unrecognized category (`read_play`) | tmp_path | exactly `<path>: Unrecognized play category (play_category=0x01, special_category=0x00, user_category=0x3F).`; `.path` set | `test_read_play_rejects_unknown_category` | ☑ |
 
 ### Error → other (not `InvalidPlayFileError`)
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
 | `read_play` on missing file | path | `FileNotFoundError` propagates | `test_read_play_missing_file` | ☑ |
 
-### Edge
+## model.py — `PlayFile` side and category
+
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Smallest buffer that parses (last record's empty lists end at EOF) | make_ply | parses; boundary holds | `test_parses_minimal_valid_buffer` | ☑ |
-
-## model.py — `PlayFile` properties & `category_name`
-
-### Normal
-| Case | Input | Expected | Test | Status |
-|---|---|---|---|---|
-| `is_offensive`/`is_defensive` by parity | PlayFile | odd `play_category` → offensive; even → defensive | `test_odd…_offensive` / `test_even…_defensive` `[P]` | ☑ |
+| `is_offensive` / `is_defensive` by parity | PlayFile | odd `play_category` → offensive; even → defensive | `test_odd_play_category_is_offensive`, `test_even_play_category_is_defensive` `[P]` | ☑ |
 | `is_special` | PlayFile | `special_category != 0` → True; `0` → False | `test_is_special` | ☑ |
-| Offensive normal category names | PlayFile | every `OffensiveCategory` member → long name | `test_offensive_category_name` `[P]` | ☑ |
-| Defensive normal category names | PlayFile | every `DefensiveCategory` member → long name | `test_defensive_category_name` `[P]` | ☑ |
-| Offensive special names | PlayFile | every `SpecialOffensiveCategory` member → long name | `test_offensive_special_names` `[P]` | ☑ |
-| Defensive special names | PlayFile | every `SpecialDefensiveCategory` member → long name | `test_defensive_special_names` `[P]` | ☑ |
+| `category` / `category_name` | PlayFile | the enum member and its `long` | `test_category_returns_enum_member` | ☑ |
+| Unrecognized code | PlayFile | `category is UNKNOWN_CATEGORY`; `category_name == "Unknown"` | `test_category_name_of_an_unrecognized_code_is_unknown` | ☑ |
+| `is_run` / `is_pass` from the long name | enum | run / pass / neither (User Specific) | `test_is_run_is_pass` | ☑ |
 
-### Edge / Error
-| Case | Input | Expected | Test | Status |
-|---|---|---|---|---|
-| Unknown normal code | PlayFile | `category is UNKNOWN_CATEGORY`; `category_name == "Unknown"` (off & def) | `test_unknown_normal_code_is_unknown` | ☑ |
-| Unknown special code | PlayFile | `category is UNKNOWN_CATEGORY` | `test_unknown_special_category_is_unknown` | ☑ |
-| High bits 7–6 ignored | PlayFile | `0xC9` resolves same as `0x09` (mask `& 0x3F`) | `test_high_bits_are_masked` | ☑ |
-| User Specific `0xFF`/`0xFE` | PlayFile | resolves to `"User Specific"` (fixed: full-byte lookup before mask) | `test_user_specific_resolves` | ☑ |
-
-## model.py — category enum & `resolve_category`
+## model.py — `resolve_category`
 
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| `PlayFile.category` → enum member | PlayFile | member; `category_name == category.long` | `test_category_returns_enum_member` | ☑ |
-| `long` is the game name | enum | `Pass Short Right`; `Run Left`; `Punt` | `test_long_is_the_game_name` | ☑ |
-| No league label on the enum | enum | no `short` attribute (labels are `CategoryLabels`) | `test_category_has_no_league_label` | ☑ |
-| `is_run` / `is_pass` from the long name | enum | run/pass/neither | `test_is_run_is_pass` | ☑ |
-| `resolve_category` picks side + special table | bytes | offense/defense/special-off/special-def; clock `0x0B`/`0x0C` offense only | `test_resolve_category_picks_side_and_special`, `test_clock_categories_are_offense_only` | ☑ |
-| `resolve_category` mask + unknown | bytes | `0xC9`→Run Middle, `0xFF`→User Specific, `0x3F`→`UNKNOWN_CATEGORY` | `test_resolve_category_mask_and_unknown` | ☑ |
+| Every member resolves from its code | the bytes of each member of the 4 enums | that member (side from the play byte's parity; the special table, else the side's table) | `test_resolve_category_names_every_member` `[P]` | ☑ |
+| Bits 7–6 ignored | `0xC9` offense, `0xC8` defense | Run Middle | `test_high_bits_are_masked` | ☑ |
+| User Specific is a full-byte code | `0xFF` offense, `0xFE` defense | `USER_SPECIFIC` | `test_user_specific_is_a_full_byte_code` | ☑ |
+| Unknown normal code | `0x3F` offense, `0x3E` defense | `UNKNOWN_CATEGORY` | `test_unknown_normal_code` `[P]` | ☑ |
+| Unknown special code | offense `0x0D` (one past Stop Clock); defense `0x0B`, `0x0C` (no clock plays) | `UNKNOWN_CATEGORY` | `test_unknown_special_code` `[P]` | ☑ |
 
 ## model.py — play attributes
 
@@ -92,27 +82,23 @@ Constructed plays: tackles at x -300 and 300 unless a row says otherwise; margin
 | QB run is the QB's Run | QB Run / HB Run | True / False | `test_qb_run_is_the_qbs_run` | ☑ |
 | QB run before the snap | QB Run in a pre-snap box only | False | `test_qb_run_reads_from_the_snap_on` | ☑ |
 | Timed and rollout at once | QB moves out, then Timed pass | both True | `test_a_play_can_be_timed_and_a_rollout` | ☑ |
-| Margin on both sides | 100 / 101 outside, right (Move to) and left (box spot) | False / True | `test_rollout_margin_on_both_sides` `[P]` | ☑ |
+| Margin on both sides, and the caller's margin | margin 100: 100 / 101 outside, right (Move to) and left (box spot); margin 200: 200 / 201 outside | False / True | `test_rollout_margin_on_both_sides` `[P]` | ☑ |
 | Spots after the pass | moves out after a Timed pass | False | `test_rollout_counts_spots_up_to_the_pass_only` | ☑ |
 | Move to with no arguments | bare Move to, then Timed pass | False | `test_rollout_ignores_a_move_to_with_no_arguments` | ☑ |
 | Pre-snap spots | wide before the snap, inside at the snap | False | `test_rollout_reads_from_the_snap_on` | ☑ |
 | No pass | QB moves out, then runs | False | `test_rollout_needs_a_pass` | ☑ |
-| No line | QB moves out, no C, G or T | False | `test_rollout_needs_a_line` | ☑ |
+| No line | QB moves out; no C, G or T, or linemen with no after-snap box | False | `test_rollout_needs_a_line` `[P]` | ☑ |
 | Edge is the outermost C, G or T | unbalanced lines (a guard or the center outermost on the left); QB 100 / 101 outside on each side | False / True | `test_rollout_edges_are_the_outermost_linemen` `[P]` | ☑ |
 | Pocket QB behind an unbalanced line | the same two lines; QB checks receivers from 0 | False | `test_pocket_qb_behind_an_unbalanced_line_is_no_rollout` `[P]` | ☑ |
-| A TE is not part of the line | tackles -300, 300, TE 400; QB to 400 | True | `test_a_tight_end_is_not_part_of_the_line` | ☑ |
+| A TE is not part of the line | tackles -300, 300, TE 450; QB to 401 | True | `test_a_tight_end_is_not_part_of_the_line` | ☑ |
 | No QB | HB runs, moves out and throws | all False | `test_no_qb_means_no_offense_attributes` | ☑ |
 | Two QBs | the second QB throws wide / runs | either QB counts | `test_any_qb_counts` | ☑ |
-| Run defense front from down linemen | Run Left, 2-5 DT/DE | None, 3-4, 4-3, None | `test_run_defense_front_from_down_linemen` `[P]` | ☑ |
-| Pass defense front from down linemen | Pass Short, 1-3 DT/DE | None, 2-DL, None | `test_pass_defense_front_from_down_linemen` `[P]` | ☑ |
-| 3-4 / 4-3 only on Run Left, Middle, Right | each, 3 / 4 / 2 DL | 3-4, 4-3, None | `test_3_4_and_4_3_are_run_left_middle_right_fronts` `[P]` | ☑ |
-| 2-DL only on pass plays | Pass Short, Medium, Long, Dazzle, Goal Line Pass; 2 / 3 / 4 DL | 2-DL, None, None | `test_2_dl_is_a_pass_front` `[P]` | ☑ |
-| No front on other defenses | Run Dazzle, Goal Line Run, User Specific; 2-4 DL | None | `test_no_front_for_other_defenses` `[P]` | ☑ |
-| Offense attributes on defense / special plays | QB Run, Move to, Timed pass | all False | `test_offense_attributes_only_on_normal_offense` | ☑ |
-| Front on offense / special plays | 3 DT | None | `test_front_only_on_normal_defense` | ☑ |
+| Run defense front from down linemen | Run Left, Middle, Right × 2-5 DT/DE | None, 3-4, 4-3, None | `test_run_defense_front_from_down_linemen` `[P]` | ☑ |
+| Pass defense front from down linemen | Pass Short, Medium, Long, Dazzle, Goal Line Pass × 1-3 DT/DE | None, 2-DL, None | `test_pass_defense_front_from_down_linemen` `[P]` | ☑ |
+| No front on other defenses | Razzle Dazzle Run, Goal Line Run, User Specific, unrecognized `0x3E` × 2-4 DL | None | `test_no_front_for_other_defenses` `[P]` | ☑ |
+| Offense attributes on defense / special plays | QB Run, Move to, Timed pass on a defense / a Fake FG Pass | all False | `test_offense_attributes_only_on_normal_offense` `[P]` | ☑ |
+| Front on offense / special plays | 3 DT on an offense / a Kick Return | None | `test_front_only_on_normal_defense` `[P]` | ☑ |
 | No logic | PlayFile without `player_logic` | all False / None | `test_no_logic_means_no_attributes` | ☑ |
-| Real offensive plays | golden | timed / rollout / QB run per play | `test_offensive_attributes_of_real_plays` `[P]` | ☑ |
-| Real defensive plays | golden | 2-DL, 3-4, 4-3; FG/PAT defense None | `test_defensive_front_of_real_plays` `[P]` | ☑ |
 
 ## labels.py — `CategoryLabels` (a league's offense/defense labels)
 
@@ -124,12 +110,7 @@ Constructed plays: tackles at x -300 and 300 unless a row says otherwise; margin
 | `*_by_label` per side | label, other side's label, game name | member; None; None | `test_by_label_resolves_within_its_side` | ☑ |
 | Same label both sides | `RR` offense + defense | each side resolves its own | `test_same_label_on_both_sides_is_allowed` | ☑ |
 | Label equals other side's game name | defense `"Pass Short Right"` | accepted | `test_label_may_equal_the_other_sides_game_name` | ☑ |
-| Rejected tables | unknown key; non-string / empty / blank label; own-side game name; duplicate | `ValueError` naming the entry | `test_from_tables_rejects` `[P]` | ☑ |
+| Rejected tables | unknown key; non-string / empty / blank label; own-side game name; duplicate | `ConfigFileError`; the whole message, naming the table and the entry | `test_from_tables_rejects` `[P]` | ☑ |
+| The file in the message | `path` given | `<path>: [categories.offense] …`; `.path` set | `test_from_tables_names_the_file` | ☑ |
 
 No `test_schema.py`: the reader tests pin every constant.
-
----
-
-## Resolved finding
-
-**User Specific (`0xFF`/`0xFE`).** `category_name` masked `user_category & 0x3F`, but the tables key User Specific at the full byte `0xFF`/`0xFE`, so it always returned `None`. Fixed in `model.py` to look up the full byte first, falling back to the masked base, so `0xFF`/`0xFE` resolve while ordinary codes still match. Covered by `test_user_specific_resolves`.

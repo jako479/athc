@@ -65,7 +65,6 @@ def build_ply(
     play_category: int = 0x01,
     special_category: int = 0x00,
     user_category: int = 0x01,
-    player_headers: tuple[tuple[int, int, int], ...] | None = None,
     player_records: Sequence[bytes] | None = None,
     player_offsets: tuple[int, ...] | None = None,
     stream_length: int | None = None,
@@ -75,15 +74,10 @@ def build_ply(
     and the offsets point at them. `player_records` replaces those records with
     whole encoded ones."""
     if player_records is None:
-        headers = (
-            list(player_headers)
-            if player_headers is not None
-            else [_DEFAULT_PLAYER_HEADER] * 11
-        )
+        rank, player_type, position = _DEFAULT_PLAYER_HEADER
         player_records = [
             build_record(position, rank=rank, player_type=player_type)
-            for rank, player_type, position in headers
-        ]
+        ] * 11
     records = b"".join(player_records)
     default_offsets = tuple(
         accumulate(

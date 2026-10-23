@@ -25,6 +25,7 @@ tests/
       data/                    # curated real .ply files
       test_reader.py
       test_model.py            # only where the model has logic
+      test_labels.py
       README.md                # this library's test matrix
   integration/                 # CLI end-to-end → output files — see testing-integration.md
 ```
@@ -54,7 +55,7 @@ A test of an add, update or remove compares the **whole result** with plain equa
 
 ### Fixture data layout
 
-Flat `<lib>/data/` folder, scenario encoded in the filename (`offense-passlong-typical.ply`, `truncated-header.ply`, `empty.ply`). **Do not** mirror the league play-pool category folders — fixtures are organized by parser behavior, not football category (matches mutagen, CPython). Subfolder by parser concern (`valid/`, `malformed/`) only if a suite grows past ~30–40 files.
+Flat `<lib>/data/` folder. A real game file keeps its real name (`SF1YemTy.ply`), which ties it to its source; the matrix says what it covers. A constructed fixture encodes its scenario in the filename (`truncated-header.ply`, `empty.ply`). **Do not** mirror the league play-pool category folders — fixtures are organized by parser behavior, not football category (matches mutagen, CPython). Subfolder by parser concern (`valid/`, `malformed/`) only if a suite grows past ~30–40 files.
 
 ## Documentation
 

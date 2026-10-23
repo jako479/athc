@@ -80,12 +80,12 @@ _OFFENSE_NORMAL_CODES: dict[str, frozenset[int]] = {
 # one play covers all three (e.g. "Pass Long" -> long left/middle/right).
 _DEFENSE_NORMAL_CODES: dict[str, frozenset[int]] = {
     "Goal Line Run": frozenset({GOAL_LINE_RUN}),
-    "Run Dazzle": frozenset({RAZZLE_DAZZLE_RUN}),
+    "Razzle Dazzle Run": frozenset({RAZZLE_DAZZLE_RUN}),
     "Run Left": frozenset({RUN_LEFT}),
     "Run Middle": frozenset({RUN_MIDDLE}),
     "Run Right": frozenset({RUN_RIGHT}),
     "Goal Line Pass": frozenset({GOAL_LINE_PASS}),
-    "Pass Dazzle": frozenset({RAZZLE_DAZZLE_PASS}),
+    "Razzle Dazzle Pass": frozenset({RAZZLE_DAZZLE_PASS}),
     "Pass Long": PASS_LONG_ANY,
     "Pass Medium": PASS_MEDIUM_ANY,
     "Pass Short": PASS_SHORT_ANY,

@@ -4,6 +4,23 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-22 — **fbpro98_play follow-ups**: the review's open points, settled.
+  A record offset below 25 (inside the header or category bytes) parsed as
+  garbage, so the reader rejects it and ply.md lists the rule. The game's
+  source (`PLAY.CPP`) names the Dazzle categories "Razzle Dazzle Run/Pass" on
+  both sides, so the defensive enum, the profile category table and the docs
+  drop "Run Dazzle / Pass Dazzle"; the league labels are untouched. The
+  fixture-naming convention now says a real game file keeps its real name.
+- 2026-10-22 — **fbpro98_play tests**: the first of the per-subpackage test
+  reviews. It found the rollout margin only ever tested at 100, one real
+  fixture pinned by nothing, `parse_play` keeping an unknown category
+  untested, no case for a lineman without a snap spot or an unrecognized
+  defense, and size limits probed far from the edge; all filled. The
+  unknown-category and bad-header messages are now pinned in full, the front
+  tests are one parametrized test per rule, category resolution is tested at
+  `resolve_category`, and the tests that restated the enums, repeated what
+  the parser already enforces or pinned incidental behavior (offset 0) went.
+  The zero-byte `PS7Xmids.ply` is named as such. The matrix was rewritten.
 - 2026-10-22 — **fbpro98_gameplan tests**: a review of the library's tests
   found the reader's truncated-record and S98-overrun errors untested, size
   limits tested far past the boundary, a stock play never written into a
