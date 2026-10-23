@@ -82,11 +82,6 @@ def _offense(
 # ── slot counts ───────────────────────────────────────────────────────────────
 
 
-def test_special_plays_has_12_entries():
-    assert GamePlan.NUMBER_SPECIAL_CATEGORIES == 12
-    assert len(_defense().special_plays) == 12
-
-
 @pytest.mark.parametrize("count", [11, 13])
 def test_special_plays_wrong_length_raises(count: int):
     with pytest.raises(ValueError, match="special_plays must have exactly 12"):
@@ -97,9 +92,10 @@ def test_special_plays_wrong_length_raises(count: int):
         )
 
 
-def test_normal_plays_wrong_length_raises():
-    with pytest.raises(ValueError, match="normal_plays must have exactly"):
-        _defense(normals=(None, None))
+@pytest.mark.parametrize("count", [63, 65])
+def test_normal_plays_wrong_length_raises(count: int):
+    with pytest.raises(ValueError, match="normal_plays must have exactly 64"):
+        _defense(normals=(None,) * count)
 
 
 # ── clock categories (11-12): stock-only, offense-only ────────────────────────
@@ -123,14 +119,6 @@ def test_offense_missing_clock_play_raises(category: int):
         _offense(specials=_offense_specials(**{f"c{category}": SpecialSlot()}))
 
 
-def test_offense_without_any_clock_plays_raises():
-    with pytest.raises(
-        ValueError,
-        match="Offense game plans require a stock play in special category 11",
-    ):
-        _offense(specials=_specials())
-
-
 @pytest.mark.parametrize("category", CLOCK_CATEGORIES)
 def test_defense_with_clock_play_raises(category: int):
     stock = _make_stock(special_category=category, play_category=0)
@@ -139,10 +127,6 @@ def test_defense_with_clock_play_raises(category: int):
         match=f"Defense game plans must not have a play in special category {category}",
     ):
         _defense(specials=_specials(**{f"c{category}": SpecialSlot(stock=stock)}))
-
-
-def test_custom_special_categories_are_1_to_10():
-    assert list(GamePlan.CUSTOM_SPECIAL_CATEGORIES) == list(range(1, 11))
 
 
 # ── slot typing and category alignment ────────────────────────────────────────
@@ -189,9 +173,8 @@ def test_custom_special_plays_picks_custom_of_categories_1_to_10():
     gameplan = _defense(
         specials=_specials(c1=SpecialSlot(custom=custom), c3=SpecialSlot(stock=stock))
     )
-    assert gameplan.custom_special_plays[0] is custom
-    assert all(p is None for p in gameplan.custom_special_plays[1:])
-    assert gameplan.special_plays[2].stock is stock
+    assert gameplan.custom_special_plays == (custom, *(None,) * 9)
+    assert gameplan.special_plays[2] == SpecialSlot(stock=stock)
 
 
 # ── with_custom_special_plays ─────────────────────────────────────────────────
@@ -208,9 +191,6 @@ def test_with_custom_special_plays_preserves_stock():
 
     updated = gameplan.with_custom_special_plays([new_a, None, new_e])
 
-    assert updated.special_plays[0] == SpecialSlot(custom=new_a, stock=stock_a)
-    assert updated.special_plays[1] == SpecialSlot(stock=stock_b)
-    assert updated.special_plays[4] == SpecialSlot(custom=new_e)
     assert updated == replace(
         gameplan,
         special_plays=_specials(
@@ -225,8 +205,6 @@ def test_with_custom_special_plays_preserves_clock_slots():
     gameplan = _offense()
     play = _make_custom(special_category=2, play_category=1)
     updated = gameplan.with_custom_special_plays([play])
-    assert updated.special_plays[10] == gameplan.special_plays[10]
-    assert updated.special_plays[11] == gameplan.special_plays[11]
     assert updated == replace(
         gameplan, special_plays=_offense_specials(c2=SpecialSlot(custom=play))
     )
@@ -238,9 +216,6 @@ def test_with_custom_special_plays_clears_uncovered_customs():
     )
     new = _make_custom(special_category=2)
     updated = gameplan.with_custom_special_plays([new])
-    placed = updated.custom_special_plays
-    assert placed[1] is not None and placed[1].special_category == 2
-    assert all(p is None for i, p in enumerate(placed) if i != 1)
     assert updated == replace(
         gameplan, special_plays=_specials(c2=SpecialSlot(custom=new))
     )
@@ -251,10 +226,6 @@ def test_with_custom_special_plays_order_independent():
     a = _make_custom(special_category=3)
     b = _make_custom(special_category=7)
     c = _make_custom(special_category=1)
-    assert (
-        gameplan.with_custom_special_plays([a, b, c]).custom_special_plays
-        == gameplan.with_custom_special_plays([c, b, a]).custom_special_plays
-    )
     expected = replace(
         gameplan,
         special_plays=_specials(
@@ -276,7 +247,6 @@ def test_with_custom_special_plays_rejects_stock_via_post_init():
 def test_with_custom_special_plays_accepts_range_ends(category: int):
     play = _make_custom(special_category=category)
     updated = _defense().with_custom_special_plays([play])
-    assert updated.special_plays[category - 1].custom is not None
     assert updated == replace(
         _defense(),
         special_plays=_specials(**{f"c{category}": SpecialSlot(custom=play)}),
@@ -355,13 +325,10 @@ def test_with_normal_plays_too_many_raises():
         _defense().with_normal_plays([_make_custom(special_category=0)] * 65)
 
 
-def test_with_normal_plays_returns_new_instance():
+def test_with_normal_plays_pads_to_64():
     gameplan = _defense()
     play = _make_custom(special_category=0)
     updated = gameplan.with_normal_plays([play])
-    assert updated is not gameplan
-    assert gameplan.normal_plays[0] is None
-    assert updated.normal_plays[0] is not None
     assert updated == replace(gameplan, normal_plays=(play, *(None,) * 63))
 
 
@@ -379,3 +346,15 @@ def test_custom_play_name_extracts_stem(filename: str, expected: str) -> None:
         filename=filename, play_category=0, special_category=0, user_category=0
     )
     assert play.name == expected
+
+
+def test_stock_play_name_is_its_play_name() -> None:
+    play = StockPlayRef(
+        play_name="RUNCLOCK",
+        map_offset=0,
+        map_size=0,
+        play_category=1,
+        special_category=11,
+        user_category=1,
+    )
+    assert play.name == "RUNCLOCK"

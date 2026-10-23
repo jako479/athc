@@ -148,4 +148,4 @@ Mutation methods (raise `ValueError`):
 - `tests/unit/fbpro98_gameplan/test_reader.py` — real-fixture parsing + structural error paths via byte-corrupted fixture copies
 - `tests/unit/fbpro98_gameplan/test_writer.py` — round-trip byte equality + partial-update semantics of `with_normal_plays` / `with_custom_special_plays`
 
-The fixture `.pln` files in `tests/data/` are game-produced — they are the authoritative ground truth for any wire-format question.
+The fixture `.pln` files in `tests/unit/fbpro98_gameplan/data/` are game-produced — they are the authoritative ground truth for any wire-format question.

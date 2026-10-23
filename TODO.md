@@ -5,7 +5,7 @@
 - [ ] For each subpackage: run a code review specifically on the tests to find: gaps, non-ideal source data and goldens, and non-ideal test patterns.
   - [ ] autocontinue
   - [ ] cli
-  - [ ] fbpro98_gameplan
+  - [x] fbpro98_gameplan
   - [x] fbpro98_lg2
   - [x] fbpro98_lge
   - [ ] fbpro98_play

@@ -7,7 +7,6 @@ import pytest
 
 from athc.errors import AthcError
 from athc.fbpro98_gameplan import (
-    CustomPlayRef,
     GamePlan,
     InvalidGamePlanError,
     PlayRef,
@@ -17,25 +16,58 @@ from athc.fbpro98_gameplan import (
     parse_gameplan,
     read_gameplan,
 )
-from athc.fbpro98_gameplan.schema import G95_HEADER, J95_HEADER, J95_PLAN_DATA
+from athc.fbpro98_gameplan.schema import (
+    G95_AUDIBLE,
+    G95_HEADER,
+    G95_OFFSETS_TABLE,
+    G95_PLAY_HEADER,
+    J95_HEADER,
+    J95_PLAN_DATA,
+    S98_EXPECTED_DATA,
+    S98_HEADER,
+)
+from tests.unit.fbpro98_gameplan.conftest import (
+    DATA_DIR,
+    DEFENSE_PATH,
+    OFFENSE_PATH,
+    both_sides,
+    g95_end,
+    s98_start,
+)
 
-TEST_DATA_DIR = Path(__file__).resolve().parent / "data"
-EXPECTED_DIR = TEST_DATA_DIR / "expected"
-OFFENSE_PATH = TEST_DATA_DIR / "offense.pln"
-DEFENSE_PATH = TEST_DATA_DIR / "defense.pln"
+EXPECTED_DIR = DATA_DIR / "expected"
+OFFSETS_START = G95_HEADER.size + G95_AUDIBLE.size  # play offsets count from here
+RECORDS_START = OFFSETS_START + G95_OFFSETS_TABLE.size
+LAST_SLOT = GamePlan.NUMBER_PLAY_SLOTS - 1  # Stop Clock: the offense file's last record
+
+# The custom special play of each category 1-10 in the fixtures.
+OFFENSE_SPECIALS = (
+    "BCFGPAT",
+    "LACokick",
+    "LAC-PUNT",
+    "DBONSIDE",
+    None,
+    None,
+    None,
+    None,
+    "BCFREEK",
+    "BCSQUIB",
+)
+DEFENSE_SPECIALS = (
+    None,
+    "CIN-KR",
+    "SKINPRW6",
+    "BC-ON-R",
+    "SFFKFGRD",
+    "SFFFGPas",
+    "SFFKPTRD",
+    "SFFPuntD",
+    "BCFREERT",
+    "BCSQUIBR",
+)
 
 
 # ---------- helpers ----------
-
-
-def _require_fixture(path: Path) -> Path:
-    if not path.is_file():
-        pytest.skip(f"Missing real gameplan fixture: {path}")
-    return path
-
-
-def _load_fixture_bytes(path: Path) -> bytearray:
-    return bytearray(_require_fixture(path).read_bytes())
 
 
 def _load_expected(name: str) -> list[str]:
@@ -43,226 +75,100 @@ def _load_expected(name: str) -> list[str]:
 
 
 def _slot_names(plays: tuple[PlayRef | None, ...]) -> list[str]:
-    """Convert a play tuple to a list of names with empty strings for None slots."""
+    """One name per slot, an empty string for an empty slot: the golden's layout."""
     return [p.name if p is not None else "" for p in plays]
 
 
-def _filled_names_sorted(plays: tuple[PlayRef | None, ...]) -> list[str]:
-    """Names of non-None plays, case-insensitively sorted (matches reader's by-name output)."""
-    return sorted((p.name for p in plays if p is not None), key=str.lower)
-
-
-def _first_used_slot_offset(data: bytes | bytearray) -> tuple[int, int]:
-    offsets = struct.unpack_from("<86H", data, 12)
-    for slot, relative_offset in enumerate(offsets):
-        if relative_offset != 0:
-            return slot, 12 + relative_offset
-    raise AssertionError("Fixture does not contain any play records")
-
-
-def _first_custom_record_offset(data: bytes | bytearray) -> tuple[int, int]:
-    offsets = struct.unpack_from("<86H", data, 12)
-    for slot, relative_offset in enumerate(offsets):
-        if relative_offset == 0:
-            continue
-        record_offset = 12 + relative_offset
-        if data[record_offset] == 0:
-            return slot, record_offset
-    pytest.skip("Fixture does not contain a custom play record")
-
-
 def _record_offset(data: bytes | bytearray, slot: int) -> int:
-    """Absolute offset of the play record in `slot`; skips when the slot is empty."""
-    offsets = struct.unpack_from("<86H", data, 12)
-    if offsets[slot] == 0:
-        pytest.skip(f"Fixture slot {slot} is empty")
-    return 12 + offsets[slot]
+    """Absolute offset of the play record in `slot`, which must be filled."""
+    relative = G95_OFFSETS_TABLE.unpack_from(data, OFFSETS_START)[slot]
+    assert relative != 0, f"slot {slot} is empty"
+    return OFFSETS_START + relative
 
 
-def _g95_end(data: bytes | bytearray) -> int:
-    _, g95_size = G95_HEADER.unpack_from(data, 0)
-    return G95_HEADER.size + g95_size
+def _set_g95_size(data: bytearray, size: int) -> None:
+    struct.pack_into("<I", data, 4, size)
 
 
-def _s98_start(data: bytes | bytearray) -> int:
-    return _g95_end(data) + J95_HEADER.size + J95_PLAN_DATA.size
+# ---------- valid fixtures ----------
 
 
-# ---------- offense fixture: full data assertions ----------
+@pytest.mark.parametrize(
+    "pln_path, profile_type",
+    [(OFFENSE_PATH, ProfileType.OFFENSE), (DEFENSE_PATH, ProfileType.DEFENSE)],
+    ids=["offense", "defense"],
+)
+def test_profile_type_matches_fixture(
+    pln_path: Path, profile_type: ProfileType
+) -> None:
+    assert read_gameplan(pln_path).profile_type is profile_type
 
 
-def test_offense_profile_type_is_offense() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    assert plan.profile_type is ProfileType.OFFENSE
-    assert plan.is_offense is True
-    assert plan.is_defense is False
-
-
-def test_offense_normal_plays_match_expected_slot_layout() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
+@both_sides
+def test_normal_plays_match_slot_golden(pln_path: Path) -> None:
+    plan = read_gameplan(pln_path)
     assert _slot_names(plan.normal_plays) == _load_expected(
-        "offense_normal_by_slot.txt"
+        f"{pln_path.stem}_normal_by_slot.txt"
     )
 
 
-def test_offense_normal_plays_filled_count_matches_expected_by_name() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    assert _filled_names_sorted(plan.normal_plays) == _load_expected(
-        "offense_normal_by_name.txt"
-    )
-
-
-def test_offense_custom_special_plays_match_expected() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    assert _slot_names(plan.custom_special_plays) == _load_expected(
-        "offense_special.txt"
-    )
+@pytest.mark.parametrize(
+    "pln_path, expected",
+    [(OFFENSE_PATH, OFFENSE_SPECIALS), (DEFENSE_PATH, DEFENSE_SPECIALS)],
+    ids=["offense", "defense"],
+)
+def test_custom_special_plays_match_fixture(
+    pln_path: Path, expected: tuple[str | None, ...]
+) -> None:
+    plan = read_gameplan(pln_path)
+    names = tuple(p.name if p is not None else None for p in plan.custom_special_plays)
+    assert names == expected
 
 
 def test_offense_clock_categories_hold_stock_plays() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    run_clock = plan.special_plays[10]
-    stop_clock = plan.special_plays[11]
-    assert run_clock.custom is None and stop_clock.custom is None
-    assert run_clock.stock is not None and run_clock.stock.name == "RUNCLOCK"
-    assert stop_clock.stock is not None and stop_clock.stock.name == "STOPCLOK"
-    assert run_clock.stock.special_category == 11
-    assert stop_clock.stock.special_category == 12
-
-
-def test_offense_normal_plays_have_special_category_zero() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    for play in plan.normal_plays:
-        if play is not None:
-            assert play.special_category == 0
-
-
-def test_offense_normal_plays_have_offensive_play_category() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    for play in plan.normal_plays:
-        if play is not None:
-            assert play.play_category % 2 == 1
-
-
-def test_offense_special_slots_are_typed() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    for slot in plan.special_plays:
-        assert slot.custom is None or isinstance(slot.custom, CustomPlayRef)
-        assert slot.stock is None or isinstance(slot.stock, StockPlayRef)
-
-
-def test_offense_special_slots_carry_their_category() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    for category, slot in enumerate(plan.special_plays, start=1):
-        for play in (slot.custom, slot.stock):
-            if play is not None:
-                assert play.special_category == category
-
-
-# ---------- defense fixture: full data assertions ----------
-
-
-def test_defense_profile_type_is_defense() -> None:
-    plan = read_gameplan(_require_fixture(DEFENSE_PATH))
-    assert plan.profile_type is ProfileType.DEFENSE
-    assert plan.is_defense is True
-    assert plan.is_offense is False
-
-
-def test_defense_normal_plays_match_expected_slot_layout() -> None:
-    plan = read_gameplan(_require_fixture(DEFENSE_PATH))
-    assert _slot_names(plan.normal_plays) == _load_expected(
-        "defense_normal_by_slot.txt"
-    )
-
-
-def test_defense_normal_plays_filled_count_matches_expected_by_name() -> None:
-    plan = read_gameplan(_require_fixture(DEFENSE_PATH))
-    assert _filled_names_sorted(plan.normal_plays) == _load_expected(
-        "defense_normal_by_name.txt"
-    )
-
-
-def test_defense_custom_special_plays_match_expected() -> None:
-    plan = read_gameplan(_require_fixture(DEFENSE_PATH))
-    assert _slot_names(plan.custom_special_plays) == _load_expected(
-        "defense_special.txt"
+    plan = read_gameplan(OFFENSE_PATH)
+    assert plan.special_plays[10:] == (
+        SpecialSlot(
+            stock=StockPlayRef(
+                play_name="RUNCLOCK",
+                map_offset=12765,
+                map_size=333,
+                play_category=1,
+                special_category=11,
+                user_category=1,
+            )
+        ),
+        SpecialSlot(
+            stock=StockPlayRef(
+                play_name="STOPCLOK",
+                map_offset=13098,
+                map_size=333,
+                play_category=1,
+                special_category=12,
+                user_category=1,
+            )
+        ),
     )
 
 
 def test_defense_clock_categories_are_empty() -> None:
-    plan = read_gameplan(_require_fixture(DEFENSE_PATH))
-    assert plan.special_plays[10] == SpecialSlot()
-    assert plan.special_plays[11] == SpecialSlot()
+    plan = read_gameplan(DEFENSE_PATH)
+    assert plan.special_plays[10:] == (SpecialSlot(), SpecialSlot())
 
 
-def test_defense_normal_plays_have_defensive_play_category() -> None:
-    plan = read_gameplan(_require_fixture(DEFENSE_PATH))
-    for play in plan.normal_plays:
-        if play is not None:
-            assert play.play_category % 2 == 0
-
-
-# ---------- public API surface ----------
-
-
-def test_read_gameplan_returns_gameplan_instance() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    assert isinstance(plan, GamePlan)
-
-
-def test_parse_gameplan_from_buffer_matches_read_gameplan() -> None:
-    buffer = _require_fixture(OFFENSE_PATH).read_bytes()
-    from_buffer = parse_gameplan(buffer)
-    from_file = read_gameplan(OFFENSE_PATH)
-    assert _slot_names(from_buffer.normal_plays) == _slot_names(from_file.normal_plays)
-    assert from_buffer.special_plays == from_file.special_plays
-    assert from_buffer.profile_type == from_file.profile_type
-
-
-def test_gameplan_normal_plays_has_64_entries() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    assert len(plan.normal_plays) == 64
-
-
-def test_gameplan_special_plays_has_12_entries() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    assert len(plan.special_plays) == 12
-
-
-def test_gameplan_custom_special_plays_view_has_10_entries() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    assert len(plan.custom_special_plays) == 10
-    for play in plan.custom_special_plays:
-        assert play is None or isinstance(play, CustomPlayRef)
-
-
-def test_custom_play_name_strips_directory_and_extension() -> None:
-    plan = read_gameplan(_require_fixture(OFFENSE_PATH))
-    for play in plan.normal_plays:
-        if isinstance(play, CustomPlayRef):
-            assert "\\" not in play.name
-            assert "." not in play.name
-            return
-    pytest.skip("Fixture has no CustomPlayRef in normal_plays")
+def test_parse_gameplan_matches_read_gameplan() -> None:
+    assert parse_gameplan(OFFENSE_PATH.read_bytes()) == read_gameplan(OFFENSE_PATH)
 
 
 def test_invalid_gameplan_error_is_athc_error_subclass() -> None:
     assert issubclass(InvalidGamePlanError, AthcError)
 
 
-# ---------- structural validation: error paths ----------
+# ---------- errors: the path in the message ----------
 
 
-def test_file_too_small_raises(tmp_path):
-    gameplan_path = tmp_path / "tiny.pln"
-    gameplan_path.write_bytes(b"G95:" + b"\x00" * 4)
-    with pytest.raises(InvalidGamePlanError, match="File too small"):
-        read_gameplan(gameplan_path)
-
-
-def test_error_names_the_path_first(tmp_path):
-    gameplan_path = tmp_path / "tiny.pln"
+def test_error_names_the_path_first(tmp_path: Path) -> None:
+    gameplan_path = tmp_path / "empty.pln"
     gameplan_path.write_bytes(b"")
     with pytest.raises(InvalidGamePlanError) as exc:
         read_gameplan(gameplan_path)
@@ -272,11 +178,12 @@ def test_error_names_the_path_first(tmp_path):
     assert exc.value.path == gameplan_path
 
 
-def test_bad_audible_bytes_print_as_hex(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    data[G95_HEADER.size : G95_HEADER.size + 4] = b"\x09\x08\x07\x06"
+def test_bad_audible_bytes_print_as_hex(
+    offense_bytes: bytearray, tmp_path: Path
+) -> None:
+    offense_bytes[G95_HEADER.size : OFFSETS_START] = b"\x09\x08\x07\x06"
     gameplan_path = tmp_path / "bad_audible.pln"
-    gameplan_path.write_bytes(data)
+    gameplan_path.write_bytes(offense_bytes)
     with pytest.raises(InvalidGamePlanError) as exc:
         read_gameplan(gameplan_path)
     assert str(exc.value) == (
@@ -284,206 +191,237 @@ def test_bad_audible_bytes_print_as_hex(tmp_path):
     )
 
 
-def test_invalid_g95_header_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    data[0:4] = b"BAD!"
-    gameplan_path = tmp_path / "bad_g95.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match=r"Invalid header.*at 0x0"):
-        read_gameplan(gameplan_path)
-
-
-def test_g95_block_extends_past_eof_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    struct.pack_into("<I", data, 4, len(data) * 10)
-    gameplan_path = tmp_path / "bad_g95_size.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="G95 block extends past"):
-        read_gameplan(gameplan_path)
-
-
-def test_invalid_audible_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    data[8] = 0xFF
-    gameplan_path = tmp_path / "bad_audible.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="Audible"):
-        read_gameplan(gameplan_path)
-
-
-def test_out_of_range_offset_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    slot, _ = _first_used_slot_offset(data)
-    struct.pack_into("<H", data, 12 + (slot * 2), 1)
-    gameplan_path = tmp_path / "bad_offset.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="out of range"):
-        read_gameplan(gameplan_path)
-
-
-def test_missing_null_terminator_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    _, record_offset = _first_custom_record_offset(data)
-    string_start = record_offset + 4
-    string_end = data.index(0, string_start)
-    data[string_end] = ord("X")
-    gameplan_path = tmp_path / "bad_string.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="Missing null terminator"):
-        read_gameplan(gameplan_path)
-
-
-def test_invalid_stock_flag_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    _, record_offset = _first_custom_record_offset(data)
-    data[record_offset] = 0x77
-    gameplan_path = tmp_path / "bad_stock_flag.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="Invalid stock flag"):
-        read_gameplan(gameplan_path)
-
-
-def test_invalid_j95_header_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    j95_pos = _g95_end(data)
-    data[j95_pos : j95_pos + 4] = b"BAD!"
-    gameplan_path = tmp_path / "bad_j95.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="Invalid header"):
-        read_gameplan(gameplan_path)
-
-
-def test_invalid_j95_data_size_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    j95_pos = _g95_end(data)
-    struct.pack_into("<I", data, j95_pos + 4, 99)
-    gameplan_path = tmp_path / "bad_j95_size.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="J95 data size"):
-        read_gameplan(gameplan_path)
-
-
-def test_invalid_profile_type_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    j95_pos = _g95_end(data)
-    data[j95_pos + J95_HEADER.size] = 5
-    gameplan_path = tmp_path / "bad_profile.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="profile type"):
-        read_gameplan(gameplan_path)
-
-
-def test_j95_count_mismatch_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    j95_data = _g95_end(data) + J95_HEADER.size
-    struct.pack_into("<H", data, j95_data + 1, 9999)
-    gameplan_path = tmp_path / "bad_j95_count.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="J95 counts") as exc:
-        read_gameplan(gameplan_path)
-    assert exc.value.path == gameplan_path
-
-
-def test_invalid_s98_header_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    s98_pos = _s98_start(data)
-    data[s98_pos : s98_pos + 4] = b"BAD!"
-    gameplan_path = tmp_path / "bad_s98.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="Invalid header"):
-        read_gameplan(gameplan_path)
-
-
-def test_invalid_s98_data_size_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    s98_pos = _s98_start(data)
-    struct.pack_into("<I", data, s98_pos + 4, 99)
-    gameplan_path = tmp_path / "bad_s98_size.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="S98 data size"):
-        read_gameplan(gameplan_path)
-
-
-def test_invalid_s98_data_content_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    s98_pos = _s98_start(data)
-    data[s98_pos + 8] = ord("X")
-    gameplan_path = tmp_path / "bad_s98_content.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="S98 data"):
-        read_gameplan(gameplan_path)
-
-
-def test_wrong_parity_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    data.append(0)
-    gameplan_path = tmp_path / "bad_parity.pln"
-    gameplan_path.write_bytes(data)
-    with pytest.raises(InvalidGamePlanError, match="wrong parity"):
-        read_gameplan(gameplan_path)
-
-
-def test_nonexistent_path_raises_oserror(tmp_path):
+def test_nonexistent_path_raises_oserror(tmp_path: Path) -> None:
     with pytest.raises(OSError):
         read_gameplan(tmp_path / "nonexistent.pln")
 
 
-# ---------- more error branches ----------
+# ---------- errors: truncation ----------
 
 
-def test_file_too_small_for_j95_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    truncated = data[: _g95_end(data) + 2]  # valid G95, no room for the J95 block
-    gameplan_path = tmp_path / "no_j95.pln"
-    gameplan_path.write_bytes(truncated)
-    with pytest.raises(InvalidGamePlanError, match="too small to contain J95"):
-        read_gameplan(gameplan_path)
+# Each block check at its limit and one byte short of it: the offense bytes are
+# cut `extra` bytes after `anchor`. A block that just fits passes its own check
+# and the next block's check fails.
+@pytest.mark.parametrize(
+    "anchor, extra, match",
+    [
+        (
+            "start",
+            RECORDS_START - 1,
+            "File too small to contain PLN header and offsets table",
+        ),
+        ("start", RECORDS_START, "G95 block extends past end of file"),
+        (
+            "g95_end",
+            J95_HEADER.size + J95_PLAN_DATA.size - 1,
+            "File too small to contain J95 block",
+        ),
+        (
+            "g95_end",
+            J95_HEADER.size + J95_PLAN_DATA.size,
+            "File too small to contain S98 block header",
+        ),
+        (
+            "s98_start",
+            S98_HEADER.size - 1,
+            "File too small to contain S98 block header",
+        ),
+        ("s98_start", S98_HEADER.size, "S98 block data extends past end of file"),
+        (
+            "s98_start",
+            S98_HEADER.size + len(S98_EXPECTED_DATA) - 1,
+            "S98 block data extends past end of file",
+        ),
+    ],
+)
+def test_truncated_file_raises(
+    offense_bytes: bytearray, anchor: str, extra: int, match: str
+) -> None:
+    anchors = {
+        "start": 0,
+        "g95_end": g95_end(offense_bytes),
+        "s98_start": s98_start(offense_bytes),
+    }
+    with pytest.raises(InvalidGamePlanError, match=match):
+        parse_gameplan(bytes(offense_bytes[: anchors[anchor] + extra]))
 
 
-def test_file_too_small_for_s98_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    truncated = data[: _s98_start(data) + 4]  # valid G95+J95, S98 header doesn't fit
-    gameplan_path = tmp_path / "no_s98.pln"
-    gameplan_path.write_bytes(truncated)
-    with pytest.raises(InvalidGamePlanError, match="too small to contain S98"):
-        read_gameplan(gameplan_path)
+@pytest.mark.parametrize(
+    "past_end, match",
+    [(1, "G95 block extends past end of file"), (0, "too small to contain J95")],
+)
+def test_g95_size_past_end_of_file_raises(
+    offense_bytes: bytearray, past_end: int, match: str
+) -> None:
+    """A G95 block ending exactly at EOF fits; the J95 block then has no room."""
+    _set_g95_size(offense_bytes, len(offense_bytes) - G95_HEADER.size + past_end)
+    with pytest.raises(InvalidGamePlanError, match=match):
+        parse_gameplan(bytes(offense_bytes))
 
 
-# ---------- play categories ----------
-
-
-def test_unrecognized_play_category_raises(tmp_path):
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    slot, record_offset = _first_used_slot_offset(data)
-    # Only a normal slot resolves by user_category; specials ignore that byte.
-    assert slot < GamePlan.NUMBER_NORMAL_PLAYS
-    data[record_offset + 3] = 0x3F  # user_category no table knows
-    gameplan_path = tmp_path / "bad_category.pln"
-    gameplan_path.write_bytes(data)
+def test_truncated_play_header_raises(offense_bytes: bytearray) -> None:
+    # End the G95 block two bytes into its last record: too short for a header.
+    last = _record_offset(offense_bytes, LAST_SLOT)
+    _set_g95_size(offense_bytes, last + 2 - G95_HEADER.size)
     with pytest.raises(
-        InvalidGamePlanError, match=f"Unrecognized play category at slot {slot}"
+        InvalidGamePlanError, match=f"Truncated play header at {last:#x}"
     ):
-        read_gameplan(gameplan_path)
+        parse_gameplan(bytes(offense_bytes))
 
 
-def test_custom_play_in_clock_slot_raises(tmp_path):
+def test_truncated_stock_play_record_raises(offense_bytes: bytearray) -> None:
+    # The last record's header fits, its 14-byte stock body does not.
+    body = _record_offset(offense_bytes, LAST_SLOT) + G95_PLAY_HEADER.size
+    _set_g95_size(offense_bytes, body + 1 - G95_HEADER.size)
+    with pytest.raises(
+        InvalidGamePlanError, match=f"Truncated stock play record at {body:#x}"
+    ):
+        parse_gameplan(bytes(offense_bytes))
+
+
+# ---------- errors: block headers ----------
+
+
+def test_invalid_g95_header_raises(offense_bytes: bytearray) -> None:
+    offense_bytes[0:4] = b"BAD!"
+    with pytest.raises(InvalidGamePlanError, match="Invalid header 'BAD!' at 0x0"):
+        parse_gameplan(bytes(offense_bytes))
+
+
+def test_invalid_j95_header_raises(offense_bytes: bytearray) -> None:
+    j95_pos = g95_end(offense_bytes)
+    offense_bytes[j95_pos : j95_pos + 4] = b"BAD!"
+    with pytest.raises(
+        InvalidGamePlanError, match=f"Invalid header 'BAD!' at {j95_pos:#x}"
+    ):
+        parse_gameplan(bytes(offense_bytes))
+
+
+def test_invalid_s98_header_raises(offense_bytes: bytearray) -> None:
+    s98_pos = s98_start(offense_bytes)
+    offense_bytes[s98_pos : s98_pos + 4] = b"BAD!"
+    with pytest.raises(
+        InvalidGamePlanError, match=f"Invalid header 'BAD!' at {s98_pos:#x}"
+    ):
+        parse_gameplan(bytes(offense_bytes))
+
+
+# ---------- errors: G95 play records ----------
+
+
+def test_offset_before_the_records_raises(offense_bytes: bytearray) -> None:
+    relative = RECORDS_START - OFFSETS_START - 1
+    struct.pack_into("<H", offense_bytes, OFFSETS_START, relative)
+    with pytest.raises(
+        InvalidGamePlanError,
+        match=f"Play offset {relative:#x} for slot 0 is out of range",
+    ):
+        parse_gameplan(bytes(offense_bytes))
+
+
+def test_offset_at_g95_end_raises(offense_bytes: bytearray) -> None:
+    relative = g95_end(offense_bytes) - OFFSETS_START
+    struct.pack_into("<H", offense_bytes, OFFSETS_START, relative)
+    with pytest.raises(
+        InvalidGamePlanError,
+        match=f"Play offset {relative:#x} for slot 0 is out of range",
+    ):
+        parse_gameplan(bytes(offense_bytes))
+
+
+def test_missing_null_terminator_raises(offense_bytes: bytearray) -> None:
+    # Slot 0 holds a custom play; overwrite its filename's NUL.
+    body = _record_offset(offense_bytes, 0) + G95_PLAY_HEADER.size
+    offense_bytes[offense_bytes.index(0, body)] = ord("X")
+    with pytest.raises(
+        InvalidGamePlanError,
+        match=f"Missing null terminator for play record at {body:#x}",
+    ):
+        parse_gameplan(bytes(offense_bytes))
+
+
+def test_invalid_stock_flag_raises(offense_bytes: bytearray) -> None:
+    offense_bytes[_record_offset(offense_bytes, LAST_SLOT)] = 2
+    with pytest.raises(
+        InvalidGamePlanError, match=f"Invalid stock flag 0x2 at slot {LAST_SLOT}"
+    ):
+        parse_gameplan(bytes(offense_bytes))
+
+
+def test_unrecognized_play_category_raises(offense_bytes: bytearray) -> None:
+    # Slot 0 is a normal slot: its category resolves by user_category.
+    offense_bytes[_record_offset(offense_bytes, 0) + 3] = 0x3F  # a code no table knows
+    with pytest.raises(
+        InvalidGamePlanError, match="Unrecognized play category at slot 0"
+    ):
+        parse_gameplan(bytes(offense_bytes))
+
+
+def test_custom_play_in_clock_slot_raises(offense_bytes: bytearray) -> None:
     """A clock slot holding a custom record is a model violation, not a crash."""
-    data = _load_fixture_bytes(OFFENSE_PATH)
-    # Turn the Run Clock stock record (slot 84) into a custom record: stock_flag 0.
-    # Its body then reads as a filename up to the first NUL inside map_offset, and
-    # its special_category stays 11. Bump the J95 special count so the count check
-    # passes and the model gets to judge the slot.
-    data[_record_offset(data, 84)] = 0
-    j95_special = _g95_end(data) + J95_HEADER.size + 5  # after type u8 + 2 x u16
-    struct.pack_into(
-        "<H", data, j95_special, struct.unpack_from("<H", data, j95_special)[0] + 1
-    )
-    gameplan_path = tmp_path / "custom_clock.pln"
-    gameplan_path.write_bytes(data)
+    # Turn the Stop Clock stock record into a custom record (stock flag 0): its
+    # body then reads as a filename up to the first NUL inside map_offset, and
+    # its special_category stays 12. Bump the J95 special count so the count
+    # check passes and the model gets to judge the slot.
+    offense_bytes[_record_offset(offense_bytes, LAST_SLOT)] = 0
+    j95_special = g95_end(offense_bytes) + J95_HEADER.size + 5  # type u8 + 2 x u16
+    (declared,) = struct.unpack_from("<H", offense_bytes, j95_special)
+    struct.pack_into("<H", offense_bytes, j95_special, declared + 1)
     # The reader wraps the model's ValueError: a corrupt file, named first.
     with pytest.raises(InvalidGamePlanError) as exc:
-        read_gameplan(gameplan_path)
+        parse_gameplan(bytes(offense_bytes))
     assert str(exc.value).startswith(
-        f"{gameplan_path}: Special category 11: stock must be StockPlayRef"
+        "<buffer>: Special category 12: stock must be StockPlayRef"
     )
-    assert exc.value.path == gameplan_path
+    assert exc.value.path == Path("<buffer>")
+
+
+# ---------- errors: J95 and S98 data ----------
+
+
+@pytest.mark.parametrize("size", [J95_PLAN_DATA.size - 1, J95_PLAN_DATA.size + 1])
+def test_invalid_j95_data_size_raises(offense_bytes: bytearray, size: int) -> None:
+    struct.pack_into("<I", offense_bytes, g95_end(offense_bytes) + 4, size)
+    with pytest.raises(InvalidGamePlanError, match=f"J95 data size {size}"):
+        parse_gameplan(bytes(offense_bytes))
+
+
+def test_invalid_profile_type_raises(offense_bytes: bytearray) -> None:
+    offense_bytes[g95_end(offense_bytes) + J95_HEADER.size] = 2
+    with pytest.raises(InvalidGamePlanError, match="Invalid J95 profile type 2"):
+        parse_gameplan(bytes(offense_bytes))
+
+
+def test_j95_count_mismatch_raises(offense_bytes: bytearray) -> None:
+    j95_data = g95_end(offense_bytes) + J95_HEADER.size
+    struct.pack_into("<H", offense_bytes, j95_data + 1, 9999)  # the custom count
+    with pytest.raises(InvalidGamePlanError, match="J95 counts"):
+        parse_gameplan(bytes(offense_bytes))
+
+
+@pytest.mark.parametrize(
+    "size", [len(S98_EXPECTED_DATA) - 1, len(S98_EXPECTED_DATA) + 1]
+)
+def test_invalid_s98_data_size_raises(offense_bytes: bytearray, size: int) -> None:
+    struct.pack_into("<I", offense_bytes, s98_start(offense_bytes) + 4, size)
+    with pytest.raises(InvalidGamePlanError, match=f"S98 data size {size}"):
+        parse_gameplan(bytes(offense_bytes))
+
+
+def test_invalid_s98_data_content_raises(offense_bytes: bytearray) -> None:
+    offense_bytes[s98_start(offense_bytes) + S98_HEADER.size] = ord("X")
+    with pytest.raises(InvalidGamePlanError, match=r"S98 data .* != expected"):
+        parse_gameplan(bytes(offense_bytes))
+
+
+@pytest.mark.parametrize(
+    "pln_path, expected",
+    [
+        (OFFENSE_PATH, r"offense profile \(expected even\)"),
+        (DEFENSE_PATH, r"defense profile \(expected odd\)"),
+    ],
+    ids=["offense", "defense"],
+)
+def test_wrong_parity_raises(pln_path: Path, expected: str) -> None:
+    with pytest.raises(InvalidGamePlanError, match=f"wrong parity for {expected}"):
+        parse_gameplan(pln_path.read_bytes() + b"\x00")

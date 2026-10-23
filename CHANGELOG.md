@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- fbpro98_gameplan: tests check every reader error at its limit and one past it, the counts a write updates for a stock play and a custom special play, and the pad on both sides; goldens that only restated the slot layout went
 - fbpro98_lge, fbpro98_lg2: tests pin strength of schedule counting each opponent once, a tree with more divisions or teams than counted, an empty week, playoff-round numbering, the error offsets and the size-before-fields order, and the `.lg2` team order against the `.lge`
 - athc: the `.prf` spec says where the game puts an embedded game plan: a G95 + S98 pair before I95, whose count field counts those blocks
 - athc: the profile library's tests check the situation layout at the start of every group, every reader check and limit, the PAT weight rule and an edit of every profile field; cases the byte-identical round trip already proved are gone

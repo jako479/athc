@@ -4,6 +4,16 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-22 — **fbpro98_gameplan tests**: a review of the library's tests
+  found the reader's truncated-record and S98-overrun errors untested, size
+  limits tested far past the boundary, a stock play never written into a
+  normal slot, tests that skipped when a committed fixture did not fit, and
+  goldens that only sorted another golden. The tests now cut and shift the
+  fixture bytes at each limit, write a stock play and a custom special play
+  through the writer, pad both sides, and fail instead of skipping; the
+  name-sorted goldens went and the special-play names moved inline. Found
+  but left alone: `docs/formats/pln.md` says only defense files carry the
+  parity pad, yet the game-saved offense plans carry it too.
 - 2026-10-22 — **fbpro98_lge, fbpro98_lg2 tests**: a review of the two
   league-file test suites found the fixtures and goldens sound (every file
   real and used, every tie recomputed from the games) but a few gaps: the

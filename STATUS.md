@@ -280,6 +280,8 @@ Open: PCFL's `.lg2` doesn't exist yet.
 Reads and writes `.pln` game plans. Docs:
 [spec](docs/formats/pln.md)
 
+- Unit tests reviewed: every reader error and writer branch is covered, each
+  size limit at the limit and one past it; the goldens are the two slot dumps.
 - One typed custom/stock slot per special category 1-12; the clock categories
   (11 Run Clock, 12 Stop Clock) are stock-only and offense-only. A play whose
   category bytes are unrecognized is a reader error.
