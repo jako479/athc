@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- profile: a rules file whose `offense`, `defense` or section is not a table, or whose `fields` holds a non-string, is a rules-file error instead of a crash
+- profile: tests reviewed: rules that match together, every filter, category name, label and special slot, limits at the edge, and the full rule set's goldens on the real test profiles
 - fbpro98_profile: a situation holds only its play-calling rules; its number and game state come from its place in the profile
 - athc: the defensive Dazzle categories carry the game's names, Razzle Dazzle Run and Razzle Dazzle Pass, in every tool
 - fbpro98_play: a play whose record offset points inside the header or category bytes is rejected as damaged

@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from athc.fbpro98_play import CategoryLabels
-from athc.fbpro98_profile import Down, MinutesRemaining, YardsToGo
+from athc.fbpro98_profile import Down, FieldPosition, MinutesRemaining, YardsToGo
 from athc.profile import (
     PercentBound,
     ProfileRules,
@@ -21,14 +21,22 @@ from athc.profile import (
 from athc.profile import load_rules as _load_rules
 from athc.profile.rules import (
     DEFENSE_LIST_SCOPE,
+    GOAL_LINE_PASS,
+    GOAL_LINE_RUN,
     OFFENSE_LIST_SCOPE,
+    PASS_LONG_ANY,
     PASS_LONG_LEFT,
     PASS_LONG_MIDDLE,
     PASS_LONG_RANDOM,
     PASS_LONG_RIGHT,
+    PASS_MEDIUM_ANY,
+    PASS_MEDIUM_LEFT,
+    PASS_MEDIUM_MIDDLE,
     PASS_MEDIUM_RANDOM,
+    PASS_MEDIUM_RIGHT,
     PASS_SHORT_ANY,
     PASS_SHORT_LEFT,
+    PASS_SHORT_MIDDLE,
     PASS_SHORT_RANDOM,
     PASS_SHORT_RIGHT,
     RAZZLE_DAZZLE_PASS,
@@ -36,6 +44,7 @@ from athc.profile.rules import (
     RUN_LEFT,
     RUN_MIDDLE,
     RUN_RANDOM,
+    RUN_RIGHT,
 )
 from tests.conftest import (
     PNFL_DEFENSE,
@@ -44,7 +53,12 @@ from tests.conftest import (
     shipped_files,
     shipped_id,
 )
-from tests.unit.profile.conftest import DATA, exact_substitution
+from tests.unit.profile.conftest import (
+    DATA,
+    DEFENSE_CODES_BY_NAME,
+    OFFENSE_CODES_BY_NAME,
+    exact_substitution,
+)
 
 # Every test loads with the PNFL labels unless it says otherwise.
 load_rules = partial(_load_rules, labels=PNFL_LABELS)
@@ -76,15 +90,49 @@ def find(rules: tuple[SituationRule, ...], **filters: object) -> SituationRule:
     raise KeyError(filters)
 
 
+def min_rule(n: int, *, time: MinutesRemaining | None = None) -> SituationRule:
+    """The rule a section holding only `min_categories = n` (and `time`) gives."""
+    return SituationRule(
+        time=time,
+        down=None,
+        yards=None,
+        fields=None,
+        allowed_categories=None,
+        disallowed_categories=frozenset(),
+        mandatory_alternatives=(),
+        min_categories=n,
+    )
+
+
 # ── normal ────────────────────────────────────────────────────────────────────
 
 
 def test_load_valid_full() -> None:
+    """Every top-level part of the full rule set loads as written."""
     rules = load_rules([DATA / "profile_rules.toml"])
+    ranged = SubstitutionRule(
+        out_percent=PercentBound(maximum=95),
+        in_percent=PercentBound(minimum=96, maximum=100),
+    )
     assert rules.audibles_allowed is False
     assert rules.min_categories == 2
-    assert rules.substitutions["QB"] == exact_substitution(75, 80)
-    assert rules.offense_situations and rules.defense_situations
+    assert rules.require_all_profile_categories_in_gameplan is True
+    assert rules.substitutions == {
+        "QB": exact_substitution(75, 80),
+        "OL": ranged,
+        "RB": ranged,
+        "WR": ranged,
+        "DL": ranged,
+        "LB": ranged,
+        "DB": ranged,
+    }
+    assert rules.offense_allowed_categories == frozenset(range(0x00, 0x10)) - {
+        RAZZLE_DAZZLE_RUN,
+        PASS_LONG_LEFT,
+        PASS_LONG_MIDDLE,
+    }
+    assert rules.defense_allowed_categories == frozenset(range(0x00, 0x10))
+    assert (len(rules.offense_situations), len(rules.defense_situations)) == (15, 4)
 
 
 def test_disallowed_parsed() -> None:
@@ -126,6 +174,86 @@ def test_omitted_buckets_are_none(tmp_path: Path) -> None:
     assert (rule.time, rule.down, rule.yards, rule.fields) == (None, None, None, None)
 
 
+# Every filter value -> the game bucket it selects.
+@pytest.mark.parametrize(
+    ("key", "value", "expected"),
+    [
+        ("time", '">5:00"', MinutesRemaining.OVER_FIVE),
+        ("time", '">2:00-5:00"', MinutesRemaining.TWO_TO_FIVE),
+        ("time", '">1:00-2:00"', MinutesRemaining.ONE_TO_TWO),
+        ("time", '">0:15-1:00"', MinutesRemaining.FIFTEEN_SEC_TO_ONE),
+        ("time", '"0:00-0:15"', MinutesRemaining.ZERO_TO_FIFTEEN_SEC),
+        ("down", '"first"', Down.FIRST),
+        ("down", '"second"', Down.SECOND),
+        ("down", '"third"', Down.THIRD),
+        ("down", '"fourth"', Down.FOURTH),
+        ("yards", '"0-1"', YardsToGo.ZERO_TO_ONE),
+        ("yards", '"2-5"', YardsToGo.TWO_TO_FIVE),
+        ("yards", '"6-10"', YardsToGo.SIX_TO_TEN),
+        ("yards", '">10"', YardsToGo.OVER_TEN),
+        ("fields", '["inside_def_5"]', {FieldPosition.INSIDE_DEF_5}),
+        ("fields", '["def_5_to_def_35"]', {FieldPosition.DEF_5_TO_DEF_35}),
+        ("fields", '["def_35_to_off_35"]', {FieldPosition.DEF_35_TO_OFF_35}),
+        ("fields", '["off_35_to_off_5"]', {FieldPosition.OFF_35_TO_OFF_5}),
+        ("fields", '["inside_off_5"]', {FieldPosition.INSIDE_OFF_5}),
+    ],
+)
+def test_filter_value_selects_its_bucket(
+    tmp_path: Path, key: str, value: str, expected: object
+) -> None:
+    text = MINIMAL + f"[offense.x]\n{key} = {value}\nmin_categories = 2\n"
+    rule = load_rules([write(tmp_path, text)]).offense_situations[0]
+    assert getattr(rule, key) == expected
+
+
+# Every category name a situation rule takes -> its codes; a defense pass name
+# covers all three directions.
+@pytest.mark.parametrize(
+    ("side", "name", "expected"),
+    [
+        ("offense", "GLR", {GOAL_LINE_RUN}),
+        ("offense", "RL", {RUN_LEFT}),
+        ("offense", "RM", {RUN_MIDDLE}),
+        ("offense", "RR", {RUN_RIGHT}),
+        ("offense", "GLP", {GOAL_LINE_PASS}),
+        ("offense", "PRD", {RAZZLE_DAZZLE_PASS}),
+        ("offense", "PLR", {PASS_LONG_RIGHT}),
+        ("offense", "PML", {PASS_MEDIUM_LEFT}),
+        ("offense", "PMM", {PASS_MEDIUM_MIDDLE}),
+        ("offense", "PMR", {PASS_MEDIUM_RIGHT}),
+        ("offense", "PSL", {PASS_SHORT_LEFT}),
+        ("offense", "PSM", {PASS_SHORT_MIDDLE}),
+        ("offense", "PSR", {PASS_SHORT_RIGHT}),
+        ("defense", "GLrun", {GOAL_LINE_RUN}),
+        ("defense", "RunDazzle", {RAZZLE_DAZZLE_RUN}),
+        ("defense", "RunLeft", {RUN_LEFT}),
+        ("defense", "RunMiddle", {RUN_MIDDLE}),
+        ("defense", "RunRight", {RUN_RIGHT}),
+        ("defense", "GLpass", {GOAL_LINE_PASS}),
+        ("defense", "PassDazzle", {RAZZLE_DAZZLE_PASS}),
+        ("defense", "PassLong", PASS_LONG_ANY),
+        ("defense", "PassMedium", PASS_MEDIUM_ANY),
+        ("defense", "PassShort", PASS_SHORT_ANY),
+    ],
+)
+def test_situation_category_name_selects_its_codes(
+    tmp_path: Path, side: str, name: str, expected: set[int]
+) -> None:
+    text = MINIMAL + f'[{side}.x]\nallowed = ["{name}"]\n'
+    rules = load_rules([write(tmp_path, text)])
+    situations = (
+        rules.offense_situations if side == "offense" else rules.defense_situations
+    )
+    assert situations[0].allowed_categories == expected
+
+
+def test_situation_allowed_empty_list_is_an_empty_set(tmp_path: Path) -> None:
+    """`allowed = []` in a section is an empty set, not "no limit"."""
+    text = MINIMAL + "[offense.x]\nallowed = []\n"
+    rules = load_rules([write(tmp_path, text)])
+    assert rules.offense_situations[0].allowed_categories == frozenset()
+
+
 def test_audibles_allowed_defaults_when_omitted(tmp_path: Path) -> None:
     """Omitted `audibles_allowed` defaults to True (no audibles check)."""
     rules = load_rules([write(tmp_path, "min_categories = 2\n")])
@@ -163,6 +291,30 @@ def test_allowed_categories_parse(tmp_path: Path) -> None:
     rules = load_rules([write(tmp_path, text)])
     assert rules.offense_allowed_categories == frozenset({RUN_LEFT, PASS_SHORT_RIGHT})
     assert rules.defense_allowed_categories == PASS_SHORT_ANY
+
+
+@pytest.mark.parametrize(
+    ("side", "name"),
+    [("offense", name) for name in OFFENSE_CODES_BY_NAME]
+    + [("defense", name) for name in DEFENSE_CODES_BY_NAME],
+)
+def test_allowed_list_label_stands_for_its_category_codes(
+    tmp_path: Path, side: str, name: str
+) -> None:
+    """Whatever a league calls a category, its label in the list stands for
+    exactly that category's codes."""
+    if side == "offense":
+        labels = CategoryLabels.from_tables({name: "X"}, {})
+        text = 'allowed_offensive_categories = ["X"]\n'
+    else:
+        labels = CategoryLabels.from_tables({}, {name: "X"})
+        text = 'allowed_defensive_categories = ["X"]\n'
+    rules = _load_rules([write(tmp_path, text)], labels=labels)
+    assert (rules.offense_allowed_categories, rules.defense_allowed_categories) == (
+        (OFFENSE_CODES_BY_NAME[name], frozenset())
+        if side == "offense"
+        else (frozenset(), DEFENSE_CODES_BY_NAME[name])
+    )
 
 
 def test_allowed_categories_omitted_is_empty(tmp_path: Path) -> None:
@@ -274,22 +426,6 @@ def test_layering_omitted_keeps_allowed(tmp_path: Path) -> None:
     )
 
 
-def test_list_scopes_leave_out_special_categories() -> None:
-    """The lists cover every category but the special ones: offense 0x00-0x0F and
-    the randoms 0x17-0x1A, defense 0x00-0x0F."""
-    assert (
-        frozenset(range(0x00, 0x10))
-        | {
-            RUN_RANDOM,
-            PASS_LONG_RANDOM,
-            PASS_MEDIUM_RANDOM,
-            PASS_SHORT_RANDOM,
-        }
-        == OFFENSE_LIST_SCOPE
-    )
-    assert frozenset(range(0x00, 0x10)) == DEFENSE_LIST_SCOPE
-
-
 # ── [gameplan_compatibility] ──────────────────────────────────────────────────
 
 
@@ -380,15 +516,31 @@ def test_layering_overrides_audibles(tmp_path: Path) -> None:
     assert rules == ProfileRules()
 
 
-def test_all_time_buckets_match_distinctly(tmp_path: Path) -> None:
-    """Each of the five time buckets gets its own rule."""
-    buckets = [">5:00", ">2:00-5:00", ">1:00-2:00", ">0:15-1:00", "0:00-0:15"]
-    sections = "".join(
-        f'\n[offense.bucket_{i}]\ntime = "{t}"\nmin_categories = 3\n'
-        for i, t in enumerate(buckets)
+def test_layering_replaces_situation_rule_by_label(tmp_path: Path) -> None:
+    """A later file's section of the same side and name replaces the earlier
+    rule in its place; other names accumulate, and the same name on offense and
+    defense is two rules."""
+    a = tmp_path / "a.toml"
+    a.write_text(
+        "[offense.x]\nmin_categories = 3\n"
+        "[offense.y]\nmin_categories = 4\n"
+        "[defense.x]\nmin_categories = 5\n",
+        encoding="utf-8",
     )
-    rules = load_rules([write(tmp_path, MINIMAL + sections)])
-    assert {r.time for r in rules.offense_situations} == set(MinutesRemaining)
+    b = tmp_path / "b.toml"
+    b.write_text(
+        '[offense.x]\ntime = ">5:00"\nmin_categories = 6\n'
+        "[offense.z]\nmin_categories = 7\n",
+        encoding="utf-8",
+    )
+    assert load_rules([a, b]) == ProfileRules(
+        offense_situations=(
+            min_rule(6, time=MinutesRemaining.OVER_FIVE),
+            min_rule(4),
+            min_rule(7),
+        ),
+        defense_situations=(min_rule(5),),
+    )
 
 
 # ── errors ────────────────────────────────────────────────────────────────────
@@ -397,6 +549,13 @@ def test_all_time_buckets_match_distinctly(tmp_path: Path) -> None:
 def test_empty_paths() -> None:
     with pytest.raises(RulesFileError, match="At least one"):
         load_rules([])
+
+
+def test_missing_file(tmp_path: Path) -> None:
+    missing = tmp_path / "missing.toml"
+    with pytest.raises(RulesFileError) as exc:
+        load_rules([missing])
+    assert str(exc.value) == f"{missing}: The system cannot find the file specified."
 
 
 def test_toml_parse_error(tmp_path: Path) -> None:
@@ -475,6 +634,14 @@ def test_bad_time(tmp_path: Path) -> None:
         load_rules([write(tmp_path, text)])
 
 
+def test_filter_must_be_a_string(tmp_path: Path) -> None:
+    text = MINIMAL + SECTION.replace('">5:00"', "5")
+    with pytest.raises(
+        RulesFileError, match=re.escape("[offense.x].time: Must be a string.")
+    ):
+        load_rules([write(tmp_path, text)])
+
+
 def test_allowed_and_disallowed_exclusive(tmp_path: Path) -> None:
     text = MINIMAL + SECTION + 'allowed = ["RL"]\ndisallowed = ["RM"]\n'
     with pytest.raises(
@@ -490,18 +657,21 @@ def test_unknown_category(tmp_path: Path) -> None:
         load_rules([write(tmp_path, text)])
 
 
+def test_category_entries_must_be_strings(tmp_path: Path) -> None:
+    text = MINIMAL + SECTION + "allowed = [1]\n"
+    with pytest.raises(
+        RulesFileError,
+        match=re.escape("[offense.x].allowed: Entries must be strings (got int)."),
+    ):
+        load_rules([write(tmp_path, text)])
+
+
 def test_mandatory_must_be_list(tmp_path: Path) -> None:
     text = MINIMAL + SECTION + 'mandatory = "RL"\n'
     with pytest.raises(
         RulesFileError, match=r"\[offense\.x\]\.mandatory: Must be a list\."
     ):
         load_rules([write(tmp_path, text)])
-
-
-def test_disallowed_defense_label_covers_each_code(tmp_path: Path) -> None:
-    text = MINIMAL + '[defense.x]\ndisallowed = ["PassShort"]\n'
-    rules = load_rules([write(tmp_path, text)])
-    assert rules.defense_situations[0].disallowed_categories == PASS_SHORT_ANY
 
 
 def test_disallowed_empty_list_forbids_nothing(tmp_path: Path) -> None:
@@ -537,6 +707,33 @@ def test_unknown_field_name(tmp_path: Path) -> None:
     text = MINIMAL + SECTION.replace('"inside_def_5"', '"midfield"')
     with pytest.raises(RulesFileError, match="Unknown value"):
         load_rules([write(tmp_path, text)])
+
+
+def test_field_entries_must_be_strings(tmp_path: Path) -> None:
+    path = write(tmp_path, MINIMAL + SECTION.replace('"inside_def_5"', "[1]"))
+    with pytest.raises(RulesFileError) as exc:
+        load_rules([path])
+    assert exc.value.errors == [f"{path}: [offense.x].fields: Entries must be strings."]
+
+
+@pytest.mark.parametrize("value", ["5", "[1]"])
+def test_side_must_be_a_table(tmp_path: Path, value: str) -> None:
+    """Both sides' problems are collected, not just the first."""
+    path = write(tmp_path, MINIMAL + f"offense = {value}\ndefense = {value}\n")
+    with pytest.raises(RulesFileError) as exc:
+        load_rules([path])
+    assert exc.value.errors == [
+        f"{path}: [offense]: Must be a table.",
+        f"{path}: [defense]: Must be a table.",
+    ]
+
+
+@pytest.mark.parametrize("value", ["5", '"abc"'])
+def test_situation_must_be_a_table(tmp_path: Path, value: str) -> None:
+    path = write(tmp_path, MINIMAL + f"[offense]\nx = {value}\n")
+    with pytest.raises(RulesFileError) as exc:
+        load_rules([path])
+    assert exc.value.errors == [f"{path}: [offense.x]: Must be a table."]
 
 
 # ── substitutions ───────────────────────────────────────────────────────────────
@@ -645,15 +842,13 @@ def test_substitutions_layering_override_and_accumulate(tmp_path: Path) -> None:
     )
 
 
-# Percent limits (min 0, max 100, out == in) accepted for every group.
-@pytest.mark.parametrize("position", ALL_POSITIONS)
+# Percent limits (min 0, max 100, out == in) accepted; every group shares the
+# one parser.
 @pytest.mark.parametrize("out,in_", [(0, 0), (0, 100), (100, 100)])
-def test_substitutions_percent_limits_ok(
-    tmp_path: Path, position: str, out: int, in_: int
-) -> None:
-    text = _subs(f"{position} = {{ out_percent = {out}, in_percent = {in_} }}\n")
+def test_substitutions_percent_limits_ok(tmp_path: Path, out: int, in_: int) -> None:
+    text = _subs(f"QB = {{ out_percent = {out}, in_percent = {in_} }}\n")
     rules = load_rules([write(tmp_path, text)])
-    assert rules.substitutions[position] == exact_substitution(out, in_)
+    assert rules.substitutions["QB"] == exact_substitution(out, in_)
 
 
 # One below 0 / one above 100 rejected for every key; the message names the key.
@@ -696,14 +891,12 @@ def test_substitutions_min_above_max_rejected(tmp_path: Path, side: str) -> None
         load_rules([write(tmp_path, _subs(f"QB = {{ {body} }}\n"))])
 
 
-# Exact out one above exact in rejected for every group (out == in is accepted
-# by test_substitutions_percent_limits_ok).
-@pytest.mark.parametrize("position", ALL_POSITIONS)
-def test_substitutions_out_above_in_rejected(tmp_path: Path, position: str) -> None:
-    text = _subs(f"{position} = {{ out_percent = 81, in_percent = 80 }}\n")
-    msg = (
-        rf"\[substitutions\]\.{re.escape(position)}\.out_percent: "
-        r"Must be <= in_percent \(80\), got 81\."
+# Exact out one above exact in rejected (out == in is accepted by
+# test_substitutions_percent_limits_ok).
+def test_substitutions_out_above_in_rejected(tmp_path: Path) -> None:
+    text = _subs("QB = { out_percent = 81, in_percent = 80 }\n")
+    msg = re.escape(
+        "[substitutions].QB.out_percent: Must be <= in_percent (80), got 81."
     )
     with pytest.raises(RulesFileError, match=msg):
         load_rules([write(tmp_path, text)])

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import replace
 from functools import partial
 from pathlib import Path
@@ -29,14 +30,17 @@ from athc.profile import (
 )
 from athc.profile import load_rules as _load_rules
 from athc.profile.rules import (
+    FAKE_FIELD_GOAL_PASS,
+    FAKE_FIELD_GOAL_RUN,
     FAKE_PUNT_PASS,
+    FAKE_PUNT_RUN,
     FIELD_GOAL_PAT,
-    GOAL_LINE_RUN,
     PASS_LONG_LEFT,
+    PASS_LONG_RANDOM,
     PASS_MEDIUM_LEFT,
+    PASS_MEDIUM_RANDOM,
     PASS_SHORT_LEFT,
     PASS_SHORT_RANDOM,
-    PASS_SHORT_RIGHT,
     PUNT,
     RAZZLE_DAZZLE_PASS,
     RAZZLE_DAZZLE_RUN,
@@ -45,10 +49,6 @@ from athc.profile.rules import (
     RUN_MIDDLE,
     RUN_RANDOM,
     SituationRule,
-)
-from athc.profile.validators import (
-    DEFENSE_EXEMPT_CATEGORIES,
-    OFFENSE_EXEMPT_CATEGORIES,
 )
 from tests.conftest import PNFL_LABELS
 from tests.unit.profile.conftest import (
@@ -62,8 +62,12 @@ load_rules = partial(_load_rules, labels=PNFL_LABELS)
 
 OFF1 = read_profile(str(DATA / "TST-OFF1.prf"))  # offense, audibles off, qb 75/80
 OFF1_AUD = read_profile(str(DATA / "TST-OFF1-AUD.prf"))  # offense, audibles ON
-DEF1 = read_profile(str(DATA / "TST-DEF1.prf"))  # defense
+DEF1 = read_profile(str(DATA / "TST-DEF1.prf"))  # defense, DL/LB/DB 96/98
 FULL = load_rules([DATA / "profile_rules.toml"])
+
+ALL_SITUATIONS = range(1, Profile.NUMBER_SITUATIONS + 1)
+# The first 504 slots are the >5:00 bucket (prf.md 2.3.4).
+OVER_FIVE_SITUATIONS = range(1, 505)
 
 
 def make_rules(**over: object) -> ProfileRules:
@@ -108,8 +112,8 @@ def names(profile: Profile, rules: ProfileRules) -> set[RuleName]:
 
 
 def test_audibles_fires() -> None:
-    assert RuleName.AUDIBLES_UNCHECKED in names(
-        OFF1_AUD, make_rules(audibles_allowed=False)
+    assert validate_profile(OFF1_AUD, make_rules(audibles_allowed=False)) == (
+        RuleViolation(RuleName.AUDIBLES_UNCHECKED, "Audibles must be unchecked."),
     )
 
 
@@ -216,11 +220,10 @@ def test_substitution_exact_matched_side_is_silent() -> None:
 @pytest.mark.parametrize(
     "actual,expected",
     [
-        (65, ["Quarterbacks out_percent must be >= 70, got 65."]),
+        (69, ["Quarterbacks out_percent must be >= 70, got 69."]),
         (70, []),  # at min
-        (75, []),
         (80, []),  # at max
-        (85, ["Quarterbacks out_percent must be <= 80, got 85."]),
+        (81, ["Quarterbacks out_percent must be <= 80, got 81."]),
     ],
 )
 def test_substitution_range_bounds_inclusive(actual: int, expected: list[str]) -> None:
@@ -240,7 +243,7 @@ def test_substitution_min_only() -> None:
     assert _sub_messages(_qb_profile(80, 84), rules) == [
         "Quarterbacks in_percent must be >= 85, got 84."
     ]
-    assert _sub_messages(_qb_profile(80, 100), rules) == []
+    assert _sub_messages(_qb_profile(80, 85), rules) == []
 
 
 def test_substitution_max_only() -> None:
@@ -311,48 +314,125 @@ def test_no_substitutions_no_violation() -> None:
 # ── min categories ────────────────────────────────────────────────────────────
 
 
-def _min_category_count(rules: ProfileRules) -> int:
-    return sum(
-        1
-        for v in validate_profile(OFF1, rules)
-        if v.rule_name == RuleName.OFFENSE_MIN_CATEGORIES
+_TWO_CATEGORIES = weights(RUN_MIDDLE, 4, PASS_SHORT_LEFT, 3, 0, 0)
+
+
+def _min_violations(profile: Profile, rules: ProfileRules) -> list[RuleViolation]:
+    return [
+        v
+        for v in validate_profile(profile, rules)
+        if v.rule_name
+        in (RuleName.OFFENSE_MIN_CATEGORIES, RuleName.DEFENSE_MIN_CATEGORIES)
+    ]
+
+
+def _too_few(
+    numbers: Iterable[int],
+    used: int,
+    required: int,
+    rule_name: RuleName = RuleName.OFFENSE_MIN_CATEGORIES,
+) -> list[RuleViolation]:
+    """The min-categories violation each situation in `numbers` gets."""
+    return [
+        RuleViolation(
+            rule_name,
+            f"Situation {n} has {used} category(ies) with non-zero weight; "
+            f"requires {required}.",
+            situation_number=n,
+        )
+        for n in numbers
+    ]
+
+
+@pytest.mark.parametrize(("minimum", "flagged"), [(2, False), (3, True)])
+def test_min_categories_at_the_limit_and_one_past(minimum: int, flagged: bool) -> None:
+    """A situation with exactly the minimum passes; one short is flagged."""
+    profile = make_profile(category_weights=_TWO_CATEGORIES)
+    expected = _too_few(ALL_SITUATIONS, 2, minimum) if flagged else []
+    assert _min_violations(profile, make_rules(min_categories=minimum)) == expected
+
+
+@pytest.mark.parametrize(("weight", "flagged"), [(0, True), (1, False)])
+def test_weight_one_counts_a_category_and_weight_zero_does_not(
+    weight: int, flagged: bool
+) -> None:
+    profile = make_profile(
+        category_weights=weights(RUN_MIDDLE, 4, PASS_SHORT_LEFT, weight, 0, 0)
     )
+    expected = _too_few(ALL_SITUATIONS, 1, 2) if flagged else []
+    assert _min_violations(profile, make_rules(min_categories=2)) == expected
 
 
-def test_min_categories_scales_with_threshold() -> None:
-    strict = _min_category_count(make_rules(min_categories=3))
-    lax = _min_category_count(make_rules(min_categories=1))
-    assert strict > lax  # a higher minimum flags more situations
-
-
-def test_min_categories_rule_raises_baseline() -> None:
-    """A matching rule's min_categories overrides the lower baseline."""
+@pytest.mark.parametrize("baseline", [0, 2])
+def test_rule_min_categories_raises_the_baseline_where_it_matches(
+    baseline: int,
+) -> None:
+    """A matching rule's higher minimum applies in its bucket only, with or
+    without a baseline; elsewhere the baseline holds."""
     raised = rule(time=MinutesRemaining.OVER_FIVE, min_categories=3)
-    n_baseline = _min_category_count(make_rules(min_categories=1))
-    n_raised = _min_category_count(
-        make_rules(min_categories=1, offense_situations=(raised,))
+    rules = make_rules(min_categories=baseline, offense_situations=(raised,))
+    profile = make_profile(category_weights=_TWO_CATEGORIES)
+    assert _min_violations(profile, rules) == _too_few(OVER_FIVE_SITUATIONS, 2, 3)
+
+
+def test_min_categories_baseline_wins_over_lower_rule() -> None:
+    """A matching rule's lower min_categories does not drop the baseline."""
+    low = rule(time=MinutesRemaining.OVER_FIVE, min_categories=2)
+    rules = make_rules(min_categories=3, offense_situations=(low,))
+    profile = make_profile(category_weights=_TWO_CATEGORIES)
+    assert _min_violations(profile, rules) == _too_few(ALL_SITUATIONS, 2, 3)
+
+
+def test_min_categories_strictest_matching_rule_wins() -> None:
+    """Of several matching rules the highest minimum applies; it is neither the
+    first nor the last here."""
+    rules = make_rules(
+        offense_situations=(
+            rule(min_categories=2),
+            rule(min_categories=4),
+            rule(min_categories=3),
+        )
     )
-    assert n_raised > n_baseline  # the >5:00 rule lifts those situations to 3
+    assert _min_violations(make_profile(), rules) == _too_few(ALL_SITUATIONS, 3, 4)
 
 
-def test_exempt_sets_are_built_in() -> None:
-    """The exemption is hardcoded, not rules-driven: kick/punt (+ run-clock on
-    offense); fakes are never exempt."""
-    assert OFFENSE_EXEMPT_CATEGORIES == frozenset({FIELD_GOAL_PAT, PUNT, RUN_CLOCK})
-    assert DEFENSE_EXEMPT_CATEGORIES == frozenset({FIELD_GOAL_PAT, PUNT})
-
-
-def test_min_categories_waived_when_all_exempt() -> None:
-    """A situation using only exempt categories is never flagged, even at a high
-    minimum; a lone non-exempt category is."""
-    fg_only = make_profile(category_weights=weights(FIELD_GOAL_PAT, 10, 0, 0, 0, 0))
-    run_only = make_profile(category_weights=weights(RUN_MIDDLE, 4, 0, 0, 0, 0))
-    assert RuleName.OFFENSE_MIN_CATEGORIES not in names(
-        fg_only, make_rules(min_categories=3)
+# Each code alone at a minimum of 3: only kick and punt (plus run clock on
+# offense) are waived; the fakes and the randoms are not.
+@pytest.mark.parametrize(
+    ("ptype", "code", "waived"),
+    [
+        (ProfileType.OFFENSE, RUN_MIDDLE, False),
+        (ProfileType.OFFENSE, FIELD_GOAL_PAT, True),
+        (ProfileType.OFFENSE, FAKE_FIELD_GOAL_RUN, False),
+        (ProfileType.OFFENSE, FAKE_FIELD_GOAL_PASS, False),
+        (ProfileType.OFFENSE, PUNT, True),
+        (ProfileType.OFFENSE, FAKE_PUNT_RUN, False),
+        (ProfileType.OFFENSE, FAKE_PUNT_PASS, False),
+        (ProfileType.OFFENSE, RUN_CLOCK, True),
+        (ProfileType.OFFENSE, RUN_RANDOM, False),
+        (ProfileType.OFFENSE, PASS_LONG_RANDOM, False),
+        (ProfileType.OFFENSE, PASS_MEDIUM_RANDOM, False),
+        (ProfileType.OFFENSE, PASS_SHORT_RANDOM, False),
+        (ProfileType.DEFENSE, RUN_MIDDLE, False),
+        (ProfileType.DEFENSE, FIELD_GOAL_PAT, True),
+        (ProfileType.DEFENSE, FAKE_FIELD_GOAL_RUN, False),
+        (ProfileType.DEFENSE, FAKE_FIELD_GOAL_PASS, False),
+        (ProfileType.DEFENSE, PUNT, True),
+        (ProfileType.DEFENSE, FAKE_PUNT_RUN, False),
+        (ProfileType.DEFENSE, FAKE_PUNT_PASS, False),
+    ],
+)
+def test_min_categories_waived_only_for_exempt_categories(
+    ptype: ProfileType, code: int, waived: bool
+) -> None:
+    profile = make_profile(ptype, category_weights=weights(code, 4, 0, 0, 0, 0))
+    rule_name = (
+        RuleName.OFFENSE_MIN_CATEGORIES
+        if ptype == ProfileType.OFFENSE
+        else RuleName.DEFENSE_MIN_CATEGORIES
     )
-    assert RuleName.OFFENSE_MIN_CATEGORIES in names(
-        run_only, make_rules(min_categories=3)
-    )
+    expected = [] if waived else _too_few(ALL_SITUATIONS, 1, 3, rule_name)
+    assert _min_violations(profile, make_rules(min_categories=3)) == expected
 
 
 def test_exempt_combination_waived() -> None:
@@ -378,34 +458,6 @@ def test_exempt_plus_non_exempt_obeys_minimum() -> None:
     )
 
 
-def test_fakes_are_not_exempt() -> None:
-    """A situation using only a fake (here Fake Punt Pass) still obeys the minimum."""
-    fake_only = make_profile(category_weights=weights(FAKE_PUNT_PASS, 4, 0, 0, 0, 0))
-    assert RuleName.OFFENSE_MIN_CATEGORIES in names(
-        fake_only, make_rules(min_categories=2)
-    )
-
-
-def test_defense_min_categories_waived_when_all_exempt() -> None:
-    """Defense exempts only kick/punt; a defense situation using only kick is waived."""
-    fg_only = make_profile(
-        ProfileType.DEFENSE, category_weights=weights(FIELD_GOAL_PAT, 10, 0, 0, 0, 0)
-    )
-    assert RuleName.DEFENSE_MIN_CATEGORIES not in names(
-        fg_only, make_rules(min_categories=2)
-    )
-
-
-def test_min_categories_baseline_wins_over_lower_rule() -> None:
-    """A matching rule's lower min_categories does not drop the baseline."""
-    low = rule(time=MinutesRemaining.OVER_FIVE, min_categories=2)
-    n_baseline = _min_category_count(make_rules(min_categories=3))
-    n_with_low = _min_category_count(
-        make_rules(min_categories=3, offense_situations=(low,))
-    )
-    assert n_with_low == n_baseline  # baseline 3 still applies; the 2 is ignored
-
-
 def test_min_categories_not_waived_with_non_exempt_category() -> None:
     """Waiver needs every used category exempt; one real category re-arms the min."""
     mixed = make_profile(
@@ -426,20 +478,6 @@ def test_no_minimum_passes_single_category() -> None:
     assert RuleName.OFFENSE_MIN_CATEGORIES not in names(
         single, make_rules(min_categories=0)
     )
-
-
-def test_rule_minimum_applies_without_baseline() -> None:
-    """A rule's min_categories applies even when the baseline is 0."""
-    single = make_profile(category_weights=weights(RUN_MIDDLE, 4, 0, 0, 0, 0))
-    raised = rule(time=MinutesRemaining.OVER_FIVE, min_categories=2)
-    rules = make_rules(min_categories=0, offense_situations=(raised,))
-    flagged = {
-        v.situation_number
-        for v in validate_profile(single, rules)
-        if v.rule_name == RuleName.OFFENSE_MIN_CATEGORIES
-    }
-    assert 1 in flagged  # OVER_FIVE situation lifted to 2 by the rule
-    assert 515 not in flagged  # TWO_TO_FIVE — no rule, no baseline
 
 
 # ── matrix rules across time buckets ──────────────────────────────────────────
@@ -512,6 +550,46 @@ def test_multiple_mandatory_categories_each_required() -> None:
     ]
 
 
+def test_mandatory_category_of_two_matching_rules_reported_once() -> None:
+    needs_run_left = (frozenset({RUN_LEFT}),)
+    rules = make_rules(
+        offense_situations=(
+            rule(mandatory=needs_run_left),
+            rule(mandatory=needs_run_left),
+        )
+    )
+    assert validate_profile(make_profile(), rules) == tuple(
+        RuleViolation(
+            RuleName.OFFENSE_MANDATORY_CATEGORY,
+            f"Situation {n} is missing a mandatory category (one of: 0x02)",
+            situation_number=n,
+        )
+        for n in ALL_SITUATIONS
+    )
+
+
+# ── allowed categories ────────────────────────────────────────────────────────
+
+
+def test_two_matching_rules_allowed_intersect() -> None:
+    """Each matching rule's `allowed` narrows the others: RM+PSL and RM+PML
+    leave only RM, so the baseline's PSL (0x0D) and PML (0x0A) are flagged."""
+    rules = make_rules(
+        offense_situations=(
+            rule(allowed=frozenset({RUN_MIDDLE, PASS_SHORT_LEFT})),
+            rule(allowed=frozenset({RUN_MIDDLE, PASS_MEDIUM_LEFT})),
+        )
+    )
+    assert validate_profile(make_profile(), rules) == tuple(
+        RuleViolation(
+            RuleName.OFFENSE_ALLOWED_CATEGORIES,
+            f"Situation {n} uses disallowed categories: 0x0A, 0x0D",
+            situation_number=n,
+        )
+        for n in ALL_SITUATIONS
+    )
+
+
 # ── disallowed categories ─────────────────────────────────────────────────────
 
 
@@ -553,36 +631,40 @@ def test_empty_allowed_list_enforces_nothing(ptype: ProfileType) -> None:
     assert _banned_messages(profile, make_rules()) == []
 
 
-# The lists' scope edges: special categories (offense 0x10-0x16, defense 0x10-0x15)
-# are never limited; the randoms (0x17-0x1A) are, having no league label.
+# Every code of each side against a list naming only RUN_MIDDLE. The lists
+# limit offense 0x00-0x0F and the randoms 0x17-0x1A (no league label), and
+# defense 0x00-0x0F; the special categories (offense 0x10-0x16, defense
+# 0x10-0x15) are never limited.
+_OFFENSE_LIMITED = frozenset(range(0x00, 0x10)) | frozenset(range(0x17, 0x1B))
+_DEFENSE_LIMITED = frozenset(range(0x00, 0x10))
+
+
 @pytest.mark.parametrize(
-    "ptype,code,banned",
-    [
-        (ProfileType.OFFENSE, GOAL_LINE_RUN, True),  # 0x00
-        (ProfileType.OFFENSE, PASS_SHORT_RIGHT, True),  # 0x0F
-        (ProfileType.OFFENSE, FIELD_GOAL_PAT, False),  # 0x10
-        (ProfileType.OFFENSE, RUN_CLOCK, False),  # 0x16
-        (ProfileType.OFFENSE, RUN_RANDOM, True),  # 0x17
-        (ProfileType.OFFENSE, PASS_SHORT_RANDOM, True),  # 0x1A
-        (ProfileType.DEFENSE, GOAL_LINE_RUN, True),  # 0x00
-        (ProfileType.DEFENSE, PASS_SHORT_RIGHT, True),  # 0x0F
-        (ProfileType.DEFENSE, FIELD_GOAL_PAT, False),  # 0x10
-    ],
+    ("ptype", "code"),
+    [(ProfileType.OFFENSE, code) for code in range(0x00, 0x1B)]
+    + [(ProfileType.DEFENSE, code) for code in range(0x00, 0x16)],
 )
-def test_allowed_list_scope_edges(ptype: ProfileType, code: int, banned: bool) -> None:
-    """A non-empty list naming none of the edge codes (only RUN_MIDDLE)."""
-    profile = make_profile(
-        ptype, category_weights=weights(code, 4, RUN_MIDDLE, 3, 0, 0)
-    )
+def test_allowed_list_scope(ptype: ProfileType, code: int) -> None:
+    profile = make_profile(ptype, category_weights=weights(code, 4, 0, 0, 0, 0))
     listed = frozenset({RUN_MIDDLE})
     rules = make_rules(
         offense_allowed_categories=listed, defense_allowed_categories=listed
     )
-    expected = [
-        f"Situation {n} uses banned categories: 0x{code:02X}"
-        for n in range(1, Profile.NUMBER_SITUATIONS + 1)
-    ]
-    assert _banned_messages(profile, rules) == (expected if banned else [])
+    if ptype == ProfileType.OFFENSE:
+        limited, rule_name = _OFFENSE_LIMITED, RuleName.OFFENSE_DISALLOWED_CATEGORY
+    else:
+        limited, rule_name = _DEFENSE_LIMITED, RuleName.DEFENSE_DISALLOWED_CATEGORY
+    banned = code in limited - listed
+    expected = tuple(
+        RuleViolation(
+            rule_name,
+            f"Situation {n} uses banned categories: 0x{code:02X}",
+            situation_number=n,
+        )
+        for n in ALL_SITUATIONS
+        if banned
+    )
+    assert validate_profile(profile, rules) == expected
 
 
 def test_rule_disallowed_fires_only_where_the_rule_matches() -> None:
@@ -654,50 +736,83 @@ def test_two_matching_rules_disallowed_union() -> None:
     ]
 
 
-def test_all_issues_reported_including_disallowed() -> None:
-    """One validate_profile reports every distinct issue, not just the first.
+@pytest.mark.parametrize(
+    ("ptype", "expected"),
+    [
+        (
+            ProfileType.OFFENSE,
+            {
+                RuleName.OFFENSE_DISALLOWED_CATEGORY,
+                RuleName.OFFENSE_ALLOWED_CATEGORIES,
+                RuleName.OFFENSE_MANDATORY_CATEGORY,
+                RuleName.OFFENSE_MIN_CATEGORIES,
+            },
+        ),
+        (
+            ProfileType.DEFENSE,
+            {
+                RuleName.DEFENSE_DISALLOWED_CATEGORY,
+                RuleName.DEFENSE_ALLOWED_CATEGORIES,
+                RuleName.DEFENSE_MANDATORY_CATEGORY,
+                RuleName.DEFENSE_MIN_CATEGORIES,
+            },
+        ),
+    ],
+)
+def test_all_issues_reported_under_the_profiles_side(
+    ptype: ProfileType, expected: set[RuleName]
+) -> None:
+    """One validate_profile reports every distinct issue, not just the first,
+    each under the profile's side.
 
-    The baseline profile (RUN_MIDDLE + two passes) is made to trip three rules at
-    once: a category the allowed list leaves out, a too-restrictive allowed set,
-    and the minimum.
+    The baseline profile (RUN_MIDDLE + two passes) trips all four at once: a
+    category the allowed list leaves out, a too-restrictive allowed set, a
+    missing mandatory category and the minimum.
     """
+    listed = frozenset({PASS_SHORT_LEFT, PASS_MEDIUM_LEFT})
+    r = rule(allowed=frozenset({RUN_LEFT}), mandatory=(frozenset({RUN_LEFT}),))
     rules = make_rules(
         min_categories=5,
-        offense_allowed_categories=frozenset({PASS_SHORT_LEFT, PASS_MEDIUM_LEFT}),
-        offense_situations=(rule(allowed=frozenset({RUN_LEFT})),),
+        offense_allowed_categories=listed,
+        defense_allowed_categories=listed,
+        offense_situations=(r,),
+        defense_situations=(r,),
     )
-    kinds = {v.rule_name for v in validate_profile(make_profile(), rules)}
-    assert {
-        RuleName.OFFENSE_DISALLOWED_CATEGORY,
-        RuleName.OFFENSE_ALLOWED_CATEGORIES,
-        RuleName.OFFENSE_MIN_CATEGORIES,
-    } <= kinds
+    assert names(make_profile(ptype), rules) == expected
 
 
 # ── full rule set on real profiles ────────────────────────────────────────────
 
 
 def test_offense_full_rules() -> None:
-    violations = validate_profile(OFF1, FULL)
-    assert len(violations) == 18
-    pairs = {(v.situation_number, v.rule_name) for v in violations}
-    assert (1, RuleName.OFFENSE_ALLOWED_CATEGORIES) in pairs
-    assert (300, RuleName.OFFENSE_MANDATORY_CATEGORY) in pairs
-    assert (43, RuleName.OFFENSE_MIN_CATEGORIES) in pairs
+    allowed = RuleName.OFFENSE_ALLOWED_CATEGORIES
+    mandatory = RuleName.OFFENSE_MANDATORY_CATEGORY
+    minimum = RuleName.OFFENSE_MIN_CATEGORIES
+    assert [
+        (v.situation_number, v.rule_name) for v in validate_profile(OFF1, FULL)
+    ] == [
+        (1, allowed),
+        (37, allowed),
+        (43, minimum),
+        (162, allowed),
+        (164, allowed),
+        (204, allowed),
+        *((n, mandatory) for n in (300, 301, 303, 305, 306, 309, 313, 314, 315)),
+        (327, mandatory),
+        (342, mandatory),
+        (414, minimum),
+    ]
 
 
 def test_defense_full_rules() -> None:
+    """DL, LB and DB sub out at 96, past the rules' maximum of 95."""
     violations = validate_profile(DEF1, FULL)
-    assert len(violations) == 7
-    assert all(v.rule_name == RuleName.DEFENSE_MIN_CATEGORIES for v in violations)
-
-
-def test_a_rule_violation_is_a_named_tuple() -> None:
-    violation = RuleViolation(RuleName.SUBSTITUTION, "Too many.")
-    assert violation == (RuleName.SUBSTITUTION, "Too many.", None)
-    rule_name, message, situation_number = violation
-    assert (rule_name, message, situation_number) == (
-        RuleName.SUBSTITUTION,
-        "Too many.",
-        None,
-    )
+    assert [v.message for v in violations[:3]] == [
+        "Defensive linemen out_percent must be <= 95, got 96.",
+        "Linebackers out_percent must be <= 95, got 96.",
+        "Defensive backs out_percent must be <= 95, got 96.",
+    ]
+    assert [(v.situation_number, v.rule_name) for v in violations] == [
+        *((None, RuleName.SUBSTITUTION) for _ in range(3)),
+        *((n, RuleName.DEFENSE_MIN_CATEGORIES) for n in range(246, 253)),
+    ]

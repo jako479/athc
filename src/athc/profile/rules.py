@@ -341,8 +341,10 @@ def load_rules(paths: Iterable[Path | str], *, labels: CategoryLabels) -> Profil
     """Load one or more TOML rules files and merge into a `ProfileRules`.
     `labels` are the league's category labels.
 
-    Files are merged in order. Top-level scalars and section tables are
-    overwritten by later files; per-situation rules are replaced by section label.
+    Files are merged in order. Top-level scalars, lists and
+    `[gameplan_compatibility]` flags are overwritten by later files;
+    `[substitutions]` merges per position group (a later file's same position
+    replaces it); per-situation rules are replaced by section label.
     """
     path_list = [Path(p) for p in paths]
     if not path_list:
@@ -446,7 +448,7 @@ def _merge_file(
         if ok:
             merged.defense_allowed = val
 
-    for label, section in data.get("offense", {}).items():
+    for label, section in _side_sections(data, "offense", errors, source).items():
         val, ok = _attempt(
             errors,
             lambda label=label, section=section: _build_situation_rule(
@@ -455,7 +457,7 @@ def _merge_file(
         )
         if ok:
             merged.offense_rules[label] = val
-    for label, section in data.get("defense", {}).items():
+    for label, section in _side_sections(data, "defense", errors, source).items():
         val, ok = _attempt(
             errors,
             lambda label=label, section=section: _build_situation_rule(
@@ -464,6 +466,35 @@ def _merge_file(
         )
         if ok:
             merged.defense_rules[label] = val
+
+
+def _side_sections(
+    data: Mapping[str, Any], side: str, errors: list[str], source: Path
+) -> dict[str, Mapping[str, Any]]:
+    """The `[<side>.<label>]` tables of one document, label -> table. A `<side>`
+    value or a section that is not a table is collected in `errors` and left out."""
+    table, ok = _attempt(
+        errors, lambda: _require_table(data.get(side, {}), source, f"[{side}]")
+    )
+    if not ok:
+        return {}
+    out: dict[str, Mapping[str, Any]] = {}
+    for label, section in table.items():
+        value, ok = _attempt(
+            errors,
+            lambda label=label, section=section: _require_table(
+                section, source, f"[{side}.{label}]"
+            ),
+        )
+        if ok:
+            out[label] = value
+    return out
+
+
+def _require_table(value: object, source: Path, where: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise RulesFileError(f"{where}: Must be a table.", source)
+    return value
 
 
 def _build_situation_rule(
@@ -760,6 +791,8 @@ def _optional_fields(
     fields = section["fields"]
     if not isinstance(fields, list) or not fields:
         raise RulesFileError(f"{where}.fields: Must be a non-empty list.", source)
+    if not all(isinstance(f, str) for f in fields):
+        raise RulesFileError(f"{where}.fields: Entries must be strings.", source)
     return frozenset(
         _lookup(_FIELD_BY_NAME, f, source, f"{where}.fields") for f in fields
     )

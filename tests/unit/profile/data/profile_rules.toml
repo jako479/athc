@@ -3,8 +3,28 @@
 audibles_allowed = false
 min_categories = 2
 
+allowed_offensive_categories = [
+    "GLR", "RL", "RM", "RR",
+    "GLP", "PRD", "PLR",
+    "PML", "PMM", "PMR",
+    "PSL", "PSM", "PSR",
+]
+allowed_defensive_categories = [
+    "GLrun", "RunDazzle", "RunLeft", "RunMiddle", "RunRight",
+    "GLpass", "PassDazzle", "PassLong", "PassMedium", "PassShort",
+]
+
+[gameplan_compatibility]
+require_all_profile_categories_in_gameplan = true
+
 [substitutions]
 QB = { out_percent = 75, in_percent = 80 }
+OL = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }
+RB = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }
+WR = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }
+DL = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }
+LB = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }
+DB = { max_out_percent = 95, min_in_percent = 96, max_in_percent = 100 }
 
 # Min rises to 3 above 5:00, except backed up to a team's own goal line.
 [offense.min_categories_three]

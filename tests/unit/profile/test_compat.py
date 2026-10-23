@@ -5,13 +5,13 @@ which categories are used and which custom plays exist.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
+import pytest
+
 from athc.fbpro98_gameplan import CustomPlayRef, GamePlan, SpecialSlot, StockPlayRef
 from athc.fbpro98_gameplan import ProfileType as GamePlanType
-from athc.fbpro98_play import (
-    DefensiveCategory,
-    OffensiveCategory,
-    resolve_category,
-)
+from athc.fbpro98_play import DefensiveCategory, OffensiveCategory
 from athc.fbpro98_profile import (
     CategoryWeights,
     PatSituation,
@@ -21,36 +21,40 @@ from athc.fbpro98_profile import (
     SubstitutionSettings,
 )
 from athc.profile import (
+    CompatIssue,
     CompatKind,
     check_gameplan_compatibility,
     gameplan_extra_categories,
 )
-from athc.profile.compat import (
-    _DEFENSE_NORMAL_CODES,
-    _OFFENSE_NORMAL_CODES,
-    _SPECIAL_SLOT_BY_CODE,
-)
 from athc.profile.rules import (
+    FAKE_FIELD_GOAL_PASS,
     FAKE_FIELD_GOAL_RUN,
+    FAKE_PUNT_PASS,
+    FAKE_PUNT_RUN,
     FIELD_GOAL_PAT,
     GOAL_LINE_PASS,
     GOAL_LINE_RUN,
     PASS_LONG_LEFT,
+    PASS_LONG_RIGHT,
     PASS_SHORT_RANDOM,
     PUNT,
     RUN_CLOCK,
     RUN_MIDDLE,
 )
+from tests.unit.profile.conftest import (
+    DEFENSE_CODES_BY_NAME,
+    OFFENSE_CODES_BY_NAME,
+    weights,
+)
 
 # user_category bytes (.ply game-category) for the gameplan custom plays we build.
 OFF_RUN_MIDDLE = 0x09
 OFF_GOAL_LINE_RUN = 0x31
+DEF_RUN_MIDDLE = 0x08
 DEF_PASS_LONG = 0x22  # collapses long left/middle/right
 DEF_GOAL_LINE_PASS = 0x32
 
-
-def weights(c1: int, w1: int, c2: int, w2: int, c3: int, w3: int) -> CategoryWeights:
-    return CategoryWeights(c1, w1, c2, w2, c3, w3)
+NORMAL_CODES = frozenset(range(0x00, 0x10))
 
 
 def make_profile(
@@ -68,6 +72,30 @@ def make_profile(
         ),
         pat_situations=tuple(
             PatSituation(category_weights=pat)
+            for _ in range(Profile.NUMBER_PAT_SITUATIONS)
+        ),
+        field_goal_range=20,
+        use_audibles=False,
+    )
+
+
+def profile_using(codes: Iterable[int], *, offense: bool) -> Profile:
+    """Profile whose situations take `codes` in turn, one each at weight 1, so
+    the used-category set is exactly `codes`."""
+    cycle = sorted(codes)
+    first = weights(cycle[0], 1, 0, 0, 0, 0)
+    return Profile(
+        profile_type=ProfileType.OFFENSE if offense else ProfileType.DEFENSE,
+        substitutions=SubstitutionSettings.default(),
+        situations=tuple(
+            Situation(
+                stop_clock=False,
+                category_weights=weights(cycle[i % len(cycle)], 1, 0, 0, 0, 0),
+            )
+            for i in range(Profile.NUMBER_SITUATIONS)
+        ),
+        pat_situations=tuple(
+            PatSituation(category_weights=first)
             for _ in range(Profile.NUMBER_PAT_SITUATIONS)
         ),
         field_goal_range=20,
@@ -106,17 +134,34 @@ def make_gameplan(
     )
 
 
-# ── normal categories (offense) ────────────────────────────────────────────────
+# ── normal categories ──────────────────────────────────────────────────────────
 
 
-def test_offense_normal_covered() -> None:
-    prof = make_profile(
-        offense=True,
-        sit=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
-        pat=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
-    )
-    gp = make_gameplan(offense=True, normal=(OFF_RUN_MIDDLE,))
-    assert check_gameplan_compatibility(prof, gp) == ()
+@pytest.mark.parametrize(
+    ("offense", "category"),
+    [
+        pytest.param(True, c, id=f"offense-{c.long}")
+        for c in OffensiveCategory
+        if c is not OffensiveCategory.USER_SPECIFIC
+    ]
+    + [
+        pytest.param(False, c, id=f"defense-{c.long}")
+        for c in DefensiveCategory
+        if c is not DefensiveCategory.USER_SPECIFIC
+    ],
+)
+def test_custom_play_backs_exactly_its_categorys_codes(
+    offense: bool, category: OffensiveCategory | DefensiveCategory
+) -> None:
+    """A custom play of each game category backs that category's codes and no
+    other: a profile using every normal code is missing all the rest."""
+    backed = (OFFENSE_CODES_BY_NAME if offense else DEFENSE_CODES_BY_NAME)[
+        category.long
+    ]
+    prof = profile_using(NORMAL_CODES, offense=offense)
+    gp = make_gameplan(offense=offense, normal=(category.code,))
+    issues = check_gameplan_compatibility(prof, gp)
+    assert [i.category_code for i in issues] == sorted(NORMAL_CODES - backed)
 
 
 def test_offense_normal_missing() -> None:
@@ -126,37 +171,50 @@ def test_offense_normal_missing() -> None:
         pat=weights(GOAL_LINE_RUN, 4, GOAL_LINE_RUN, 0, GOAL_LINE_RUN, 0),
     )
     gp = make_gameplan(offense=True, normal=(OFF_RUN_MIDDLE,))
-    issues = check_gameplan_compatibility(prof, gp)
-    assert len(issues) == 1
-    assert issues[0].kind == CompatKind.MISSING_NORMAL_CATEGORY
-    assert issues[0].category_code == GOAL_LINE_RUN
-    assert "GLR" in issues[0].message
+    assert check_gameplan_compatibility(prof, gp) == (
+        CompatIssue(
+            CompatKind.MISSING_NORMAL_CATEGORY,
+            GOAL_LINE_RUN,
+            "play category GLR (0x00) has no custom play in the game plan",
+        ),
+    )
 
 
-# ── special categories (offense) ───────────────────────────────────────────────
+# ── special categories ─────────────────────────────────────────────────────────
 
 
-def test_offense_special_covered() -> None:
+@pytest.mark.parametrize(
+    ("code", "slot", "name"),
+    [
+        (FIELD_GOAL_PAT, 1, "Field Goal/PAT"),
+        (PUNT, 3, "Punt"),
+        (FAKE_FIELD_GOAL_RUN, 5, "Fake FG Run"),
+        (FAKE_FIELD_GOAL_PASS, 6, "Fake FG Pass"),
+        (FAKE_PUNT_RUN, 7, "Fake Punt Run"),
+        (FAKE_PUNT_PASS, 8, "Fake Punt Pass"),
+    ],
+)
+def test_special_category_needs_a_custom_play_in_its_slot(
+    code: int, slot: int, name: str
+) -> None:
+    """Each special code is backed by its own slot alone: that slot's custom
+    play covers it, and custom plays in every other slot do not."""
     prof = make_profile(
         offense=True,
-        sit=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
-        pat=weights(FIELD_GOAL_PAT, 10, FIELD_GOAL_PAT, 0, FIELD_GOAL_PAT, 0),
+        sit=weights(code, 4, code, 0, code, 0),
+        pat=weights(code, 4, code, 0, code, 0),
     )
-    gp = make_gameplan(offense=True, normal=(OFF_RUN_MIDDLE,), special=(1,))
-    assert check_gameplan_compatibility(prof, gp) == ()
-
-
-def test_offense_special_missing() -> None:
-    prof = make_profile(
-        offense=True,
-        sit=weights(PUNT, 4, RUN_MIDDLE, 6, RUN_MIDDLE, 0),
-        pat=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
+    others = tuple(s for s in range(1, 11) if s != slot)
+    covered = make_gameplan(offense=True, special=(slot,))
+    uncovered = make_gameplan(offense=True, special=others)
+    assert check_gameplan_compatibility(prof, covered) == ()
+    assert check_gameplan_compatibility(prof, uncovered) == (
+        CompatIssue(
+            CompatKind.MISSING_SPECIAL_CATEGORY,
+            code,
+            f"special category {name} has no custom special play in the game plan",
+        ),
     )
-    gp = make_gameplan(offense=True, normal=(OFF_RUN_MIDDLE,))  # no special slot 3
-    issues = check_gameplan_compatibility(prof, gp)
-    assert [i.category_code for i in issues] == [PUNT]
-    assert issues[0].kind == CompatKind.MISSING_SPECIAL_CATEGORY
-    assert "Punt" in issues[0].message
 
 
 def test_special_stock_only_is_not_enough() -> None:
@@ -174,15 +232,24 @@ def test_special_stock_only_is_not_enough() -> None:
 # ── defense ────────────────────────────────────────────────────────────────────
 
 
-def test_defense_pass_direction_collapses() -> None:
-    """A defense 'Pass Long' custom play covers any directional long-pass code."""
+def test_defense_each_unbacked_direction_is_its_own_issue() -> None:
+    """With no Pass Long play, each long-pass direction the profile uses is
+    reported, by its own code."""
     prof = make_profile(
         offense=False,
-        sit=weights(PASS_LONG_LEFT, 4, PASS_LONG_LEFT, 0, PASS_LONG_LEFT, 0),
-        pat=weights(PASS_LONG_LEFT, 4, PASS_LONG_LEFT, 0, PASS_LONG_LEFT, 0),
+        sit=weights(PASS_LONG_LEFT, 4, PASS_LONG_RIGHT, 3, RUN_MIDDLE, 3),
+        pat=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
     )
-    gp = make_gameplan(offense=False, normal=(DEF_PASS_LONG,))
-    assert check_gameplan_compatibility(prof, gp) == ()
+    gp = make_gameplan(offense=False, normal=(DEF_RUN_MIDDLE,))
+    assert check_gameplan_compatibility(prof, gp) == tuple(
+        CompatIssue(
+            CompatKind.MISSING_NORMAL_CATEGORY,
+            code,
+            f"play category PassLong (0x{code:02X}) has no custom play "
+            "in the game plan",
+        )
+        for code in (PASS_LONG_LEFT, PASS_LONG_RIGHT)
+    )
 
 
 def test_defense_normal_missing() -> None:
@@ -204,7 +271,7 @@ def test_defense_special_missing() -> None:
         sit=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
         pat=weights(FIELD_GOAL_PAT, 10, FIELD_GOAL_PAT, 0, FIELD_GOAL_PAT, 0),
     )
-    gp = make_gameplan(offense=False, normal=(0x08,))  # Run Middle; no special slot 1
+    gp = make_gameplan(offense=False, normal=(DEF_RUN_MIDDLE,))  # no special slot 1
     issues = check_gameplan_compatibility(prof, gp)
     assert [i.category_code for i in issues] == [FIELD_GOAL_PAT]
     assert issues[0].kind == CompatKind.MISSING_SPECIAL_CATEGORY
@@ -236,15 +303,18 @@ def test_user_specific_normal_play_covers_nothing() -> None:
     assert [i.category_code for i in issues] == [RUN_MIDDLE]
 
 
-def test_zero_weight_category_is_ignored() -> None:
-    """A category present only with weight 0 is not 'used' and never flagged."""
+@pytest.mark.parametrize(("weight", "flagged"), [(0, False), (1, True)])
+def test_category_is_used_from_weight_one(weight: int, flagged: bool) -> None:
+    """A category present only with weight 0 is not 'used' and never flagged;
+    at weight 1 it is."""
     prof = make_profile(
         offense=True,
-        sit=weights(RUN_MIDDLE, 4, GOAL_LINE_RUN, 0, RUN_MIDDLE, 0),
+        sit=weights(RUN_MIDDLE, 4, GOAL_LINE_RUN, weight, RUN_MIDDLE, 0),
         pat=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
     )
     gp = make_gameplan(offense=True, normal=(OFF_RUN_MIDDLE,))  # no GLR
-    assert check_gameplan_compatibility(prof, gp) == ()
+    codes = [i.category_code for i in check_gameplan_compatibility(prof, gp)]
+    assert codes == ([GOAL_LINE_RUN] if flagged else [])
 
 
 # ── combined / ordering ────────────────────────────────────────────────────────
@@ -370,30 +440,13 @@ def test_stock_special_play_is_not_an_extra() -> None:
     assert gameplan_extra_categories(prof, gp) == ()
 
 
-# ── map consistency with the model tables (guards transcription) ────────────────
-
-
-def test_offense_normal_map_covers_all_offense_categories() -> None:
-    names = {c.long for c in OffensiveCategory if c.long != "User Specific"}
-    assert set(_OFFENSE_NORMAL_CODES) == names
-    codes = frozenset().union(*_OFFENSE_NORMAL_CODES.values())
-    assert codes == frozenset(range(0x00, 0x10))
-
-
-def test_defense_normal_map_covers_all_defense_categories() -> None:
-    names = {c.long for c in DefensiveCategory if c.long != "User Specific"}
-    assert set(_DEFENSE_NORMAL_CODES) == names
-    codes = frozenset().union(*_DEFENSE_NORMAL_CODES.values())
-    assert codes == frozenset(range(0x00, 0x10))
-
-
-def test_special_slot_map_matches_model_names() -> None:
-    """Each profile special code maps to the slot the game labels the same way."""
-    expected = {
-        FIELD_GOAL_PAT: "Field Goal/PAT",
-        PUNT: "Punt",
-        FAKE_FIELD_GOAL_RUN: "Fake FG Run",
-    }
-    for code, name in expected.items():
-        slot = _SPECIAL_SLOT_BY_CODE[code]
-        assert resolve_category(0x01, slot, 0x00).long == name
+def test_user_specific_play_is_not_an_extra() -> None:
+    """A User Specific custom play backs no category, so it is never extra."""
+    prof = make_profile(
+        offense=True,
+        sit=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
+        pat=weights(RUN_MIDDLE, 4, RUN_MIDDLE, 0, RUN_MIDDLE, 0),
+    )
+    user_specific = OffensiveCategory.USER_SPECIFIC.code
+    gp = make_gameplan(offense=True, normal=(OFF_RUN_MIDDLE, user_specific))
+    assert gameplan_extra_categories(prof, gp) == ()

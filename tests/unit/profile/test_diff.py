@@ -17,10 +17,13 @@ from athc.fbpro98_profile import (
 from athc.profile import (
     ProfileTypeMismatchError,
     ScalarChange,
+    SituationChange,
     SlotChange,
     diff_profiles,
 )
 from athc.profile.rules import (
+    FAKE_FIELD_GOAL_PASS,
+    FAKE_FIELD_GOAL_RUN,
     FIELD_GOAL_PAT,
     PASS_MEDIUM_LEFT,
     PASS_SHORT_LEFT,
@@ -31,6 +34,7 @@ from tests.unit.profile.conftest import make_profile, replace_situation, weights
 
 # Situation 8 = >5 / 1st / 0-1 / DEF5-35; baseline = (RM 4, PSL 3, PML 3).
 N = 8
+N_LABEL = ">5 1st 0-1 DEF5-35 Ahd8+"
 
 
 def _offense():
@@ -44,8 +48,10 @@ def test_identical_profiles_have_empty_diff() -> None:
     assert d.profile == () and d.situations == () and d.pat == ()
 
 
-def test_profile_type_recorded() -> None:
-    assert diff_profiles(_offense(), _offense()).profile_type == ProfileType.OFFENSE
+@pytest.mark.parametrize("ptype", [ProfileType.OFFENSE, ProfileType.DEFENSE])
+def test_profile_type_recorded(ptype: ProfileType) -> None:
+    profile = make_profile(ptype)
+    assert diff_profiles(profile, profile).profile_type == ptype
 
 
 def test_field_goal_range_change() -> None:
@@ -73,13 +79,9 @@ def test_substitution_change() -> None:
 def test_situation_stop_clock_change() -> None:
     a = _offense()
     b = replace_situation(a, N, stop_clock=True)
-    d = diff_profiles(a, b)
-    assert len(d.situations) == 1
-    c = d.situations[0]
-    assert c.number == N
-    assert c.label == ">5 1st 0-1 DEF5-35 Ahd8+"
-    assert c.stop == ScalarChange("stop", "No", "Yes")
-    assert c.slots == ()
+    assert diff_profiles(a, b).situations == (
+        SituationChange(N, N_LABEL, ScalarChange("stop", "No", "Yes"), ()),
+    )
 
 
 def test_situation_weight_only_change() -> None:
@@ -91,9 +93,11 @@ def test_situation_weight_only_change() -> None:
             RUN_MIDDLE, 6, PASS_SHORT_LEFT, 3, PASS_MEDIUM_LEFT, 3
         ),
     )
-    c = diff_profiles(a, b).situations[0]
-    assert c.stop is None
-    assert c.slots == (SlotChange(1, (RUN_MIDDLE, 4), (RUN_MIDDLE, 6)),)
+    assert diff_profiles(a, b).situations == (
+        SituationChange(
+            N, N_LABEL, None, (SlotChange(1, (RUN_MIDDLE, 4), (RUN_MIDDLE, 6)),)
+        ),
+    )
 
 
 def test_situation_category_change() -> None:
@@ -105,8 +109,10 @@ def test_situation_category_change() -> None:
             RUN_MIDDLE, 4, PASS_SHORT_RIGHT, 3, PASS_MEDIUM_LEFT, 3
         ),
     )
-    c = diff_profiles(a, b).situations[0]
-    assert c.slots == (SlotChange(2, (PASS_SHORT_LEFT, 3), (PASS_SHORT_RIGHT, 3)),)
+    slot = SlotChange(2, (PASS_SHORT_LEFT, 3), (PASS_SHORT_RIGHT, 3))
+    assert diff_profiles(a, b).situations == (
+        SituationChange(N, N_LABEL, None, (slot,)),
+    )
 
 
 def test_situation_multiple_slot_changes() -> None:
@@ -118,11 +124,11 @@ def test_situation_multiple_slot_changes() -> None:
             RUN_MIDDLE, 7, PASS_SHORT_LEFT, 3, PASS_SHORT_RIGHT, 3
         ),
     )
-    c = diff_profiles(a, b).situations[0]
-    assert c.slots == (
+    slots = (
         SlotChange(1, (RUN_MIDDLE, 4), (RUN_MIDDLE, 7)),
         SlotChange(3, (PASS_MEDIUM_LEFT, 3), (PASS_SHORT_RIGHT, 3)),
     )
+    assert diff_profiles(a, b).situations == (SituationChange(N, N_LABEL, None, slots),)
 
 
 def test_unchanged_situations_excluded() -> None:
@@ -138,17 +144,18 @@ def test_pat_change() -> None:
     idx = 6  # PAT situation 7
     new_pat = replace(
         a.pat_situations[idx],
-        category_weights=weights(FIELD_GOAL_PAT, 8, 0x11, 0, 0x12, 0),
+        category_weights=weights(
+            FIELD_GOAL_PAT, 8, FAKE_FIELD_GOAL_RUN, 0, FAKE_FIELD_GOAL_PASS, 0
+        ),
     )
     b = replace(
         a,
         pat_situations=(*a.pat_situations[:idx], new_pat, *a.pat_situations[idx + 1 :]),
     )
     d = diff_profiles(a, b)
-    assert d.situations == () and len(d.pat) == 1
-    c = d.pat[0]
-    assert c.number == 7 and c.stop is None
-    assert c.slots == (SlotChange(1, (FIELD_GOAL_PAT, 10), (FIELD_GOAL_PAT, 8)),)
+    slot = SlotChange(1, (FIELD_GOAL_PAT, 10), (FIELD_GOAL_PAT, 8))
+    assert d.situations == ()
+    assert d.pat == (SituationChange(7, ">5 Ahd1", None, (slot,)),)
 
 
 def test_combined_changes_counts() -> None:
@@ -159,13 +166,28 @@ def test_combined_changes_counts() -> None:
     assert len(d.profile) == 1 and len(d.situations) == 1 and d.pat == ()
 
 
-def test_type_mismatch_raises() -> None:
-    with pytest.raises(
-        ProfileTypeMismatchError, match=r"^Cannot compare offense with defense\.$"
-    ):
+# Both paths given name both files; with one or none, neither is named.
+@pytest.mark.parametrize(
+    ("paths", "message"),
+    [
+        ({}, "Cannot compare offense with defense."),
+        (
+            {"a_path": "a.prf", "b_path": "b.prf"},
+            "Cannot compare a.prf (offense) with b.prf (defense).",
+        ),
+        ({"a_path": "a.prf"}, "Cannot compare offense with defense."),
+        ({"b_path": "b.prf"}, "Cannot compare offense with defense."),
+    ],
+    ids=["no_paths", "both_paths", "a_path_only", "b_path_only"],
+)
+def test_type_mismatch_raises(paths: dict[str, str], message: str) -> None:
+    with pytest.raises(ProfileTypeMismatchError) as exc:
         diff_profiles(
-            make_profile(ProfileType.OFFENSE), make_profile(ProfileType.DEFENSE)
+            make_profile(ProfileType.OFFENSE),
+            make_profile(ProfileType.DEFENSE),
+            **paths,
         )
+    assert str(exc.value) == message
 
 
 def test_situation_n_game_state_and_baseline() -> None:

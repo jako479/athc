@@ -2,7 +2,7 @@
 
 Bucket strings follow the in-game UI. Category labels use short names — offense
 caps (`RM`, `PSL`), defense words (`PassShort`, `GLpass`), defense pass directions
-collapsed. A code outside the side's set renders as raw `0xNN`. These are display
+collapsed. A code with no short label renders as raw `0xNN`. These are display
 labels only (presentation), not rules.
 """
 
@@ -115,7 +115,7 @@ _SUB_LABELS = {
 
 
 def category_label(code: int, profile_type: ProfileType) -> str:
-    """Short label for a category code, or `0xNN` if outside the side's set."""
+    """Short label for a category code, or `0xNN` if it has none."""
     table = _OFFENSE_SHORT if profile_type == ProfileType.OFFENSE else _DEFENSE_SHORT
     return table.get(code, f"0x{code:02X}")
 

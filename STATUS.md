@@ -503,6 +503,10 @@ Open: count plays by file name type (TODO).
 Working. Validates and compares `.prf` coaching profiles. Docs:
 [profile.md](docs/design/profile.md) · [rules](config/release/leagues/PNFL/profile.toml)
 
+- Tests reviewed 2026-10-23: rules that match together, every filter value,
+  category name, league label and special slot, and each limit at the limit
+  and one past it are tested; the goldens pin every violation the full rule
+  set finds on the test profiles.
 - `allowed_offensive_categories` / `allowed_defensive_categories` list the
   categories a profile may use, by the league's labels; special categories
   are never limited, and the shipped lists ban what the old never-use lists did.

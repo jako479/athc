@@ -4,6 +4,21 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-23 — **profile tests**: a review of the tool logic's tests found
+  rules that match together never tested together (`allowed` intersecting, a
+  shared `mandatory`, the strictest minimum), same-named sections across
+  files, most filter values, category names, league labels and special slots
+  only spot-checked, the User Specific skip in the extras check and the
+  weight-1 edge untested, and bounds probed away from the limit; all filled.
+  The rules fixture now has the shipped rules' shape (allowed lists, the
+  compatibility flag, ranged substitutions), so the goldens pin TST-DEF1's
+  three substitution breaks; both goldens list every violation. Tests that
+  restated constants or Python behavior went, OFF1-relative counts became
+  exact results, and the writer's source now differs in every slot. Three
+  loader inputs crashed instead of giving a rules-file error (`offense`,
+  `defense` or a section not a table, a non-string `fields` entry); the
+  loader now checks them the way the gameplan loader does. The `load_rules`
+  and `display.py` docstrings and the design doc's layout now match the code.
 - 2026-10-22 — **fbpro98_profile situations**: a situation stored its number
   and five game-state buckets, all fixed by its place in the profile, and its
   constructor cross-checked them. It now holds only its rules, as a game

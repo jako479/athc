@@ -14,12 +14,13 @@ src/athc/profile/          # tool logic (no Click)
 ├── __init__.py    # public API
 ├── config.py      # profile.toml (or profile_rules list) and the category labels from the league folder
 ├── model.py       # RuleName, RuleViolation
+├── errors.py      # ProfileTypeMismatchError
 ├── rules.py       # ProfileRules, SituationRule, SubstitutionRule/PercentBound, load_rules, RulesFileError
 ├── validators.py  # validate_profile
 ├── compat.py      # check_gameplan_compatibility + gameplan_extra_categories -> CompatIssue (profile vs .pln; used by check-ppp)
 ├── diff.py        # diff_profiles, ProfileDiff + change types
 ├── display.py     # category / bucket labels for diff output
-└── writer.py      # ProfileWriter, ProfileTypeMismatchError (field copy)
+└── writer.py      # ProfileWriter (field copy)
 
 src/athc/cli/profile/      # Click wiring
 ├── __init__.py    # `profile` group

@@ -20,11 +20,7 @@ from athc.fbpro98_profile import (
     read_profile,
     write_profile,
 )
-from athc.profile.writer import (
-    GOAL_LINE_POSITIONS,
-    ProfileTypeMismatchError,
-    ProfileWriter,
-)
+from athc.profile.writer import ProfileTypeMismatchError, ProfileWriter
 from tests.unit.profile.conftest import DATA
 
 OFF1 = DATA / "TST-OFF1.prf"
@@ -50,10 +46,14 @@ def _stop_clock_vector(path: Path) -> tuple[bool, ...]:
 
 
 def _distinct_weights(base: CategoryWeights) -> CategoryWeights:
-    return replace(
-        base,
-        play_category1=(base.play_category1 + 1) % 0x1B,
-        weight1=(base.weight1 + 1) % 11,
+    """`base` with every category and every weight changed."""
+    return CategoryWeights(
+        (base.play_category1 + 1) % 0x1B,
+        (base.weight1 + 1) % 11,
+        (base.play_category2 + 1) % 0x1B,
+        (base.weight2 + 1) % 11,
+        (base.play_category3 + 1) % 0x1B,
+        (base.weight3 + 1) % 11,
     )
 
 
@@ -122,7 +122,10 @@ def _is_fourth(state: GameState) -> bool:
 
 
 def _is_goal_line(state: GameState) -> bool:
-    return state.field_position in GOAL_LINE_POSITIONS
+    return state.field_position in (
+        FieldPosition.INSIDE_DEF_5,
+        FieldPosition.INSIDE_OFF_5,
+    )
 
 
 def _with_stop_clock(target: Profile, source: Profile) -> Profile:
@@ -190,58 +193,26 @@ def test_copy_stop_clock_works_on_defense(tmp_path: Path) -> None:
     assert result == _with_stop_clock(original, read_profile(str(source)))
 
 
-def test_copy_stop_clock_preserves_category_weights(tmp_path: Path) -> None:
-    source = _source(OFF1, tmp_path)
-    target = _copy_prf(OFF1, tmp_path, name="target.prf")
-    original = read_profile(str(target))
-    result = ProfileWriter(source, target).apply(copy_stop_clock=True)
-    for before, after in zip(original.situations, result.situations, strict=True):
-        assert after.category_weights == before.category_weights
-    assert result == _with_stop_clock(original, read_profile(str(source)))
-
-
 # ── sub_percent ───────────────────────────────────────────────────────────────
 
 
-def test_copy_sub_percent_replaces_substitutions(tmp_path: Path) -> None:
+def test_copy_sub_percent_replaces_only_substitutions(tmp_path: Path) -> None:
     source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_sub_percent=True)
-    assert result.substitutions == _custom_subs()
-    assert result == replace(original, substitutions=_custom_subs())
-
-
-def test_copy_sub_percent_leaves_other_fields_alone(tmp_path: Path) -> None:
-    source = _source(OFF1, tmp_path)
-    target = _copy_prf(OFF1, tmp_path, name="target.prf")
-    original = read_profile(str(target))
-    result = ProfileWriter(source, target).apply(copy_sub_percent=True)
-    assert result.situations == original.situations
-    assert result.field_goal_range == original.field_goal_range
     assert result == replace(original, substitutions=_custom_subs())
 
 
 # ── field_goal_range ──────────────────────────────────────────────────────────
 
 
-def test_copy_field_goal_range_replaces_value(tmp_path: Path) -> None:
+def test_copy_field_goal_range_replaces_only_the_range(tmp_path: Path) -> None:
     new_range = _other_range(read_profile(str(OFF1)).field_goal_range)
     source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_field_goal_range=True)
-    assert result.field_goal_range == new_range
-    assert result == replace(original, field_goal_range=new_range)
-
-
-def test_copy_field_goal_range_leaves_situations_alone(tmp_path: Path) -> None:
-    new_range = _other_range(read_profile(str(OFF1)).field_goal_range)
-    source = _source(OFF1, tmp_path)
-    target = _copy_prf(OFF1, tmp_path, name="target.prf")
-    original = read_profile(str(target))
-    result = ProfileWriter(source, target).apply(copy_field_goal_range=True)
-    assert result.situations == original.situations
     assert result == replace(original, field_goal_range=new_range)
 
 
@@ -307,33 +278,6 @@ def test_copy_goal_line_copies_only_goal_line_situations(tmp_path: Path) -> None
     ):
         expected = marker if _is_goal_line(state) else before.category_weights
         assert after.category_weights == expected
-    assert result == _with_situations(
-        original, read_profile(str(source)), _is_goal_line
-    )
-
-
-def test_copy_goal_line_covers_both_inside_5_buckets(tmp_path: Path) -> None:
-    base = read_profile(str(OFF1))
-    marker = _distinct_weights(base.situations[0].category_weights)
-    source = _write_source(
-        _stamp_matching(_differing(base), predicate=_is_goal_line, marker=marker),
-        tmp_path,
-    )
-    target = _copy_prf(OFF1, tmp_path, name="target.prf")
-    original = read_profile(str(target))
-    result = ProfileWriter(source, target).apply(copy_goal_line=True)
-    def_5 = [
-        s
-        for _, state, s in result.iter_situations()
-        if state.field_position == FieldPosition.INSIDE_DEF_5
-    ]
-    off_5 = [
-        s
-        for _, state, s in result.iter_situations()
-        if state.field_position == FieldPosition.INSIDE_OFF_5
-    ]
-    assert def_5 and off_5
-    assert all(s.category_weights == marker for s in def_5 + off_5)
     assert result == _with_situations(
         original, read_profile(str(source)), _is_goal_line
     )
@@ -428,26 +372,11 @@ def test_fourth_down_and_stop_clock_combine_cleanly(tmp_path: Path) -> None:
 # ── pat_logic ─────────────────────────────────────────────────────────────────
 
 
-def test_copy_pat_logic_replaces_every_pat_situation(tmp_path: Path) -> None:
+def test_copy_pat_logic_replaces_only_the_pat_table(tmp_path: Path) -> None:
     source = _source(OFF1, tmp_path)
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     original = read_profile(str(target))
     result = ProfileWriter(source, target).apply(copy_pat_logic=True)
-    assert result.pat_situations == read_profile(str(source)).pat_situations
-    assert result.pat_situations != original.pat_situations
-    assert result == replace(
-        original, pat_situations=read_profile(str(source)).pat_situations
-    )
-
-
-def test_copy_pat_logic_leaves_other_fields_alone(tmp_path: Path) -> None:
-    source = _source(OFF1, tmp_path)
-    target = _copy_prf(OFF1, tmp_path, name="target.prf")
-    original = read_profile(str(target))
-    result = ProfileWriter(source, target).apply(copy_pat_logic=True)
-    assert result.situations == original.situations
-    assert result.substitutions == original.substitutions
-    assert result.field_goal_range == original.field_goal_range
     assert result == replace(
         original, pat_situations=read_profile(str(source)).pat_situations
     )
@@ -476,28 +405,12 @@ def test_copy_without_pat_logic_leaves_pat_situations_alone(tmp_path: Path) -> N
 # ── mismatched types ──────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize(
-    "flag",
-    [
-        "copy_stop_clock",
-        "copy_sub_percent",
-        "copy_field_goal_range",
-        "copy_goal_line",
-        "copy_pat_logic",
-    ],
-)
-def test_mismatch_raises_for_any_flag(tmp_path: Path, flag: str) -> None:
-    source = _copy_prf(OFF1, tmp_path, name="source.prf")
-    target = _copy_prf(DEF1, tmp_path, name="target.prf")
-    with pytest.raises(ProfileTypeMismatchError):
-        ProfileWriter(source, target).apply(**{flag: True})
-
-
-def test_mismatch_error_carries_both_types(tmp_path: Path) -> None:
+def test_mismatch_raises_before_any_copy(tmp_path: Path) -> None:
+    """The side check comes first, so it raises even with no copy asked for."""
     source = _copy_prf(OFF1, tmp_path, name="source.prf")
     target = _copy_prf(DEF1, tmp_path, name="target.prf")
     with pytest.raises(ProfileTypeMismatchError) as exc_info:
-        ProfileWriter(source, target).apply(copy_stop_clock=True)
+        ProfileWriter(source, target).apply()
     assert exc_info.value.source_type.name == "OFFENSE"
     assert exc_info.value.target_type.name == "DEFENSE"
     assert str(exc_info.value) == (

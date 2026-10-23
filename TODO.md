@@ -15,7 +15,7 @@
   - [ ] gameplan
   - [ ] pdbtoexcel
   - [ ] playpool
-  - [ ] profile
+  - [x] profile
   - [ ] scheduler
   - [ ] standings
 - [x] profile: `copy` errors when the source and the single target are the same file (non-bulk copy)
