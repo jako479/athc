@@ -391,9 +391,10 @@ season and career, and the honors. Docs:
 Working. Validates and edits `.pln` game plans. Docs:
 [gameplan.md](docs/design/gameplan.md) · [rules](config/release/leagues/PNFL/gameplan.toml)
 
+- Unit tests reviewed 2026-10-23: every rule limit and cap is tested at its
+  ends, every violation is pinned whole, and the shipped rules load with each
+  league's own labels.
 - `set-normals` reports every bad line of a play list in one run.
-- Tests reviewed 2026-10-18: every rule limit is tested at the limit and one
-  past it, and every rule message is pinned word for word.
 - `set-normals` clears all 64 normal slots, then fills them in list order; a
   blank line leaves its slot empty. `set-specials` replaces only the listed
   plays and skips blank lines.
@@ -417,7 +418,7 @@ Working. Validates and edits `.pln` game plans. Docs:
   `play_path` in `league.toml`); `check` has no overrides.
 - Attribute caps take a count, ratio or percent form — one form per attribute,
   so a league writes its rule the way the league states it. Naming two forms
-  for one attribute is a rules-file error.
+  for one attribute is a rules-file error. A ratio is written n/m only.
 - PNFL 2-DL caps are 50% Pass Short and Medium, 75% Pass Long, 100% Pass
   Dazzle.
 - Brian reviewed the PNFL gameplan rules against the league threads; every one

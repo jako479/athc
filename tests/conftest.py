@@ -136,6 +136,13 @@ def shipped_files(pattern: str) -> list[Path]:
     )
 
 
+def league_labels(rules_file: Path) -> CategoryLabels:
+    """The labels in the league.toml beside a shipped rules file."""
+    with (rules_file.parent / "league.toml").open("rb") as f:
+        categories = tomllib.load(f)["categories"]
+    return CategoryLabels.from_tables(categories["offense"], categories["defense"])
+
+
 def shipped_id(path: Path) -> str:
     """Test id for a shipped league file: `dev/<league>/<file>`, whether the file
     sits in the league folder or in `standings\\`."""

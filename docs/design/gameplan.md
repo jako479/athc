@@ -93,7 +93,7 @@ No rules ship inside the package. `load_rules(paths)` parses one or more externa
 
 Section labels are the league's category labels from `league.toml` (`load_rules(paths, labels=...)`) — `[offense.RM]` (Run Middle), `[defense.RunDazzle]` (Razzle Dazzle Run); a category the league does not label is named by its game name, quoted (`[offense."Pass Long Left"]`, `[defense."User Specific"]`). Every per-category key is optional (`required` defaults false, `min_count` 0), but a section must set at least one. The loader rejects unknown labels, subkeys applied to the wrong category type, and an `offense` / `defense` value or section that is not a table. `allowed_offensive_categories` / `allowed_defensive_categories` list, by the league's labels only, the categories a gameplan may contain; a play in any other category is a violation, and an omitted or empty list allows every category.
 
-Each capped attribute (`qb_runs`, `rollouts`, `timed`, `two_dl`) takes one of three forms — `max_<attr>_count` (whole plays), `max_<attr>_ratio` (`"1/2"`, an exact `Fraction`) or `max_<attr>_percent` (whole number 0-100). A section may set at most one form per attribute; a second is a rules-file error. Ratio and percent compare the exact play ratio, so nothing rounds.
+Each capped attribute (`qb_runs`, `rollouts`, `timed`, `two_dl`) takes one of three forms — `max_<attr>_count` (whole plays), `max_<attr>_ratio` (`"n/m"` only, like `"1/2"`, an exact `Fraction`) or `max_<attr>_percent` (whole number 0-100). A section may set at most one form per attribute; a second is a rules-file error. Ratio and percent compare the exact play ratio, so nothing rounds.
 
 Loading reports every problem at once (`RulesFileError.errors`); any error aborts `check` with each logged (exit 2).
 

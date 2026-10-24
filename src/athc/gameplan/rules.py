@@ -11,6 +11,7 @@ league's labels only.
 
 from __future__ import annotations
 
+import re
 import tomllib
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
@@ -116,6 +117,8 @@ _SPECIAL_CATEGORY_BY_NAME: Final[Mapping[str, int]] = {
 
 # Each capped attribute takes exactly one of these three mutually exclusive forms.
 _CAP_FORMS: Final[tuple[str, ...]] = ("count", "ratio", "percent")
+# A ratio is written n/m only; the sign lets a negative one fail on its range.
+_RATIO_FORM: Final[re.Pattern[str]] = re.compile(r"-?\d+/\d+")
 
 _RUN_ATTRS: Final[tuple[str, ...]] = ("qb_runs",)
 _PASS_ATTRS: Final[tuple[str, ...]] = ("rollouts", "timed")
@@ -527,6 +530,10 @@ def _optional_fraction(
         return None
     if not isinstance(value, str):
         raise RulesFileError(f'{where}: Must be a string like "1/2".', source)
+    if not _RATIO_FORM.fullmatch(value):
+        raise RulesFileError(
+            f'{where}: Invalid fraction {value!r}: Must be n/m, like "1/2".', source
+        )
     try:
         fraction = Fraction(value)
     except (ValueError, ZeroDivisionError) as e:

@@ -12,7 +12,7 @@
   - [x] fbpro98_profile
   - [ ] fbpro98_standings
   - [ ] fbpro98_stats
-  - [ ] gameplan
+  - [x] gameplan
   - [ ] pdbtoexcel
   - [x] playpool
   - [x] profile

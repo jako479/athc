@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import tomllib
 from functools import partial
 from pathlib import Path
 
@@ -50,6 +49,7 @@ from tests.conftest import (
     PNFL_DEFENSE,
     PNFL_LABELS,
     PNFL_OFFENSE,
+    league_labels,
     shipped_files,
     shipped_id,
 )
@@ -965,13 +965,6 @@ def test_rule_min_categories_zero_ok(tmp_path: Path) -> None:
 
 
 # ── every shipped league's rules load ─────────────────────────────────────────
-
-
-def league_labels(rules_file: Path) -> CategoryLabels:
-    """The labels in the league.toml beside a shipped rules file."""
-    with (rules_file.parent / "league.toml").open("rb") as f:
-        categories = tomllib.load(f)["categories"]
-    return CategoryLabels.from_tables(categories["offense"], categories["defense"])
 
 
 @pytest.mark.parametrize("path", shipped_files("*/profile.toml"), ids=shipped_id)

@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- gameplan: a rules ratio must be written n/m; a whole number or a decimal such as `"1"` or `"0.5"` is a rules-file error
+- gameplan: tests check each cap at its lowest and highest value, an optional category short of its minimum, the offense special names, a listed special replacing the old one, layering that keeps the other rules, and each shipped league's rules with its own labels
 - playpool: a `34`/`43` folder is a defense folder only when the rest of its name is a defense label
 - playpool: only a pass play in a `Screens` folder is a screen
 - playpool: tests reviewed: every folder rule and `to_dict` field pinned, the path-order tests made able to fail, repeated tests and a repeated empty fixture dropped

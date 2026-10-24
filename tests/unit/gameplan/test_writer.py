@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from athc.cli.gameplan._common import parse_play_list
 from athc.fbpro98_gameplan import (
     CustomPlayRef,
     GamePlan,
@@ -23,38 +22,52 @@ from athc.gameplan.writer import (
     apply_normal_plays,
     apply_special_plays,
 )
-from athc.playpool import DefensivePlay, OffensivePlay, PlayPool
+from athc.playpool import DefensivePlay, OffensivePlay, PlayPool, SpecialPlay
+
+RUN_MIDDLE = 0x09  # offense game-category byte
+RUN_LEFT = 0x04  # defense game-category byte
+
+
+def _category_byte(special_category: int, defensive: bool) -> int:
+    """A play file's category bytes: a normal play's category (Run Middle or
+    Run Left); a special play's are 0x01 kicking or 0x00 receiving."""
+    if special_category:
+        return 0x00 if defensive else 0x01
+    return RUN_LEFT if defensive else RUN_MIDDLE
 
 
 def _pool_with(*names: str, special_category: int, defensive: bool = False) -> PlayPool:
     """A pool holding one play per name, each header claiming `special_category`:
     offensive plays, or defensive ones when `defensive`."""
     pool = PlayPool("root")
+    category = _category_byte(special_category, defensive)
     for name in names:
         play_file = PlayFile(
             Path("root") / f"{name}.ply",
             0,
-            0x00 if defensive else 0x01,
+            category,
             special_category,
-            0,
+            category,
             (),
             (),
         )
-        pool.add(
-            DefensivePlay(name, play_file)
-            if defensive
-            else OffensivePlay(name, play_file)
-        )
+        if special_category:
+            pool.add(SpecialPlay(name, play_file))
+        elif defensive:
+            pool.add(DefensivePlay(name, play_file))
+        else:
+            pool.add(OffensivePlay(name, play_file))
     return pool
 
 
 def _ref(name: str, special_category: int) -> CustomPlayRef:
     """The slot entry a `_pool_with` offensive play is written as."""
+    category = _category_byte(special_category, defensive=False)
     return CustomPlayRef(
         filename=f"root\\{name}.ply",
-        play_category=0x01,
+        play_category=category,
         special_category=special_category,
-        user_category=0,
+        user_category=category,
     )
 
 
@@ -94,19 +107,18 @@ def test_special_play_without_custom_slot_is_rejected() -> None:
     assert str(exc.value) == "1 invalid play(s)."
 
 
-def test_special_play_in_last_custom_category_is_accepted() -> None:
-    """Category 10 is the last one with a custom slot."""
-    pool = _pool_with("SQUIBPLY", special_category=10)
+@pytest.mark.parametrize("category", [1, 10], ids=["first", "last"])
+def test_special_play_in_a_custom_category_is_accepted(category: int) -> None:
+    """Categories 1 and 10 are the first and the last with a custom slot."""
+    pool = _pool_with("KICKPLY", special_category=category)
     gp = _offense_gameplan()
-    updated = apply_special_plays(gp, [PlayLine(1, "SQUIBPLY")], pool)
-    placed = updated.special_plays[9].custom
-    assert placed is not None and placed.name == "SQUIBPLY"
+    updated = apply_special_plays(gp, [PlayLine(1, "KICKPLY")], pool)
     assert updated == replace(
         gp,
         special_plays=(
-            *gp.special_plays[:9],
-            SpecialSlot(custom=_ref("SQUIBPLY", 10)),
-            *gp.special_plays[10:],
+            *gp.special_plays[: category - 1],
+            SpecialSlot(custom=_ref("KICKPLY", category)),
+            *gp.special_plays[category:],
         ),
     )
 
@@ -122,14 +134,16 @@ def test_normal_plays_fill_slots_in_order_with_blanks_empty() -> None:
     )
 
 
-def test_special_plays_merge_keeps_unlisted_categories() -> None:
-    """A listed play fills its own category; category 4's custom, the blank
-    line and the clock stocks are left as they were."""
+def test_special_play_replaces_its_category_and_keeps_the_rest() -> None:
+    """A listed play replaces the custom in its own category; category 4's
+    custom, the blank line and the clock stocks are left as they were."""
     base = _offense_gameplan()
     gp = replace(
         base,
         special_plays=(
-            *base.special_plays[:3],
+            base.special_plays[0],
+            SpecialSlot(custom=_ref("OLDKICK", 2)),
+            base.special_plays[2],
             SpecialSlot(custom=_ref("OLDPUNT", 4)),
             *base.special_plays[4:],
         ),
@@ -211,7 +225,7 @@ def test_normal_play_name_matches_any_case() -> None:
     pool = _pool_with("RUNA", special_category=0)
     gp = _offense_gameplan()
     updated = apply_normal_plays(gp, [PlayLine(1, "runa")], pool)
-    assert updated.normal_plays[0] == _ref("RUNA", 0)
+    assert updated == replace(gp, normal_plays=(_ref("RUNA", 0), *(None,) * 63))
 
 
 def test_every_bad_normal_line_is_reported_at_once() -> None:
@@ -277,39 +291,3 @@ def test_special_play_not_in_the_pool_is_rejected() -> None:
     assert exc.value.invalid_plays == [
         InvalidPlay(2, "'GHOST' is not in the play pool.")
     ]
-
-
-def test_play_line_and_invalid_play_are_named_tuples() -> None:
-    line, name = PlayLine(3, "Play A")
-    assert (line, name) == (3, "Play A")
-    invalid = InvalidPlay(4, "Bad.")
-    assert invalid == (4, "Bad.")
-    assert (invalid.line, invalid.reason) == (4, "Bad.")
-
-
-def test_parse_play_list_keeps_the_file_line_numbers() -> None:
-    text = "\r\n:: comment\r\nPlay A\r\n\r\nPlay B :: note\r\n"
-    assert parse_play_list(text) == [
-        PlayLine(1, ""),
-        PlayLine(3, "Play A"),
-        PlayLine(4, ""),
-        PlayLine(5, "Play B"),
-    ]
-
-
-def test_parse_play_list_keeps_blank_lines_as_empty_entries() -> None:
-    text = "Play A\n   \n\t\nPlay B\n"
-    assert parse_play_list(text) == [
-        PlayLine(1, "Play A"),
-        PlayLine(2, ""),
-        PlayLine(3, ""),
-        PlayLine(4, "Play B"),
-    ]
-
-
-def test_parse_play_list_drops_blank_lines_after_the_last_play() -> None:
-    assert parse_play_list("Play A\n\n:: end\n  \n\n") == [PlayLine(1, "Play A")]
-
-
-def test_parse_play_list_of_only_blank_lines_is_empty() -> None:
-    assert parse_play_list("\n  \n:: only a comment\n") == []

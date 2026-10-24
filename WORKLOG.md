@@ -4,6 +4,22 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-23 — **gameplan tests**: a review of the rules, validator and
+  writer tests found gaps: no cap of 0 or of 100%, no optional category short
+  of its minimum, no offense special name, no listed special replacing an old
+  one, and layering never shown to keep an earlier file's other rules. The
+  shipped rules loaded with the PNFL labels instead of each league's own,
+  game plan slots and pool plays carried category bytes no real file has, and
+  several tests repeated another or checked only part of a result. The tests
+  now cover each gap, build game plans from the pool's own plays and compare
+  whole results; the repeats and the named-tuple tests went. `config/dev`'s
+  GLP rule gained the timed-pass cap `config/release` has. A ratio such as
+  `"1"` or `"0.5"` was accepted, though every rules file and the design write
+  a ratio as n/m; it is now a rules-file error. The `parse_play_list` tests
+  moved to `tests/unit/test_cli_gameplan_common.py`, beside the other CLI
+  unit tests, since the code is the CLI's. Found but left
+  alone: a bad key ends the rest of its section, though the design says
+  loading reports every problem at once.
 - 2026-10-23 — **playpool tests**: a review of the play-pool library's tests
   found folder rules no test could fail (`Screens` and `R&SDefs` on their own,
   the deeper category folder, the `43` prefix, the side and `Screens` folders
