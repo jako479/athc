@@ -20,7 +20,6 @@ from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND, AthcError
 from athc.fbpro98_gameplan import (
     CustomPlayRef,
     GamePlan,
-    PlayRef,
     ProfileType,
     read_gameplan,
     write_gameplan,
@@ -47,6 +46,8 @@ from tests.integration.conftest import (
     lge,
     offense_normal,
     offense_special,
+    play_name,
+    set_league,
     team,
 )
 
@@ -98,11 +99,6 @@ def _write(gp: GamePlan, tmp_path: Path, name: str = "gp.pln") -> Path:
     return path
 
 
-def _name(play: PlayRef | None) -> str:
-    assert play is not None
-    return play.name
-
-
 # ── pick_replacement (constructed gameplans) ──────────────────────────────────
 
 RM_MAX_0 = Rules(offense_categories={"Run Middle": OffenseCategoryRule(max_count=0)})
@@ -134,7 +130,7 @@ def test_pick_skips_play_already_in_gameplan(pool: PlayPool) -> None:
     assert picked.skipped == (Skipped(NORMAL_REPL, ("already in the game plan",)),)
     assert picked.entry is not None and picked.entry.name == NORMAL_TARGET
     assert picked.updated is not None
-    assert _name(picked.updated.normal_plays[0]) == NORMAL_TARGET
+    assert play_name(picked.updated.normal_plays[0]) == NORMAL_TARGET
     assert picked.updated == _offense_gameplan(
         normals={0: entries[1], 1: offense_normal(NORMAL_REPL, 0x09)}
     )
@@ -274,8 +270,8 @@ def test_replace_offense_normal_multiple_slots() -> None:
     new = offense_normal("NEW", 0x09)
     out, normal_hits, special_hits = replace_in_gameplan(gp, "OLDRUN", new)
     assert [i for i, _ in normal_hits] == [0, 5, 63] and special_hits == []
-    assert [_name(out.normal_plays[i]) for i in (0, 5, 63)] == ["NEW"] * 3
-    assert _name(out.normal_plays[1]) == "KEEPME"  # bystander preserved
+    assert [play_name(out.normal_plays[i]) for i in (0, 5, 63)] == ["NEW"] * 3
+    assert play_name(out.normal_plays[1]) == "KEEPME"  # bystander preserved
     assert out == _offense_gameplan(
         normals={0: new, 5: new, 63: new, 1: offense_normal("KEEPME", 0x09)}
     )
@@ -289,8 +285,8 @@ def test_replace_defense_normal() -> None:
         gp, "OLDDEF", defense_normal("NEWDEF")
     )
     assert [i for i, _ in normal_hits] == [0] and special_hits == []
-    assert _name(out.normal_plays[0]) == "NEWDEF"
-    assert _name(out.normal_plays[1]) == "KEEPDEF"  # bystander preserved
+    assert play_name(out.normal_plays[0]) == "NEWDEF"
+    assert play_name(out.normal_plays[1]) == "KEEPDEF"  # bystander preserved
     assert out == _defense_gameplan(
         normals={0: defense_normal("NEWDEF"), 1: defense_normal("KEEPDEF")}
     )
@@ -304,8 +300,10 @@ def test_replace_offense_special() -> None:
         gp, "OLDFG", offense_special("NEWFG", 1)
     )
     assert normal_hits == [] and [n for n, _ in special_hits] == [1]
-    assert _name(out.custom_special_plays[0]) == "NEWFG"
-    assert _name(out.custom_special_plays[1]) == "KEEPKICK"  # other special preserved
+    assert play_name(out.custom_special_plays[0]) == "NEWFG"
+    assert (
+        play_name(out.custom_special_plays[1]) == "KEEPKICK"
+    )  # other special preserved
     assert out == _offense_gameplan(
         specials={1: offense_special("NEWFG", 1), 2: offense_special("KEEPKICK", 2)}
     )
@@ -319,8 +317,8 @@ def test_replace_defense_special() -> None:
         gp, "OLDKR", defense_special("NEWKR", 2)
     )
     assert normal_hits == [] and [n for n, _ in special_hits] == [2]
-    assert _name(out.custom_special_plays[1]) == "NEWKR"  # category 2 → index 1
-    assert _name(out.custom_special_plays[2]) == "KEEPPR"  # other special preserved
+    assert play_name(out.custom_special_plays[1]) == "NEWKR"  # category 2 → index 1
+    assert play_name(out.custom_special_plays[2]) == "KEEPPR"  # other special preserved
     assert out == _defense_gameplan(
         specials={2: defense_special("NEWKR", 2), 3: defense_special("KEEPPR", 3)}
     )
@@ -329,7 +327,9 @@ def test_replace_defense_special() -> None:
 def test_replace_case_insensitive_target() -> None:
     gp = _offense_gameplan(normals={7: offense_normal("MixedCase")})
     out, normal_hits, _ = replace_in_gameplan(gp, "mixedcase", offense_normal("NEW"))
-    assert [i for i, _ in normal_hits] == [7] and _name(out.normal_plays[7]) == "NEW"
+    assert [i for i, _ in normal_hits] == [7] and play_name(
+        out.normal_plays[7]
+    ) == "NEW"
     assert out == _offense_gameplan(normals={7: offense_normal("NEW")})
 
 
@@ -425,7 +425,7 @@ def test_cli_every_name_is_a_play(
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, "--path", str(p)])
     assert result.exit_code == 0
-    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL_REPL
+    assert play_name(read_gameplan(str(p)).normal_plays[0]) == NORMAL_REPL
 
 
 def test_cli_repeated_replacement_tried_once(runner, tmp_path: Path) -> None:
@@ -513,7 +513,7 @@ def test_cli_replacement_case_insensitive(runner, tmp_path: Path) -> None:
         replace_play, [NORMAL_TARGET, NORMAL_REPL.lower(), "--path", str(p)]
     )
     assert result.exit_code == 0
-    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL_REPL
+    assert play_name(read_gameplan(str(p)).normal_plays[0]) == NORMAL_REPL
 
 
 # ── command: single file ──────────────────────────────────────────────────────
@@ -542,8 +542,8 @@ def test_cli_single_file_replaces_normal(runner, tmp_path: Path) -> None:
     result = runner.invoke(replace_play, ["OLDRUN", NORMAL_REPL, "--path", str(p)])
     assert result.exit_code == 0
     rt = read_gameplan(str(p))
-    assert _name(rt.normal_plays[0]) == NORMAL_REPL
-    assert _name(rt.normal_plays[1]) == OTHER_RM  # untouched
+    assert play_name(rt.normal_plays[0]) == NORMAL_REPL
+    assert play_name(rt.normal_plays[1]) == OTHER_RM  # untouched
     assert result.stdout == (
         f"OK   {p}: 'OLDRUN' (RL) replaced with '{NORMAL_REPL}' (RM) [1-1]\n"
     )
@@ -590,8 +590,8 @@ def test_cli_single_file_replaces_special(runner, tmp_path: Path) -> None:
     result = runner.invoke(replace_play, ["OLDFG", SPECIAL_REPL, "--path", str(p)])
     assert result.exit_code == 0
     rt = read_gameplan(str(p))
-    assert _name(rt.custom_special_plays[0]) == SPECIAL_REPL
-    assert _name(rt.custom_special_plays[1]) == "KEEPKICK"  # untouched
+    assert play_name(rt.custom_special_plays[0]) == SPECIAL_REPL
+    assert play_name(rt.custom_special_plays[1]) == "KEEPKICK"  # untouched
     assert result.stdout == (
         f"OK   {p}: Replaced 'OLDFG' (Field Goal/PAT) in special slot 1 "
         f"with '{SPECIAL_REPL}' (Field Goal/PAT)\n"
@@ -604,7 +604,7 @@ def test_cli_single_file_target_case_insensitive(runner, tmp_path: Path) -> None
         replace_play, [NORMAL_TARGET.lower(), NORMAL_REPL, "--path", str(p)]
     )
     assert result.exit_code == 0
-    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL_REPL
+    assert play_name(read_gameplan(str(p)).normal_plays[0]) == NORMAL_REPL
 
 
 def test_cli_single_file_miss_exit_1(runner, tmp_path: Path) -> None:
@@ -632,7 +632,7 @@ def test_cli_backup_used_when_first_already_in_plan(runner, tmp_path: Path) -> N
         f"SKIP {p}: '{NORMAL_REPL}' already in the game plan\n"
         f"OK   {p}: 'OLDRUN' (RL) replaced with '{NORMAL_TARGET}' (RL) [1-1]\n"
     )
-    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL_TARGET
+    assert play_name(read_gameplan(str(p)).normal_plays[0]) == NORMAL_TARGET
 
 
 def test_cli_backup_used_when_first_breaks_rule(
@@ -707,7 +707,7 @@ def test_cli_cross_category_swap_within_limits(
         f"OK   {p}: '{PSL_TARGET}' (PSL) replaced with '{PML_REPL}' (PML) [1-1]\n"
     )
     rt = read_gameplan(str(p))
-    assert [_name(rt.normal_plays[i]) for i in range(3)] == [
+    assert [play_name(rt.normal_plays[i]) for i in range(3)] == [
         PML_REPL,
         PSL_OTHER,
         PML_OTHER,
@@ -773,7 +773,7 @@ def test_cli_directory_counts_not_replaced(
         f"\n'OLDRUN' -> '{NORMAL_REPL}', '{NORMAL_TARGET}': replaced 1 instance(s) "
         "in 1 game plan(s), 0 failed, 1 not replaced\n"
     )
-    assert _name(read_gameplan(str(tmp_path / "a.pln")).normal_plays[0]) == (
+    assert play_name(read_gameplan(str(tmp_path / "a.pln")).normal_plays[0]) == (
         NORMAL_TARGET
     )
 
@@ -859,7 +859,10 @@ def test_cli_directory_updates_matching_files(runner, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "replaced 2 instance(s) in 2 game plan(s), 0 failed" in result.stdout
     for name in ("off1.pln", "off2.pln"):
-        assert _name(read_gameplan(str(tmp_path / name)).normal_plays[0]) == NORMAL_REPL
+        assert (
+            play_name(read_gameplan(str(tmp_path / name)).normal_plays[0])
+            == NORMAL_REPL
+        )
 
 
 def test_cli_directory_leaves_other_side_untouched(runner, tmp_path: Path) -> None:
@@ -892,7 +895,10 @@ def test_cli_recursive_replaces_in_subdir(runner, tmp_path: Path) -> None:
         replace_play, [NORMAL_TARGET, NORMAL_REPL, "--path", str(tmp_path), "-r"]
     )
     assert result.exit_code == 0
-    assert _name(read_gameplan(str(sub / "offense.pln")).normal_plays[0]) == NORMAL_REPL
+    assert (
+        play_name(read_gameplan(str(sub / "offense.pln")).normal_plays[0])
+        == NORMAL_REPL
+    )
 
 
 # ── command: validation / errors (target left untouched) ──────────────────────
@@ -1031,14 +1037,6 @@ TALLY = (
 )
 
 
-def set_league(folder: Path, **settings: str | Path) -> None:
-    """Add `[league]` settings to the league folder's league.toml."""
-    toml = folder / "league.toml"
-    lines = "".join(f"{key} = '{value}'\n" for key, value in settings.items())
-    text = toml.read_text(encoding="utf-8").replace("[league]\n", "[league]\n" + lines)
-    toml.write_text(text, encoding="utf-8")
-
-
 def team_league(
     league: Path, tmp_path: Path, names: tuple[str, ...] = TEAM_PLANS, **settings
 ) -> Path:
@@ -1094,7 +1092,7 @@ def test_cli_default_scope_is_your_teams_game_plans(
         + TALLY.format(repl=NORMAL_REPL, n=2, failed=0)
         + "\n"
     )
-    assert _name(read_gameplan(draft).normal_plays[0]) == "OLDRUN"
+    assert play_name(read_gameplan(draft).normal_plays[0]) == "OLDRUN"
 
 
 def test_cli_shared_game_plan_once(runner, league: Path, tmp_path: Path) -> None:
@@ -1125,7 +1123,7 @@ def test_cli_key_is_one_file(
     else:
         assert result.exit_code == 1
         assert result.stdout == f"{folder / 'DEF1.pln'}: 'OLDRUN' not found\n"
-    assert _name(read_gameplan(folder / "OFF1.pln").normal_plays[0]) == "OLDRUN"
+    assert play_name(read_gameplan(folder / "OFF1.pln").normal_plays[0]) == "OLDRUN"
 
 
 def test_cli_league_location_missing_game_plan_counts_as_failed(

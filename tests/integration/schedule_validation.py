@@ -14,6 +14,7 @@ import math
 import re
 from collections import Counter
 from collections.abc import Sequence
+from html import unescape
 from itertools import pairwise
 
 from athc.scheduler.config import Phase2Config, SchedulerConfig, resolve_rivalries
@@ -137,6 +138,51 @@ def validate_report(schedule: Schedule, league: League) -> None:
         assert row.nonconference_opponents == tuple(
             sorted(o.metro for o in set(nc_opps))
         ), team.metro
+
+
+def validate_report_html(html: str, schedule: Schedule, league: League) -> None:
+    """Assert every row of a written report shows the ranks, orderings and SOS
+    values an independent recomputation from `schedule` gives, as the report
+    prints them (averages to two places)."""
+    rows = {
+        cells[0]: cells
+        for cells in (
+            [unescape(cell) for cell in re.findall(r"<td[^>]*>(.*?)</td>", row)]
+            for row in re.findall(r'<tr data-index="\d+">(.*?)</tr>', html)
+        )
+    }
+    overall = {t: league.rankings.overall_rank(t) for t in league.teams}
+    conf = {t: league.rankings.rank_of(t) for t in league.teams}
+    all_opps = {t: _opponents(schedule, t) for t in league.teams}
+    nc_opps = {
+        t: [o for o in all_opps[t] if o.conference != t.conference]
+        for t in league.teams
+    }
+    # Both orderings rank by the opponents' conference ranks, lowest total
+    # first, ties by team name.
+    sched_rank = _ranks(league.teams, lambda t: sum(conf[o] for o in all_opps[t]))
+    nc_rank = _ranks(league.teams, lambda t: _mean(conf[o] for o in nc_opps[t]))
+
+    assert len(rows) == len(league.teams), "report is missing team rows"
+    for team in league.teams:
+        unique_nc = sorted(set(nc_opps[team]), key=lambda o: o.metro)
+        assert rows[team.metro] == [
+            team.metro,
+            str(overall[team]),
+            str(sched_rank[team]),
+            f"{_mean(overall[o] for o in all_opps[team]):.2f}",
+            str(nc_rank[team]),
+            f"{_mean(overall[o] for o in nc_opps[team]):.2f}",
+            str(conf[team]),
+            f"{_mean(conf[o] for o in nc_opps[team]):.2f}",
+            ",".join(str(rank) for rank in sorted(conf[o] for o in unique_nc)),
+            ", ".join(o.metro for o in unique_nc),
+        ], team.metro
+
+
+def _ranks(teams: Sequence[Team], score) -> dict[Team, int]:
+    ordered = sorted(teams, key=lambda team: (score(team), team.metro))
+    return {team: rank for rank, team in enumerate(ordered, 1)}
 
 
 def _mean(values) -> float:

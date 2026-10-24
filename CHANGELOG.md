@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: a blank or path-like league name no longer says the leagues folder is missing
+- athc: CLI tests reviewed: the team test plans are the test set, every batch command's bug-in-one-file path and a few error paths are covered, the schedule report is checked as written, and duplicated or can't-fail tests went
 - gameplan: a rules ratio must be written n/m; a whole number or a decimal such as `"1"` or `"0.5"` is a rules-file error
 - gameplan: tests check each cap at its lowest and highest value, an optional category short of its minimum, the offense special names, a listed special replacing the old one, layering that keeps the other rules, and each shipped league's rules with its own labels
 - playpool: a `34`/`43` folder is a defense folder only when the rest of its name is a defense label

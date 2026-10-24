@@ -16,10 +16,11 @@ from athc.config import ConfigFileError, set_config_value
 from tests.conftest import (
     LEAGUE,
     OTHER_LEAGUE,
-    ROOT,
     athc_toml,
     league_not_found,
     no_league_selected,
+    shipped_files,
+    shipped_id,
     toml_error,
 )
 
@@ -175,7 +176,9 @@ def test_cli_rejects_blank_league(
     toml = write_config(COMMENTED)
     result = runner.invoke(set_, ["league", ""])
     assert result.exit_code == 2
-    assert "not found" in result.stderr
+    assert result.stderr.endswith(
+        f"Error: Invalid value for 'VALUE': league '' not found. Available: {LEAGUE}.\n"
+    )
     assert toml.read_text(encoding="utf-8") == COMMENTED  # untouched
 
 
@@ -203,20 +206,6 @@ def test_cli_rejects_unknown_key(runner, write_config: WriteConfig) -> None:
         "'play_path', 'team', 'ppp_path'.\n"
     )
     assert "colour" not in toml.read_text(encoding="utf-8")
-
-
-def test_cli_help_lists_known_keys(runner) -> None:
-    result = runner.invoke(set_, ["--help"])
-    assert result.exit_code == 0
-    assert "league" in result.stdout
-
-
-@pytest.mark.usefixtures("config_dir")
-def test_group_lists_set(runner) -> None:
-    from athc.cli.config import config as config_group
-
-    result = runner.invoke(config_group, ["--help"])
-    assert "set" in result.stdout
 
 
 def test_cli_league_needs_a_value(runner, write_config: WriteConfig) -> None:
@@ -315,25 +304,30 @@ def test_cli_sets_a_league_key(
     assert _kept(LEAGUE_TOML, toml.read_text(encoding="utf-8"), key)
 
 
-SHIPPED_LEAGUE_TOML = ROOT / "config" / "release" / "leagues" / "PNFL" / "league.toml"
+# The installed league.toml files: config/dev/'s are a developer's own, with
+# `team` set and no examples.
+RELEASE_LEAGUE_TOMLS = [
+    path for path in shipped_files("*/league.toml") if "release" in path.parts
+]
 
 
+@pytest.mark.parametrize("shipped", RELEASE_LEAGUE_TOMLS, ids=shipped_id)
 def test_cli_adds_a_key_after_its_example(
-    runner, make_league: MakeLeague, write_config: WriteConfig
+    runner, make_league: MakeLeague, write_config: WriteConfig, shipped: Path
 ) -> None:
-    """The shipped league.toml has team and ppp_path as commented examples:
+    """Each installed league.toml has team and ppp_path as commented examples:
     each new line goes right after its example, and every old line stays."""
-    before = SHIPPED_LEAGUE_TOML.read_text(encoding="utf-8").splitlines()
+    before = shipped.read_text(encoding="utf-8").splitlines()
     toml = make_league() / "league.toml"
-    shutil.copyfile(SHIPPED_LEAGUE_TOML, toml)
+    shutil.copyfile(shipped, toml)
     write_config(athc_toml())
-    assert runner.invoke(set_, ["team", "Denver"]).exit_code == 0
-    assert runner.invoke(set_, ["ppp_path", "D:\\PNFL\\Denver"]).exit_code == 0
+    assert runner.invoke(set_, ["team", "Miami"]).exit_code == 0
+    assert runner.invoke(set_, ["ppp_path", "E:\\Coach\\Miami"]).exit_code == 0
     after = toml.read_text(encoding="utf-8").splitlines()
-    team = after.index("team = 'Denver'")
-    ppp_path = after.index("ppp_path = 'D:\\PNFL\\Denver'")
-    assert after[team - 1] == "# team = 'Denver'"
-    assert after[ppp_path - 1] == "# ppp_path = 'D:\\PNFL\\Denver'"
+    team = after.index("team = 'Miami'")
+    ppp_path = after.index("ppp_path = 'E:\\Coach\\Miami'")
+    assert after[team - 1].startswith("# team = ")
+    assert after[ppp_path - 1].startswith("# ppp_path = ")
     assert [line for i, line in enumerate(after) if i not in (team, ppp_path)] == (
         before
     )

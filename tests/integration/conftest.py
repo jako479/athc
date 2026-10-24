@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import sys
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from click.testing import CliRunner, Result
 from athc.fbpro98_gameplan import (
     CustomPlayRef,
     GamePlan,
+    PlayRef,
     ProfileType,
     SpecialSlot,
     StockPlayRef,
@@ -31,6 +33,9 @@ from tests.unit.fbpro98_lge.conftest import (
 
 DATA = Path(__file__).resolve().parent / "data"
 EXPECTED = Path(__file__).resolve().parent / "expected"
+# The installed `athc` script the packaging checks run, beside the Python
+# running the tests.
+ATHC = Path(sys.executable).with_name("athc.exe")
 RULES_TOML = DATA / "profile_rules.toml"
 OFF1 = DATA / "TST-OFF1.prf"
 DEF1 = DATA / "TST-DEF1.prf"
@@ -46,11 +51,12 @@ PLAYS = DATA / "plays"
 GP_EMPTY_SLOTS = DATA / "empty_slots" / "defense.pln"
 EMPTY_SLOTS_PLAYS = DATA / "empty_slots" / "plays"
 
-# check-ppp: a clean profile that fully matches offense.pln above.
+# check-ppp: a profile whose every category offense.pln above holds (the game
+# plan has 10 the profile never uses).
 COMPAT_OFF_CLEAN = DATA / "compat_off_clean.prf"
 
-# check-ppp on a tree: the PNFL league file and a copy of its 2049 plans folder
-# (Denver's week 6 files, and the same files renamed to Las Vegas's names).
+# check-ppp on a tree: the PNFL league file and its 2049 plans folder, holding
+# the test set of plans and profiles under Denver's and Las Vegas's names.
 PNFL_LG2 = DATA / "PNFL.lg2"
 PPP_TREE = DATA / "ppp"
 # The PNFL's .lge, whose 18 teams line up with PNFL.lg2's (Denver is team 5).
@@ -74,7 +80,25 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
+@pytest.fixture
+def work(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Run from an empty folder, so no word is a file there unless a test
+    puts one."""
+    folder = tmp_path / "work"
+    folder.mkdir()
+    monkeypatch.chdir(folder)
+    return folder
+
+
 # ── league folders and league files ──────────────────────────────────────────
+
+
+def set_league(folder: Path, **settings: str | Path) -> None:
+    """Add `[league]` settings to the league folder's league.toml."""
+    toml = folder / "league.toml"
+    lines = "".join(f"{key} = '{value}'\n" for key, value in settings.items())
+    text = toml.read_text(encoding="utf-8").replace("[league]\n", "[league]\n" + lines)
+    toml.write_text(text, encoding="utf-8")
 
 
 @pytest.fixture
@@ -208,6 +232,11 @@ DENVER_PAIRS = (
 DENVER_PLANS = tuple(plan for _, plan in DENVER_PAIRS)
 
 
+def at_league(tmp_path: Path, team_folder: str) -> Path:
+    """A team's league location in `pnfl_league`: where PNFL.lg2 puts its files."""
+    return tmp_path / "lg2" / "PNFL" / "2049" / "Plans" / team_folder
+
+
 # ── the profile keys' league: Denver and Las Vegas (`build_teams`) ────────────
 
 Lg2League = Callable[..., Path]
@@ -282,6 +311,12 @@ def heads(result: Result) -> list[str]:
 
 
 # ── constructed gameplans ─────────────────────────────────────────────────────
+
+
+def play_name(play: PlayRef | None) -> str:
+    """The name of the play in a slot that must hold one."""
+    assert play is not None
+    return play.name
 
 
 def clock_slot(category: int) -> SpecialSlot:

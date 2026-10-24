@@ -30,6 +30,7 @@ from tests.integration.conftest import (
     build_gameplan,
     lge,
     offense_normal,
+    set_league,
     team,
 )
 
@@ -59,15 +60,6 @@ def test_normals_rejects_invalid_sort(runner, tmp_path: Path) -> None:
     assert result.exit_code == 2
     assert "Error: Invalid value for '--sort': 'bogus' is not one of" in result.stderr
     assert not (tmp_path / "OFF.normals.txt").exists()
-
-
-def test_normals_help_uses_uppercase_names(runner) -> None:
-    result = runner.invoke(list_normals, ["--help"])
-    assert result.exit_code == 0
-    assert "[OPTIONS] GAME_PLAN [OUTPUT]" in " ".join(result.stdout.split())
-    assert all(
-        name not in result.stdout for name in ("GAMEPLAN", "OUTPUT_PATH", "OUTPUT_FILE")
-    )
 
 
 @pytest.mark.parametrize("option", ["--force", "--output"])
@@ -324,15 +316,6 @@ def test_normals_malformed_file_mode_no_output(runner, tmp_path: Path) -> None:
 # ── list-specials ─────────────────────────────────────────────────────────────
 
 
-def test_specials_help_uses_uppercase_names(runner) -> None:
-    result = runner.invoke(list_specials, ["--help"])
-    assert result.exit_code == 0
-    assert "[OPTIONS] GAME_PLAN [OUTPUT]" in " ".join(result.stdout.split())
-    assert all(
-        name not in result.stdout for name in ("GAMEPLAN", "OUTPUT_PATH", "OUTPUT_FILE")
-    )
-
-
 @pytest.mark.parametrize("option", ["--force", "--output"])
 def test_specials_removed_options_rejected(runner, tmp_path: Path, option: str) -> None:
     out = tmp_path / "spec.txt"
@@ -520,14 +503,6 @@ def test_specials_key_needs_a_league(
 
 
 # ── a game plan key ───────────────────────────────────────────────────────────
-
-
-def set_league(folder: Path, **settings: str | Path) -> None:
-    """Add `[league]` settings to the league folder's league.toml."""
-    toml = folder / "league.toml"
-    lines = "".join(f"{key} = '{value}'\n" for key, value in settings.items())
-    text = toml.read_text(encoding="utf-8").replace("[league]\n", "[league]\n" + lines)
-    toml.write_text(text, encoding="utf-8")
 
 
 def team_league(

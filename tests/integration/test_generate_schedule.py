@@ -6,7 +6,7 @@ the generated schedule must obey every rule that applies to that league. Slow (a
 full solve per league); skipped by default. Run with `pytest -m slow`.
 
 To regenerate every golden set after an intentional change, run this module as a
-script: `python -m tests.integration.test_generate_schedule --bless`. It also
+script: `python -m tests.integration.test_generate_schedule --snapshot-update`. It also
 rewrites the built conference league files in data/.
 """
 
@@ -39,7 +39,7 @@ from tests.integration.schedule_validation import (
     game_keys,
     parse_schedule_html,
     parse_schedule_txt,
-    validate_report,
+    validate_report_html,
     validate_schedule,
 )
 from tests.unit.scheduler.conftest import CONFERENCES_LEAGUE
@@ -116,10 +116,10 @@ def _generate(
     )
 
 
-def _validate(case: GoldenCase, root: Path, txt: str, html: str) -> None:
+def _validate(case: GoldenCase, root: Path, txt: str, html: str, report: str) -> None:
     """Correctness of each output file, independent of the golden bytes: the
     .txt schedule obeys every rule, the .html schedule encodes the same games,
-    and the report's ranks/SOS values are correct for this schedule."""
+    and the written report's ranks/SOS values are correct for this schedule."""
     league = case_league(case, root / "validate")
     config = load_scheduler_config(case.rules)
     schedule = parse_schedule_txt(txt, league)
@@ -127,7 +127,7 @@ def _validate(case: GoldenCase, root: Path, txt: str, html: str) -> None:
     assert game_keys(parse_schedule_html(html, league)) == game_keys(schedule), (
         "HTML schedule does not encode the same games as the .txt"
     )
-    validate_report(schedule, league)
+    validate_report_html(report, schedule, league)
 
 
 # --- the built conference league files (fast) ----------------------------------
@@ -157,7 +157,7 @@ def test_committed_conference_league_files_match_the_builder() -> None:
         (DATA / case.upcoming).read_bytes(),
     )
     assert committed == conference_league_files(), (
-        "run `python -m tests.integration.test_generate_schedule --bless`"
+        "run `python -m tests.integration.test_generate_schedule --snapshot-update`"
     )
 
 
@@ -175,7 +175,7 @@ def test_generate_schedule_matches_golden(
     monkeypatch.chdir(output)
 
     txt, html, report = _generate(output, case, previous)
-    _validate(case, tmp_path / "files", txt, html)
+    _validate(case, tmp_path / "files", txt, html, report)
 
     # Regression + seed determinism: byte-identical to the frozen goldens.
     assert txt == case.golden_txt.read_text(encoding="utf-8"), "schedule .txt drifted"
@@ -187,7 +187,7 @@ def test_generate_schedule_matches_golden(
     )
 
 
-def _bless() -> None:
+def _snapshot_update() -> None:
     """Regenerate the built conference files and every golden set from a fresh
     solve (after validating rules)."""
     import os
@@ -208,19 +208,20 @@ def _bless() -> None:
                 os.chdir(output)
 
                 txt, html, report = _generate(output, case, previous)
-                _validate(case, workdir / "files", txt, html)  # valid before freezing
+                # valid before freezing
+                _validate(case, workdir / "files", txt, html, report)
 
                 EXPECTED.mkdir(exist_ok=True)
                 case.golden_txt.write_text(txt, encoding="utf-8", newline="\r\n")
                 case.golden_html.write_text(html, encoding="utf-8", newline="\r\n")
                 case.golden_report.write_text(report, encoding="utf-8", newline="\r\n")
-                print(f"Blessed {case.league} goldens in {EXPECTED} (validated).")
+                print(f"Updated {case.league} goldens in {EXPECTED} (validated).")
             finally:
                 os.chdir(origin)  # leave the temp dir so it can be removed (Windows)
 
 
 if __name__ == "__main__":
-    if "--bless" in sys.argv:
-        _bless()
+    if "--snapshot-update" in sys.argv:
+        _snapshot_update()
     else:
-        print("Pass --bless to regenerate the golden files.")
+        print("Pass --snapshot-update to regenerate the golden files.")

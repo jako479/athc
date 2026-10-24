@@ -7,7 +7,7 @@ How athc's **system/integration** tests are structured — a command invoked end
 ## Tiers
 
 - **Integration / system** — run a command via `CliRunner` through the libraries to a real output file, then assert on the produced file. (functional / e2e / system are used interchangeably; we say *integration*.)
-- **Packaging check** — `CliRunner` tests the command object, not the installed script. A couple of tests `subprocess.run` the real `athc` entry point to confirm it wires up and propagates exit codes. Keep it minimal.
+- **Packaging check** — `CliRunner` tests the command object, not the installed script. A few tests `subprocess.run` the installed `athc` script to confirm it wires up and propagates exit codes. Keep it minimal.
 
 ## Framework
 
@@ -40,7 +40,7 @@ Packaging checks live inline in the command's test file — no separate file, no
 Keep the two apart so source vs. target is obvious: **`data/` = source inputs, `expected/` = expected results.** Any real file used as an *expected* result goes in `expected/`, never mixed in with `data/`.
 
 - **Input** — real files in `tests/integration/data/`, named by scenario, located via `Path(__file__).parent`. Reserve `tmp_path` for the command's *output* (scratch), never for committed inputs.
-- **Expected** — committed files in `expected/`. For deterministic binary writers, compare the output **byte-for-byte**; where incidental bytes vary, compare **semantically** — reopen it with athc's reader and check the model. For **stdout**, compare to a golden `.txt`, normalizing the file path printed on each line so the comparison is machine-independent. Regenerate expected files with a script; never hand-edit one to pass.
+- **Expected** — committed files in `expected/`. For deterministic binary writers, compare the output **byte-for-byte**; where incidental bytes vary, compare **semantically** — reopen it with athc's reader and check the model. For **stdout**, compare to a golden `.txt`, normalizing the file path printed on each line so the comparison is machine-independent. Update an expected file only for an intended output change, after checking the new output.
 
 ## Test shape
 

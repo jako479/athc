@@ -194,13 +194,11 @@ def league_dir(name: str) -> Path:
     outside `leagues\\`; a blank name is refused too, since `leagues\\` joined
     with "" (or with spaces, which Windows trims) is the `leagues\\` folder.
     """
+    # A name that is not one folder name has no folder of its own to name.
+    if not name.strip() or name in (".", "..") or Path(name).name != name:
+        raise LeagueError(f"League '{name}' not found.{_available()}")
     path = leagues_dir() / name
-    if (
-        not name.strip()
-        or name in (".", "..")
-        or Path(name).name != name
-        or not path.is_dir()
-    ):
+    if not path.is_dir():
         raise LeagueError(f"League '{name}' not found. No folder {path}.{_available()}")
     return path
 

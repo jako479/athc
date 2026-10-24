@@ -44,12 +44,13 @@ from tests.integration.conftest import (
     GP_DEFENSE,
     GP_OFFENSE,
     PNFL_LGE,
-    TEAM_NAMES,
     BuildLeague,
+    at_league,
     build_gameplan,
     defense_special,
     offense_normal,
     offense_special,
+    set_league,
     team,
 )
 
@@ -487,16 +488,16 @@ def test_default_scope_needs_a_league(
 
 # Denver's game plans (DENVER_PLANS, in conftest.py) as a line lists them.
 DENVER_NAMES = ", ".join(DENVER_PLANS)
-# OR45RL01 is at 1-1 in Denver's (and Las Vegas's) offense game plans only; the
+# OR45RL01 is at 1-4 in Denver's (and Las Vegas's) offense game plans only; the
 # defense game plans print nothing.
-DENVER_OR45RL01 = ["found in slot 1-1", "found in slot 1-1"]
+DENVER_OR45RL01 = ["found in slot 1-4", "found in slot 1-4"]
 # Denver's offense game plans; DENVER_PLANS is in .lg2 order: off1, def1, off2, def2.
 DENVER_OFFENSE = [DENVER_PLANS[0], DENVER_PLANS[2]]
 # One game plan searched alone also says when OR45RL01 is not in it.
 DENVER_OR45RL01_ONE_FILE = [
-    "found in slot 1-1",
+    "found in slot 1-4",
     "not found",
-    "found in slot 1-1",
+    "found in slot 1-4",
     "not found",
 ]
 TEAM_NOT_SET = "Team is not set. Run 'athc config set team NAME' or pass --team or"
@@ -504,19 +505,6 @@ PATH_NOT_SET = (
     "League files folder is not set. Run 'athc config set path FOLDER' or pass"
 )
 LOCATION_HINT = "Run 'athc config set ppp_path FOLDER' or pass"
-
-
-def set_league(folder: Path, **settings: str | Path) -> None:
-    """Add `[league]` settings to the league folder's league.toml."""
-    toml = folder / "league.toml"
-    lines = "".join(f"{key} = '{value}'\n" for key, value in settings.items())
-    text = toml.read_text(encoding="utf-8").replace("[league]\n", "[league]\n" + lines)
-    toml.write_text(text, encoding="utf-8")
-
-
-def at_league(tmp_path: Path, team_folder: str) -> Path:
-    """A team's league location in `pnfl_league`: where PNFL.lg2 puts its files."""
-    return tmp_path / "lg2" / "PNFL" / "2049" / "Plans" / team_folder
 
 
 def report(folder: Path, names: Sequence[str], outcomes: list[str]) -> str:
@@ -694,22 +682,6 @@ def test_file_named_like_a_key_is_that_file(
 # ── the team: `team` and --team ───────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("source", ["team", "--team"])
-@pytest.mark.parametrize(
-    "name", ["Denver", "Broncos", "Denver Broncos", "dENVER bRONCOS"]
-)
-def test_team_by_name_nickname_or_both(
-    runner, pnfl_league: Path, tmp_path: Path, source: str, name: str
-) -> None:
-    if source == "team":
-        set_league(pnfl_league, team=name)
-        result = run(runner, KNOWN_NORMAL)
-    else:
-        result = run(runner, KNOWN_NORMAL, "--team", name)
-    folder = at_league(tmp_path, "Denver (Brian)")
-    assert result.stdout.startswith(report(folder, DENVER_OFFENSE, DENVER_OR45RL01))
-
-
 def test_team_matches_no_team(runner, pnfl_league: Path) -> None:
     set_league(pnfl_league, team="Denvr")
     result = run(runner, KNOWN_NORMAL)
@@ -743,33 +715,6 @@ def test_team_matches_two_teams(runner, lg2_league, config_dir: Path) -> None:
         "'New York' matches New York Giants and New York Jets. Use the nickname, "
         "or both names in quotes.\n"
     )
-
-
-@pytest.mark.parametrize(
-    ("name", "error"),
-    [
-        ("Giants", None),
-        ("Raiders", "no team named 'Raiders'. Teams: New York Giants, New York Jets."),
-        (
-            "New York",
-            "'New York' matches New York Giants and New York Jets. Use the "
-            "nickname, or both names in quotes.",
-        ),
-    ],
-    ids=["one", "none", "two"],
-)
-def test_team_option_match_count(
-    runner, lg2_league, name: str, error: str | None
-) -> None:
-    """Exactly one team must match: one is accepted, none or two rejected."""
-    lg2 = lg2_league(team(), team(), names=NEW_YORK)
-    result = run(runner, KNOWN_NORMAL, "--team", name)
-    assert result.exit_code == 2
-    if error is None:  # accepted: on to its game plans, none of them there
-        folder = lg2.parent / "PNFL" / "2049" / "Plans" / "Team"
-        assert result.stderr == f"FAIL {folder}: {PATH_NOT_FOUND}\n"
-    else:
-        assert result.stderr.endswith(f"Error: Invalid value for '--team': {error}\n")
 
 
 def test_team_blank_is_not_set(runner, lg2_league, config_dir: Path) -> None:
@@ -913,29 +858,6 @@ def test_stock_league(runner, lg2_league) -> None:
     result = run(runner, KNOWN_NORMAL)
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {lg2}: Stock league not supported.\n"
-
-
-@pytest.mark.parametrize(
-    ("lg2_teams", "line"),
-    [
-        (2, None),
-        (1, f"Lists 1 team(s), but {LEAGUE}.lge has 2."),
-        (3, f"Lists 3 team(s), but {LEAGUE}.lge has 2."),
-    ],
-    ids=["equal", "one fewer", "one more"],
-)
-def test_league_team_counts(
-    runner, lg2_league, lg2_teams: int, line: str | None
-) -> None:
-    """The two league files must list the same teams."""
-    lg2 = lg2_league(*(team() for _ in range(lg2_teams)), names=TEAM_NAMES[:2])
-    result = run(runner, KNOWN_NORMAL, "--team", "Denver")
-    assert result.exit_code == 2
-    if line is None:  # accepted: on to Denver's game plans, none of them there
-        assert "No Denver game plans" not in result.stderr
-        assert PATH_NOT_FOUND in result.stderr
-    else:
-        assert result.stderr == f"FAIL {lg2}: {line}\n"
 
 
 # ── missing game plans: at the league locations ───────────────────────────────

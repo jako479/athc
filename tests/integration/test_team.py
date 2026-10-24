@@ -44,6 +44,10 @@ from tests.integration.conftest import (
     team,
 )
 
+# Every run starts in an empty folder, so no word is a file there unless a
+# test puts one.
+pytestmark = pytest.mark.usefixtures("work")
+
 WriteConfig = Callable[..., Path]
 
 TEAM_NOT_SET = (
@@ -71,16 +75,6 @@ PLAIN_RUNS = [
 
 def league_toml(config_dir: Path) -> Path:
     return config_dir / "leagues" / LEAGUE / "league.toml"
-
-
-@pytest.fixture(autouse=True)
-def work(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Run from an empty folder, so no word is a file there unless a test
-    puts one."""
-    folder = tmp_path / "work"
-    folder.mkdir()
-    monkeypatch.chdir(folder)
-    return folder
 
 
 def run(runner, *args: str) -> Result:

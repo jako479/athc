@@ -11,7 +11,7 @@ import pytest
 from athc.cli.gameplan.list_normals import list_normals
 from athc.cli.gameplan.set_normals import set_normals
 from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
-from athc.fbpro98_gameplan import CustomPlayRef, PlayRef, read_gameplan, write_gameplan
+from athc.fbpro98_gameplan import CustomPlayRef, read_gameplan, write_gameplan
 from tests.conftest import LEAGUE, athc_toml, league_not_found, league_toml
 from tests.integration.conftest import (
     EMPTY_SLOTS_PLAYS,
@@ -21,6 +21,8 @@ from tests.integration.conftest import (
     PLAYS,
     TEAM_NAMES,
     lge,
+    play_name,
+    set_league,
     team,
 )
 
@@ -37,11 +39,6 @@ def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     folder = make_league(LEAGUE, league_toml(PLAYS))
     write_config(athc_toml())
     return folder
-
-
-def _name(play: PlayRef | None) -> str:
-    assert play is not None
-    return play.name
 
 
 def _copy(tmp_path: Path) -> Path:
@@ -83,15 +80,6 @@ def test_key_alone_is_missing_input_file(runner) -> None:
     result = runner.invoke(set_normals, ["off1"])
     assert result.exit_code == 2
     assert result.stderr.endswith("Error: Missing argument 'INPUT_FILE'.\n")
-
-
-def test_extra_argument_rejected(runner, tmp_path: Path) -> None:
-    p = _copy(tmp_path)
-    result = runner.invoke(
-        set_normals, [str(p), str(_input(tmp_path, NORMAL + "\n")), "extra"]
-    )
-    assert result.exit_code == 2
-    assert result.stderr.endswith("Error: Got unexpected extra argument (extra).\n")
 
 
 def test_play_list_not_text(runner, tmp_path: Path) -> None:
@@ -151,7 +139,7 @@ def test_a_list_saved_with_a_bom_reads_its_first_play(runner, tmp_path: Path) ->
     inp.write_text(NORMAL + "\n", encoding="utf-8-sig")
     result = runner.invoke(set_normals, [str(p), str(inp)])
     assert result.exit_code == 0
-    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
+    assert play_name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
 
 
 def test_slot_path_starts_with_play_pool_folder(runner, tmp_path: Path) -> None:
@@ -179,21 +167,25 @@ def test_skips_comment_lines(runner, tmp_path: Path) -> None:
     p = _without_first_normal(_copy(tmp_path))
     inp = _input(tmp_path, f":: header\n{NORMAL}\n:: another\n")
     assert runner.invoke(set_normals, [str(p), str(inp)]).exit_code == 0
-    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
+    assert play_name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
 
 
 def test_strips_inline_comments(runner, tmp_path: Path) -> None:
     p = _without_first_normal(_copy(tmp_path))
     inp = _input(tmp_path, f"{NORMAL} :: my favorite play\n")
     assert runner.invoke(set_normals, [str(p), str(inp)]).exit_code == 0
-    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
+    assert play_name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
 
 
 def test_inline_comment_requires_space(runner, tmp_path: Path) -> None:
     """`name::comment` (no space) is not split, so the whole token fails to resolve."""
     p = _copy(tmp_path)
     inp = _input(tmp_path, f"{NORMAL}::comment\n")
-    assert runner.invoke(set_normals, [str(p), str(inp)]).exit_code == 2
+    result = runner.invoke(set_normals, [str(p), str(inp)])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {inp}: line 1: '{NORMAL}::comment' is not in the play pool (slot 1-1).\n"
+    )
 
 
 # ── blank lines ───────────────────────────────────────────────────────────────
@@ -212,7 +204,7 @@ def test_blank_lines_leave_their_slots_empty(
     assert result.stdout == f"OK   {p}: updated (3 normal play(s))\n"
     slots = read_gameplan(str(p)).normal_plays
     assert [i for i, s in enumerate(slots) if s is not None] == [0, 2, 5]
-    assert [_name(slots[i]) for i in (0, 2, 5)] == [NORMAL, "DN28RM01", "AT21Draw"]
+    assert [play_name(slots[i]) for i in (0, 2, 5)] == [NORMAL, "DN28RM01", "AT21Draw"]
 
 
 def test_only_blank_lines_clear_every_slot(runner, tmp_path: Path) -> None:
@@ -229,7 +221,7 @@ def test_last_play_on_slot_64_accepted(runner, tmp_path: Path) -> None:
     inp = _input(tmp_path, "\n" * 63 + NORMAL + "\n")
     result = runner.invoke(set_normals, [str(p), str(inp)])
     assert result.exit_code == 0
-    assert _name(read_gameplan(str(p)).normal_plays[63]) == NORMAL
+    assert play_name(read_gameplan(str(p)).normal_plays[63]) == NORMAL
 
 
 def test_last_play_on_slot_65_rejected(runner, tmp_path: Path) -> None:
@@ -290,7 +282,7 @@ def test_dash_reads_from_console(runner, tmp_path: Path) -> None:
     p = _without_first_normal(_copy(tmp_path))
     result = runner.invoke(set_normals, [str(p), "-"], input=NORMAL + "\n")
     assert result.exit_code == 0
-    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
+    assert play_name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
 
 
 def test_dash_input_errors_name_no_file(runner, tmp_path: Path) -> None:
@@ -398,7 +390,7 @@ def test_play_names_match_any_case(runner, tmp_path: Path) -> None:
         set_normals, [str(p), str(_input(tmp_path, NORMAL.lower() + "\n"))]
     )
     assert result.exit_code == 0
-    assert _name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
+    assert play_name(read_gameplan(str(p)).normal_plays[0]) == NORMAL
 
 
 def test_malformed_game_plan(runner, tmp_path: Path) -> None:
@@ -478,14 +470,6 @@ def test_invalid_play_path(runner, league: Path, tmp_path: Path) -> None:
 # ── a game plan key ───────────────────────────────────────────────────────────
 
 
-def set_league(folder: Path, **settings: str | Path) -> None:
-    """Add `[league]` settings to the league folder's league.toml."""
-    toml = folder / "league.toml"
-    lines = "".join(f"{key} = '{value}'\n" for key, value in settings.items())
-    text = toml.read_text(encoding="utf-8").replace("[league]\n", "[league]\n" + lines)
-    toml.write_text(text, encoding="utf-8")
-
-
 def team_league(league: Path, tmp_path: Path, **settings: str | Path) -> Path:
     """The league's .lg2 and .lge in `tmp_path/lg2`, Denver's four game plans
     named after their keys (off1 there, an offense copy), `path` and
@@ -514,7 +498,7 @@ def test_key_sets_your_game_plan(runner, league: Path, tmp_path: Path) -> None:
     result = runner.invoke(set_normals, ["off1", str(inp)])
     assert result.exit_code == 0
     assert result.stdout == f"OK   {folder / 'OFF1.pln'}: updated (1 normal play(s))\n"
-    assert _name(read_gameplan(folder / "OFF1.pln").normal_plays[0]) == NORMAL
+    assert play_name(read_gameplan(folder / "OFF1.pln").normal_plays[0]) == NORMAL
 
 
 def test_key_missing_names_the_game_plan(runner, league: Path, tmp_path: Path) -> None:

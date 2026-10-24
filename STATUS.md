@@ -53,6 +53,10 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
 ### CLI and help (1.0.0)
 
+- CLI tests reviewed (2026-10-23): the team plans and profiles in the test
+  data are the test set; shared path and team handling is tested once; every
+  batch command's bug-in-one-file path is covered; the packaging checks run
+  the installed `athc` script.
 - Help wording (2026-10-18): `use '-' for stdout` / `stdin`; every default as
   `(default: ...)`; commands and settings named in help in single quotes; an
   option that overrides a setting never states its value. Rules:

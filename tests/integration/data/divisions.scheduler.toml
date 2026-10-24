@@ -2,9 +2,9 @@
 # independent of the shipped release rules: the golden is a function of exactly
 # these values plus data/PNFL-2047-after-super-bowl.lge (the standings),
 # data/PNFL-2048-after-week1.lge (the league) and the fixed seed. Change a value
-# here only with a deliberate re-bless (python -m
-# tests.integration.test_generate_schedule --bless). Every output-affecting key
-# is set explicitly so nothing rides on in-code defaults.
+# here only with a deliberate snapshot update (python -m
+# tests.integration.test_generate_schedule --snapshot-update). Every
+# output-affecting key is set explicitly so nothing rides on in-code defaults.
 
 [league]
 weeks = 16

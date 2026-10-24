@@ -6,7 +6,6 @@ import csv
 import io
 import os
 import subprocess
-import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -19,6 +18,7 @@ from athc.fbpro98_profile import ProfileType
 from athc.profile import ProfileDiff, SituationChange, SlotChange
 from tests.conftest import LEAGUE
 from tests.integration.conftest import (
+    ATHC,
     DATA,
     DEF1,
     DENVER,
@@ -71,15 +71,6 @@ def _norm(text: str, a: Path, b: Path) -> str:
     return text.replace(str(a), a.name).replace(str(b), b.name)
 
 
-@pytest.fixture
-def work(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Run from an empty folder, so no key is a file there."""
-    folder = tmp_path / "work"
-    folder.mkdir()
-    monkeypatch.chdir(folder)
-    return folder
-
-
 # ── command (CliRunner) ───────────────────────────────────────────────────────
 
 
@@ -89,10 +80,6 @@ def test_help_screen(runner) -> None:
     )
     assert result.exit_code == 0
     assert result.stdout == HELP
-
-
-def test_cli_requires_two_paths(runner) -> None:
-    assert runner.invoke(diff, [str(OFF1)]).exit_code == 2
 
 
 @pytest.mark.parametrize(
@@ -349,7 +336,7 @@ def test_entry_point_subprocess(tmp_path: Path, log_dir: Path) -> None:
         "ATHC_LOG_DIR": str(log_dir),
     }
     result = subprocess.run(
-        [sys.executable, "-m", "athc", "profile", "diff", str(OFF1), str(OFF2)],
+        [str(ATHC), "profile", "diff", str(OFF1), str(OFF2)],
         capture_output=True,
         text=True,
         env=env,

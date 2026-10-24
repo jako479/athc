@@ -1,7 +1,7 @@
 """Integration tests for `athc convert-pdb`.
 
 To regenerate the golden workbook after an intentional change, run this module
-as a script: `python -m tests.integration.test_convert_pdb --bless`.
+as a script: `python -m tests.integration.test_convert_pdb --snapshot-update`.
 """
 
 from __future__ import annotations
@@ -43,6 +43,7 @@ from tests.conftest import (
     write_config_file,
 )
 from tests.integration.conftest import (
+    ATHC,
     DATA,
     DENVER_PLANS,
     EXPECTED,
@@ -50,15 +51,19 @@ from tests.integration.conftest import (
     GP_OFFENSE,
     TEAM_NAMES,
     BuildLeague,
+    at_league,
+    set_league,
     team,
 )
 from tests.integration.conftest import DENVER_2049 as DENVER
 
-PDB = DATA / "2045-2047.pdb"
-# A real week's PDB and its own pool holding every play in it, so a run warns
-# about none of them; the shared data/plays/ pool stays as other tests pin it.
-POOL_PDB = DATA / "48W17.pdb"
+# A real week's PDB and its own pool holding every play in it, so a run with
+# that pool warns about none of them; the shared data/plays/ pool stays as
+# other tests pin it.
+PDB = DATA / "48W17.pdb"
 POOL_PLAYS = DATA / "48W17-plays"
+# Three seasons in one PDB: 23 teams over the seasons.
+SEASONS_PDB = DATA / "2045-2047.pdb"
 GOLDEN = EXPECTED / "48W17.workbook.json"
 MakeLeague = Callable[..., Path]
 WriteConfig = Callable[..., Path]
@@ -143,29 +148,18 @@ def test_no_arguments_is_missing_pdb_file(runner) -> None:
     assert result.stderr.endswith("Error: Missing argument 'PDB_FILE'.\n")
 
 
-@pytest.mark.parametrize(
-    "args",
-    [
-        ["in.txt", "out.xlsx"],  # bad pdb extension
-        [str(PDB), "out.csv"],  # bad output extension
-    ],
-)
-def test_bad_extension_exit_2(runner, args: list[str]) -> None:
-    result = runner.invoke(convert_pdb, args)
-    assert result.exit_code == 2
-
-
-def test_bad_extension_is_a_sentence(runner) -> None:
+def test_pdb_must_be_a_pdb(runner) -> None:
     result = runner.invoke(convert_pdb, ["in.txt", "out.xlsx"])
+    assert result.exit_code == 2
     assert result.stderr.endswith(
         "Error: Invalid value for 'PDB_FILE': must have a .pdb extension.\n"
     )
 
 
-@pytest.mark.parametrize("output", ["-", "week6.pdb"])
+@pytest.mark.parametrize("output", ["-", "week6.pdb", "week6.csv"])
 def test_output_must_be_a_workbook(runner, tmp_path: Path, output: str) -> None:
-    """`-` (the console) and a second PDB are each the extension error, with
-    nothing more."""
+    """`-` (the console), a second PDB and another file are each the extension
+    error, with nothing more."""
     target = output if output == "-" else str(tmp_path / output)
     result = runner.invoke(convert_pdb, [str(PDB), target])
     assert result.exit_code == 2
@@ -174,18 +168,16 @@ def test_output_must_be_a_workbook(runner, tmp_path: Path, output: str) -> None:
     )
 
 
-def test_bad_pln_extension_exit_2(runner, tmp_path: Path) -> None:
-    result = runner.invoke(
-        convert_pdb, [str(PDB), str(tmp_path / "o.xlsx"), "-o", "plan.txt"]
-    )
-    assert result.exit_code == 2
-
-
 @pytest.mark.parametrize(
     ("option", "hint"),
-    [("-o2", "'-o2' / '--pln-off-2'"), ("-d2", "'-d2' / '--pln-def-2'")],
+    [
+        ("-o", "'-o' / '--pln-off'"),
+        ("-o2", "'-o2' / '--pln-off-2'"),
+        ("-d", "'-d' / '--pln-def'"),
+        ("-d2", "'-d2' / '--pln-def-2'"),
+    ],
 )
-def test_second_plan_option_takes_a_pln_only(
+def test_plan_option_takes_a_pln_only(
     runner, tmp_path: Path, option: str, hint: str
 ) -> None:
     result = run(runner, PDB, tmp_path / "o.xlsx", option, "plan.txt")
@@ -215,7 +207,7 @@ def test_removed_options_are_rejected(
     assert "No such option" in result.stderr
 
 
-# ── runtime errors (exit 1) ───────────────────────────────────────────────────
+# ── runtime errors (exit 2) ───────────────────────────────────────────────────
 
 
 def test_missing_pdb_exit_2(runner, tmp_path: Path) -> None:
@@ -224,6 +216,26 @@ def test_missing_pdb_exit_2(runner, tmp_path: Path) -> None:
     )
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {tmp_path / 'nope.pdb'}: {FILE_NOT_FOUND}\n"
+
+
+@pytest.mark.parametrize("option", ["-o", "-o2", "-d", "-d2"])
+@pytest.mark.parametrize(
+    ("make", "reason"),
+    [(None, FILE_NOT_FOUND), ("folder", ACCESS_DENIED)],
+    ids=["missing", "a folder"],
+)
+def test_plan_option_must_name_a_file(
+    runner, tmp_path: Path, option: str, make: str | None, reason: str
+) -> None:
+    """Checked with the PDB, before any setting is read: nothing written."""
+    plan = tmp_path / "try3.pln"
+    if make == "folder":
+        plan.mkdir()
+    out = tmp_path / "o.xlsx"
+    result = run(runner, PDB, out, option, plan)
+    assert result.exit_code == 2
+    assert result.stderr == f"FAIL {plan}: {reason}\n"
+    assert result.stdout == "" and not out.exists()
 
 
 def test_wildcard_that_matches_nothing_is_a_missing_file(
@@ -316,7 +328,7 @@ def test_no_category_order_exports_nothing(
     write_config(athc_toml())
     make_league(LEAGUE, league_toml(POOL_PLAYS))
     out = tmp_path / "o.xlsx"
-    result = runner.invoke(convert_pdb, [str(POOL_PDB), str(out)])
+    result = runner.invoke(convert_pdb, [str(PDB), str(out)])
     assert result.exit_code == 0
     assert result.stdout == f"OK   {out}: 0 play(s)\n"
     workbook = openpyxl.load_workbook(out)
@@ -337,7 +349,7 @@ def test_league_override_changes_the_order(
     body = '[convert-pdb.category_order]\nrun = ["RM", "RL"]\n'
     make_league(LEAGUE, league_toml(POOL_PLAYS, convert_pdb=body))
     out = tmp_path / "o.xlsx"
-    result = runner.invoke(convert_pdb, [str(POOL_PDB), str(out)])
+    result = runner.invoke(convert_pdb, [str(PDB), str(out)])
     assert result.exit_code == 0, result.stderr
     sheet = openpyxl.load_workbook(out)["Run Plays"]
     header = next(sheet.iter_rows(values_only=True))
@@ -368,7 +380,7 @@ def test_invalid_pdb_content_exit_2(runner, tmp_path: Path) -> None:
 @pytest.mark.usefixtures("league")
 def test_produces_xlsx_with_sheets(runner, tmp_path: Path) -> None:
     out = tmp_path / "out.xlsx"
-    result = runner.invoke(convert_pdb, [str(PDB), str(out)])
+    result = runner.invoke(convert_pdb, [str(SEASONS_PDB), str(out)])
     assert result.exit_code == 0
     assert out.is_file()
     wb = openpyxl.load_workbook(out)
@@ -524,16 +536,7 @@ def test_entry_point_subprocess(
     }
     out = tmp_path / "out.xlsx"
     result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "athc",
-            "convert-pdb",
-            str(PDB),
-            str(out),
-            "--league",
-            LEAGUE,
-        ],
+        [str(ATHC), "convert-pdb", str(PDB), str(out), "--league", LEAGUE],
         capture_output=True,
         text=True,
         env=env,
@@ -613,7 +616,7 @@ def _golden_league(config_dir: Path) -> None:
 def _convert_golden(runner: CliRunner, out: Path) -> None:
     result = runner.invoke(
         convert_pdb,
-        [str(POOL_PDB), str(out), "-o", str(GP_OFFENSE), "-d", str(GP_DEFENSE)],
+        [str(PDB), str(out), "-o", str(GP_OFFENSE), "-d", str(GP_DEFENSE)],
     )
     assert result.exit_code == 0, result.stderr or repr(result.exception)
 
@@ -646,7 +649,7 @@ def test_workbook_matches_golden(runner, config_dir: Path, tmp_path: Path) -> No
     assert _workbook_cells(out) == json.loads(GOLDEN.read_text(encoding="utf-8"))
 
 
-def _bless() -> None:
+def _snapshot_update() -> None:
     """Regenerate the golden workbook JSON from a fresh conversion."""
     import tempfile
 
@@ -660,13 +663,6 @@ def _bless() -> None:
         text = _golden_text(_workbook_cells(out))
     GOLDEN.write_bytes(text.replace("\n", "\r\n").encode("utf-8"))
     print(f"wrote {GOLDEN}")
-
-
-if __name__ == "__main__":
-    if "--bless" in sys.argv:
-        _bless()
-    else:
-        print("Pass --bless to regenerate the golden file.")
 
 
 # ── progress, warnings and the OK line ────────────────────────────────────────
@@ -691,7 +687,7 @@ def test_progress_on_stderr_and_ok_line(
     out = tmp_path / "w.xlsx"
     result = runner.invoke(
         convert_pdb,
-        [str(POOL_PDB), str(out), "-o", str(GP_OFFENSE), "-d", str(GP_DEFENSE)],
+        [str(PDB), str(out), "-o", str(GP_OFFENSE), "-d", str(GP_DEFENSE)],
     )
     assert result.exit_code == 0
     assert result.stderr == f"Creating {out}\n"
@@ -736,8 +732,8 @@ def test_unwritable_workbook_is_a_fail_line_not_a_bug(runner, tmp_path: Path) ->
     blocked.mkdir()
     result = run(runner, pdb)
     assert result.exit_code == 2
-    assert result.stderr.splitlines()[-1].startswith(f"FAIL {blocked}: ")
-    assert "unexpected error" not in result.stderr
+    assert result.stderr.splitlines()[-1] == f"FAIL {blocked}: {ACCESS_DENIED}"
+    assert "Unexpected error" not in result.stderr
 
 
 # ── the Slot columns: helpers ─────────────────────────────────────────────────
@@ -800,19 +796,6 @@ def real_league(pnfl_league: Path, write_config: WriteConfig) -> Path:
     """`pnfl_league` (the real 2049 league file and plans) able to convert."""
     write_config(athc_toml() + CONVERT_PDB_TOML)
     return pnfl_league
-
-
-def set_league(folder: Path, **settings: str | Path) -> None:
-    """Add `[league]` settings to the league folder's league.toml."""
-    toml = folder / "league.toml"
-    lines = "".join(f"{key} = '{value}'\n" for key, value in settings.items())
-    text = toml.read_text(encoding="utf-8").replace("[league]\n", "[league]\n" + lines)
-    toml.write_text(text, encoding="utf-8")
-
-
-def at_league(tmp_path: Path, team_folder: str) -> Path:
-    """A team's league location in `pnfl_league`: where PNFL.lg2 puts its files."""
-    return tmp_path / "lg2" / "PNFL" / "2049" / "Plans" / team_folder
 
 
 def plan_lines(result: Result) -> list[str]:
@@ -1116,6 +1099,35 @@ def test_unreadable_plan_warns(
     assert shown(out) == slots((True, True), (True, False))
 
 
+def test_locked_plan_warns(
+    runner,
+    denver_league: Callable[..., Path],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A plan Windows will not open (the game has it, say) warns in Windows'
+    words and hides its column; the run goes on."""
+    location = denver_league()
+    locked = location / "DEN-OGP2.pln"
+    from athc.cli import convert_pdb as convert_pdb_module
+
+    real_read = convert_pdb_module.read_gameplan
+
+    def read(path):
+        if Path(path) == locked:
+            raise PermissionError(13, "Permission denied", str(path))
+        return real_read(path)
+
+    monkeypatch.setattr(convert_pdb_module, "read_gameplan", read)
+    out = tmp_path / "w.xlsx"
+    result = run(runner, PDB, out)
+    assert result.exit_code == 0
+    assert plan_lines(result)[2] == (
+        f"WARN {locked}: {ACCESS_DENIED} Offense Slot 2 is hidden."
+    )
+    assert shown(out) == slots((True, False), (True, True))
+
+
 # ── --path FOLDER ─────────────────────────────────────────────────────────────
 
 
@@ -1293,15 +1305,6 @@ def test_ppp_path_must_be_a_folder(
 # ── which team: `team`, --team ────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("name", ["Denver", "Broncos", "denver broncos"])
-def test_team_by_name_nickname_or_both(
-    runner, real_league: Path, tmp_path: Path, name: str
-) -> None:
-    set_league(real_league, team=name)
-    result = run(runner, PDB, tmp_path / "w.xlsx")
-    assert plan_lines(result) == progress(at_league(tmp_path, "Denver (Brian)"))
-
-
 def test_team_option_beats_team(runner, real_league: Path, tmp_path: Path) -> None:
     set_league(real_league, team="Las Vegas")
     result = run(runner, PDB, tmp_path / "w.xlsx", "--team", "Denver")
@@ -1413,3 +1416,10 @@ def test_league_team_counts_differ(
     result = run(runner, PDB, tmp_path / "w.xlsx")
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {lg2}: Lists 2 team(s), but {LEAGUE}.lge has 1.\n"
+
+
+if __name__ == "__main__":
+    if "--snapshot-update" in sys.argv:
+        _snapshot_update()
+    else:
+        print("Pass --snapshot-update to regenerate the golden file.")

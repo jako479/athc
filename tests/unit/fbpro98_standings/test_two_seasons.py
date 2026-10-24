@@ -39,8 +39,8 @@ DIVISIONS_2048 = (
     ("Washington", "Atlanta", "New York", "Philadelphia"),
     ("Chicago", "Minnesota", "Green Bay", "San Francisco", "Seattle"),
 )
-# The 2047 order the scheduler method gives with seed 0. Level teams fall to
-# the seed's coin toss, so this is the library's order, not a published one.
+# The 2047 order by the scheduler method with seed 0; level teams fall to the
+# seed's coin toss.
 OVERALL_2047 = (
     "Pittsburgh",
     "Washington",

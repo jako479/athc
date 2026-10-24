@@ -20,7 +20,6 @@ import click
 import pytest
 
 from athc.cli import cli
-from athc.cli.config import config as config_group
 from athc.cli.config.edit import edit
 from athc.cli.config.get import get
 from athc.cli.config.path import path
@@ -199,18 +198,26 @@ def test_empty_league_key_is_no_league(write_config: WriteConfig) -> None:
         load_league()
 
 
-@pytest.mark.parametrize("name", ["..", "..\\x", "a/b", "a\\b"])
+@pytest.mark.parametrize("name", [".", "..", "..\\x", "a/b", "a\\b"])
 def test_league_dir_rejects_path_segments(name: str, config_dir: Path) -> None:
+    """Not a folder name, so no "No folder" path is named."""
     (config_dir / "x").mkdir()  # a real sibling folder `..\x` would point at
-    with pytest.raises(LeagueError, match="not found"):
+    with pytest.raises(LeagueError) as exc:
         league_dir(name)
+    assert str(exc.value) == (
+        f"League '{name}' not found. No league folders under {config_dir / 'leagues'}."
+    )
 
 
 @pytest.mark.parametrize("name", ["", "   "])
 def test_league_dir_rejects_blank_names(name: str, config_dir: Path) -> None:
+    """The leagues folder exists, so it is never named as missing."""
     (config_dir / "leagues").mkdir()  # "" would resolve to this folder itself
-    with pytest.raises(LeagueError, match="not found"):
+    with pytest.raises(LeagueError) as exc:
         league_dir(name)
+    assert str(exc.value) == (
+        f"League '{name}' not found. No league folders under {config_dir / 'leagues'}."
+    )
 
 
 def test_resolve_league_blank_arg_is_no_arg(
@@ -470,15 +477,6 @@ def test_categories_errors_name_the_file(
 Launches = list[tuple[tuple[object, ...], dict[str, object]]]
 
 
-def test_group_lists_subcommands(runner) -> None:
-    result = runner.invoke(config_group, ["--help"])
-    assert result.exit_code == 0
-    assert "path" in result.stdout
-    assert "edit" in result.stdout
-    assert "reveal" in result.stdout
-    assert "get" in result.stdout
-
-
 def test_path_prints_config_file(runner, config_dir: Path) -> None:
     result = runner.invoke(path, [])
     assert result.exit_code == 0
@@ -504,6 +502,35 @@ def test_reveal_opens_folder_when_absent(
     result = runner.invoke(reveal, [])
     assert result.exit_code == 0
     assert launched == [((str(config_dir),), {})]
+
+
+def test_reveal_creates_a_missing_settings_folder(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A first run: the settings folder is not there yet, so it is made and
+    opened."""
+    folder = tmp_path / "new" / "athc"
+    monkeypatch.setenv("ATHC_CONFIG_DIR", str(folder))
+    launched: Launches = []
+    monkeypatch.setattr("click.launch", lambda *a, **k: launched.append((a, k)))
+    result = runner.invoke(reveal, [])
+    assert result.exit_code == 0
+    assert folder.is_dir()
+    assert launched == [((str(folder),), {})]
+
+
+def test_edit_creates_a_missing_settings_folder(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A first run: the settings folder is made, with an empty athc.toml."""
+    folder = tmp_path / "new" / "athc"
+    monkeypatch.setenv("ATHC_CONFIG_DIR", str(folder))
+    launched: list[tuple[object, ...]] = []
+    monkeypatch.setattr("os.startfile", lambda *a, **k: launched.append(a))
+    result = runner.invoke(edit, [])
+    assert result.exit_code == 0
+    assert (folder / "athc.toml").read_bytes() == b""
+    assert launched == [(str(folder / "athc.toml"),)]
 
 
 def test_edit_opens_associated_app(

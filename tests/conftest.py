@@ -174,7 +174,7 @@ def athc_toml(league: str = LEAGUE) -> str:
 
 def write_config_file(config_dir: Path, body: str, name: str = "athc.toml") -> Path:
     """Write a raw config file (dedented, leading newline stripped) to `config_dir/name`.
-    Plain function so golden `--bless` scripts can use it outside pytest."""
+    Plain function so golden `--snapshot-update` scripts can use it outside pytest."""
     path = config_dir / name
     path.write_text(textwrap.dedent(body).lstrip("\n"), encoding="utf-8")
     return path

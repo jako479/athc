@@ -68,8 +68,7 @@ REAL_2048_FINISH = {
     "West2": ["Chicago", "Minnesota", "Green Bay", "San Francisco", "Seattle"],
 }
 
-# The 2047 order the loader gives with SEED. Level teams fall to the seed's
-# coin toss, so this is the loader's order, not a published one.
+# The 2047 order with SEED; level teams fall to the seed's coin toss.
 OVERALL_2047 = [
     "Pittsburgh",
     "Washington",

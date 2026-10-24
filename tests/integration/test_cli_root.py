@@ -8,6 +8,7 @@ x` take theirs.
 
 from __future__ import annotations
 
+import re
 import shutil
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -59,6 +60,24 @@ def test_root_help_has_no_league(runner) -> None:
     assert "--league" not in result.stdout
 
 
+def test_root_help_lists_every_command_but_generate_schedule(runner) -> None:
+    """Every command registered in pyproject.toml shows, in name order, but
+    generate-schedule, which is hidden."""
+    result = runner.invoke(cli, ["--help"])
+    assert result.exit_code == 0
+    listing = result.stdout.split("Commands:\n", 1)[1]
+    assert re.findall(r"^  (\S+)", listing, re.MULTILINE) == [
+        "autocontinue",
+        "check-ppp",
+        "config",
+        "convert-pdb",
+        "gameplan",
+        "playpool",
+        "profile",
+        "standings",
+    ]
+
+
 def test_root_rejects_league(runner) -> None:
     result = runner.invoke(cli, ["--league", LEAGUE, "profile", "check", str(OFF1)])
     assert result.exit_code == 2
@@ -100,7 +119,7 @@ def _unknown_league_args(command: click.Command, tmp_path: Path) -> list[str]:
     if command is check_ppp:
         return [str(OFF1), str(GP_OFFENSE)]
     if command is convert_pdb:
-        return [str(DATA / "2045-2047.pdb"), str(tmp_path / "out.xlsx")]
+        return [str(DATA / "48W17.pdb"), str(tmp_path / "out.xlsx")]
     if command is standings:
         return []
     return ["--season", "2048", "--previous", str(tmp_path)]  # generate_schedule

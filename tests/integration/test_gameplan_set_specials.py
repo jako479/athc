@@ -10,7 +10,7 @@ import pytest
 
 from athc.cli.gameplan.set_specials import set_specials
 from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
-from athc.fbpro98_gameplan import GamePlan, PlayRef, read_gameplan, write_gameplan
+from athc.fbpro98_gameplan import GamePlan, read_gameplan, write_gameplan
 from tests.conftest import LEAGUE, athc_toml, league_not_found, league_toml
 from tests.integration.conftest import (
     GP_DEFENSE,
@@ -18,6 +18,8 @@ from tests.integration.conftest import (
     PLAYS,
     TEAM_NAMES,
     lge,
+    play_name,
+    set_league,
     team,
 )
 
@@ -33,11 +35,6 @@ def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     folder = make_league(LEAGUE, league_toml(PLAYS))
     write_config(athc_toml())
     return folder
-
-
-def _name(play: PlayRef | None) -> str:
-    assert play is not None
-    return play.name
 
 
 def _copy(tmp_path: Path, name: str = "offense.pln", src: Path = GP_OFFENSE) -> Path:
@@ -90,13 +87,6 @@ def test_play_list_not_text(runner, tmp_path: Path) -> None:
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {p}: Not a valid play list.\n"
     assert p.read_bytes() == original
-
-
-def test_extra_argument_rejected(runner, tmp_path: Path) -> None:
-    inp = _input(tmp_path, SPECIAL + "\n")
-    result = runner.invoke(set_specials, [str(inp), "extra"])
-    assert result.exit_code == 2
-    assert result.stderr.endswith("Error: Got unexpected extra argument (extra).\n")
 
 
 def test_no_quiet_option(runner, tmp_path: Path) -> None:
@@ -176,7 +166,7 @@ def test_merge_preserves_other_categories(runner, tmp_path: Path) -> None:
             continue
         assert (after[i] is None) == (before[i] is None)
         if before[i] is not None:
-            assert _name(after[i]) == _name(before[i])
+            assert play_name(after[i]) == play_name(before[i])
 
 
 def test_writes_no_backup(runner, tmp_path: Path) -> None:
@@ -194,7 +184,7 @@ def test_skips_and_strips_comments(runner, tmp_path: Path) -> None:
     inp = _input(tmp_path, f":: header\n{SPECIAL} :: kickoff\n")
     result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
     assert result.exit_code == 0
-    assert _name(read_gameplan(str(p)).custom_special_plays[1]) == SPECIAL
+    assert play_name(read_gameplan(str(p)).custom_special_plays[1]) == SPECIAL
 
 
 def test_blank_lines_are_skipped(runner, tmp_path: Path) -> None:
@@ -204,14 +194,14 @@ def test_blank_lines_are_skipped(runner, tmp_path: Path) -> None:
     inp = _input(tmp_path, f"\n\n{SPECIAL}\n\n")
     result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
     assert result.exit_code == 0
-    assert _name(read_gameplan(str(p)).custom_special_plays[1]) == SPECIAL
+    assert play_name(read_gameplan(str(p)).custom_special_plays[1]) == SPECIAL
 
 
 def test_dash_reads_from_console(runner, tmp_path: Path) -> None:
     p = _without_special(_copy(tmp_path))
     result = runner.invoke(set_specials, ["--path", str(p), "-"], input=SPECIAL + "\n")
     assert result.exit_code == 0
-    assert _name(read_gameplan(str(p)).custom_special_plays[1]) == SPECIAL
+    assert play_name(read_gameplan(str(p)).custom_special_plays[1]) == SPECIAL
 
 
 def test_dash_input_errors_name_no_file(runner, tmp_path: Path) -> None:
@@ -314,8 +304,11 @@ def test_as_many_plays_as_slots_pass_the_count(runner, tmp_path: Path) -> None:
     p = _copy(tmp_path)
     inp = _input(tmp_path, (SPECIAL + "\n") * 10)
     result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
-    assert "Too many plays" not in result.stderr
-    assert result.stderr.splitlines()[-1].startswith(f"FAIL {inp}: line 10: Duplicate")
+    assert result.exit_code == 2
+    assert result.stderr == "".join(
+        f"FAIL {inp}: line {n}: Duplicate play '{SPECIAL}' (already on line 1).\n"
+        for n in range(2, 11)
+    )
 
 
 def test_blank_lines_do_not_count_toward_the_limit(runner, tmp_path: Path) -> None:
@@ -323,8 +316,11 @@ def test_blank_lines_do_not_count_toward_the_limit(runner, tmp_path: Path) -> No
     p = _copy(tmp_path)
     inp = _input(tmp_path, (SPECIAL + "\n\n") * 10)
     result = runner.invoke(set_specials, ["--path", str(p), str(inp)])
-    assert "Too many plays" not in result.stderr
-    assert result.stderr.splitlines()[-1].startswith(f"FAIL {inp}: line 19: Duplicate")
+    assert result.exit_code == 2
+    assert result.stderr == "".join(
+        f"FAIL {inp}: line {n}: Duplicate play '{SPECIAL}' (already on line 1).\n"
+        for n in range(3, 20, 2)
+    )
 
 
 def test_eleven_plays_between_blank_lines_rejected(runner, tmp_path: Path) -> None:
@@ -438,7 +434,7 @@ def test_defense_input_skips_offense_files(runner, tmp_path: Path) -> None:
         "\n"
         "2 file(s) processed, 1 updated, 1 skipped, 0 failed\n"
     )
-    assert _name(read_gameplan(deff).custom_special_plays[1]) == "CIN-KR"
+    assert play_name(read_gameplan(deff).custom_special_plays[1]) == "CIN-KR"
     assert off.read_bytes() == off_pre
 
 
@@ -525,14 +521,6 @@ def test_too_many_plays_fail_before_the_league(
 TEAM_PLANS = ("OFF1.pln", "DEF1.pln", "OFF2.pln", "DEF2.pln")
 
 
-def set_league(folder: Path, **settings: str | Path) -> None:
-    """Add `[league]` settings to the league folder's league.toml."""
-    toml = folder / "league.toml"
-    lines = "".join(f"{key} = '{value}'\n" for key, value in settings.items())
-    text = toml.read_text(encoding="utf-8").replace("[league]\n", "[league]\n" + lines)
-    toml.write_text(text, encoding="utf-8")
-
-
 def team_league(
     league: Path, tmp_path: Path, names: tuple[str, ...] = TEAM_PLANS, **settings
 ) -> Path:
@@ -581,7 +569,7 @@ def test_default_scope_is_your_teams_game_plans(
     for name in dict.fromkeys(names):
         if name.startswith("OFF"):
             lines.append(f"OK   {folder / name}: updated (6 special play(s))")
-            assert _name(read_gameplan(folder / name).custom_special_plays[1]) == (
+            assert play_name(read_gameplan(folder / name).custom_special_plays[1]) == (
                 SPECIAL
             )
         else:

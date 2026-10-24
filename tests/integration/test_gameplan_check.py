@@ -5,18 +5,16 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
-from athc.cli.gameplan._common import collect_files
 from athc.cli.gameplan.check import check, check_file
 from athc.errors import ACCESS_DENIED, FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_gameplan import InvalidGamePlanError
 from athc.gameplan import Rules, load_rules
-from athc.playpool import read_play_pool
+from athc.playpool import PlayPool, read_play_pool
 from tests.conftest import (
     CATEGORIES_TOML,
     LEAGUE,
@@ -29,6 +27,7 @@ from tests.conftest import (
     toml_error,
 )
 from tests.integration.conftest import (
+    ATHC,
     EXPECTED,
     GP_DEFENSE,
     GP_OFFENSE,
@@ -37,10 +36,20 @@ from tests.integration.conftest import (
     team,
 )
 
-RULES = load_rules([str(GP_RULES)], labels=PNFL_LABELS)
-POOL = read_play_pool(str(PLAYS), labels=PNFL_LABELS)
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
+
+
+@pytest.fixture(scope="module")
+def rules() -> Rules:
+    """The test rules, read with the PNFL labels."""
+    return load_rules([str(GP_RULES)], labels=PNFL_LABELS)
+
+
+@pytest.fixture(scope="module")
+def pool() -> PlayPool:
+    """The curated test pool, read with the PNFL labels."""
+    return read_play_pool(str(PLAYS), labels=PNFL_LABELS)
 
 
 @pytest.fixture
@@ -52,86 +61,11 @@ def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     return folder
 
 
-# ── collect_files ─────────────────────────────────────────────────────────────
-
-
-def test_collect_single_file(tmp_path: Path) -> None:
-    f = tmp_path / "a.pln"
-    f.touch()
-    collected = collect_files([str(f)], suffix=".pln", recursive=False)
-    assert collected.files == [f]
-    assert collected.errors == [] and collected.warnings == []
-
-
-def test_collect_directory_top_level(tmp_path: Path) -> None:
-    (tmp_path / "a.pln").touch()
-    (tmp_path / "skip.txt").touch()
-    (tmp_path / "sub").mkdir()
-    (tmp_path / "sub" / "deep.pln").touch()
-    files = collect_files([str(tmp_path)], suffix=".pln", recursive=False).files
-    assert sorted(f.name for f in files) == ["a.pln"]
-
-
-def test_collect_directory_recursive(tmp_path: Path) -> None:
-    (tmp_path / "top.pln").touch()
-    (tmp_path / "sub").mkdir()
-    (tmp_path / "sub" / "deep.pln").touch()
-    files = collect_files([str(tmp_path)], suffix=".pln", recursive=True).files
-    assert sorted(f.name for f in files) == ["deep.pln", "top.pln"]
-
-
-def test_collect_missing_path(tmp_path: Path) -> None:
-    missing = tmp_path / "nope"
-    collected = collect_files([str(missing)], suffix=".pln", recursive=False)
-    assert collected.files == []
-    assert collected.errors == [f"{missing}: {FILE_NOT_FOUND}"]
-
-
-def test_collect_non_pln(tmp_path: Path) -> None:
-    bad = tmp_path / "x.txt"
-    bad.touch()
-    collected = collect_files([str(bad)], suffix=".pln", recursive=False)
-    assert collected.files == []
-    assert collected.errors == [f"{bad}: Not a .pln file."]
-
-
-def test_collect_empty_dir_is_a_warning(tmp_path: Path) -> None:
-    collected = collect_files([str(tmp_path)], suffix=".pln", recursive=False)
-    assert collected.files == [] and collected.errors == []
-    assert collected.warnings == [f"{tmp_path}: No .pln files."]
-
-
-def test_collect_dedupes(tmp_path: Path) -> None:
-    f = tmp_path / "a.pln"
-    f.touch()
-    files = collect_files([str(f), str(f)], suffix=".pln", recursive=False).files
-    assert len(files) == 1
-
-
-def test_collect_glob(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    (tmp_path / "Off1.pln").touch()
-    (tmp_path / "Off2.pln").touch()
-    (tmp_path / "skip.txt").touch()
-    monkeypatch.chdir(tmp_path)
-    collected = collect_files(["Off*.pln"], suffix=".pln", recursive=False)
-    assert sorted(f.name for f in collected.files) == ["Off1.pln", "Off2.pln"]
-    assert collected.errors == [] and collected.warnings == []
-
-
-def test_collect_glob_without_a_match_is_a_warning(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.chdir(tmp_path)
-    collected = collect_files(["Off*.pln"], suffix=".pln", recursive=False)
-    assert collected.files == [] and collected.errors == []
-    assert collected.warnings == ["Off*.pln: No .pln files match."]
-
-
 # ── check_file ────────────────────────────────────────────────────────────────
 
 
-def test_check_file_offense_format() -> None:
-    count, line = check_file(GP_OFFENSE, RULES, POOL)
+def test_check_file_offense_format(rules: Rules, pool: PlayPool) -> None:
+    count, line = check_file(GP_OFFENSE, rules, pool)
     head, *rest = line.splitlines()
     assert count > 0
     assert head.startswith(str(GP_OFFENSE))
@@ -139,38 +73,34 @@ def test_check_file_offense_format() -> None:
     assert all(detail.startswith("  ") for detail in rest)
 
 
-def test_check_file_defense_format() -> None:
-    count, line = check_file(GP_DEFENSE, RULES, POOL)
+def test_check_file_defense_format(rules: Rules, pool: PlayPool) -> None:
+    count, line = check_file(GP_DEFENSE, rules, pool)
     assert count > 0
     assert "defense" in line.splitlines()[0]
 
 
-def test_check_file_clean() -> None:
+def test_check_file_clean(pool: PlayPool) -> None:
     """No rules: offense.pln, with no repeat and every play in the pool, is clean."""
-    assert check_file(GP_OFFENSE, Rules(), POOL) == (
+    assert check_file(GP_OFFENSE, Rules(), pool) == (
         0,
         f"{GP_OFFENSE}: offense, 64 normal",
     )
 
 
-def test_check_file_malformed_raises(tmp_path: Path) -> None:
+def test_check_file_malformed_raises(
+    tmp_path: Path, rules: Rules, pool: PlayPool
+) -> None:
     """The reader's error passes through: the loop catches per item."""
     bad = tmp_path / "broken.pln"
     bad.write_bytes(b"\x00\x01\x02")
     with pytest.raises(InvalidGamePlanError) as exc:
-        check_file(bad, RULES, POOL)
+        check_file(bad, rules, pool)
     assert exc.value.path == bad
 
 
-@pytest.mark.parametrize("path,expected", [(GP_OFFENSE, 3), (GP_DEFENSE, 1)])
-def test_check_file_pinned_counts(path: Path, expected: int) -> None:
-    count, _ = check_file(path, RULES, POOL)
-    assert count == expected
-
-
 @pytest.mark.parametrize("path", [GP_OFFENSE, GP_DEFENSE])
-def test_check_file_matches_golden(path: Path) -> None:
-    _, report = check_file(path, RULES, POOL)
+def test_check_file_matches_golden(path: Path, rules: Rules, pool: PlayPool) -> None:
+    _, report = check_file(path, rules, pool)
     normalized = report.replace(str(path), path.name)
     golden = (EXPECTED / f"{path.stem}.report.txt").read_text(encoding="utf-8")
     assert normalized + "\n" == golden
@@ -497,18 +427,25 @@ def test_cli_resolves_from_league_folder(
 
 
 def test_cli_gameplan_rules_list_layers_in_order(
-    runner, make_league: MakeLeague, tmp_path: Path
+    runner, make_league: MakeLeague, pool: PlayPool
 ) -> None:
-    # A gameplan_rules list replaces the fixed file; the overlay is read last.
+    """A gameplan_rules list replaces the fixed file and the overlay is read
+    last: its one allowed category beats the base's thirteen."""
     folder = make_league(
         LEAGUE,
         f"[league]\nplay_path = '{PLAYS}'\n"
         f"gameplan_rules = ['{GP_RULES}', 'overlay.toml']\n" + CATEGORIES_TOML,
     )
-    (folder / "overlay.toml").write_text("", encoding="utf-8")
+    overlay = folder / "overlay.toml"
+    overlay.write_text('allowed_offensive_categories = ["RL"]\n', encoding="utf-8")
+    layered = load_rules([str(GP_RULES), str(overlay)], labels=PNFL_LABELS)
+    _, report = check_file(GP_OFFENSE, layered, pool)
+    assert "not allowed" in report  # the overlay's list is in force
     result = runner.invoke(check, [str(GP_OFFENSE), "--league", LEAGUE])
     assert result.exit_code == 1
-    assert "violation(s)" in result.stdout
+    assert result.stdout == (
+        f"{report}\n\n1 file(s) checked, 1 with violations, 0 failed\n"
+    )
 
 
 def test_cli_missing_listed_rules_file_is_reported(
@@ -674,7 +611,7 @@ def test_entry_point_subprocess(config_dir: Path, log_dir: Path) -> None:
         "ATHC_LOG_DIR": str(log_dir),
     }
     result = subprocess.run(
-        [sys.executable, "-m", "athc", "gameplan", "check", str(GP_OFFENSE)],
+        [str(ATHC), "gameplan", "check", str(GP_OFFENSE)],
         capture_output=True,
         text=True,
         env=env,

@@ -11,7 +11,7 @@ import pytest
 
 from athc.cli import cli
 from athc.cli.profile.copy import copy
-from athc.errors import FILE_NOT_FOUND
+from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_profile import (
     Down,
     FieldPosition,
@@ -71,15 +71,6 @@ Options:
 
 
 @pytest.fixture
-def work(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Run from an empty folder, so no key is a file there."""
-    folder = tmp_path / "work"
-    folder.mkdir()
-    monkeypatch.chdir(folder)
-    return folder
-
-
-@pytest.fixture
 def denver(lg2_league: Lg2League, work: Path) -> Path:
     """Your team's league location, Denver's four profiles in it."""
     return location(build_teams(lg2_league, team="Denver"), DENVER)
@@ -129,14 +120,9 @@ def _stop_clock(path: Path) -> tuple[bool, ...]:
 # ── usage / argument validation ───────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("args", [[], [str(OFF1)], [str(OFF1), "t.prf"]])
-def test_cli_usage_errors_exit_2(runner, args: list[str]) -> None:
-    # missing SRC / missing TARGET / no copy flag are all usage errors.
-    assert runner.invoke(copy, args).exit_code == 2
-
-
 def test_cli_no_copy_flag_is_a_sentence(runner) -> None:
     result = runner.invoke(copy, [str(OFF1), "t.prf"])
+    assert result.exit_code == 2
     assert result.stderr.endswith(
         "Error: At least one copy option is required (--stop-clock, "
         "--substitutions, --field-goal-range, --fourth-down, --goal-line, "
@@ -233,6 +219,8 @@ def test_cli_copies_field_goal_range(runner, tmp_path: Path) -> None:
 
 
 def test_cli_copies_goal_line_and_stop_clock_combined(runner, tmp_path: Path) -> None:
+    """Both applied; the OK line names them in the help's order, whatever
+    order they were given in."""
     base = read_profile(str(OFF1))
     marker = _bumped(base.situations[0].category_weights)
     flips = {1, 100, 2520}
@@ -249,12 +237,9 @@ def test_cli_copies_goal_line_and_stop_clock_combined(runner, tmp_path: Path) ->
     source = tmp_path / "source.prf"
     write_profile(replace(base, situations=sits), str(source))
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
-    assert (
-        runner.invoke(
-            copy, [str(source), str(target), "--stop-clock", "--goal-line"]
-        ).exit_code
-        == 0
-    )
+    run = runner.invoke(copy, [str(source), str(target), "--goal-line", "--stop-clock"])
+    assert run.exit_code == 0
+    assert run.stdout.startswith(f"OK   {target}: updated (stop-clock, goal-line)\n")
     result = read_profile(str(target))
     assert tuple(s.stop_clock for s in result.situations) == tuple(
         s.stop_clock for s in sits
@@ -317,12 +302,6 @@ def test_cli_copies_pat_logic(runner, tmp_path: Path) -> None:
     )
 
 
-def test_cli_help_lists_pat_logic(runner) -> None:
-    result = runner.invoke(copy, ["--help"])
-    assert result.exit_code == 0
-    assert "--pat-logic" in result.stdout
-
-
 def test_cli_prints_updated_line_and_summary(runner, tmp_path: Path) -> None:
     source = _mutated_source(OFF1, tmp_path, flip=(1,))
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
@@ -330,13 +309,6 @@ def test_cli_prints_updated_line_and_summary(runner, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert f"OK   {target}: updated (stop-clock)" in result.stdout
     assert "1 file(s) processed, 1 updated, 0 skipped, 0 failed" in result.stdout
-
-
-def test_cli_help_uses_uppercase_names(runner) -> None:
-    result = runner.invoke(copy, ["--help"])
-    assert result.exit_code == 0
-    assert "[OPTIONS] SOURCE TARGET...\n" in result.stdout
-    assert "SRC.prf" not in result.stdout and "source target" not in result.stdout
 
 
 def test_cli_wildcard_target(
@@ -450,6 +422,37 @@ def test_cli_continues_past_failed_file(runner, tmp_path: Path) -> None:
     assert "2 file(s) processed, 1 updated, 0 skipped, 1 failed" in result.stdout
 
 
+def test_cli_bug_in_one_file_keeps_the_batch_going(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, log_dir: Path
+) -> None:
+    """A bug on one target is reported as unexpected and leaves it as it was;
+    the other is still updated, and the run still exits 2."""
+    source = _mutated_source(OFF1, tmp_path, flip=(1,))
+    doomed = _copy_prf(OFF1, tmp_path, name="doomed.prf")
+    good = _copy_prf(OFF1, tmp_path, name="good.prf")
+    from athc.cli.profile import copy as copy_module
+
+    real_write = copy_module.write_profile
+
+    def write(profile, path: str) -> None:
+        if Path(path) == doomed:
+            raise RuntimeError("kaboom")
+        real_write(profile, path)
+
+    monkeypatch.setattr(copy_module, "write_profile", write)
+    result = runner.invoke(copy, [str(source), str(doomed), str(good), "--stop-clock"])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {doomed}: Unexpected error. See {log_dir / 'athc.log'} for details.\n"
+    )
+    assert result.stdout == (
+        f"OK   {good}: updated (stop-clock)\n"
+        "\n2 file(s) processed, 1 updated, 0 skipped, 1 failed\n"
+    )
+    assert doomed.read_bytes() == OFF1.read_bytes()
+    assert _stop_clock(good) == _stop_clock(source)
+
+
 def test_cli_missing_source_exit_2(runner, tmp_path: Path) -> None:
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     pre = target.read_bytes()
@@ -492,10 +495,11 @@ def test_cli_folder_holding_source_skips_it(runner, tmp_path: Path) -> None:
 
 def test_cli_missing_target_exit_2(runner, tmp_path: Path) -> None:
     source = _copy_prf(OFF1, tmp_path, name="source.prf")
-    result = runner.invoke(
-        copy, [str(source), str(tmp_path / "nope.prf"), "--stop-clock"]
-    )
+    target = tmp_path / "nope.prf"
+    result = runner.invoke(copy, [str(source), str(target), "--stop-clock"])
     assert result.exit_code == 2
+    assert result.stderr == f"FAIL {target}: {FILE_NOT_FOUND}\n"
+    assert result.stdout == "\n0 file(s) processed, 0 updated, 0 skipped, 1 failed\n"
 
 
 def test_cli_missing_target_folder_not_created_exit_2(runner, tmp_path: Path) -> None:
@@ -503,6 +507,7 @@ def test_cli_missing_target_folder_not_created_exit_2(runner, tmp_path: Path) ->
     target = tmp_path / "missing" / "target.prf"
     result = runner.invoke(copy, [str(source), str(target), "--stop-clock"])
     assert result.exit_code == 2
+    assert result.stderr == f"FAIL {target}: {PATH_NOT_FOUND}\n"
     assert not target.parent.exists()
 
 

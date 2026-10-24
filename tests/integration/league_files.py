@@ -4,8 +4,8 @@ The divisional case is the PNFL's real 2047 final and 2048 opening files. The
 conference case has no game file, so its pair is built here from the
 conference test league's tables with the lge test builders: a previous season
 whose results give exactly that league's standings, and an upcoming season
-with no game. `--bless` writes the pair into `data/`; a test keeps the committed
-files in step with the builder.
+with no game. `--snapshot-update` writes the pair into `data/`; a test keeps the
+committed files in step with the builder.
 """
 
 from __future__ import annotations

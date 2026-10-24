@@ -12,7 +12,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 from collections.abc import Callable
 from pathlib import Path
 
@@ -37,12 +36,12 @@ from tests.conftest import (
     OTHER_LEAGUE,
     PNFL_LABELS,
     athc_toml,
-    league_not_found,
     no_league_selected,
     no_rules_configured,
     toml_error,
 )
 from tests.integration.conftest import (
+    ATHC,
     COMPAT_OFF_CLEAN,
     DEF1,
     DENVER_PAIRS,
@@ -57,7 +56,9 @@ from tests.integration.conftest import (
     RULES_TOML,
     TEAM_NAMES,
     BuildLeague,
+    at_league,
     lge,
+    set_league,
     team,
 )
 from tests.integration.conftest import DENVER_2049 as DENVER
@@ -140,14 +141,6 @@ def write_bytes(tmp_path: Path, name: str, data: bytes = b"\x00\x01\x02") -> Pat
     return path
 
 
-def set_league(folder: Path, **settings: str | Path) -> None:
-    """Add `[league]` settings to the league folder's league.toml."""
-    toml = folder / "league.toml"
-    lines = "".join(f"{key} = '{value}'\n" for key, value in settings.items())
-    text = toml.read_text(encoding="utf-8").replace("[league]\n", "[league]\n" + lines)
-    toml.write_text(text, encoding="utf-8")
-
-
 def heads(result: Result) -> list[str]:
     """The path of each report's first line, in order."""
     return [
@@ -171,12 +164,6 @@ def test_cli_requires_a_path(runner, full_league: Path) -> None:
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {full_league / 'league.toml'}: {TEAM_NOT_SET}\n"
     assert result.stdout == ""
-
-
-def test_cli_rejects_a_third_path(runner, full_league: Path) -> None:
-    result = run(runner, OFF1, GP_OFFENSE, DEF1)
-    assert result.exit_code == 2
-    assert "unexpected extra argument" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -272,15 +259,6 @@ def test_cli_team_flag_with_two_files(
     assert result.stdout == ""
 
 
-def test_help_shows_the_team_options(runner) -> None:
-    result = run(runner, "--help")
-    assert result.exit_code == 0
-    output = " ".join(result.stdout.split())  # the help text wraps
-    assert "Usage: check-ppp [OPTIONS] [PATH]..." in output
-    assert "--team NAME Team to check (default: 'team' in league.toml)." in output
-    assert "-a, --all-teams Check every team's profiles and game plans." in output
-
-
 # ── both files ────────────────────────────────────────────────────────────────
 
 
@@ -348,14 +326,15 @@ def test_cli_both_clean_exit_0(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Empty rules for both sides, and a game plan with no category the
+    profile leaves unused: two plain `OK` lines."""
     build_league(
-        profile_rules=write_toml(tmp_path, PROFILE_FLAG_OFF_TOML),
-        gameplan_rules=gameplan_rules(tmp_path, reverse=False),
+        profile_rules=write_toml(tmp_path, "", "profile.toml"),
+        gameplan_rules=write_toml(tmp_path, "", "gameplan.toml"),
     )
     write_config(athc_toml())
-    monkeypatch.setattr(
-        "athc.cli.check_ppp.validate_gameplan", lambda gp, rules, pool: ()
-    )
+    # No test profile uses every category of a test game plan, so the unused
+    # ones are left out here; the next test shows them.
     monkeypatch.setattr(
         "athc.cli.check_ppp.gameplan_extra_categories", lambda prof, gp: ()
     )
@@ -373,19 +352,15 @@ def test_cli_unused_gameplan_categories_alone_exit_0(
     build_league: BuildLeague,
     write_config: WriteConfig,
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Both files pass their own rules and the gameplan backs every profile
-    category; the 10 gameplan categories the profile never uses are only info,
-    reported even with the league's flags off."""
+    """Both files pass their own rules (here none) and the gameplan backs
+    every profile category; the 10 gameplan categories the profile never uses
+    are only info, reported even with the league's flags off."""
     build_league(
         profile_rules=write_toml(tmp_path, PROFILE_FLAG_OFF_TOML),
-        gameplan_rules=gameplan_rules(tmp_path, reverse=False),
+        gameplan_rules=write_toml(tmp_path, "", "gameplan.toml"),
     )
     write_config(athc_toml())
-    monkeypatch.setattr(
-        "athc.cli.check_ppp.validate_gameplan", lambda gp, rules, pool: ()
-    )
     result = run(runner, COMPAT_OFF_CLEAN, GP_OFFENSE)
     assert result.exit_code == 0
     assert result.stdout.startswith(
@@ -550,21 +525,32 @@ def test_cli_bad_input_checks_nothing(
 
 
 @pytest.mark.parametrize(
-    "source,name,partner",
+    "source,name,partner,reason",
     [
-        (OFF1, "really_a_profile.pln", OFF1),
-        (GP_OFFENSE, "really_a_plan.prf", GP_OFFENSE),
+        (OFF1, "really_a_profile.pln", OFF1, "Invalid header 'F95:' at 0x0."),
+        (
+            GP_OFFENSE,
+            "really_a_plan.prf",
+            GP_OFFENSE,
+            "File too small to contain F95 block.",
+        ),
     ],
 )
 def test_cli_file_of_the_other_kind_is_an_error(
-    runner, full_league: Path, tmp_path: Path, source: Path, name: str, partner: Path
+    runner,
+    full_league: Path,
+    tmp_path: Path,
+    source: Path,
+    name: str,
+    partner: Path,
+    reason: str,
 ) -> None:
     """A .pln that holds a profile is not a gameplan (and the reverse)."""
     fake = tmp_path / name
     shutil.copy2(source, fake)
     result = run(runner, fake, partner)
     assert result.exit_code == 2
-    assert f"FAIL {fake}: " in result.stderr
+    assert result.stderr == f"FAIL {fake}: {reason}\n"
 
 
 def test_cli_bad_profile_still_checks_gameplan(
@@ -598,10 +584,11 @@ def test_cli_bad_gameplan_still_checks_profile(
 
 
 def test_cli_bad_gameplan_clean_profile_is_ok(
-    runner, full_league: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    runner, build_league: BuildLeague, write_config: WriteConfig, tmp_path: Path
 ) -> None:
     """With no gameplan to cross-check, a clean profile reads as plain OK."""
-    monkeypatch.setattr("athc.cli.check_ppp.validate_profile", lambda prof, rules: ())
+    build_league(profile_rules=write_toml(tmp_path, "", "profile.toml"))
+    write_config(athc_toml())
     bad = write_bytes(tmp_path, "broken.pln")
     result = run(runner, OFF1, bad)
     assert result.exit_code == 2
@@ -847,11 +834,13 @@ def test_dir_checks_each_pair_in_league_file_order(
 def test_dir_clean_exit_0(
     runner, lg2_league, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    lg2_league(team(off1=("compat_off_clean.prf", "offense.pln")))
-    monkeypatch.setattr(
-        "athc.cli.check_ppp.validate_gameplan", lambda gp, rules, pool: ()
+    """Empty rules for both sides; the unused categories left out as in
+    `test_cli_both_clean_exit_0`."""
+    lg2_league(
+        team(off1=("compat_off_clean.prf", "offense.pln")),
+        profile_rules=write_toml(tmp_path, "", "profile.toml"),
+        gameplan_rules=write_toml(tmp_path, "", "gameplan.toml"),
     )
-    monkeypatch.setattr("athc.cli.check_ppp.validate_profile", lambda prof, rules: ())
     monkeypatch.setattr(
         "athc.cli.check_ppp.gameplan_extra_categories", lambda prof, gp: ()
     )
@@ -1032,9 +1021,40 @@ def test_dir_expected_error_in_a_pair_is_its_fail_line(
     assert result.exit_code == 2
     pair = f"{folder / OFF1.name} + {folder / GP_OFFENSE.name}"
     assert result.stderr.splitlines()[-1] == f"FAIL {pair}: Rules exploded."
-    assert "unexpected error" not in result.stderr
+    assert "Unexpected error" not in result.stderr
     assert result.stdout.endswith(
         "0 file(s) checked, 0 with violations, 1 failed, 0 missing, "
+        "0 team(s) with no files\n"
+    )
+
+
+def test_dir_bug_in_one_pair_keeps_the_run_going(
+    runner, lg2_league, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, log_dir: Path
+) -> None:
+    """A bug in one pair's check is reported as unexpected, naming the pair;
+    the other pair is still checked, and the run still exits 2."""
+    lg2_league(team(off1=OFF, def1=DEF))
+    folder = put(tmp_path / "plans", OFF1, GP_OFFENSE, DEF1, GP_DEFENSE)
+    from athc.cli import check_ppp as check_ppp_module
+
+    real_validate = check_ppp_module.validate_profile
+
+    def validate(prof, rules):
+        if prof.is_offense:
+            raise RuntimeError("kaboom")
+        return real_validate(prof, rules)
+
+    monkeypatch.setattr(check_ppp_module, "validate_profile", validate)
+    result = run(runner, "--all-teams", folder)
+    assert result.exit_code == 2
+    pair = f"{folder / OFF1.name} + {folder / GP_OFFENSE.name}"
+    assert result.stderr.splitlines()[-1] == (
+        f"FAIL {pair}: Unexpected error. See {log_dir / 'athc.log'} for details."
+    )
+    files = [folder / p.name for p in (DEF1, GP_DEFENSE)]
+    assert normalized(result, *files) == (
+        golden("compat_defense", "defense")
+        + "\n2 file(s) checked, 2 with violations, 1 failed, 0 missing, "
         "0 team(s) with no files\n"
     )
 
@@ -1550,11 +1570,6 @@ LAS_VEGAS_HEADS = [
 ]
 
 
-def at_league(tmp_path: Path, team_folder: str) -> Path:
-    """A team's league location in `pnfl_league`: where PNFL.lg2 puts its files."""
-    return tmp_path / "lg2" / "PNFL" / "2049" / "Plans" / team_folder
-
-
 def denver_heads(folder: Path) -> list[str]:
     return [str(folder / name) for name in DENVER_FILES]
 
@@ -1898,7 +1913,7 @@ def test_real_team_folder_alone(runner, pnfl_league: Path) -> None:
     assert heads(result) == denver_heads(DENVER)
 
 
-# ── --league, ATHC_LEAGUE, registration ───────────────────────────────────────
+# ── --league ──────────────────────────────────────────────────────────────────
 
 
 def test_league_flag_beats_athc_toml(
@@ -1934,35 +1949,6 @@ def test_league_flag_picks_the_league_file(
     assert heads(result) == [str(folder / "TST-OFF1.prf"), str(folder / "offense.pln")]
 
 
-def test_athc_league_env_is_ignored(
-    runner,
-    build_league: BuildLeague,
-    config_dir: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    build_league(OTHER_LEAGUE)
-    monkeypatch.setenv("ATHC_LEAGUE", OTHER_LEAGUE)
-    result = runner.invoke(cli, ["check-ppp", str(OFF1), str(GP_OFFENSE)])
-    assert result.exit_code == 2
-    assert result.stderr == no_league_selected(config_dir, OTHER_LEAGUE)
-
-
-def test_league_flag_unknown_folder(
-    runner, full_league: Path, config_dir: Path
-) -> None:
-    result = runner.invoke(
-        cli, ["check-ppp", str(OFF1), str(GP_OFFENSE), "--league", "NOPE"]
-    )
-    assert result.exit_code == 2
-    assert result.stderr == league_not_found(config_dir, "NOPE", LEAGUE)
-
-
-def test_root_help_lists_check_ppp(runner) -> None:
-    result = runner.invoke(cli, ["--help"])
-    assert result.exit_code == 0
-    assert "check-ppp" in result.stdout
-
-
 # ── packaging check (real subprocess) ─────────────────────────────────────────
 
 
@@ -1975,7 +1961,7 @@ def _athc(
         "ATHC_LOG_DIR": str(log_dir),
     }
     return subprocess.run(
-        [sys.executable, "-m", "athc", "check-ppp", *(str(a) for a in args)],
+        [str(ATHC), "check-ppp", *(str(a) for a in args)],
         capture_output=True,
         text=True,
         env=env,

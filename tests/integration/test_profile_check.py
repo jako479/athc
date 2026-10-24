@@ -5,18 +5,16 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
 from athc.cli import cli
-from athc.cli.profile._common import collect_files
 from athc.cli.profile.check import check, check_file
 from athc.errors import FILE_NOT_FOUND
 from athc.fbpro98_profile import InvalidProfileError
-from athc.profile import load_rules
+from athc.profile import ProfileRules, load_rules
 from tests.conftest import (
     LEAGUE,
     OTHER_LEAGUE,
@@ -28,6 +26,7 @@ from tests.conftest import (
     toml_error,
 )
 from tests.integration.conftest import (
+    ATHC,
     DATA,
     DEF1,
     DENVER,
@@ -44,7 +43,6 @@ from tests.integration.conftest import (
     profile_file,
 )
 
-RULES = load_rules([RULES_TOML], labels=PNFL_LABELS)
 WriteConfig = Callable[..., Path]
 MakeLeague = Callable[..., Path]
 
@@ -83,6 +81,12 @@ Options:
 """
 
 
+@pytest.fixture(scope="module")
+def rules() -> ProfileRules:
+    """The test rules, read with the PNFL labels."""
+    return load_rules([RULES_TOML], labels=PNFL_LABELS)
+
+
 @pytest.fixture
 def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     """The selected league, with the test rules as its profile.toml."""
@@ -92,100 +96,11 @@ def league(make_league: MakeLeague, write_config: WriteConfig) -> Path:
     return folder
 
 
-# ── collect_files ─────────────────────────────────────────────────────────────
-
-
-def test_collect_single_file(tmp_path: Path) -> None:
-    f = tmp_path / "a.prf"
-    f.touch()
-    collected = collect_files([str(f)], suffix=".prf", recursive=False)
-    assert collected.files == [f]
-    assert collected.errors == [] and collected.warnings == []
-
-
-def test_collect_directory_top_level(tmp_path: Path) -> None:
-    (tmp_path / "a.prf").touch()
-    (tmp_path / "b.prf").touch()
-    (tmp_path / "skip.txt").touch()
-    (tmp_path / "sub").mkdir()
-    (tmp_path / "sub" / "deep.prf").touch()
-    collected = collect_files([str(tmp_path)], suffix=".prf", recursive=False)
-    assert sorted(f.name for f in collected.files) == ["a.prf", "b.prf"]
-    assert collected.errors == []
-
-
-def test_collect_directory_recursive(tmp_path: Path) -> None:
-    (tmp_path / "top.prf").touch()
-    (tmp_path / "sub").mkdir()
-    (tmp_path / "sub" / "deep.prf").touch()
-    collected = collect_files([str(tmp_path)], suffix=".prf", recursive=True)
-    assert sorted(f.name for f in collected.files) == ["deep.prf", "top.prf"]
-    assert collected.errors == []
-
-
-def test_collect_missing_path(tmp_path: Path) -> None:
-    missing = tmp_path / "nope"
-    collected = collect_files([str(missing)], suffix=".prf", recursive=False)
-    assert collected.files == []
-    assert collected.errors == [f"{missing}: {FILE_NOT_FOUND}"]
-
-
-def test_collect_non_prf(tmp_path: Path) -> None:
-    bad = tmp_path / "x.txt"
-    bad.touch()
-    collected = collect_files([str(bad)], suffix=".prf", recursive=False)
-    assert collected.files == []
-    assert collected.errors == [f"{bad}: Not a .prf file."]
-
-
-def test_collect_empty_dir_is_a_warning(tmp_path: Path) -> None:
-    collected = collect_files([str(tmp_path)], suffix=".prf", recursive=False)
-    assert collected.files == [] and collected.errors == []
-    assert collected.warnings == [f"{tmp_path}: No .prf files."]
-
-
-def test_collect_dedupes(tmp_path: Path) -> None:
-    f = tmp_path / "a.prf"
-    f.touch()
-    files = collect_files([str(f), str(f)], suffix=".prf", recursive=False).files
-    assert len(files) == 1
-
-
-@pytest.mark.parametrize(
-    "create,pattern,expected,has_warning",
-    [
-        (
-            ["Off1.prf", "Off2.prf", "Def.prf", "skip.txt"],
-            "Off*.prf",
-            ["Off1.prf", "Off2.prf"],
-            False,
-        ),
-        (["a.prf", "b.txt"], "*", ["a.prf"], False),
-        (["x.txt"], "*.prf", [], True),
-    ],
-)
-def test_collect_glob(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    create: list[str],
-    pattern: str,
-    expected: list[str],
-    has_warning: bool,
-) -> None:
-    for name in create:
-        (tmp_path / name).touch()
-    monkeypatch.chdir(tmp_path)
-    collected = collect_files([pattern], suffix=".prf", recursive=False)
-    assert sorted(f.name for f in collected.files) == expected
-    assert collected.errors == []
-    assert bool(collected.warnings) is has_warning
-
-
 # ── check_file ────────────────────────────────────────────────────────────────
 
 
-def test_check_file_offense_format() -> None:
-    count, line = check_file(OFF1, RULES)
+def test_check_file_offense_format(rules: ProfileRules) -> None:
+    count, line = check_file(OFF1, rules)
     head, *rest = line.splitlines()
     assert count > 0
     assert head.startswith(str(OFF1))
@@ -193,39 +108,29 @@ def test_check_file_offense_format() -> None:
     assert all(detail.startswith("  ") for detail in rest)
 
 
-def test_check_file_defense_format() -> None:
-    count, line = check_file(DEF1, RULES)
+def test_check_file_defense_format(rules: ProfileRules) -> None:
+    count, line = check_file(DEF1, rules)
     assert count > 0
     assert "defense" in line.splitlines()[0]
 
 
-def test_check_file_clean(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "athc.cli.profile.check.validate_profile", lambda prof, rules: ()
-    )
-    count, line = check_file(OFF1, RULES)
-    assert count == 0
-    assert line.startswith(f"{OFF1}: offense, FG range ")
+def test_check_file_clean() -> None:
+    """No rules: OFF1 is clean."""
+    assert check_file(OFF1, ProfileRules()) == (0, f"{OFF1}: offense, FG range 36")
 
 
-def test_check_file_malformed_raises(tmp_path: Path) -> None:
+def test_check_file_malformed_raises(tmp_path: Path, rules: ProfileRules) -> None:
     """The reader's error passes through: the loop catches per item."""
     bad = tmp_path / "broken.prf"
     bad.write_bytes(b"\x00\x01\x02")
     with pytest.raises(InvalidProfileError) as exc:
-        check_file(bad, RULES)
+        check_file(bad, rules)
     assert exc.value.path == bad
 
 
-@pytest.mark.parametrize("path,expected", [(OFF1, 18), (DEF1, 7)])
-def test_check_file_pinned_counts(path: Path, expected: int) -> None:
-    count, _ = check_file(path, RULES)
-    assert count == expected
-
-
 @pytest.mark.parametrize("path", [OFF1, DEF1])
-def test_check_file_matches_golden(path: Path) -> None:
-    _, report = check_file(path, RULES)
+def test_check_file_matches_golden(path: Path, rules: ProfileRules) -> None:
+    _, report = check_file(path, rules)
     normalized = report.replace(str(path), path.name)
     golden = (EXPECTED / f"{path.stem}.report.txt").read_text(encoding="utf-8")
     assert normalized + "\n" == golden
@@ -332,15 +237,17 @@ def test_cli_wildcard_path(
     assert "2 file(s) checked, 2 with violations, 0 failed" in result.stdout
 
 
-@pytest.mark.usefixtures("league")
-def test_cli_clean_exit_0(runner, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "athc.cli.profile.check.validate_profile", lambda prof, rules: ()
-    )
+def test_cli_clean_exit_0(runner, league: Path) -> None:
+    """An empty rules file: OFF1 passes."""
+    (league / "profile.toml").write_text("", encoding="utf-8")
     result = runner.invoke(check, [str(OFF1)])
     assert result.exit_code == 0
-    assert result.stdout.startswith(f"OK   {OFF1}: offense, FG range ")
-    assert "1 file(s) checked, 0 with violations, 0 failed" in result.stdout
+    assert result.stdout == (
+        f"OK   {OFF1}: offense, FG range 36\n"
+        "\n"
+        "1 file(s) checked, 0 with violations, 0 failed\n"
+    )
+    assert result.stderr == ""
 
 
 @pytest.mark.usefixtures("league")
@@ -359,6 +266,35 @@ def test_cli_malformed_prf(runner, tmp_path: Path) -> None:
     result = runner.invoke(check, [str(bad)])
     assert result.exit_code == 2
     assert result.stderr == f"FAIL {bad}: File too small to contain F95 block.\n"
+
+
+@pytest.mark.usefixtures("league")
+def test_cli_bug_in_one_file_keeps_the_batch_going(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, log_dir: Path
+) -> None:
+    """A bug on one file is reported as unexpected, the other file is still
+    checked, and the run still exits 2."""
+    doomed = tmp_path / "doomed.prf"
+    good = tmp_path / "good.prf"
+    shutil.copy2(OFF1, doomed)
+    shutil.copy2(OFF1, good)
+    from athc.cli.profile import check as check_module
+
+    real_read = check_module.read_profile
+
+    def read(path: str):
+        if Path(path) == doomed:
+            raise RuntimeError("kaboom")
+        return real_read(path)
+
+    monkeypatch.setattr(check_module, "read_profile", read)
+    result = runner.invoke(check, [str(doomed), str(good)])
+    assert result.exit_code == 2
+    assert result.stderr == (
+        f"FAIL {doomed}: Unexpected error. See {log_dir / 'athc.log'} for details.\n"
+    )
+    assert f"{good}: " in result.stdout
+    assert "2 file(s) checked, 1 with violations, 1 failed" in result.stdout
 
 
 @pytest.mark.usefixtures("league")
@@ -416,15 +352,6 @@ def test_bare_group_shows_its_help_on_stderr(runner) -> None:
 
 
 # ── profile keys ──────────────────────────────────────────────────────────────
-
-
-@pytest.fixture
-def work(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Run from an empty folder, so no key is a file there."""
-    folder = tmp_path / "work"
-    folder.mkdir()
-    monkeypatch.chdir(folder)
-    return folder
 
 
 @pytest.mark.usefixtures("work")
@@ -553,14 +480,22 @@ def test_cli_profile_rules_list_relative_to_league_folder(
 
 
 def test_cli_rules_layering(runner, make_league: MakeLeague) -> None:
-    # A profile_rules list layers files in order; the overlay is read last.
+    """A profile_rules list layers files in order and the overlay is read
+    last: its `min_categories = 4` beats the base's 2."""
     folder = make_league(
         LEAGUE,
         "[league]\nprofile_rules = ['base.toml', 'overlay.toml']\n",
     )
-    shutil.copy(RULES_TOML, folder / "base.toml")
-    (folder / "overlay.toml").write_text("min_categories = 3\n", encoding="utf-8")
-    assert runner.invoke(check, [str(OFF1), "--league", LEAGUE]).exit_code == 1
+    base, overlay = folder / "base.toml", folder / "overlay.toml"
+    shutil.copy(RULES_TOML, base)
+    overlay.write_text("min_categories = 4\n", encoding="utf-8")
+    _, report = check_file(OFF1, load_rules([base, overlay], labels=PNFL_LABELS))
+    assert "requires 4." in report  # the overlay's minimum is in force
+    result = runner.invoke(check, [str(OFF1), "--league", LEAGUE])
+    assert result.exit_code == 1
+    assert result.stdout == (
+        f"{report}\n\n1 file(s) checked, 1 with violations, 0 failed\n"
+    )
 
 
 def test_cli_bad_rules_toml(runner, league: Path) -> None:
@@ -607,7 +542,7 @@ def test_entry_point_subprocess(config_dir: Path, log_dir: Path) -> None:
         "ATHC_LOG_DIR": str(log_dir),
     }
     result = subprocess.run(
-        [sys.executable, "-m", "athc", "profile", "check", str(OFF1)],
+        [str(ATHC), "profile", "check", str(OFF1)],
         capture_output=True,
         text=True,
         env=env,

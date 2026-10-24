@@ -1,8 +1,9 @@
 """`named_file`: the one file a single-file command was given, checked before
 anything reads it, so a problem reads in Windows' words and never as Python's
-`[Errno 2]` text. `collect_files`: a name that exists is a name, never a
-wildcard. `resolve_output` / `resolve_output_folder`: where a command writes,
-from its `OUTPUT` or `OUTPUT_FOLDER`."""
+`[Errno 2]` text. `collect_files`: the files, errors and warnings the batch
+commands' paths give; a name that exists is a name, never a wildcard.
+`resolve_output` / `resolve_output_folder`: where a command writes, from its
+`OUTPUT` or `OUTPUT_FOLDER`."""
 
 from __future__ import annotations
 
@@ -23,6 +24,103 @@ from athc.errors import (
     PATH_NOT_FOUND,
     AthcError,
 )
+
+# ── collect_files ─────────────────────────────────────────────────────────────
+
+
+def test_collect_single_file(tmp_path: Path) -> None:
+    f = tmp_path / "a.pln"
+    f.touch()
+    collected = collect_files([str(f)], suffix=".pln", recursive=False)
+    assert collected.files == [f]
+    assert collected.errors == [] and collected.warnings == []
+
+
+def test_collect_directory_top_level(tmp_path: Path) -> None:
+    (tmp_path / "a.pln").touch()
+    (tmp_path / "b.pln").touch()
+    (tmp_path / "skip.txt").touch()
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "deep.pln").touch()
+    collected = collect_files([str(tmp_path)], suffix=".pln", recursive=False)
+    assert collected.files == [tmp_path / "a.pln", tmp_path / "b.pln"]
+    assert collected.errors == [] and collected.warnings == []
+
+
+def test_collect_directory_recursive(tmp_path: Path) -> None:
+    (tmp_path / "top.pln").touch()
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "deep.pln").touch()
+    collected = collect_files([str(tmp_path)], suffix=".pln", recursive=True)
+    assert sorted(f.name for f in collected.files) == ["deep.pln", "top.pln"]
+    assert collected.errors == [] and collected.warnings == []
+
+
+def test_collect_missing_path(tmp_path: Path) -> None:
+    missing = tmp_path / "nope"
+    collected = collect_files([str(missing)], suffix=".pln", recursive=False)
+    assert collected.files == [] and collected.warnings == []
+    assert collected.errors == [f"{missing}: {FILE_NOT_FOUND}"]
+
+
+def test_collect_file_of_another_kind(tmp_path: Path) -> None:
+    bad = tmp_path / "x.txt"
+    bad.touch()
+    collected = collect_files([str(bad)], suffix=".pln", recursive=False)
+    assert collected.files == [] and collected.warnings == []
+    assert collected.errors == [f"{bad}: Not a .pln file."]
+
+
+def test_collect_empty_dir_is_a_warning(tmp_path: Path) -> None:
+    collected = collect_files([str(tmp_path)], suffix=".pln", recursive=False)
+    assert collected.files == [] and collected.errors == []
+    assert collected.warnings == [f"{tmp_path}: No .pln files."]
+
+
+def test_collect_dedupes(tmp_path: Path) -> None:
+    f = tmp_path / "a.pln"
+    f.touch()
+    collected = collect_files([str(f), str(tmp_path)], suffix=".pln", recursive=False)
+    assert collected.files == [f]
+
+
+@pytest.mark.parametrize(
+    ("pattern", "expected", "warnings"),
+    [
+        ("Off*.pln", ["Off1.pln", "Off2.pln"], []),
+        ("*", ["Def.pln", "Off1.pln", "Off2.pln"], []),
+        ("*.prf", [], ["*.prf: No .pln files match."]),
+    ],
+    ids=["filters", "keeps the suffix", "no match"],
+)
+def test_collect_wildcard(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    pattern: str,
+    expected: list[str],
+    warnings: list[str],
+) -> None:
+    for name in ("Off1.pln", "Off2.pln", "Def.pln", "skip.txt"):
+        (tmp_path / name).touch()
+    monkeypatch.chdir(tmp_path)
+    collected = collect_files([pattern], suffix=".pln", recursive=False)
+    assert collected.files == [Path(name) for name in expected]
+    assert collected.errors == [] and collected.warnings == warnings
+
+
+def test_collect_wildcard_reaches_into_subfolders(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`**` matches any depth of folders, `-r` or not."""
+    (tmp_path / "plans" / "2049" / "week6").mkdir(parents=True)
+    (tmp_path / "plans" / "top.pln").touch()
+    (tmp_path / "plans" / "2049" / "week6" / "deep.pln").touch()
+    monkeypatch.chdir(tmp_path)
+    collected = collect_files([r"plans\**\*.pln"], suffix=".pln", recursive=False)
+    assert collected.files == [
+        Path("plans") / "2049" / "week6" / "deep.pln",
+        Path("plans") / "top.pln",
+    ]
 
 
 def test_existing_name_with_wildcard_characters_is_a_name(

@@ -4,6 +4,27 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-23 — **CLI tests**: a review of the integration tier and the CLI
+  unit tests. The `data/ppp` plans and profiles were a coach's real week 6
+  files; they are now the test set the game test already uses, and find-play's
+  slot constants follow it. The schedule report golden was only checked by
+  rebuilding the report in memory; the written report is now checked row by
+  row. profile check, profile copy and check-ppp gained the bug-in-one-file
+  test the gameplan commands had; convert-pdb a missing or folder game plan
+  option and a locked plan; config edit and reveal a first run; the root help
+  the hidden generate-schedule. Shared path handling moved to one unit file,
+  the team-resolver limits stay with check-ppp alone, partial help checks of
+  pinned screens, pinned counts and repeated usage errors went, validator mocks
+  became empty rule files, the layering tests now see the overlay, and the
+  packaging checks run the installed `athc` script. Copied helpers moved to
+  conftest, the convert-pdb runs use a one-week PDB (half the run time), and
+  eight stray list files left the game fixture. The list goldens match a decode
+  made from the specs alone. Golden files are standard practice, so the
+  regenerate flag took the usual name, `--snapshot-update`, and the testing doc
+  now says only to update an expected file for an intended change, after
+  checking it. A blank or path-like league name no longer names the leagues
+  folder as missing. check-ppp and standings were the only commands whose help
+  screen was not checked in full; now it is.
 - 2026-10-23 — **gameplan tests**: a review of the rules, validator and
   writer tests found gaps: no cap of 0 or of 100%, no optional category short
   of its minimum, no offense special name, no listed special replacing an old

@@ -375,6 +375,30 @@ Options:
     athc autocontinue --continue-pause 3
     athc autocontinue --dry-run
 """,
+    ("check-ppp",): """\
+Usage: athc check-ppp [OPTIONS] [PATH]...
+
+  Check profiles against their game plans.
+
+  With no PATH, checks your team's files; a folder is searched for them, and
+  one .prf and one .pln are checked as a pair.
+
+Positional arguments:
+  PATH  A .prf, a .pln, or a folder.
+
+Options:
+  -r, --recursive  Include subfolders.
+  --team NAME      Team to check (default: 'team' in league.toml).
+  -a, --all-teams  Check every team's profiles and game plans.
+  --league NAME    League to use (default: the one set with 'athc config set
+                   league').
+  -h, --help       Show this message and exit.
+
+  Examples:
+
+    athc check-ppp
+    athc check-ppp handed-in
+""",
     ("gameplan",): """\
 Usage: athc gameplan [OPTIONS] COMMAND [ARGS]...
 
@@ -555,6 +579,27 @@ Options:
 
     athc gameplan set-normals off1 plays.txt
     athc gameplan set-normals DEN-OGP1.pln -
+""",
+    ("standings",): """\
+Usage: athc standings [OPTIONS]
+
+  Show the league's standings as played so far.
+
+  Reads the league's .lge from the folder 'path' names in league.toml.
+
+Options:
+  --view [game|league|conference|division]
+                                  Which standings to show (default: game).
+  --method [scheduler|game|nfl]   Tie-breakers: the scheduler's, the game's or
+                                  the NFL's (default: scheduler).
+  --league NAME                   League to use (default: the one set with
+                                  'athc config set league').
+  -h, --help                      Show this message and exit.
+
+  Examples:
+
+    athc standings
+    athc standings --view division --method nfl
 """,
 }
 
