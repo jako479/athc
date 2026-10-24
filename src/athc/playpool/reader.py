@@ -101,11 +101,11 @@ def _folder_info(
             side, screen = "Offense", True
         elif part == RNS_FOLDER:
             side = "Defense"
-        elif part[:2] in ("34", "43"):  # a front, then a defense label
-            side = "Defense"
-            member = labels.defense_by_label(part[2:])
-            if member is not None:
-                category = member
+        elif (
+            part[:2] in ("34", "43")
+            and (front := labels.defense_by_label(part[2:])) is not None
+        ):  # a front, then a defense label
+            side, category = "Defense", front
         else:
             member = _category_folder(part, file_side, labels)
             if member is not None:
@@ -153,7 +153,7 @@ def _add(pool: PlayPool, play: OffensivePlay | DefensivePlay | SpecialPlay) -> N
 
 def _offensive(name: str, play_file: PlayFile, *, screen: bool) -> OffensivePlay:
     """An offensive record; the play's category keeps QB run to run plays and
-    rollout and pass logic to pass plays."""
+    screen, rollout and pass logic to pass plays."""
     category = play_file.category
     is_run = category.is_run
     is_pass = category.is_pass
@@ -167,7 +167,7 @@ def _offensive(name: str, play_file: PlayFile, *, screen: bool) -> OffensivePlay
     return OffensivePlay(
         name=name,
         play_file=play_file,
-        screen=screen,
+        screen=is_pass and screen,
         rollout=rollout,
         qb_run=qb_run,
         pass_logic=pass_logic,

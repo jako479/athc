@@ -473,6 +473,11 @@ changes.
 Working. Backs `gameplan` and `convert-pdb`; `playpool check` checks the pool.
 Docs: [playpool.md](docs/design/playpool.md)
 
+- A `34`/`43` folder is a defense folder only when the rest of its name is a
+  defense label.
+- Only a pass play in a `Screens` folder is a screen.
+- Unit tests reviewed: every folder rule and `to_dict` field is pinned; the
+  path-order tests fail without the reader's sort.
 - QB run, rollout, pass logic and the defensive front come from the play file
   (`fbpro98_play`), by the rules in playpool.md. `playpool.toml` and
   its filename filters are gone; only a `Screens` folder still adds an

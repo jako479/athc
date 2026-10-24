@@ -7,6 +7,9 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- playpool: a `34`/`43` folder is a defense folder only when the rest of its name is a defense label
+- playpool: only a pass play in a `Screens` folder is a screen
+- playpool: tests reviewed: every folder rule and `to_dict` field pinned, the path-order tests made able to fail, repeated tests and a repeated empty fixture dropped
 - profile: a rules file whose `offense`, `defense` or section is not a table, or whose `fields` holds a non-string, is a rules-file error instead of a crash
 - profile: tests reviewed: rules that match together, every filter, category name, label and special slot, limits at the edge, and the full rule set's goldens on the real test profiles
 - fbpro98_profile: a situation holds only its play-calling rules; its number and game state come from its place in the profile

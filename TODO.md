@@ -14,7 +14,7 @@
   - [ ] fbpro98_stats
   - [ ] gameplan
   - [ ] pdbtoexcel
-  - [ ] playpool
+  - [x] playpool
   - [x] profile
   - [ ] scheduler
   - [ ] standings

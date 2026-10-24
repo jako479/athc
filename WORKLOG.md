@@ -4,6 +4,19 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-23 — **playpool tests**: a review of the play-pool library's tests
+  found folder rules no test could fail (`Screens` and `R&SDefs` on their own,
+  the deeper category folder, the `43` prefix, the side and `Screens` folders
+  without labels), `to_dict` checked a few keys at a time, and the two
+  path-order tests passing without the reader's sort, since NTFS already lists
+  a folder sorted. Each rule got a test, `to_dict` is compared whole, and the
+  path-order tests list the folder in reverse. Seven tests that repeated
+  others went, as did the playpool copy of the empty `PS7Xmids.ply`, which
+  the fbpro98_play tests already pin. A run play in `Screens` got `screen`,
+  though playpool.md says only a pass play does; now only a pass play does.
+  Any folder starting `34` or `43` marked the defense side even when the rest
+  was no label, so an offensive play there warned; now the rest must be a
+  defense label, as playpool.md's "unrecognized folders never warn" says.
 - 2026-10-23 — **profile tests**: a review of the tool logic's tests found
   rules that match together never tested together (`allowed` intersecting, a
   shared `mandatory`, the strictest minimum), same-named sections across
