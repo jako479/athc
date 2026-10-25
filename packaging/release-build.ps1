@@ -6,7 +6,8 @@
 # The setup.exe carries its own Python interpreter and every dependency, so the
 # user's PC needs nothing installed beforehand and no internet at install time.
 #
-# Build prerequisites: uv, and Inno Setup 6 (winget install JRSoftware.InnoSetup).
+# Build prerequisites: uv (winget install --id=astral-sh.uv -e) and Inno Setup 6
+# (winget install JRSoftware.InnoSetup).
 #
 # Run from anywhere; paths resolve relative to this script:
 #     ./athc/packaging/release-build.ps1
@@ -36,6 +37,10 @@ $iscc = @(
 
 if (-not $iscc) {
     throw "Inno Setup 6 not found. Install it with: winget install JRSoftware.InnoSetup"
+}
+
+if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+    throw "uv not found. Install it with: winget install --id=astral-sh.uv -e"
 }
 
 Write-Host "Building athc v$version release..."

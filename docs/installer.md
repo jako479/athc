@@ -53,9 +53,24 @@ What the freeze needs beyond PyInstaller's defaults:
 | Package data | The autocontinue PNGs and the pdbtoexcel `.bin` resources are not found by import scanning. | Collects athc's data files. |
 | ortools | ortools keeps its native DLLs in `ortools\.libs`, which PyInstaller cannot resolve and has no hook for. | Collects ortools' binaries. |
 
-Build tooling, one time: uv, Inno Setup 6
-(`winget install JRSoftware.InnoSetup`), and the Windows Sandbox optional
-feature with its `wsb` command line for the test.
+Build tooling, one time:
+
+- uv: `winget install --id=astral-sh.uv -e`
+- Inno Setup 6: `winget install JRSoftware.InnoSetup`
+- For the test, Windows Sandbox and its `wsb` command line (Windows 11 24H2
+  or newer): turn on Windows Sandbox in "Turn Windows features on or off", or
+  run `Enable-WindowsOptionalFeature -FeatureName "Containers-DisposableClientVM" -All -Online`
+  in PowerShell as Administrator, then restart.
+
+Build, then test, from the repository root:
+
+```
+powershell -ExecutionPolicy Bypass -File packaging\release-build.ps1
+powershell -ExecutionPolicy Bypass -File packaging\release-test.ps1
+```
+
+The build makes `dist\athc-<ver>-setup.exe`, with the version from
+`pyproject.toml`.
 
 ## What the setup.exe does
 
