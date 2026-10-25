@@ -113,7 +113,7 @@ names as written (matched case-insensitively, reported as written). The league
 is always resolved; no command-line option
 replaces its play pool. `play_path` must resolve to a real directory
 at runtime. The workbook options (`calculate_percentages`,
-`include_category_worksheets`, `exclude_sacks_from_pass_attempts`) are TOML
+`exclude_sacks_from_pass_attempts`) are TOML
 booleans; a missing key takes the `Config` default, any other value is a
 `ConfigFileError`.
 

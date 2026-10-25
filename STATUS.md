@@ -454,8 +454,7 @@ Working. Extracts a WinLogStats database into an Excel workbook. Docs:
   setting message names the file the value came from.
 - The play pool and the category names come from the league folder
   (`league.toml`). The workbook names categories the league's way and sorts
-  them in the configured order. The workbook always has the Total Stats team
-  (`include_category_worksheets` is not in the shipped `athc.toml`).
+  them in the configured order. The workbook always has the Total Stats team.
 - The output is optional: `<name>.xlsm` beside the PDB by default, or inside a
   folder given.
 - The Slot columns come from your team's four game plans (`--path FOLDER`,

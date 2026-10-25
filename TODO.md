@@ -41,7 +41,7 @@
 - [ ] check-ppp: league plan and profile names
 - [ ] convert-pdb: add a problems section to the release docs
 - [ ] convert-pdb: add clear sort instructions on Options page
-- [x] convert-pdb: remove hidden setting `include_category_worksheets = false` from athc.ini
+- [x] convert-pdb: remove a hidden setting from athc.ini
 - [ ] athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
 - [ ] install: exclude autocontinue; design in [installer](docs/installer.md)
 - [ ] RELEASE!!!

@@ -113,10 +113,9 @@ convert-pdb  --  convert a WinLogStats PDB to an Excel workbook
 
       A league that differs puts the same tables in its league.toml with
       only the keys that differ; each key it sets replaces athc.toml's, a
-      list whole. Every key is optional: a missing option keeps its default
-      (include_category_worksheets is off and left out of the shipped
-      file), a missing list is empty. --percentages / --no-percentages
-      override calculate_percentages for one run.
+      list whole. Every key is optional: a missing option keeps its default,
+      a missing list is empty. --percentages / --no-percentages override
+      calculate_percentages for one run.
 
    Lines and exit codes:
 
