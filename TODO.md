@@ -2,6 +2,7 @@
 
 ## 1.0.0
 
+- [ ] autocontinue: add a static image test with the game full screen
 - [ ] For each subpackage: run a code review specifically on the tests to find: gaps, non-ideal source data and goldens, and non-ideal test patterns.
   - [ ] autocontinue
   - [ ] cli
@@ -42,7 +43,6 @@
 - [ ] convert-pdb: add a problems section to the release docs
 - [ ] convert-pdb: add clear sort instructions on Options page
 - [ ] athc: rename path parameters to the `<something>_dir` convention (`play_path`, `league_path`, ...)
-- [ ] install: exclude autocontinue; design in [installer](docs/installer.md)
 - [ ] RELEASE!!!
   - [ ] upload installer to Google Drive
   - [ ] post in forum
