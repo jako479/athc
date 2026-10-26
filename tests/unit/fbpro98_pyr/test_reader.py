@@ -531,7 +531,7 @@ def test_header_checked_before_table(make_header, make_pyr):
 def test_rating_100_rejected(make_record, make_pyr):
     record = make_record(100, potential=(100, 1, 1, 1, 1, 1, 1, 1))
     _rejects(
-        make_pyr([record]), "player 100 potential.acceleration must be 0-99, got 100."
+        make_pyr([record]), "player 100: potential.acceleration: Must be 0-99, got 100."
     )
 
 
@@ -573,7 +573,7 @@ def test_every_position_code_decoded(make_record, make_pyr, code: int, position)
 def test_group_outside_the_table_rejected(make_record, make_pyr):
     _rejects(
         make_pyr([make_record(100, group=1)]),
-        "player 100 group must be one of 0, 10, 13, 14, 15, 16, 17, 18, 19, got 1.",
+        "player 100: group: Must be one of 0, 10, 13, 14, 15, 16, 17, 18, 19, got 1.",
     )
 
 

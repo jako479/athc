@@ -66,10 +66,10 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_pyr()` = 
 ### The model's rules through the parser → `InvalidPyrError`
 | Case | Input | Expected | Test | Status |
 |---|---|---|---|---|
-| Rating 100 | make_pyr | "player 100 potential.acceleration must be 0-99, got 100" | `test_rating_100_rejected` | ☑ |
+| Rating 100 | make_pyr | "player 100: potential.acceleration: Must be 0-99, got 100" | `test_rating_100_rejected` | ☑ |
 | Position 15 in record 0 / 1 | make_pyr | "Record 0 at 0x3c: 15 is not a valid Position" / "Record 1 at 0x78: ..." | `test_position_15_rejected` `[P]` | ☑ |
 | Every position code 0-14 | make_pyr | its `Position` member, per the spec's table | `test_every_position_code_decoded` `[P]` | ☑ |
-| Group 1 | make_pyr | "group must be one of 0, 10, 13, 14, 15, 16, 17, 18, 19, got 1" | `test_group_outside_the_table_rejected` | ☑ |
+| Group 1 | make_pyr | "player 100: group: Must be one of 0, 10, 13, 14, 15, 16, 17, 18, 19, got 1" | `test_group_outside_the_table_rejected` | ☑ |
 | Error names the path first | make_pyr | "league.pyr: ..." and `.path` | `test_error_names_the_path_first` | ☑ |
 | No path given | bytes | "<buffer>: ..." and `.path` | `test_error_names_buffer_when_no_path_given` | ☑ |
 
@@ -80,18 +80,18 @@ Each rule at its limit and one past it; `model` = a `PyrFile` built in Python.
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | Valid file; file without players | passes | `test_valid_file_passes`, `test_file_without_players_passes` | ☑ |
-| Key 0 / `0xFFFF` / `0x10000` / −1; unknown 6 / 5, 7 bytes; name 13 / 14 | pass / "must be 0-65535" / "unknown must be 6 bytes" / "at most 13 characters" | `test_header_field_at_its_limit_accepted` `[P]`, `test_header_field_past_its_limit_rejected` `[P]` | ☑ |
+| Key 0 / `0xFFFF` / `0x10000` / −1; unknown 6 / 5, 7 bytes; name 13 / 14 | pass / "key: Must be 0-65535" / "unknown: Must be 6 bytes" / "name: Must be at most 13 characters" | `test_header_field_at_its_limit_accepted` `[P]`, `test_header_field_past_its_limit_rejected` `[P]` | ☑ |
 | Partial coding table | passes | `test_partial_coding_table_accepted` | ☑ |
-| Plain or disk value 256 / −1; two plain values on one disk byte | "must be 0-255" / "writes plain 0x01 and 0x02 both as 0x3f" | `test_coding_table_rejected` `[P]` | ☑ |
-| Keys not 100, 101, ... in order | "players must be keyed 100, 101, ... in order, got N at index i" | `test_players_not_keyed_from_100_in_order_rejected` `[P]` | ☑ |
-| Key not its player's id | "players[100] holds player 101" | `test_player_key_not_its_id_rejected` | ☑ |
-| Names 13 / 14 | pass / "at most 13 characters" | `test_name_limits` `[P]` | ☑ |
-| Ratings 0, 99 / 100, −1, both sets | pass / "potential.acceleration must be 0-99" | `test_rating_at_its_limit_accepted` `[P]`, `test_rating_past_its_limit_rejected` `[P]` | ☑ |
-| Position as member or code 0, 14 / 15, −1 | pass / "position must be 0-14" | `test_position_as_member_or_code_accepted` `[P]`, `test_position_outside_the_codes_rejected` `[P]` | ☑ |
-| Every group of the spec's table / 1, 9, 11, 12, 20, −1 | pass / "group must be one of ..." | `test_every_group_of_the_spec_table_accepted` `[P]`, `test_group_outside_the_spec_table_rejected` `[P]` | ☑ |
-| Years, height 255 / 256; weight 65535 / 65536; −1 | pass / "must be 0-255" | `test_numeric_field_limits` `[P]` | ☑ |
-| Injury level 65535 / 65536; injury, week 255 / 256; −1 | pass / "injury.level must be 0-65535" | `test_injury_field_limits` `[P]` | ☑ |
-| Unknown 5 or 7 bytes | "unknown must be 6 bytes" | `test_unknown_not_six_bytes_rejected` `[P]` | ☑ |
+| Plain or disk value 256 / −1; two plain values on one disk byte | "coding_table key: Must be 0-255" / "coding_table[0x00]: Must be 0-255" / "coding_table: Plain 0x01 and 0x02 are both written as 0x3f" | `test_coding_table_rejected` `[P]` | ☑ |
+| Keys not 100, 101, ... in order | "players: Must be keyed 100, 101, ... in order, got N at index i" | `test_players_not_keyed_from_100_in_order_rejected` `[P]` | ☑ |
+| Key not its player's id | "players[100]: Holds player 101" | `test_player_key_not_its_id_rejected` | ☑ |
+| Names 13 / 14 | pass / "player 100: first_name: Must be at most 13 characters" | `test_name_limits` `[P]` | ☑ |
+| Ratings 0, 99 / 100, −1, both sets | pass / "player 100: potential.acceleration: Must be 0-99" | `test_rating_at_its_limit_accepted` `[P]`, `test_rating_past_its_limit_rejected` `[P]` | ☑ |
+| Position as member or code 0, 14 / 15, −1 | pass / "player 100: position: Must be 0-14" | `test_position_as_member_or_code_accepted` `[P]`, `test_position_outside_the_codes_rejected` `[P]` | ☑ |
+| Every group of the spec's table / 1, 9, 11, 12, 20, −1 | pass / "player 100: group: Must be one of ..." | `test_every_group_of_the_spec_table_accepted` `[P]`, `test_group_outside_the_spec_table_rejected` `[P]` | ☑ |
+| Years, height 255 / 256; weight 65535 / 65536; −1 | pass / "player 100: years: Must be 0-255" | `test_numeric_field_limits` `[P]` | ☑ |
+| Injury level 65535 / 65536; injury, week 255 / 256; −1 | pass / "player 100: injury.level: Must be 0-65535" | `test_injury_field_limits` `[P]` | ☑ |
+| Unknown 5 or 7 bytes | "player 100: unknown: Must be 6 bytes" | `test_unknown_not_six_bytes_rejected` `[P]` | ☑ |
 | Problem in the second player | names player 101 | `test_problem_in_a_later_player_names_that_player` | ☑ |
 | Bad key and bad player | the key's message | `test_first_problem_in_file_order_reported` | ☑ |
 

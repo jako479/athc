@@ -41,7 +41,7 @@ The values shown are the PNFL's after week 6 of 2049. Ids stay numbers: the `.lg
 ## API
 
 - `read_pyr(league, league_dir)` reads `<league_dir>/<league>.pyr` and returns a `PyrFile`; `parse_pyr(buffer, path)` parses raw bytes, `path` only naming the source in errors (`<path>: <reason>`).
-- `PyrFile`: `key`, `name` and `unknown` (the header; `unknown` is its last six bytes, as read), `coding_table` (plain byte value to the byte written to disk; the entries the file's ids reveal, all 256 with 256 or more players) and `players`, a dict by player id in id order. `validate()` raises `ValueError` on the first rule broken.
+- `PyrFile`: `key`, `name` and `unknown` (the header; `unknown` is its last six bytes, as read), `coding_table` (plain byte value to the byte written to disk; the entries the file's ids reveal, all 256 with 256 or more players) and `players`, a dict by player id in id order. `validate()` raises `ValueError` on the first rule broken, naming the field and the value (`player 100: years: Must be 0-255, got 256`).
 - `Player`: `id`, `first_name`, `last_name`, `position` (a `Position`), `group`, `years`, `injury`, `height`, `weight`, `potential` and `actual` (each a `Ratings`), `unknown` (the six bytes at 0x36, as read). Height and weight are 0 except for the newest draft class.
 - `Position`: an `IntEnum` of the file's codes, `QB` = 0 to `P` = 14. `GROUPS`: the position groups the spec's table lists.
 - `Ratings`: `acceleration`, `agility`, `discipline`, `endurance`, `hands`, `intelligence`, `speed`, `strength`, 0-99, in file order.

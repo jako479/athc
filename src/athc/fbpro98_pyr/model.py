@@ -133,7 +133,8 @@ class PyrFile:
 
         Raises:
             ValueError: On the first rule broken, in file order; the message
-                is a sentence without its period.
+                names the field, then says the rule as a sentence without its
+                period (`player 100: years: Must be 0-255, got 256`).
         """
         _check_range("key", self.key, _U16_MAX)
         _check_length("name", self.name)
@@ -143,23 +144,23 @@ class PyrFile:
         for index, key in enumerate(self.players):
             if key != expected[index]:
                 raise ValueError(
-                    f"players must be keyed {FIRST_ID}, {FIRST_ID + 1}, ... in "
+                    f"players: Must be keyed {FIRST_ID}, {FIRST_ID + 1}, ... in "
                     f"order, got {key} at index {index}"
                 )
         for key, player in self.players.items():
             if player.id != key:
-                raise ValueError(f"players[{key}] holds player {player.id}")
+                raise ValueError(f"players[{key}]: Holds player {player.id}")
             _check_player(player)
 
     def _check_coding_table(self) -> None:
         written_as: dict[int, int] = {}
         for plain, disk in self.coding_table.items():
-            _check_range("coding_table plain value", plain, _U8_MAX)
-            _check_range("coding_table disk value", disk, _U8_MAX)
+            _check_range("coding_table key", plain, _U8_MAX)
+            _check_range(f"coding_table[{plain:#04x}]", disk, _U8_MAX)
             if written_as.setdefault(disk, plain) != plain:
                 raise ValueError(
-                    f"coding_table writes plain {written_as[disk]:#04x} and "
-                    f"{plain:#04x} both as {disk:#04x}"
+                    f"coding_table: Plain {written_as[disk]:#04x} and "
+                    f"{plain:#04x} are both written as {disk:#04x}"
                 )
 
 
@@ -169,43 +170,43 @@ _INJURY_LIMITS = (("level", _U16_MAX), ("injury", _U8_MAX), ("week", _U8_MAX))
 
 def _check_player(player: Player) -> None:
     label = f"player {player.id}"
-    _check_length(f"{label} first_name", player.first_name)
-    _check_length(f"{label} last_name", player.last_name)
+    _check_length(f"{label}: first_name", player.first_name)
+    _check_length(f"{label}: last_name", player.last_name)
     try:
         Position(player.position)
     except ValueError:
         raise ValueError(
-            f"{label} position must be 0-{max(Position)}, got {player.position}"
+            f"{label}: position: Must be 0-{max(Position)}, got {player.position}"
         ) from None
     if player.group not in GROUPS:
         groups = ", ".join(str(group) for group in sorted(GROUPS))
-        raise ValueError(f"{label} group must be one of {groups}, got {player.group}")
+        raise ValueError(f"{label}: group: Must be one of {groups}, got {player.group}")
     for name in ("potential", "actual"):
         ratings: Ratings = getattr(player, name)
         for rating in _RATING_NAMES:
             _check_range(
-                f"{label} {name}.{rating}", getattr(ratings, rating), RATING_MAX
+                f"{label}: {name}.{rating}", getattr(ratings, rating), RATING_MAX
             )
-    _check_range(f"{label} years", player.years, _U8_MAX)
-    _check_range(f"{label} height", player.height, _U8_MAX)
-    _check_range(f"{label} weight", player.weight, _U16_MAX)
+    _check_range(f"{label}: years", player.years, _U8_MAX)
+    _check_range(f"{label}: height", player.height, _U8_MAX)
+    _check_range(f"{label}: weight", player.weight, _U16_MAX)
     for name, limit in _INJURY_LIMITS:
-        _check_range(f"{label} injury.{name}", getattr(player.injury, name), limit)
-    _check_unknown(f"{label} unknown", player.unknown)
+        _check_range(f"{label}: injury.{name}", getattr(player.injury, name), limit)
+    _check_unknown(f"{label}: unknown", player.unknown)
 
 
-def _check_unknown(what: str, value: bytes) -> None:
+def _check_unknown(location: str, value: bytes) -> None:
     if len(value) != UNKNOWN_SIZE:
-        raise ValueError(f"{what} must be {UNKNOWN_SIZE} bytes, got {len(value)}")
+        raise ValueError(f"{location}: Must be {UNKNOWN_SIZE} bytes, got {len(value)}")
 
 
-def _check_range(what: str, value: int, limit: int) -> None:
+def _check_range(location: str, value: int, limit: int) -> None:
     if not 0 <= value <= limit:
-        raise ValueError(f"{what} must be 0-{limit}, got {value}")
+        raise ValueError(f"{location}: Must be 0-{limit}, got {value}")
 
 
-def _check_length(what: str, text: str) -> None:
+def _check_length(location: str, text: str) -> None:
     if len(text) > NAME_SIZE:
         raise ValueError(
-            f"{what} must be at most {NAME_SIZE} characters, got {len(text)}"
+            f"{location}: Must be at most {NAME_SIZE} characters, got {len(text)}"
         )

@@ -73,11 +73,11 @@ def test_header_field_at_its_limit_accepted(field: str, value: object):
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
-        ("key", 0x10000, "key must be 0-65535, got 65536"),
-        ("key", -1, "key must be 0-65535, got -1"),
-        ("unknown", bytes(5), "unknown must be 6 bytes, got 5"),
-        ("unknown", bytes(7), "unknown must be 6 bytes, got 7"),
-        ("name", "SYNERGISTIC1OX", "name must be at most 13 characters, got 14"),
+        ("key", 0x10000, "key: Must be 0-65535, got 65536"),
+        ("key", -1, "key: Must be 0-65535, got -1"),
+        ("unknown", bytes(5), "unknown: Must be 6 bytes, got 5"),
+        ("unknown", bytes(7), "unknown: Must be 6 bytes, got 7"),
+        ("name", "SYNERGISTIC1OX", "name: Must be at most 13 characters, got 14"),
     ],
 )
 def test_header_field_past_its_limit_rejected(field: str, value: object, message: str):
@@ -98,11 +98,14 @@ def test_partial_coding_table_accepted():
 @pytest.mark.parametrize(
     ("table", "message"),
     [
-        ({256: 0}, "coding_table plain value must be 0-255, got 256"),
-        ({-1: 0}, "coding_table plain value must be 0-255, got -1"),
-        ({0: 256}, "coding_table disk value must be 0-255, got 256"),
-        ({0: -1}, "coding_table disk value must be 0-255, got -1"),
-        ({1: 0x3F, 2: 0x3F}, "coding_table writes plain 0x01 and 0x02 both as 0x3f"),
+        ({256: 0}, "coding_table key: Must be 0-255, got 256"),
+        ({-1: 0}, "coding_table key: Must be 0-255, got -1"),
+        ({0: 256}, "coding_table[0x00]: Must be 0-255, got 256"),
+        ({0: -1}, "coding_table[0x00]: Must be 0-255, got -1"),
+        (
+            {1: 0x3F, 2: 0x3F},
+            "coding_table: Plain 0x01 and 0x02 are both written as 0x3f",
+        ),
     ],
 )
 def test_coding_table_rejected(table: dict[int, int], message: str):
@@ -117,14 +120,14 @@ def test_coding_table_rejected(table: dict[int, int], message: str):
 @pytest.mark.parametrize(
     ("ids", "message"),
     [
-        ((101,), "players must be keyed 100, 101, ... in order, got 101 at index 0"),
+        ((101,), "players: Must be keyed 100, 101, ... in order, got 101 at index 0"),
         (
             (100, 102),
-            "players must be keyed 100, 101, ... in order, got 102 at index 1",
+            "players: Must be keyed 100, 101, ... in order, got 102 at index 1",
         ),
         (
             (101, 100),
-            "players must be keyed 100, 101, ... in order, got 101 at index 0",
+            "players: Must be keyed 100, 101, ... in order, got 101 at index 0",
         ),
     ],
 )
@@ -135,7 +138,7 @@ def test_players_not_keyed_from_100_in_order_rejected(ids: tuple[int, ...], mess
 def test_player_key_not_its_id_rejected():
     pyr = _pyr_file()
     pyr.players = {100: _player(101)}
-    _rejects(pyr, "players[100] holds player 101")
+    _rejects(pyr, "players[100]: Holds player 101")
 
 
 @pytest.mark.parametrize("field", ["first_name", "last_name"])
@@ -143,7 +146,7 @@ def test_name_limits(field: str):
     _pyr_file(_player(100, **{field: "A" * 13})).validate()
     _rejects(
         _pyr_file(_player(100, **{field: "A" * 14})),
-        f"player 100 {field} must be at most 13 characters, got 14",
+        f"player 100: {field}: Must be at most 13 characters, got 14",
     )
 
 
@@ -165,7 +168,7 @@ def test_rating_past_its_limit_rejected(ratings: str, rating: str, value: int):
     player = _player(100)
     setattr(getattr(player, ratings), rating, value)
     _rejects(
-        _pyr_file(player), f"player 100 {ratings}.{rating} must be 0-99, got {value}"
+        _pyr_file(player), f"player 100: {ratings}.{rating}: Must be 0-99, got {value}"
     )
 
 
@@ -178,7 +181,7 @@ def test_position_as_member_or_code_accepted(position: object):
 def test_position_outside_the_codes_rejected(position: int):
     _rejects(
         _pyr_file(_player(100, position=position)),
-        f"player 100 position must be 0-14, got {position}",
+        f"player 100: position: Must be 0-14, got {position}",
     )
 
 
@@ -191,7 +194,7 @@ def test_every_group_of_the_spec_table_accepted(group: int):
 def test_group_outside_the_spec_table_rejected(group: int):
     _rejects(
         _pyr_file(_player(100, group=group)),
-        f"player 100 group must be one of 0, 10, 13, 14, 15, 16, 17, 18, 19, got {group}",
+        f"player 100: group: Must be one of 0, 10, 13, 14, 15, 16, 17, 18, 19, got {group}",
     )
 
 
@@ -203,11 +206,11 @@ def test_numeric_field_limits(field: str, limit: int):
     _pyr_file(_player(100, **{field: 0})).validate()
     _rejects(
         _pyr_file(_player(100, **{field: limit + 1})),
-        f"player 100 {field} must be 0-{limit}, got {limit + 1}",
+        f"player 100: {field}: Must be 0-{limit}, got {limit + 1}",
     )
     _rejects(
         _pyr_file(_player(100, **{field: -1})),
-        f"player 100 {field} must be 0-{limit}, got -1",
+        f"player 100: {field}: Must be 0-{limit}, got -1",
     )
 
 
@@ -221,24 +224,26 @@ def test_injury_field_limits(field: str, limit: int):
     setattr(player.injury, field, limit + 1)
     _rejects(
         _pyr_file(player),
-        f"player 100 injury.{field} must be 0-{limit}, got {limit + 1}",
+        f"player 100: injury.{field}: Must be 0-{limit}, got {limit + 1}",
     )
     setattr(player.injury, field, -1)
-    _rejects(_pyr_file(player), f"player 100 injury.{field} must be 0-{limit}, got -1")
+    _rejects(
+        _pyr_file(player), f"player 100: injury.{field}: Must be 0-{limit}, got -1"
+    )
 
 
 @pytest.mark.parametrize("size", [5, 7])
 def test_unknown_not_six_bytes_rejected(size: int):
     _rejects(
         _pyr_file(_player(100, unknown=bytes(size))),
-        f"player 100 unknown must be 6 bytes, got {size}",
+        f"player 100: unknown: Must be 6 bytes, got {size}",
     )
 
 
 def test_problem_in_a_later_player_names_that_player():
     _rejects(
         _pyr_file(_player(100), _player(101, years=256)),
-        "player 101 years must be 0-255, got 256",
+        "player 101: years: Must be 0-255, got 256",
     )
 
 
@@ -246,4 +251,4 @@ def test_first_problem_in_file_order_reported():
     # A bad key and a bad player: the header comes first.
     pyr = _pyr_file(_player(100, years=256))
     pyr.key = -1
-    _rejects(pyr, "key must be 0-65535, got -1")
+    _rejects(pyr, "key: Must be 0-65535, got -1")
