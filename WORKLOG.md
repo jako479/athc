@@ -4,6 +4,20 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-26 — **fbpro98_pyr**: a read-only library for the `.pyr` player
+  file, on the mutable-model shape (plain dataclasses, dicts by id,
+  one `validate()` the reader calls last). The coding table is learned from
+  the record ids as the spec describes and the body decoded in one
+  `translate`, so the 9,000-player file reads in milliseconds. A scan of the
+  22 `.pyr` files in the game folder decided what `validate()` checks: ratings
+  0-99, positions 0-14 and the spec's groups hold everywhere; the
+  position-group pairing and potential-above-actual do not (the PNFL itself
+  breaks both), so they are read, not enforced. The spec's header marker and
+  zero bytes at 0x36-0x3B became one unknown field like the record's, kept
+  and never checked, so the four old stock files that hold `FF FF` there one
+  byte earlier than the rest read too. Fixtures: the spec's own sample
+  snapshot (2049 after week 6, where its injury examples hold), the smallest
+  stock league, the one the spec names and one of the old layout.
 - 2026-10-26 — **Mutable file models**: the six `fbpro98_*` libraries moved
   from frozen models edited by copying (`dataclasses.replace`, `with_*`
   methods) to mutable models edited by assignment, the shape the mainstream

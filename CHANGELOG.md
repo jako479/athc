@@ -7,6 +7,7 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- fbpro98_pyr: reads a league's .pyr player file: every player by id with names, position, group, years, injury, height, weight and both rating sets
 - athc: the six game-file libraries read a file into an object edited by assignment and written back; one `validate()` per written file class checks every rule the format imposes before a write
 - athc: game plans, profiles and the settings files are written whole or not at all: the bytes go to a temp file beside the target and are swapped in
 - fbpro98_gameplan: a stock play name over 8 characters, an unrecognized category, a non-ASCII filename, other audible bytes or a plan too big for its offsets table is refused before a write instead of cut, miswritten or a crash

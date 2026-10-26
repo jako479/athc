@@ -13,6 +13,7 @@ FILE_LIBRARIES = (
     "athc.fbpro98_lge.model",
     "athc.fbpro98_play.model",
     "athc.fbpro98_profile.model",
+    "athc.fbpro98_pyr.model",
     "athc.fbpro98_stats.model",
 )
 

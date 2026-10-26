@@ -11,6 +11,7 @@
   - [x] fbpro98_lge
   - [x] fbpro98_play
   - [x] fbpro98_profile
+  - [x] fbpro98_pyr
   - [ ] fbpro98_standings
   - [ ] fbpro98_stats
   - [x] gameplan

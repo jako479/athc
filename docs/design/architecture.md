@@ -76,6 +76,7 @@ athc/
     fbpro98_lge/               py.typed  schema.py  model.py  reader.py  _standings.py
     fbpro98_play/              py.typed  schema.py  model.py  reader.py  labels.py
     fbpro98_profile/           py.typed  schema.py  model.py  reader.py  writer.py
+    fbpro98_pyr/               py.typed  schema.py  model.py  reader.py
     fbpro98_standings/         py.typed  standings.py  methods.py  steps.py  moves.py  season.py
     fbpro98_stats/             py.typed  schema.py  model.py  reader.py
 ```
@@ -251,7 +252,7 @@ Per command: each tool's doc carries its lines, what counts as a finding, and it
 
 ### File libraries
 
-The six `fbpro98_*` file libraries (`play`, `gameplan`, `profile`, `lg2`, `lge`, `stats`) share one shape, the one openpyxl, pydicom, mutagen and tomlkit use: read a file into a mutable object, edit it by assignment, write it back. The `.pyr` library, when it comes, takes the same shape.
+The seven `fbpro98_*` file libraries (`play`, `gameplan`, `profile`, `lg2`, `lge`, `pyr`, `stats`) share one shape, the one openpyxl, pydicom, mutagen and tomlkit use: read a file into a mutable object, edit it by assignment, write it back.
 
 - **Layout.** `schema.py` holds the `struct` layouts, block ids and field sizes; `model.py` the dataclasses; `reader.py` the parser and the library's error; `writer.py` the builder, where the library writes. One `InvalidXError(FileFormatError)` per library; a file class on top (`GamePlan`, `Profile`, `PlayFile`, `Lg2File`, `LgeFile`, `StatsFile`) holds the file's header data and its collections.
 - **Models.** Every class in a `model.py` is `@dataclass(slots=True)`, never frozen; collections are `list` (in the file's order, or the order the field's doc states: a standings list best first, the stats honors by id) or `dict[int, ...]` keyed by id, with `field(default_factory=...)` for an empty default; a derived collection property returns a list too. Equality is field by field, so a mutable model is not hashable: callers key by `id(obj)` or by a number. A sub-object is shared on assignment, as with any Python object; a caller that wants two independent copies uses `copy.deepcopy`. The library-wide test `tests/unit/test_slots.py` pins every file model as mutable and slotted. Configuration and private working data stay frozen (`CategoryLabels`, the readers' private records).

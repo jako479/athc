@@ -343,9 +343,9 @@ from a league's `.lge`. Docs: [spec](docs/formats/lge.md)
 
 ## fbpro98 league files (specs)
 
-Reverse engineered from the PNFL's game files; only `.lge` and `.dat` have a
-library so far (`fbpro98_lge`, names and standings; `fbpro98_stats`, the
-stats). Docs:
+Reverse engineered from the PNFL's game files; `.lge`, `.pyr` and `.dat` have
+a library so far (`fbpro98_lge`, names and standings; `fbpro98_pyr`, the
+players; `fbpro98_stats`, the stats). Docs:
 [overview](docs/formats/README.md), [lge spec](docs/formats/lge.md),
 [pyr spec](docs/formats/pyr.md), [cities spec](docs/formats/cities.md),
 [stats spec](docs/formats/stats.md), [notes](docs/research/pnfl-formats.md).
@@ -391,6 +391,31 @@ Reads and writes `.prf` coaching profiles. Docs:
 - A situation holds only its rules; its number and game state come from its
   place in the profile.
 - Reader and writer in, with unit tests.
+
+## fbpro98_pyr (library)
+
+Reads the players from a league's `.pyr`: every player by id with names,
+position and group, years, injury, height and weight, potential and actual
+ratings. Docs: [design](docs/design/fbpro98_pyr.md),
+[spec](docs/formats/pyr.md).
+
+- On the mutable-model shape of every file library
+  ([architecture.md](docs/design/architecture.md#file-libraries)): plain
+  dataclasses with `slots=True`, dicts by id, one `validate()` on the file
+  object that checks every rule the spec states; the reader calls it last. No writer yet, but
+  the header fields, the coding table and each record's unknown bytes are
+  kept for one.
+- The coding table is learned from the record ids, as the spec describes;
+  a byte the ids do not reveal is an error, never a guess.
+- Not checked, because real files break them: a position paired with its
+  group as the spec's table has it, potential at or above actual.
+- The header's last six bytes are kept as read, like each record's, and
+  never checked, so every stock file reads: `1994.PYR`, `1995.PYR`,
+  `1996.PYR` and `NFLPI96E.PYR` hold `FF FF` there one byte earlier than the
+  later stock files do, in the header and in every record.
+- Reader in, with unit tests on the PNFL and three stock leagues. Unit tests
+  reviewed 2026-10-26: each rating tied to its byte, the record arithmetic
+  at a later record, every position code, the spec's four injury examples.
 
 ## fbpro98_standings (library)
 

@@ -1,6 +1,6 @@
 # .pyr - Front Page Sports Football Pro '98 Player File Format
 
-- **Owner:** none yet
+- **Owner:** FBPro98 Pyr Library
 - **Encoding:** Integers little-endian; strings ASCII. Every byte after the header is coded (section 3).
 
 A `.pyr` holds every player a league knows: names, ratings, position, years and injury. It is named after its league (`PNFL.pyr`) and sits in the game folder. One layout in every sampled file, stock (1992-1997) and custom. Sample: `PNFL.pyr` (9,192 players, 551,580 bytes).
@@ -31,16 +31,15 @@ player 2  id 101
 
 Starts at 0x0000.
 
-| Offset | Size | Type     | Name   | Description                                                |
-| -----: | ---: | :------- | :----- | :--------------------------------------------------------- |
-| 0x0000 |    2 | u16      | Key    | Picks the coding table (section 3); `0xCE5F` in `PNFL.pyr` |
-| 0x0002 |   13 | u8[13]   | Zero   | All `0x00`                                                 |
-| 0x000F |   13 | char[13] | Name   | `"SYNERGISTIC1"` in stock files; zeros in `PNFL.pyr`       |
-| 0x001C |   27 | u8[27]   | Zero   | All `0x00`                                                 |
-| 0x0037 |    2 | u16      | Marker | `0xFFFF` in stock files; `0` in `PNFL.pyr`                 |
-| 0x0039 |    3 | u8[3]    | Zero   | All `0x00`                                                 |
+| Offset | Size | Type     | Name    | Description                                                                                                                              |
+| -----: | ---: | :------- | :------ | :--------------------------------------------------------------------------------------------------------------------------------------- |
+| 0x0000 |    2 | u16      | Key     | Picks the coding table (section 3); `0xCE5F` in `PNFL.pyr`                                                                               |
+| 0x0002 |   13 | u8[13]   | Zero    | All `0x00`                                                                                                                               |
+| 0x000F |   13 | char[13] | Name    | `"SYNERGISTIC1"` in stock files; zeros in `PNFL.pyr`                                                                                     |
+| 0x001C |   26 | u8[26]   | Zero    | All `0x00`                                                                                                                               |
+| 0x0036 |    6 | u8[6]    | Unknown | `0` in `PNFL.pyr`; `00 FF FF 00 00 00` in most stock files; `FF FF 00 00 00 00` in `1994.PYR`, `1995.PYR`, `1996.PYR` and `NFLPI96E.PYR` |
 
-The header is laid out like a player record: the key sits where the id goes, the name where the last name goes, and the marker where the newest draft class has `0xFFFF` (section 4). The header is not coded.
+The header is laid out like a player record: the key sits where the id goes, the name where the last name goes, and its unknown bytes where the record's are (section 4). The header is not coded.
 
 ---
 
@@ -70,20 +69,20 @@ Example, `PNFL.pyr` record 0: player 100 = `0x0064`, plain bytes `64 00`; on dis
 
 Starts at 0x003C + 60 × (id − 100).
 
-| Offset | Size | Type     | Name       | Description                                              |
-| -----: | ---: | :------- | :--------- | :------------------------------------------------------- |
-|   0x00 |    2 | u16      | Id         | Player id; 100 + record index                            |
-|   0x02 |   13 | char[13] | First name | NUL-padded; longer names are cut                         |
-|   0x0F |   13 | char[13] | Last name  | NUL-padded; longer names are cut                         |
-|   0x1C |    8 | u8[8]    | Potential  | Potential ratings (section 5); not shown in the game     |
-|   0x24 |    4 | u8[4]    | Injury     | Injury level, injury and week (section 6)                |
-|   0x28 |    1 | u8       | Group      | Position group (section 5)                               |
-|   0x29 |    1 | u8       | Position   | Position (section 5)                                     |
-|   0x2A |    8 | u8[8]    | Actual     | Actual ratings, same order; the ratings the game shows   |
-|   0x32 |    1 | u8       | Years      | Years in the league                                      |
-|   0x33 |    1 | u8       | Height     | Inches; filled only for the newest draft class, else `0` |
-|   0x34 |    2 | u16      | Weight     | Pounds; filled only for the newest draft class, else `0` |
-|   0x36 |    6 | u8[6]    | Unknown    | `0`; the newest draft class has `0xFFFF` at 0x37         |
+| Offset | Size | Type     | Name       | Description                                                                                                                                                                                                                                                                              |
+| -----: | ---: | :------- | :--------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|   0x00 |    2 | u16      | Id         | Player id; 100 + record index                                                                                                                                                                                                                                                            |
+|   0x02 |   13 | char[13] | First name | NUL-padded; longer names are cut                                                                                                                                                                                                                                                         |
+|   0x0F |   13 | char[13] | Last name  | NUL-padded; longer names are cut                                                                                                                                                                                                                                                         |
+|   0x1C |    8 | u8[8]    | Potential  | Potential ratings (section 5); not shown in the game                                                                                                                                                                                                                                     |
+|   0x24 |    4 | u8[4]    | Injury     | Injury level, injury and week (section 6)                                                                                                                                                                                                                                                |
+|   0x28 |    1 | u8       | Group      | Position group (section 5); the position determines it, so the byte is redundant                                                                                                                                                                                                         |
+|   0x29 |    1 | u8       | Position   | Position (section 5)                                                                                                                                                                                                                                                                     |
+|   0x2A |    8 | u8[8]    | Actual     | Actual ratings, same order; the ratings the game shows                                                                                                                                                                                                                                   |
+|   0x32 |    1 | u8       | Years      | Years in the league                                                                                                                                                                                                                                                                      |
+|   0x33 |    1 | u8       | Height     | Inches; filled only for the newest draft class, else `0`                                                                                                                                                                                                                                 |
+|   0x34 |    2 | u16      | Weight     | Pounds; filled only for the newest draft class, else `0`                                                                                                                                                                                                                                 |
+|   0x36 |    6 | u8[6]    | Unknown    | `0` in most `PNFL.pyr` records; `00 FF FF 00 00 00` for the PNFL's newest draft class and for every player of most stock files; `FF FF 00 00 00 00` for every player of `1994.PYR`, `1995.PYR`, `1996.PYR` and `NFLPI96E.PYR`; `NFLPI97.PYR` and `NFLPI97R.PYR` hold other data there    |
 
 Potential is at or above actual in every rating, in all but one `PNFL.pyr` record (Blake Watson, 7302: agility 81 potential, 83 actual).
 
@@ -116,6 +115,8 @@ The game's Player Editor shows the actual ratings (Speed 81, Acceleration 81, Ag
 
 Ratings, in file order: AC acceleration, AG agility, DI discipline, EN endurance, HA hands, IN intelligence, SP speed, ST strength; `0`-`99`.
 
+A player's group is how the game groups positions together: QB, running backs (FB, HB), receivers (TE, WR), offensive line (C, G, T), defensive line (DE, DT), LB, defensive backs (CB, S), K and P. The position determines the group; the stored byte is redundant and can be stale (below).
+
 | Position | Name | Group |
 | :------- | :--- | :---- |
 | `0`      | QB   | `0`   |
@@ -133,6 +134,8 @@ Ratings, in file order: AC acceleration, AG agility, DI discipline, EN endurance
 | `12`     | S    | `19`  |
 | `13`     | K    | `13`  |
 | `14`     | P    | `14`  |
+
+A group byte that does not match the position is bad data from outside tools, seen only on players no roster or free-agent pool holds: one in `PNFL.pyr` (4603), six in `PCFL.pyr`.
 
 ---
 

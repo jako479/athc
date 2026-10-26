@@ -48,7 +48,7 @@ one exists, sits beside it.
   - The schedule with scores.
 - `.rst` rosters: the `.lge` roster chunks, byte for byte. Same mask.
 - `.pyr` players: every player the league knows. Masked (below). Spec:
-  [pyr.md](pyr.md). No library. One layout in every sampled file. The game
+  [pyr.md](pyr.md). Library: `fbpro98_pyr`. One layout in every sampled file. The game
   folder also holds `1994.PYR`, `1995.PYR` and `1996.PYR`, the same layout
   for those NFL seasons. Holds, per player:
   - Id, first and last name.

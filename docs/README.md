@@ -49,6 +49,7 @@ Libraries:
 - [fbpro98_lge.md](design/fbpro98_lge.md) — `.lge`: conferences, divisions, teams, standings and games
 - [fbpro98_play.md](design/fbpro98_play.md) — `.ply` plays
 - [fbpro98_profile.md](design/fbpro98_profile.md) — `.prf` coaching profiles, read and write
+- [fbpro98_pyr.md](design/fbpro98_pyr.md) — `.pyr`: every player by id, with position, ratings and injury
 - [fbpro98_standings.md](design/fbpro98_standings.md) — standings by the game's, the scheduler's or the NFL's tie-breakers
 - [fbpro98_stats.md](design/fbpro98_stats.md) — `.dat`: player and team stats, and the honors
 
