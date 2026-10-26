@@ -8,7 +8,6 @@ gameplan's profile type (offense even, defense odd).
 from __future__ import annotations
 
 from os import PathLike
-from pathlib import Path
 
 from athc.fbpro98_gameplan.model import (
     CustomPlayRef,
@@ -30,6 +29,7 @@ from athc.fbpro98_gameplan.schema import (
     J95_PLAN_DATA,
     S98_HEADER,
 )
+from athc.fileio import atomic_write
 
 StrPath = str | PathLike[str]
 
@@ -38,31 +38,38 @@ def write_gameplan(gameplan: GamePlan, path: StrPath) -> None:
     """Serialize a GamePlan and write it to a .pln file.
 
     Args:
-        gameplan: The GamePlan to serialize.
+        gameplan: The GamePlan to serialize; `validate()` runs first.
         path: Filesystem path to write the .pln file to. Any existing file at
-            this path will be overwritten.
+            this path is replaced whole: the bytes go to a temp file beside
+            it, swapped in once complete.
 
     Raises:
+        ValueError: If the GamePlan fails `validate()`; nothing is written.
         OSError: If the file cannot be written (subclasses include
             PermissionError, IsADirectoryError, FileNotFoundError for the
-            parent directory).
+            parent directory), naming `path`.
     """
-    Path(path).write_bytes(build_gameplan_bytes(gameplan))
+    atomic_write(path, build_gameplan(gameplan))
 
 
-def build_gameplan_bytes(gameplan: GamePlan) -> bytes:
+def build_gameplan(gameplan: GamePlan) -> bytes:
     """Serialize a GamePlan to .pln file bytes.
 
-    Builds the three on-disk blocks (G95 plays + offsets, J95 plan metadata,
-    S98 stock-map filename) and pads the file to the parity expected by the
-    gameplan's profile type (offense even, defense odd).
+    Runs `validate()` first, then builds the three on-disk blocks (G95 plays +
+    offsets, J95 plan metadata, S98 stock-map filename) and pads the file to
+    the parity expected by the gameplan's profile type (offense even, defense
+    odd).
 
     Args:
         gameplan: The GamePlan to serialize.
 
     Returns:
         Bytes of the resulting .pln file, ready to write.
+
+    Raises:
+        ValueError: If the GamePlan fails `validate()`.
     """
+    gameplan.validate()
     output = _build_g95(gameplan) + _build_j95(gameplan) + _build_s98(gameplan)
     needs_odd = gameplan.profile_type == ProfileType.DEFENSE
     if len(output) % 2 != needs_odd:
@@ -115,8 +122,10 @@ def _build_play(play: PlayRef) -> bytes:
     )
     if isinstance(play, CustomPlayRef):
         return header + play.filename.encode("ascii") + b"\x00"
-    name_bytes = play.play_name.encode("ascii").ljust(8, b"\x00")[:8]
-    return header + G95_STOCK_PLAY_BODY.pack(name_bytes, play.map_offset, play.map_size)
+    # validate() keeps the name to 8 ASCII characters; the pack pads it.
+    return header + G95_STOCK_PLAY_BODY.pack(
+        play.play_name.encode("ascii"), play.map_offset, play.map_size
+    )
 
 
 def _build_j95(gameplan: GamePlan) -> bytes:

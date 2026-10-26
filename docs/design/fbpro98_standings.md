@@ -118,7 +118,7 @@ The first steps sort every team; after the semicolon come the tie-breakers; the 
 - Read files; the caller passes `LgeFile` objects from `fbpro98_lge`.
 - Net touchdowns: not in the file, so that step is skipped.
 - Know a league's team moves; the caller passes them.
-- Rank for `fbpro98_lge` or generate-schedule, which keep their own ranking for now (`fbpro98_lge/standings.py`, `scheduler/league_files.py`).
+- Rank for `fbpro98_lge` or generate-schedule, which keep their own ranking for now (`fbpro98_lge/_standings.py`, `scheduler/league_files.py`).
 
 ### Sources
 

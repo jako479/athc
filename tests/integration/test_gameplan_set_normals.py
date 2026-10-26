@@ -50,7 +50,8 @@ def _copy(tmp_path: Path) -> Path:
 def _without_first_normal(path: Path) -> Path:
     """`path` rewritten with normal slot 0 empty."""
     gp = read_gameplan(path)
-    write_gameplan(gp.with_normal_plays([None, *gp.normal_plays[1:]]), path)
+    gp.normal_plays[0] = None
+    write_gameplan(gp, path)
     assert read_gameplan(path).normal_plays[0] is None
     return path
 

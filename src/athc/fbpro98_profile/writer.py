@@ -10,7 +10,6 @@ Profile.
 from __future__ import annotations
 
 from os import PathLike
-from pathlib import Path
 
 from athc.fbpro98_profile.model import Profile, ProfileType
 from athc.fbpro98_profile.schema import (
@@ -28,6 +27,7 @@ from athc.fbpro98_profile.schema import (
     STOP_CLOCK_BIT,
     TRAILER_NUL,
 )
+from athc.fileio import atomic_write
 
 StrPath = str | PathLike[str]
 
@@ -36,49 +36,45 @@ def write_profile(profile: Profile, path: StrPath) -> None:
     """Serialize a Profile and write it to a .prf file.
 
     Args:
-        profile: The Profile to serialize.
+        profile: The Profile to serialize; `validate()` runs first.
         path: Filesystem path to write the .prf file to. Any existing file at
-            this path will be overwritten.
+            this path is replaced whole: the bytes go to a temp file beside
+            it, swapped in once complete.
 
     Raises:
+        ValueError: If the Profile fails `validate()`; nothing is written.
         OSError: If the file cannot be written (subclasses include
             PermissionError, IsADirectoryError, FileNotFoundError for the
-            parent directory).
+            parent directory), naming `path`.
     """
-    Path(path).write_bytes(build_profile_bytes(profile))
+    atomic_write(path, build_profile(profile))
 
 
-def build_profile_bytes(profile: Profile) -> bytes:
+def build_profile(profile: Profile) -> bytes:
     """Serialize a Profile to .prf file bytes.
 
-    Builds the F95 and I95 blocks and appends the NUL trailer for the
-    profile's type (1 byte for offense → even total size, 2 bytes for
-    defense → odd total size).
+    Runs `validate()` first, then builds the F95 and I95 blocks and appends
+    the NUL trailer for the profile's type (1 byte for offense → even total
+    size, 2 bytes for defense → odd total size).
 
     Args:
         profile: The Profile to serialize.
 
     Returns:
         Bytes of the resulting .prf file, ready to write.
+
+    Raises:
+        ValueError: If the Profile fails `validate()`.
     """
+    profile.validate()
     return _build_f95(profile) + _build_i95(profile) + _build_trailer(profile)
 
 
 def _build_f95(profile: Profile) -> bytes:
     data = bytearray()
 
-    subs = profile.substitutions
     sub_values: list[int] = []
-    for pair in (
-        subs.offensive_linemen,
-        subs.quarterbacks,
-        subs.running_backs,
-        subs.receivers,
-        subs.defensive_linemen,
-        subs.linebackers,
-        subs.defensive_backs,
-        subs.kickers,
-    ):
+    for _, pair in profile.substitutions.pairs():
         sub_values.append(pair.out_percent)
         sub_values.append(pair.in_percent)
     data += F95_SUBSTITUTIONS.pack(*sub_values)

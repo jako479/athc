@@ -76,4 +76,5 @@ No `test_model.py` and no `test_schema.py`: the model has no logic, and the read
 | All-Pro ids `0x0001`, `0x04FF` / pick 5, position + 1 of 0, 4097 | make_dat | (0, 0, 0), (14, 15, 4) / "pick 5, above 4", "a position + 1 of 0", "pick 16, above 4" | `test_all_pro_pick_decoded` `[P]` / `test_all_pro_id_rejected` `[P]` | ☑ |
 | Coach of the Year | make_dat | team number | `test_coach_of_the_year_decoded` | ☑ |
 | Award codes 90-94, 99 / 89, 95, 98, 100 | make_dat | kind and conference / "Award id" | `test_award_decoded` `[P]` / `test_award_code_rejected` `[P]` | ☑ |
-| Honors out of order | make_dat | each tuple in id order | `test_players_of_the_game_in_id_order` / `test_all_pro_in_id_order` / `test_awards_in_id_order` | ☑ |
+| Honors out of order | make_dat | each list in id order | `test_players_of_the_game_in_id_order` / `test_all_pro_in_id_order` / `test_awards_in_id_order` | ☑ |
+| Edit by assignment | golden | a team's stats replaced, a category cleared, awards dropped | `test_stats_are_edited_by_assignment` | ☑ |

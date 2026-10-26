@@ -114,7 +114,9 @@ def parse_play(buffer: bytes, path: StrPath = "<buffer>") -> PlayFile:
     if len(buffer) < PLY_METADATA_OFFSET + PLY_METADATA.size:
         raise InvalidPlayFileError(_INVALID_PLAY_FILE, file_path)
 
-    player_offsets = PLY_PLAYER_OFFSETS.unpack_from(buffer, PLY_PLAYER_OFFSETS_OFFSET)
+    player_offsets = list(
+        PLY_PLAYER_OFFSETS.unpack_from(buffer, PLY_PLAYER_OFFSETS_OFFSET)
+    )
     # A record below the first offset would sit on the offsets or category bytes.
     if min(player_offsets) < PLY_FIRST_PLAYER_OFFSET:
         raise InvalidPlayFileError(_INVALID_PLAY_FILE, file_path)
@@ -124,16 +126,16 @@ def parse_play(buffer: bytes, path: StrPath = "<buffer>") -> PlayFile:
         PLY_METADATA_OFFSET,
     )
 
-    player_headers = tuple(
+    player_headers = [
         _parse_player_header(buffer, offset, file_path) for offset in player_offsets
-    )
+    ]
     # Records sit back to back in slot order; the last ends at the end of the file.
     starts = [PLY_PLAYER_DATA_BASE + offset for offset in player_offsets]
     ends = [*starts[1:], len(buffer)]
-    player_logic = tuple(
+    player_logic = [
         _parse_player_logic(buffer, start, end, file_path)
         for start, end in zip(starts, ends, strict=True)
-    )
+    ]
 
     return PlayFile(
         file_path,
@@ -173,7 +175,7 @@ def _parse_player_logic(buffer: bytes, start: int, end: int, path: Path) -> Play
     return PlayerLogic(pre_snap, after_snap)
 
 
-def _parse_boxes(record: bytes, offset: int) -> tuple[tuple[LogicBox, ...], int]:
+def _parse_boxes(record: bytes, offset: int) -> tuple[list[LogicBox], int]:
     """A box list starting at `offset` and the offset just past it."""
     (count,) = PLY_BOX_COUNT.unpack_from(record, offset)
     offset += PLY_BOX_COUNT.size
@@ -190,6 +192,6 @@ def _parse_boxes(record: bytes, offset: int) -> tuple[tuple[LogicBox, ...], int]
                 (argument,) = PLY_ARGUMENT.unpack_from(record, offset)
                 offset += PLY_ARGUMENT.size
                 arguments.append(argument)
-            commands.append(Command(code, tuple(arguments)))
-        boxes.append(LogicBox(x, y, tuple(commands)))
-    return tuple(boxes), offset
+            commands.append(Command(code, arguments))
+        boxes.append(LogicBox(x, y, commands))
+    return boxes, offset

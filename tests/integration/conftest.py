@@ -382,6 +382,6 @@ def build_gameplan(
             special_slots[category - 1] = clock_slot(category)
     return GamePlan(
         profile_type=profile_type,
-        normal_plays=tuple(normal_slots),
-        special_plays=tuple(special_slots),
+        normal_plays=list(normal_slots),
+        special_plays=special_slots,
     )

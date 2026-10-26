@@ -14,6 +14,7 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_team()` =
 | `read` returns `Lg2File`; `parse == read` | golden | equal | `test_read_returns_lg2_file_and_matches_parse` | ☑ |
 | `read` accepts a `str` folder | golden | equal to `Path` | `test_read_accepts_str_league_dir` | ☑ |
 | Custom league type | golden | `CUSTOM` | `test_custom_league_type` | ☑ |
+| Edit by assignment | golden | a location changed, teams dropped from the list | `test_lg2_is_edited_by_assignment` | ☑ |
 
 ### Stock leagues
 | Case | Input | Expected | Test | Status |

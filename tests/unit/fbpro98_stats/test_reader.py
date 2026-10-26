@@ -219,13 +219,13 @@ TEAM_3_SEASON = TeamStats(
     extra_points=ExtraPoints(attempts=32, made=31),  # 0x47BBC
     field_goals=FieldGoals(  # 0x33B80
         long=53,
-        ranges=(
+        ranges=[
             FieldGoalRange(made=0, attempts=0),
             FieldGoalRange(made=5, attempts=6),
             FieldGoalRange(made=9, attempts=10),
             FieldGoalRange(made=3, attempts=6),
             FieldGoalRange(made=3, attempts=5),
-        ),
+        ],
     ),
     rushing=Rushing(attempts=395, yards=1725, long=38, touchdowns=18),  # 0x2B034
     passing=Passing(  # 0x2C63C
@@ -292,13 +292,13 @@ TEAM_3_OPPONENTS_SEASON = TeamStats(
     extra_points=ExtraPoints(attempts=38, made=38),  # 0x33338
     field_goals=FieldGoals(  # 0x450C4
         long=48,
-        ranges=(
+        ranges=[
             FieldGoalRange(made=1, attempts=1),
             FieldGoalRange(made=6, attempts=6),
             FieldGoalRange(made=10, attempts=13),
             FieldGoalRange(made=10, attempts=16),
             FieldGoalRange(made=0, attempts=1),
-        ),
+        ],
     ),
     rushing=Rushing(attempts=403, yards=1483, long=51, touchdowns=16),  # 0x4D120
     passing=Passing(  # 0x3B24
@@ -376,7 +376,7 @@ def test_team_and_opponents_season_record(mapping: str, expected: TeamStats):
 def test_players_of_the_game_after_week_one():
     # Ids 1-9 at 0x17F20, 0x434E0, 0x4B938, 0x489E0, 0x403F8, 0x31790,
     # 0x21958, 0x742C, 0x3BE48; the Player of the Week at 0x4C84C.
-    assert _stats(WEEK1).players_of_the_game == (
+    assert _stats(WEEK1).players_of_the_game == [
         PlayerOfTheGame(game=0, points=62, player=3987, team=9, opponent=3),
         PlayerOfTheGame(game=1, points=76, player=3579, team=16, opponent=6),
         PlayerOfTheGame(game=2, points=60, player=3090, team=5, opponent=2),
@@ -387,11 +387,11 @@ def test_players_of_the_game_after_week_one():
         PlayerOfTheGame(game=7, points=76, player=2605, team=18, opponent=15),
         PlayerOfTheGame(game=8, points=56, player=2069, team=17, opponent=14),
         PlayerOfTheGame(game=None, points=96, player=3579, team=16, opponent=6),
-    )
+    ]
 
 
 def test_no_players_of_the_game_after_the_super_bowl():
-    assert _stats(SUPER_BOWL).players_of_the_game == ()
+    assert _stats(SUPER_BOWL).players_of_the_game == []
 
 
 @pytest.mark.parametrize(
@@ -422,7 +422,7 @@ def test_awards():
     awards = _stats(WEEK16).awards
     assert len(awards) == 84
     # Ids 0x2F5A-0x2F5E at 0x5210C-0x5215C, then 0x2F63 at 0x4DE68.
-    assert awards[-6:] == (
+    assert awards[-6:] == [
         Award(kind=AwardKind.MVP, conference=None, year=47, player=550),
         Award(
             kind=AwardKind.OFFENSIVE_PLAYER_OF_THE_YEAR,
@@ -449,7 +449,7 @@ def test_awards():
             player=2468,
         ),
         Award(kind=AwardKind.ROOKIE_OF_THE_YEAR, conference=None, year=47, player=7793),
-    )
+    ]
 
 
 @pytest.mark.parametrize(
@@ -685,13 +685,13 @@ STANDARD_CATEGORIES = [
         "field_goals",
         FieldGoals(
             long=1,
-            ranges=(
+            ranges=[
                 FieldGoalRange(made=1, attempts=2),
                 FieldGoalRange(made=3, attempts=4),
                 FieldGoalRange(made=5, attempts=6),
                 FieldGoalRange(made=7, attempts=8),
                 FieldGoalRange(made=9, attempts=10),
-            ),
+            ],
         ),
         id="field goals",
     ),
@@ -857,13 +857,13 @@ def test_field_goal_range_bytes_read_unsigned(
     stats = parse_stats(make_dat([make_record(33, 1, [40, stored])]))
     assert stats.player_season[1].field_goals == FieldGoals(
         long=40,
-        ranges=(
+        ranges=[
             FieldGoalRange(made=made, attempts=attempts),
             FieldGoalRange(made=0, attempts=0),
             FieldGoalRange(made=0, attempts=0),
             FieldGoalRange(made=0, attempts=0),
             FieldGoalRange(made=0, attempts=0),
-        ),
+        ],
     )
 
 
@@ -1085,7 +1085,7 @@ def test_possession_past_32767_reads_negative(make_dat, make_record):
 def test_player_of_the_game(make_dat, make_record, id_: int, game: int | None):
     stats = parse_stats(make_dat([make_record(15, id_, [25, 1234, 3, 4])]))
     expected = PlayerOfTheGame(game=game, points=25, player=1234, team=3, opponent=4)
-    assert stats == StatsFile(players_of_the_game=(expected,))
+    assert stats == StatsFile(players_of_the_game=[expected])
 
 
 @pytest.mark.parametrize("id_", [0, 100])
@@ -1109,7 +1109,7 @@ def test_all_pro_pick_decoded(
     expected = AllProPick(
         position=position, conference=conference, pick=pick, player=6283
     )
-    assert stats == StatsFile(all_pro=(expected,))
+    assert stats == StatsFile(all_pro=[expected])
 
 
 @pytest.mark.parametrize(
@@ -1149,7 +1149,7 @@ def test_award_decoded(
 ):
     stats = parse_stats(make_dat([make_record(79, code + 47 * 256, [0x3333, 6283])]))
     expected = Award(kind=kind, conference=conference, year=47, player=6283)
-    assert stats == StatsFile(awards=(expected,))
+    assert stats == StatsFile(awards=[expected])
 
 
 @pytest.mark.parametrize("code", [89, 95, 98, 100])
@@ -1159,6 +1159,16 @@ def test_award_code_rejected(make_dat, make_record, code: int):
         InvalidStatsError, match=rf"at 0x8c: Award id {id_} has code {code},"
     ):
         parse_stats(make_dat([make_record(79, id_, [0, 6283])]))
+
+
+def test_stats_are_edited_by_assignment():
+    stats = _stats(WEEK16)
+    stats.team_season[3] = TeamStats(rushing=RUSHING)
+    stats.player_season[4037].passing = None
+    del stats.awards[:-1]
+    assert stats.team_season[3] == TeamStats(rushing=RUSHING)
+    assert stats.player_season[4037].passing is None
+    assert len(stats.awards) == 1
 
 
 def test_players_of_the_game_in_id_order(make_dat, make_record):

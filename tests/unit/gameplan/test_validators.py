@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from athc.fbpro98_gameplan import GamePlan, ProfileType
+from athc.fbpro98_gameplan import GamePlan, PlayRef, ProfileType
 from athc.fbpro98_gameplan.model import CustomPlayRef, SpecialSlot, StockPlayRef
 from athc.fbpro98_play import DefensiveFront, PlayFile
 from athc.gameplan import RuleName, RuleViolation, validate_gameplan
@@ -42,7 +42,7 @@ OFF_PASS_MEDIUM_RIGHT = 0x13
 def make_record(
     name: str, *, user_category: int, front: DefensiveFront | None = None
 ) -> DefensivePlay:
-    play_file = PlayFile(Path(f"{name}.ply"), 0, 0x00, 0, user_category, (), ())
+    play_file = PlayFile(Path(f"{name}.ply"), 0, 0x00, 0, user_category, [], [])
     return DefensivePlay(name, play_file, defensive_front=front)
 
 
@@ -64,8 +64,8 @@ def plan_entry(record: Play) -> CustomPlayRef:
     )
 
 
-def empty_specials() -> tuple[SpecialSlot, ...]:
-    return tuple(SpecialSlot() for _ in range(GamePlan.NUMBER_SPECIAL_CATEGORIES))
+def empty_specials() -> list[SpecialSlot]:
+    return [SpecialSlot() for _ in range(GamePlan.NUMBER_SPECIAL_CATEGORIES)]
 
 
 def defense_gameplan(records: Sequence[Play]) -> GamePlan:
@@ -75,12 +75,12 @@ def defense_gameplan(records: Sequence[Play]) -> GamePlan:
 
 def defense_gameplan_at(slots: Mapping[int, Play]) -> GamePlan:
     """A defense gameplan with a play in each given 0-based normal slot."""
-    normal: list[CustomPlayRef | None] = [None] * GamePlan.NUMBER_NORMAL_PLAYS
+    normal: list[PlayRef | None] = [None] * GamePlan.NUMBER_NORMAL_PLAYS
     for slot, record in slots.items():
         normal[slot] = plan_entry(record)
     return GamePlan(
         profile_type=ProfileType.DEFENSE,
-        normal_plays=tuple(normal),
+        normal_plays=normal,
         special_plays=empty_specials(),
     )
 
@@ -450,7 +450,7 @@ def make_off_record(
     rollout: bool = False,
     pass_logic: PassLogic | None = None,
 ) -> OffensivePlay:
-    play_file = PlayFile(Path(f"{name}.ply"), 0, 0x01, 0, user_category, (), ())
+    play_file = PlayFile(Path(f"{name}.ply"), 0, 0x01, 0, user_category, [], [])
     return OffensivePlay(
         name,
         play_file,
@@ -460,22 +460,22 @@ def make_off_record(
     )
 
 
-def offense_specials() -> tuple[SpecialSlot, ...]:
+def offense_specials() -> list[SpecialSlot]:
     """Empty slots plus the stock clock plays every offense gameplan carries."""
-    slots = list(empty_specials())
+    slots = empty_specials()
     for category in (11, 12):
         slots[category - 1] = SpecialSlot(
             stock=StockPlayRef(f"CLOCK{category}", 0, 0, 0x01, category, 0x00)
         )
-    return tuple(slots)
+    return slots
 
 
 def offense_gameplan(records: Sequence[Play]) -> GamePlan:
     """An offense gameplan holding `records` in its first normal slots."""
-    normal = tuple(plan_entry(r) for r in records)
+    normal: list[PlayRef | None] = [plan_entry(r) for r in records]
     return GamePlan(
         profile_type=ProfileType.OFFENSE,
-        normal_plays=normal + (None,) * (GamePlan.NUMBER_NORMAL_PLAYS - len(normal)),
+        normal_plays=normal + [None] * (GamePlan.NUMBER_NORMAL_PLAYS - len(normal)),
         special_plays=offense_specials(),
     )
 
@@ -718,12 +718,12 @@ def test_offense_max_timed_percent_clean_at_cap() -> None:
 
 def special_gameplan(slot: SpecialSlot, *, category: int = 1) -> GamePlan:
     """A defense gameplan whose special `category` holds `slot`."""
-    slots = list(empty_specials())
+    slots = empty_specials()
     slots[category - 1] = slot
     return GamePlan(
         profile_type=ProfileType.DEFENSE,
-        normal_plays=(None,) * GamePlan.NUMBER_NORMAL_PLAYS,
-        special_plays=tuple(slots),
+        normal_plays=[None] * GamePlan.NUMBER_NORMAL_PLAYS,
+        special_plays=slots,
     )
 
 

@@ -169,7 +169,15 @@ def test_old_stock_league():
         "DEF.PLN",
     )
     assert lg2.league_type is LeagueType.OLD_STOCK
-    assert lg2.teams == (_team("", names),) * 8
+    assert lg2.teams == [_team("", names) for _ in range(8)]
+
+
+def test_lg2_is_edited_by_assignment():
+    lg2 = read_lg2(LEAGUE, FIXTURE_DIR)
+    lg2.teams[0].first_half.offense.profile = "X.prf"
+    del lg2.teams[1:]
+    assert lg2.teams[0].first_half.offense.profile == "X.prf"
+    assert len(lg2.teams) == 1
 
 
 def test_missing_file_raises_oserror_for_built_path(tmp_path: Path):

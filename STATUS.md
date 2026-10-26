@@ -4,7 +4,7 @@ Where things stand now, per component: what is in, how it is laid out, what
 is open, and the decisions behind it. The details of a change live here, not
 in CHANGELOG.
 
-Updated 2026-10-20. Task list: [TODO.md](TODO.md). History:
+Updated 2026-10-26. Task list: [TODO.md](TODO.md). History:
 [WORKLOG.md](WORKLOG.md). Detail: [docs/](docs).
 
 Game plan, profile and league tools for Front Page Sports Football Pro '98.
@@ -79,6 +79,15 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
 ### Console, run log and errors
 
+- File libraries (2026-10-26): the six `fbpro98_*` libraries share one
+  shape: mutable models with list and dict fields, edited by assignment; one
+  `validate()` on `GamePlan` and `Profile` covering every rule the format
+  imposes, run by `parse_x` (wrapped in the library error) and `build_x`;
+  `read_x` / `write_x` on files and `parse_x` / `build_x` on bytes
+  (`build_gameplan`, `build_profile`); every write atomic through
+  `athc.fileio.atomic_write`, the config writers included. The `.pyr`
+  library follows. Rules:
+  [docs/design/architecture.md](docs/design/architecture.md#file-libraries).
 - Messages review (2026-10-14): the pool's per-issue `WARN` lines stay on
   purpose, `find-play` lists hits only in a set, one word and one form for
   every message, the run log is `time LEVEL message`.
@@ -128,7 +137,8 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 - Python 3.13 is the floor: `pyproject.toml`, ruff and pyright all target it.
 - `league.toml`, the rule files and `scheduler.toml` may start with a UTF-8 BOM
   (Notepad, Excel); it is skipped.
-- Every frozen dataclass, the Config ones included, uses `slots=True`.
+- Every frozen dataclass, the Config ones included, uses `slots=True`; so
+  does every file model, which is never frozen.
 - The design docs are one `docs/design/architecture.md`: the architecture plus a
   Cross-cutting conventions section (CLI; console, run log and errors; output
   files; config); `cli.md`, `config.md` and `logging.md` are gone, their rules
@@ -284,6 +294,13 @@ Open: PCFL's `.lg2` doesn't exist yet.
 Reads and writes `.pln` game plans. Docs:
 [spec](docs/formats/pln.md)
 
+- Mutable model (2026-10-26): edit by assignment; `GamePlan.validate()`
+  covers the slot rules and every field width (a stock play name of at most
+  8 characters, the category bytes, the map offset and size, the audible
+  bytes, the map filename, the u16 offsets table); `build_gameplan` runs it
+  and `write_gameplan` writes atomically. The `set-*` and `replace-play`
+  commands edit the plan in place; `replace-play` tries each replacement on
+  a copy.
 - Unit tests reviewed: every reader error and writer branch is covered, each
   size limit at the limit and one past it; the goldens are the two slot dumps.
 - One typed custom/stock slot per special category 1-12; the clock categories
@@ -298,6 +315,7 @@ Reads and writes `.pln` game plans. Docs:
 Reads the profile and game plan files each team uses from a league's `.lg2`.
 Docs: [spec](docs/formats/lg2.md)
 
+- Mutable model (2026-10-26): list fields, edited by assignment; no writer.
 - Used by `check-ppp` to pair a folder's files; `path` in
   `league.toml` names the folder that holds the file.
 - Team order is the league's `.lge` order (spec section 1).
@@ -309,6 +327,8 @@ Docs: [spec](docs/formats/lg2.md)
 Reads conference, division and team names, standings and the played games
 from a league's `.lge`. Docs: [spec](docs/formats/lge.md)
 
+- Mutable model (2026-10-26): list fields, edited by assignment; `ranked`
+  returns a list; teams are found by identity; no writer.
 - Standings: each team's W-L-T, PF and PA from the schedule; division and
   conference order the way the game orders a finished season (the manual's
   tie-breakers, checked against six seasons' playoff brackets and the 2048
@@ -341,6 +361,7 @@ stats). Docs:
 
 Reads `.ply` play files. Docs: [spec](docs/formats/ply.md)
 
+- Mutable model (2026-10-26): list fields, edited by assignment; no writer.
 - Reads every player's logic boxes and tells a play's attributes from them:
   timed pass and QB run (the QB's commands), rollout (the QB gets beyond a given
   margin outside the outermost offensive lineman, C, G or T, on that side
@@ -362,6 +383,11 @@ Reads `.ply` play files. Docs: [spec](docs/formats/ply.md)
 Reads and writes `.prf` coaching profiles. Docs:
 [spec](docs/formats/prf.md)
 
+- Mutable model (2026-10-26): edit by assignment; `Profile.validate()`
+  covers the counts, the field goal range, every substitution pair and every
+  record's weights, naming the group or situation number; `build_profile`
+  runs it and `write_profile` writes atomically. `profile copy` edits the
+  target in place.
 - A situation holds only its rules; its number and game state come from its
   place in the profile.
 - Reader and writer in, with unit tests.
@@ -385,6 +411,8 @@ Reads a league's `.dat`: player, team and opponents stats for the last game,
 season and career, and the honors. Docs:
 [fbpro98_stats.md](docs/design/fbpro98_stats.md), [spec](docs/formats/stats.md).
 
+- Mutable model (2026-10-26): dict and list fields, edited by assignment;
+  the writer to come builds on it.
 - Reader in, with unit tests on the 2047 PNFL season (after weeks 1, 9 and
   16 and the Super Bowl), checked against the `.lge` scores.
 - Read only; never touches the `.idx`. Nothing uses it yet; first consumer:
@@ -625,6 +653,12 @@ construction, never pruned · then the quirk budget in
 
 ## Decisions
 
+- **The file models are mutable.** A game file is an entity a coach edits
+  and saves, so every `fbpro98_*` model is a plain dataclass edited by
+  assignment, the way openpyxl, pydicom, mutagen and tomlkit do it; the
+  checks live in one `validate()` per written file class, not in
+  construction, so a half-edited model is allowed. Decided 2026-10-26 after
+  the research session of 2026-10-25.
 - **`gameplan check` and `profile check` are not dropped for check-ppp.**
   They check files of one kind by any name, many at once, with wildcards and
   trees; check-ppp pairs files only as the league file names them, plus one

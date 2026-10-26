@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import replace
 from functools import partial
 from pathlib import Path
 
@@ -154,7 +153,8 @@ _SUB_GROUPS = [
 
 
 def _profile_with_sub(ptype: ProfileType, attr: str, pair: SubstitutionPair) -> Profile:
-    subs = replace(SubstitutionSettings.default(), **{attr: pair})
+    subs = SubstitutionSettings.default()
+    setattr(subs, attr, pair)
     return make_profile(ptype, substitutions=subs)
 
 

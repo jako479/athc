@@ -92,7 +92,7 @@ def make_record(
     defensive_front: DefensiveFront | None = None,
 ) -> Play:
     play_file = PlayFile(
-        Path(f"{name}.ply"), 0, play_category, special_category, user_category, (), ()
+        Path(f"{name}.ply"), 0, play_category, special_category, user_category, [], []
     )
     if special_category:
         return SpecialPlay(name, play_file)

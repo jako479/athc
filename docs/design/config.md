@@ -19,7 +19,7 @@ Usage, what each verb does, lines and exit codes: [usage/config.txt](../usage/co
 - `edit` → create a missing `athc.toml`, fail on a missing `league.toml`, then `os.startfile(path)`; its `OSError` reaches `main` as a `FAIL` line.
 - `reveal` → `click.launch(<file>, locate=True)`, or `click.launch(<folder>)` when the file is missing.
 - `get` → `league` through `resolve_league()`; the other keys through `load_league_config()` and `LeagueConfig.path()` or `string()`.
-- `set` → `league` through `set_config_value()` (tomlkit; a missing `[athc]` table leads the file, or ends it when a key sits above the first table), after the folder check; the other keys through `set_league_value()` (tomlkit too; a new key goes on the line after its commented example, else after `[league]`'s last key); then the `OK` line.
+- `set` → `league` through `set_config_value()` (tomlkit; a missing `[athc]` table leads the file, or ends it when a key sits above the first table), after the folder check; the other keys through `set_league_value()` (tomlkit too; a new key goes on the line after its commented example, else after `[league]`'s last key); both write through `atomic_write`, so a failed write leaves the old file whole; then the `OK` line.
 
 ### Layout
 

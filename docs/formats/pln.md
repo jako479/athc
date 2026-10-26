@@ -213,6 +213,7 @@ A file is invalid when any of these holds:
 - A bad block ID, size or offset
 - A truncated play record
 - No NUL on a custom play filename
+- A byte outside ASCII in a custom play filename or a stock play name, or a NUL inside a stock play name
 - A stock flag other than `0` or `1`
 - Play category bytes that no category table recognizes (see ply.md section 3)
 - A profile type other than `0` or `1`

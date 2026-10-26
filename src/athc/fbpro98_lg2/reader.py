@@ -78,10 +78,10 @@ def parse_lg2(buffer: bytes, path: StrPath = "<buffer>") -> Lg2File:
         )
     return Lg2File(
         league_type=_league_type(buffer),
-        teams=tuple(
+        teams=[
             _parse_team(buffer, index * TEAM_RECORD_SIZE, file_path)
             for index in range(team_count)
-        ),
+        ],
     )
 
 

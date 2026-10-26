@@ -30,15 +30,15 @@ def _league(shape: Shape, games: Sequence[Played] = ()) -> LgeFile:
     for conference_name, divisions in shape:
         built: list[Division] = []
         for division_name, members in divisions:
-            in_division = tuple(teams[name] for name, _ in members)
-            built.append(Division(division_name, in_division, in_division))
-        in_conference = tuple(team for division in built for team in division.teams)
-        conferences.append(Conference(conference_name, tuple(built), in_conference))
-    weeks = tuple(
-        (Game(teams[home], home_score, teams[away], away_score),)
+            in_division = [teams[name] for name, _ in members]
+            built.append(Division(division_name, in_division, list(in_division)))
+        in_conference = [team for division in built for team in division.teams]
+        conferences.append(Conference(conference_name, built, in_conference))
+    weeks = [
+        [Game(teams[home], home_score, teams[away], away_score)]
         for home, home_score, away, away_score in games
-    )
-    return LgeFile(conferences=tuple(conferences), weeks=weeks)
+    ]
+    return LgeFile(conferences=conferences, weeks=weeks)
 
 
 # Two unnamed conferences; each has one two-team division and one one-team

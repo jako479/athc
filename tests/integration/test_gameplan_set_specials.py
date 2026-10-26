@@ -46,12 +46,8 @@ def _copy(tmp_path: Path, name: str = "offense.pln", src: Path = GP_OFFENSE) -> 
 def _without_special(path: Path, category: int = 2) -> Path:
     """`path` rewritten with special category `category`'s custom slot empty."""
     gp = read_gameplan(path)
-    kept = [
-        c
-        for c in gp.custom_special_plays
-        if c is not None and c.special_category != category
-    ]
-    write_gameplan(gp.with_custom_special_plays(kept), path)
+    gp.special_plays[category - 1].custom = None
+    write_gameplan(gp, path)
     assert read_gameplan(path).custom_special_plays[category - 1] is None
     return path
 

@@ -14,7 +14,7 @@ from athc.fbpro98_gameplan.reader import (
     read_gameplan,
 )
 from athc.fbpro98_gameplan.writer import (
-    build_gameplan_bytes,
+    build_gameplan,
     write_gameplan,
 )
 
@@ -26,7 +26,7 @@ __all__ = [
     "ProfileType",
     "SpecialSlot",
     "StockPlayRef",
-    "build_gameplan_bytes",
+    "build_gameplan",
     "parse_gameplan",
     "read_gameplan",
     "write_gameplan",

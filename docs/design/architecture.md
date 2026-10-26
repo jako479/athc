@@ -33,6 +33,7 @@ athc/
     __main__.py                          # python -m athc
     config.py                            # athc.toml reader + config_dir()/config_file(), league resolution
     errors.py                            # AthcError + the shared config, league and rules errors
+    fileio.py                            # atomic_write: a temp file beside the target, swapped in
     console.py                           # the one console: prints every line, logs each status line
     log.py                               # the athc logger and the rotating run log
 
@@ -70,13 +71,13 @@ athc/
 
     # LIBRARIES (importable by tools and by other libs; playpool also has a CLI)
     playpool/                  py.typed  model.py  reader.py
-    fbpro98_gameplan/          py.typed  model.py  reader.py  writer.py
-    fbpro98_lg2/               py.typed  model.py  reader.py
-    fbpro98_lge/               py.typed  model.py  reader.py
-    fbpro98_play/              py.typed  model.py  reader.py
-    fbpro98_profile/           py.typed  model.py  reader.py  writer.py
+    fbpro98_gameplan/          py.typed  schema.py  model.py  reader.py  writer.py
+    fbpro98_lg2/               py.typed  schema.py  model.py  reader.py
+    fbpro98_lge/               py.typed  schema.py  model.py  reader.py  _standings.py
+    fbpro98_play/              py.typed  schema.py  model.py  reader.py  labels.py
+    fbpro98_profile/           py.typed  schema.py  model.py  reader.py  writer.py
     fbpro98_standings/         py.typed  standings.py  methods.py  steps.py  moves.py  season.py
-    fbpro98_stats/             py.typed  model.py  reader.py
+    fbpro98_stats/             py.typed  schema.py  model.py  reader.py
 ```
 
 ## Tools vs libraries
@@ -248,6 +249,17 @@ The pattern is pdf-converter's, which the research of 2026-10-08 (git, ruff, gre
 
 Per command: each tool's doc carries its lines, what counts as a finding, and its codes.
 
+### File libraries
+
+The six `fbpro98_*` file libraries (`play`, `gameplan`, `profile`, `lg2`, `lge`, `stats`) share one shape, the one openpyxl, pydicom, mutagen and tomlkit use: read a file into a mutable object, edit it by assignment, write it back. The `.pyr` library, when it comes, takes the same shape.
+
+- **Layout.** `schema.py` holds the `struct` layouts, block ids and field sizes; `model.py` the dataclasses; `reader.py` the parser and the library's error; `writer.py` the builder, where the library writes. One `InvalidXError(FileFormatError)` per library; a file class on top (`GamePlan`, `Profile`, `PlayFile`, `Lg2File`, `LgeFile`, `StatsFile`) holds the file's header data and its collections.
+- **Models.** Every class in a `model.py` is `@dataclass(slots=True)`, never frozen; collections are `list` (in the file's order, or the order the field's doc states: a standings list best first, the stats honors by id) or `dict[int, ...]` keyed by id, with `field(default_factory=...)` for an empty default; a derived collection property returns a list too. Equality is field by field, so a mutable model is not hashable: callers key by `id(obj)` or by a number. A sub-object is shared on assignment, as with any Python object; a caller that wants two independent copies uses `copy.deepcopy`. The library-wide test `tests/unit/test_slots.py` pins every file model as mutable and slotted. Configuration and private working data stay frozen (`CategoryLabels`, the readers' private records).
+- **Editing.** Plain assignment on the object, in place: `plan.normal_plays[0] = CustomPlayRef(...)`, `profile.situations[7].stop_clock = True`. No `with_*` copies, no `dataclasses.replace`, no `.save()` on a model; a tool's edit function takes the model and edits it, resolving its whole input first so a failure leaves the model as it was (`apply_normal_plays`, `replace_in_gameplan`).
+- **validate().** A file class that is written has one `validate()` covering everything the format imposes: counts, slot alignment, the sides, string lengths and value ranges, field widths. It raises `ValueError` naming the record or field and the value (`Normal slot 1: Record offset must be at most 65535, got 65536`, `situation 4: weight1: Must be 0-10, got 11`); nothing is checked at construction, so a half-built or mid-edit model is allowed. `parse_x` builds the model from the bytes and calls it, turning a `ValueError` into the library's `InvalidXError` as `<path>: <message>.`; `build_x` calls it before packing and lets the `ValueError` out: an invalid model at write time is a programming error, not a file problem, so no command catches it and one that gets there reports an unexpected error (a play pool path with a character outside ASCII reaches it through `build_custom_play`, as it did before through the ASCII encode).
+- **Functions.** On files, `read_x(path)` / `write_x(x, path)`; on bytes, `parse_x(bytes, path)` / `build_x(x) -> bytes`, `path` only naming the source in errors. A coaching file takes a path; a league file takes `(league, league_dir)` and builds `<league_dir>/<league>.<ext>` itself.
+- **Atomic writes.** Every `write_x`, and the two config writers in `athc/config.py`, go through `athc.fileio.atomic_write(path, data)`: the bytes (or text, written as `Path.write_text` would) go to a temp file in the target's folder, flushed and fsynced, then swapped in with `os.replace`, so a reader never sees a half-written file and a failure leaves the old one as it was. The temp file is opened once with `O_EXCL` (never `tempfile`, which on Windows retries a folder that refuses new files until it has tried billions of names) and removed on any error; the error is re-raised naming the target, so a `FAIL` line names the file the user asked for; the swap is retried for about a second when a scanner holds the file (pip does the same). The helper creates no folders: the in-place commands keep refusing to create a target. The other outputs (list files, the diff output, the schedule writers) still write directly.
+
 ### Output files
 
 - A produced file goes where the user says; by default it lands next to its source (`list-normals` writes `<name>.normals.txt` beside the gameplan, `convert-pdb` writes `<name>.xlsm` beside the PDB) or in the current directory (`generate-schedule`), never in a fixed app folder (`platformdirs` is for config, not output). `-` means stdout where a command offers it.
@@ -280,7 +292,7 @@ A command that writes several files takes an optional `OUTPUT_FOLDER` (`generate
 - `[league]` in `league.toml` holds the per-league values that are not files in the folder (`path`, the folder holding the league's files; `play_path`, the play pool folder; `team`, your team's name or nickname; `ppp_path`, where you keep your team's profiles and game plans — `team` and `ppp_path` are read by check-ppp, gameplan, profile and convert-pdb); values are strings or arrays of strings, relative paths resolve against the league folder.
 - `[categories.offense]` / `[categories.defense]` in `league.toml` give the league's short names for the game's play categories, keyed by the game's name (`"Run Right" = "RR"`); the shipped files list every category of each side in the game's order, the unlabeled ones commented out. Rule files, play-pool folders, `replace-play` and `convert-pdb`'s category order all use these labels (game name where the league has none; the gameplan and profile `allowed_*_categories` lists take labels only); special categories have no labels. A key that is not a category of its side, an empty or repeated label, or a label equal to a category name is a `ConfigFileError`. Code: `CategoryLabels` in `athc.fbpro98_play`, carried as `LeagueConfig.categories`.
 - Each tool reads its one fixed rule file from the league folder; an optional array in `league.toml` (`gameplan_rules`, `profile_rules`) replaces it with an ordered set, later files overriding earlier. No command-line option overrides the league's rules or play pool, and there is no shared default outside the league folders.
-- `athc config path | edit | reveal | get | set` locate, open, reveal, read and write the settings files: `path`, `edit` and `reveal` take FILE (`athc.toml`, the default, or `league.toml`) and `--league NAME`; `get` reads `league` from `athc.toml` and `path`, `play_path`, `team`, `ppp_path` from the league's `league.toml`; `set` writes `league` to `athc.toml`, validating the league folder first, and `path`, `play_path`, `team`, `ppp_path` to the league's `league.toml`, both through tomlkit so comments survive (a missing `[athc]` table leads the file, or ends it when a key sits above the first table, so the key stays where it was), a new league key on the line after its commented example (`# team = ...`), else after `[league]`'s last key; `edit` opens through `os.startfile`, `reveal` through `click.launch`.
+- `athc config path | edit | reveal | get | set` locate, open, reveal, read and write the settings files: `path`, `edit` and `reveal` take FILE (`athc.toml`, the default, or `league.toml`) and `--league NAME`; `get` reads `league` from `athc.toml` and `path`, `play_path`, `team`, `ppp_path` from the league's `league.toml`; `set` writes `league` to `athc.toml`, validating the league folder first, and `path`, `play_path`, `team`, `ppp_path` to the league's `league.toml`, both through tomlkit so comments survive (a missing `[athc]` table leads the file, or ends it when a key sits above the first table, so the key stays where it was), a new league key on the line after its commented example (`# team = ...`), else after `[league]`'s last key, and both written atomically through `atomic_write` ([File libraries](#file-libraries)); `edit` opens through `os.startfile`, `reveal` through `click.launch`.
 - An unreadable `athc.toml` or `league.toml` (wrong value type, bad label) raises `ConfigFileError`; a missing or unknown league raises `LeagueError`.
 - Each tool owns `<tool>/config.py`: a frozen `Config` dataclass with typed defaults and a `load(league)` that asks the resolved `LeagueConfig` for what the tool needs (`string(key)`, `path(key)`, `rules_file(name)` / `rule_files(key, default)`, `categories`). `athc.toml` values come back TOML-typed (`config_table(section)`); checking each type is the tool's job, and TOML's types are not interchangeable (`1` is not `true`, `"1.0"` is not a number).
 - In-code defaults are authoritative: missing file, table or key means defaults; a tool errors only when a value it needs at runtime can't be resolved (`play_path` not on disk). A new tool's `[table]` runs on defaults after an upgrade, which never overwrites `athc.toml`; to customize, the user adds the table to their own (the pgcli/mycli model; deploy rules in [installer.md](../installer.md)).

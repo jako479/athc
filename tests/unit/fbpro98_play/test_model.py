@@ -54,8 +54,8 @@ def _play(
         play_category=play_category,
         special_category=special_category,
         user_category=user_category,
-        player_offsets=(),
-        player_headers=(),
+        player_offsets=[],
+        player_headers=[],
     )
 
 
@@ -165,26 +165,34 @@ def test_unknown_special_code(play_category, special_category):
     assert unknown is UNKNOWN_CATEGORY
 
 
+def test_play_file_is_edited_by_assignment():
+    play = _play(play_category=0x01, user_category=0x01)
+    play.user_category = 0x03
+    play.player_offsets.append(25)
+    assert play.category is OffensiveCategory.PASS_SHORT_RIGHT
+    assert play.player_offsets == [25]
+
+
 # ── play attributes ───────────────────────────────────────────────────────────
 
 HB, TE, LB, CB = 0x0042, 0x0081, 0x0200, 0x0400
-TIMED = Command(COMMAND_TIMED_PASS, (0,))
-CHECK = Command(COMMAND_CHECK_RECEIVERS, (3,))
-RUN = Command(COMMAND_RUN, (2,))
+TIMED = Command(COMMAND_TIMED_PASS, [0])
+CHECK = Command(COMMAND_CHECK_RECEIVERS, [3])
+RUN = Command(COMMAND_RUN, [2])
 SNAP_Y = -140
 
 
 def _move(x: int) -> Command:
-    return Command(COMMAND_MOVE_TO, (x, -400))
+    return Command(COMMAND_MOVE_TO, [x, -400])
 
 
 def _player(position: int, *after_snap: LogicBox) -> tuple[int, PlayerLogic]:
-    start = after_snap[0] if after_snap else LogicBox(0, SNAP_Y, ())
-    return position, PlayerLogic((LogicBox(start.x, start.y, ()),), after_snap)
+    start = after_snap[0] if after_snap else LogicBox(0, SNAP_Y, [])
+    return position, PlayerLogic([LogicBox(start.x, start.y, [])], list(after_snap))
 
 
 def _lineman(position: int, x: int) -> tuple[int, PlayerLogic]:
-    return _player(position, LogicBox(x, SNAP_Y, ()))
+    return _player(position, LogicBox(x, SNAP_Y, []))
 
 
 def _tackle(x: int) -> tuple[int, PlayerLogic]:
@@ -207,12 +215,12 @@ def _play_of(
         play_category=play_category,
         special_category=special_category,
         user_category=play_category,
-        player_offsets=(),
-        player_headers=tuple(
+        player_offsets=[],
+        player_headers=[
             PlayerHeader(offset=0, rank=1, player_type=0, position=position)
             for position, _ in players
-        ),
-        player_logic=tuple(logic for _, logic in players),
+        ],
+        player_logic=[logic for _, logic in players],
     )
 
 
@@ -222,12 +230,12 @@ def _passer(*after_snap: LogicBox) -> PlayFile:
 
 
 def test_timed_pass_is_the_qbs_timed_pass():
-    assert _passer(LogicBox(0, -300, (TIMED,))).is_timed_pass
-    assert not _passer(LogicBox(0, -300, (CHECK,))).is_timed_pass
+    assert _passer(LogicBox(0, -300, [TIMED])).is_timed_pass
+    assert not _passer(LogicBox(0, -300, [CHECK])).is_timed_pass
 
 
 def test_timed_pass_needs_the_qb():
-    halfback_pass = _play_of(_qb(), _player(HB, LogicBox(0, -500, (TIMED,))))
+    halfback_pass = _play_of(_qb(), _player(HB, LogicBox(0, -500, [TIMED])))
     assert not halfback_pass.is_timed_pass
 
 
@@ -235,39 +243,39 @@ def test_timed_pass_reads_from_the_snap_on():
     """A Timed pass in a pre-snap box does not count."""
     qb = (
         POSITION_QB,
-        PlayerLogic((LogicBox(0, -300, (TIMED,)),), (LogicBox(0, -300, ()),)),
+        PlayerLogic([LogicBox(0, -300, [TIMED])], [LogicBox(0, -300, [])]),
     )
     assert not _play_of(qb).is_timed_pass
 
 
 def test_qb_run_is_the_qbs_run():
-    assert _play_of(_qb(LogicBox(0, -300, (RUN,)))).is_qb_run
-    assert not _play_of(_qb(), _player(HB, LogicBox(0, -500, (RUN,)))).is_qb_run
+    assert _play_of(_qb(LogicBox(0, -300, [RUN]))).is_qb_run
+    assert not _play_of(_qb(), _player(HB, LogicBox(0, -500, [RUN]))).is_qb_run
 
 
 def test_qb_run_reads_from_the_snap_on():
     """A Run in a pre-snap box does not count."""
     qb = (
         POSITION_QB,
-        PlayerLogic((LogicBox(0, -300, (RUN,)),), (LogicBox(0, -300, ()),)),
+        PlayerLogic([LogicBox(0, -300, [RUN])], [LogicBox(0, -300, [])]),
     )
     assert not _play_of(qb).is_qb_run
 
 
 def test_a_play_can_be_timed_and_a_rollout():
-    play = _passer(LogicBox(0, -300, (_move(500),)), LogicBox(500, -400, (TIMED,)))
+    play = _passer(LogicBox(0, -300, [_move(500)]), LogicBox(500, -400, [TIMED]))
     assert play.is_timed_pass and play.is_rollout(100)
 
 
 @pytest.mark.parametrize(
     ("margin", "qb_after_snap", "expected"),
     [
-        (100, (LogicBox(0, -300, (_move(400), TIMED)),), False),  # right, at
-        (100, (LogicBox(0, -300, (_move(401), TIMED)),), True),  # right, one past
-        (100, (LogicBox(0, -300, ()), LogicBox(-400, -300, (CHECK,))), False),
-        (100, (LogicBox(0, -300, ()), LogicBox(-401, -300, (CHECK,))), True),
-        (200, (LogicBox(0, -300, (_move(500), TIMED)),), False),  # at
-        (200, (LogicBox(0, -300, (_move(501), TIMED)),), True),  # one past
+        (100, (LogicBox(0, -300, [_move(400), TIMED]),), False),  # right, at
+        (100, (LogicBox(0, -300, [_move(401), TIMED]),), True),  # right, one past
+        (100, (LogicBox(0, -300, []), LogicBox(-400, -300, [CHECK])), False),
+        (100, (LogicBox(0, -300, []), LogicBox(-401, -300, [CHECK])), True),
+        (200, (LogicBox(0, -300, [_move(500), TIMED]),), False),  # at
+        (200, (LogicBox(0, -300, [_move(501), TIMED]),), True),  # one past
     ],
     ids=[
         "right-at-margin",
@@ -287,26 +295,26 @@ def test_rollout_margin_on_both_sides(margin, qb_after_snap, expected):
 
 
 def test_rollout_counts_spots_up_to_the_pass_only():
-    play = _passer(LogicBox(0, -300, (TIMED, _move(1000))), LogicBox(1000, -300, ()))
+    play = _passer(LogicBox(0, -300, [TIMED, _move(1000)]), LogicBox(1000, -300, []))
     assert not play.is_rollout(100)
 
 
 def test_rollout_ignores_a_move_to_with_no_arguments():
-    bare_move = Command(COMMAND_MOVE_TO, ())
-    assert not _passer(LogicBox(0, -300, (bare_move, TIMED))).is_rollout(100)
+    bare_move = Command(COMMAND_MOVE_TO, [])
+    assert not _passer(LogicBox(0, -300, [bare_move, TIMED])).is_rollout(100)
 
 
 def test_rollout_reads_from_the_snap_on():
     """A QB who lines up wide but is back inside at the snap stays in the pocket."""
     qb = (
         POSITION_QB,
-        PlayerLogic((LogicBox(1000, -300, ()),), (LogicBox(0, -300, (TIMED,)),)),
+        PlayerLogic([LogicBox(1000, -300, [])], [LogicBox(0, -300, [TIMED])]),
     )
     assert not _play_of(_tackle(-300), _tackle(300), qb).is_rollout(100)
 
 
 def test_rollout_needs_a_pass():
-    assert not _passer(LogicBox(0, -300, (_move(1000), RUN))).is_rollout(100)
+    assert not _passer(LogicBox(0, -300, [_move(1000), RUN])).is_rollout(100)
 
 
 @pytest.mark.parametrize(
@@ -316,7 +324,7 @@ def test_rollout_needs_a_pass():
 )
 def test_rollout_needs_a_line(line):
     """No C, G or T with a spot at the snap means no edge to get outside."""
-    qb = _qb(LogicBox(0, -300, (_move(1000), TIMED)))
+    qb = _qb(LogicBox(0, -300, [_move(1000), TIMED]))
     assert not _play_of(*line, qb).is_rollout(100)
 
 
@@ -353,7 +361,7 @@ CENTER_ON_THE_LEFT = (
 )
 def test_rollout_edges_are_the_outermost_linemen(line, x, expected):
     """The edge on each side is the outermost C, G or T at the snap."""
-    play = _play_of(*line, _qb(LogicBox(0, -300, (_move(x), TIMED))))
+    play = _play_of(*line, _qb(LogicBox(0, -300, [_move(x), TIMED])))
     assert play.is_rollout(100) is expected
 
 
@@ -361,7 +369,7 @@ def test_rollout_edges_are_the_outermost_linemen(line, x, expected):
     "line", [GUARD_ON_THE_LEFT, CENTER_ON_THE_LEFT], ids=["guard", "center"]
 )
 def test_pocket_qb_behind_an_unbalanced_line_is_no_rollout(line):
-    assert not _play_of(*line, _qb(LogicBox(0, -300, (CHECK,)))).is_rollout(100)
+    assert not _play_of(*line, _qb(LogicBox(0, -300, [CHECK]))).is_rollout(100)
 
 
 def test_a_tight_end_is_not_part_of_the_line():
@@ -370,23 +378,23 @@ def test_a_tight_end_is_not_part_of_the_line():
         _tackle(-300),
         _tackle(300),
         _lineman(TE, 450),
-        _qb(LogicBox(0, -300, (_move(401), TIMED))),
+        _qb(LogicBox(0, -300, [_move(401), TIMED])),
     )
     assert play.is_rollout(100)
 
 
 def test_no_qb_means_no_offense_attributes():
-    halfback = _player(HB, LogicBox(0, -500, (RUN, _move(1000), TIMED)))
+    halfback = _player(HB, LogicBox(0, -500, [RUN, _move(1000), TIMED]))
     play = _play_of(_tackle(-300), _tackle(300), halfback)
     assert not (play.is_timed_pass or play.is_qb_run or play.is_rollout(100))
 
 
 def test_any_qb_counts():
     """With two QBs on the field, either one's Timed pass, Run or rollout counts."""
-    passer = _qb(LogicBox(1000, -300, (TIMED,)))
+    passer = _qb(LogicBox(1000, -300, [TIMED]))
     play = _play_of(_tackle(-300), _tackle(300), _qb(), passer)
     assert play.is_timed_pass and play.is_rollout(100)
-    assert _play_of(_qb(), _qb(LogicBox(0, -300, (RUN,)))).is_qb_run
+    assert _play_of(_qb(), _qb(LogicBox(0, -300, [RUN]))).is_qb_run
 
 
 def _defense(down_linemen: int, code: int) -> PlayFile:
@@ -461,7 +469,7 @@ def test_no_front_for_other_defenses(code, down_linemen):
     ids=["defense", "fake-fg-pass"],
 )
 def test_offense_attributes_only_on_normal_offense(play_category, special_category):
-    qb = _qb(LogicBox(0, -300, (RUN, _move(1000), TIMED)))
+    qb = _qb(LogicBox(0, -300, [RUN, _move(1000), TIMED]))
     play = _play_of(
         _tackle(-300),
         _tackle(300),

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 import click
 
@@ -80,28 +82,29 @@ def format_replacement_lines(
 
 def replace_in_gameplan(
     gp: GamePlan, target: str, entry: CustomPlayRef, path: Path | None = None
-) -> tuple[GamePlan, Hits, Hits]:
+) -> tuple[Hits, Hits]:
     """Replace every occurrence of `target` (case-insensitive, across normal +
-    custom-special slots) with `entry`. Returns `(updated, normal_hits, special_hits)`;
-    no hits leaves the gameplan unchanged. The GamePlan model validates the
-    result; AthcError, naming `path` when given, when `entry` is wrong for a
-    slot (wrong side, or a special-category that does not match the slot)."""
+    custom-special slots) with `entry`, editing `gp` in place. Returns
+    `(normal_hits, special_hits)`. `gp.validate()` judges the result; AthcError,
+    naming `path` when given, when `entry` is wrong for a slot (wrong side, or
+    a special-category that does not match the slot), with the slots put back
+    as they were. No hits leaves the gameplan unchanged too."""
     normal_hits, special_hits = find_in_gameplan(gp, target)
     if not normal_hits and not special_hits:
-        return gp, normal_hits, special_hits
-    normals = list(gp.normal_plays)
+        return normal_hits, special_hits
     for i, _ in normal_hits:
-        normals[i] = entry
-    specials = list(gp.special_plays)
+        gp.normal_plays[i] = entry
     for category, _ in special_hits:
-        specials[category - 1] = replace(specials[category - 1], custom=entry)
+        gp.special_plays[category - 1].custom = entry
     try:
-        updated = replace(
-            gp, normal_plays=tuple(normals), special_plays=tuple(specials)
-        )
+        gp.validate()
     except ValueError as error:  # the model refused the entry for a slot
+        for i, old in normal_hits:
+            gp.normal_plays[i] = old
+        for category, old in special_hits:
+            gp.special_plays[category - 1].custom = cast(CustomPlayRef, old)
         raise AthcError(sentence(str(error)), path) from error
-    return updated, normal_hits, special_hits
+    return normal_hits, special_hits
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,9 +119,10 @@ class Skipped:
 
 @dataclass(frozen=True, slots=True)
 class Picked:
-    """What `pick_replacement` chose for one game plan. `updated` and `entry`
-    are None when the play is not in it (no hits), no replacement fits, or
-    the model `refused` a replacement for a slot (the file fails)."""
+    """What `pick_replacement` chose for one game plan: `updated` is a copy of
+    the game plan with the swap made. `updated` and `entry` are None when the
+    play is not in it (no hits), no replacement fits, or the model `refused`
+    a replacement for a slot (the file fails)."""
 
     updated: GamePlan | None
     entry: CustomPlayRef | None
@@ -145,10 +149,11 @@ def pick_replacement(
     path: Path | None = None,
 ) -> Picked:
     """Swap `target` for the first of `entries` that fits `gp`: not already in
-    it, and the game plan then passes `check` (no violation at all). When the
-    model refuses an entry for a slot (as in `replace_in_gameplan`) the
-    search stops with that error in `refused`, the entry named in it when
-    there are several, so a list's culprit is clear."""
+    it, and the game plan then passes `check` (no violation at all). Each
+    entry is tried on a copy, so `gp` is never changed. When the model
+    refuses an entry for a slot (as in `replace_in_gameplan`) the search
+    stops with that error in `refused`, the entry named in it when there are
+    several, so a list's culprit is clear."""
     normal_hits, special_hits = find_in_gameplan(gp, target)
     if not normal_hits and not special_hits:
         return Picked(None, None, normal_hits, special_hits, ())
@@ -157,9 +162,10 @@ def pick_replacement(
         if _already_in(gp, entry.name, target):
             skipped.append(Skipped(entry.name, ("already in the game plan",)))
             continue
+        updated = copy.deepcopy(gp)
         try:
-            updated, normal_hits, special_hits = replace_in_gameplan(
-                gp, target, entry, path
+            normal_hits, special_hits = replace_in_gameplan(
+                updated, target, entry, path
             )
         except AthcError as error:
             if len(entries) > 1:

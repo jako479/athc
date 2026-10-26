@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 from os import PathLike
 from pathlib import Path
 
@@ -10,7 +9,6 @@ from athc.fbpro98_profile import (
     Down,
     FieldPosition,
     Profile,
-    Situation,
     read_profile,
 )
 from athc.profile.errors import ProfileTypeMismatchError
@@ -39,7 +37,8 @@ class ProfileWriter:
         copy_goal_line: bool = False,
         copy_pat_logic: bool = False,
     ) -> Profile:
-        """Apply the requested copies and return the updated target Profile.
+        """Read both profiles, apply the requested copies to the target in
+        place and return it; neither file is written.
 
         Raises `ProfileTypeMismatchError` before any field if the sides differ.
         `fourth_down` / `goal_line` copy whole situations (stop_clock + weights);
@@ -57,22 +56,21 @@ class ProfileWriter:
                 f"{target.profile_type.name.lower()} profile.",
                 self.target_path,
             )
-        profile = target
         if copy_sub_percent:
-            profile = replace(profile, substitutions=source.substitutions)
+            target.substitutions = source.substitutions
         if copy_field_goal_range:
-            profile = replace(profile, field_goal_range=source.field_goal_range)
+            target.field_goal_range = source.field_goal_range
         if copy_pat_logic:
-            profile = replace(profile, pat_situations=source.pat_situations)
+            target.pat_situations = source.pat_situations
         if copy_stop_clock or copy_fourth_down or copy_goal_line:
-            profile = _copy_situations(
-                profile,
+            _copy_situations(
+                target,
                 source,
                 stop_clock=copy_stop_clock,
                 fourth_down=copy_fourth_down,
                 goal_line=copy_goal_line,
             )
-        return profile
+        return target
 
 
 def _copy_situations(
@@ -82,21 +80,17 @@ def _copy_situations(
     stop_clock: bool,
     fourth_down: bool,
     goal_line: bool,
-) -> Profile:
+) -> None:
     """`stop_clock` copies the bit on every situation; `fourth_down` / `goal_line`
     copy the whole situation (stop_clock + weights) where the predicate matches.
     Whole-situation copy wins on overlap."""
-    situations: list[Situation] = []
-    for (_, state, t), s in zip(
+    for (number, state, t), s in zip(
         target.iter_situations(), source.situations, strict=True
     ):
         whole = (fourth_down and state.down == Down.FOURTH) or (
             goal_line and state.field_position in GOAL_LINE_POSITIONS
         )
         if whole:
-            situations.append(s)
+            target.situations[number - 1] = s
         elif stop_clock:
-            situations.append(replace(t, stop_clock=s.stop_clock))
-        else:
-            situations.append(t)
-    return replace(target, situations=tuple(situations))
+            t.stop_clock = s.stop_clock

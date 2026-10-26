@@ -4,6 +4,25 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-26 — **Mutable file models**: the six `fbpro98_*` libraries moved
+  from frozen models edited by copying (`dataclasses.replace`, `with_*`
+  methods) to mutable models edited by assignment, the shape the mainstream
+  file libraries use and the one the coming `.pyr` library will copy. Tuple
+  and `Mapping` fields became lists and dicts; the `__post_init__` checks
+  moved into one `validate()` on `GamePlan` and `Profile`, which `parse_x`
+  runs (a bad file is still the library error) and `build_x` runs before
+  packing, and which now covers every field width the format imposes, so a
+  stock play name over 8 characters or a plan too big for its offsets table
+  is refused instead of cut or crashing. `build_gameplan_bytes` and
+  `build_profile_bytes` became `build_gameplan` and `build_profile`. Every
+  `write_x` and both config writers go through a new `atomic_write`: a temp
+  file beside the target, swapped in, so a failed write leaves the old file
+  whole; it opens the temp file itself, since `tempfile` on Windows spins in
+  a folder that refuses new files. The gameplan commands edit the plan in
+  place, `replace-play` trying each replacement on a copy; `profile copy`
+  edits the target in place. A plan review found the shared default
+  substitution pair (now one object per group), the message wording rules
+  and the `tempfile` trap.
 - 2026-10-23 — **CLI tests**: a review of the integration tier and the CLI
   unit tests. The `data/ppp` plans and profiles were a coach's real week 6
   files; they are now the test set the game test already uses, and find-play's

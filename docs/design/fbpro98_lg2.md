@@ -25,7 +25,7 @@ from athc.fbpro98_lg2 import read_lg2
 lg2 = read_lg2("PNFL", r"E:\SIERRA\FbPro98")      # reads PNFL.lg2 in that folder
 
 lg2.league_type                            # LeagueType.CUSTOM
-lg2.teams                                  # tuple of TeamFiles, in file order
+lg2.teams                                  # list of TeamFiles, in file order
 team = lg2.teams[0]
 team.first_half.offense.profile            # "PNFL\\2049\\Plans\\Jacksonville (Matt)\\JAGS-O1.prf"
 team.second_half.defense.gameplan          # "PNFL\\2049\\Plans\\Jacksonville (Matt)\\JAGS-D2.pln"
@@ -60,7 +60,7 @@ src/athc/fbpro98_lg2/
 └── reader.py      # read_lg2 / parse_lg2; InvalidLg2Error
 ```
 
-The model nests each team's eight files by half, then side, then profile and game plan. A location is a string, `folder\filename` relative to the game folder, like the gameplan library's play filenames.
+The model nests each team's eight files by half, then side, then profile and game plan, in mutable dataclasses edited by assignment ([architecture.md](architecture.md#file-libraries)); the library has no writer. A location is a string, `folder\filename` relative to the game folder, like the gameplan library's play filenames.
 
 ### What this package does
 

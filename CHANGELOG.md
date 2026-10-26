@@ -7,6 +7,12 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: the six game-file libraries read a file into an object edited by assignment and written back; one `validate()` per written file class checks every rule the format imposes before a write
+- athc: game plans, profiles and the settings files are written whole or not at all: the bytes go to a temp file beside the target and are swapped in
+- fbpro98_gameplan: a stock play name over 8 characters, an unrecognized category, a non-ASCII filename, other audible bytes or a plan too big for its offsets table is refused before a write instead of cut, miswritten or a crash
+- fbpro98_gameplan: a game plan with a byte outside ASCII in a play filename or stock name, or a NUL inside a stock name, is invalid on read; it could be read but never written back
+- fbpro98_profile: a bad substitution or weight in a file is reported by its group or situation number
+- fbpro98_lge: the tie-breaker module is marked internal (`_standings.py`)
 - athc: a blank or path-like league name no longer says the leagues folder is missing
 - athc: CLI tests reviewed: the team test plans are the test set, every batch command's bug-in-one-file path and a few error paths are covered, the schedule report is checked as written, and duplicated or can't-fail tests went
 - gameplan: a rules ratio must be written n/m; a whole number or a decimal such as `"1"` or `"0.5"` is a rules-file error

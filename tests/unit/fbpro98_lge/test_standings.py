@@ -1,4 +1,4 @@
-"""Tests for athc.fbpro98_lge.standings: the game's tie-breakers on built
+"""Tests for athc.fbpro98_lge._standings: the game's tie-breakers on built
 seasons (team numbers and results, no file)."""
 
 from __future__ import annotations
@@ -7,7 +7,7 @@ from fractions import Fraction
 
 import pytest
 
-from athc.fbpro98_lge.standings import percentage, rank, season_from_games
+from athc.fbpro98_lge._standings import percentage, rank, season_from_games
 
 # Conference 1: division 1 is teams 1-3, division 2 is teams 4-5; conference
 # 2: division 3 is team 6.

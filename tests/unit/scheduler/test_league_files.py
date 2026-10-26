@@ -279,11 +279,11 @@ def _conference(name: str, *divisions: tuple[str, Sequence[Team]]) -> Conference
     # Standings in file order: the loader ranks from the games itself.
     return Conference(
         name=name,
-        divisions=tuple(
-            Division(name=division, teams=tuple(teams), standings=tuple(teams))
+        divisions=[
+            Division(name=division, teams=list(teams), standings=list(teams))
             for division, teams in divisions
-        ),
-        standings=tuple(team for _, teams in divisions for team in teams),
+        ],
+        standings=[team for _, teams in divisions for team in teams],
     )
 
 
@@ -294,9 +294,9 @@ def _lge(
     unplayed: int = 0,
 ) -> LgeFile:
     return LgeFile(
-        conferences=conferences,
-        weeks=tuple(tuple(week) for week in weeks),
-        playoffs=tuple(tuple(round_) for round_ in playoffs),
+        conferences=list(conferences),
+        weeks=[list(week) for week in weeks],
+        playoffs=[list(round_) for round_ in playoffs],
         unplayed_games=unplayed,
     )
 

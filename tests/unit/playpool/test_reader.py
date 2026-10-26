@@ -111,8 +111,8 @@ def test_defensive_file_driven(
 
 # ── attributes from built plays: the rollout margin and the category gates ────
 
-TIMED = Command(COMMAND_TIMED_PASS, (0,))
-RUN = Command(COMMAND_RUN, (2,))
+TIMED = Command(COMMAND_TIMED_PASS, [0])
+RUN = Command(COMMAND_RUN, [2])
 
 
 def _write_play(
@@ -120,7 +120,7 @@ def _write_play(
 ) -> None:
     """An offensive play: tackles at -300 and 300, a QB doing `qb_after_snap`."""
     tackles = [
-        build_record(POSITION_T, after_snap=[LogicBox(x, -140, ())])
+        build_record(POSITION_T, after_snap=[LogicBox(x, -140, [])])
         for x in (-300, 300)
     ]
     qb = build_record(POSITION_QB, after_snap=qb_after_snap)
@@ -154,8 +154,8 @@ def reversed_glob(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_rollout_is_beyond_100_units_outside_the_line(
     tmp_path: Path, x: int, rollout: bool
 ) -> None:
-    move = Command(COMMAND_MOVE_TO, (x, -300))
-    _write_play(tmp_path, "P", 0x03, LogicBox(0, -300, (move, TIMED)))
+    move = Command(COMMAND_MOVE_TO, [x, -300])
+    _write_play(tmp_path, "P", 0x03, LogicBox(0, -300, [move, TIMED]))
     play = read_play_pool(tmp_path).find_by_name("P")
     assert isinstance(play, OffensivePlay)
     assert play.rollout is rollout
@@ -163,9 +163,9 @@ def test_rollout_is_beyond_100_units_outside_the_line(
 
 def test_category_still_gates_the_attributes(tmp_path: Path) -> None:
     """A pass play's QB run is no QB run; a run play's QB pass has no pass logic."""
-    move_out = Command(COMMAND_MOVE_TO, (1000, -300))
-    _write_play(tmp_path, "PASS", 0x03, LogicBox(0, -300, (RUN,)))  # Pass Short Right
-    _write_play(tmp_path, "RUN", 0x09, LogicBox(0, -300, (move_out, TIMED)))
+    move_out = Command(COMMAND_MOVE_TO, [1000, -300])
+    _write_play(tmp_path, "PASS", 0x03, LogicBox(0, -300, [RUN]))  # Pass Short Right
+    _write_play(tmp_path, "RUN", 0x09, LogicBox(0, -300, [move_out, TIMED]))
     pool = read_play_pool(tmp_path)
     pass_play, run_play = pool.find_by_name("PASS"), pool.find_by_name("RUN")
     assert isinstance(pass_play, OffensivePlay) and not pass_play.qb_run

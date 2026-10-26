@@ -7,7 +7,7 @@ How each set of rules orders teams that finish level: what each source says, sid
 - **Game**: the FbPro98 manual, "Post-Season Play" tie-breakers (page 129) and the draft (page 136); see [fbpro98-game-behavior.md](fbpro98-game-behavior.md#tie-breakers).
 - **NFL**: [NFL Tiebreaking Procedures](https://www.nfl.com/standings/tie-breaking-procedures) (division, wild card, draft order).
 - **PNFL.biz**: the header comments of the release `config/release/leagues/PNFL/standings/<season>.league.ini` files (2045-2049, removed in `dade898`). pnfl.biz has no final 1-18 list; each file's overall standings were derived from the next season's draft order. The 2048 file was built by the user, 2045-2047 by an earlier session.
-- **Scheduler**: `scheduler/league_files.py`, `scheduler/domain/league.py`, `fbpro98_lge/standings.py`.
+- **Scheduler**: `scheduler/league_files.py`, `scheduler/domain/league.py`, `fbpro98_lge/_standings.py`.
 
 W-L-T % counts a tie as half a win in every column.
 

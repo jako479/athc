@@ -21,6 +21,7 @@ from athc.errors import (
     toml_reason,
 )
 from athc.fbpro98_play import CategoryLabels
+from athc.fileio import atomic_write
 
 CONFIG_FILE = "athc.toml"
 LEAGUES_DIR = "leagues"
@@ -384,7 +385,7 @@ def set_config_value(key: str, value: str) -> Path:
         table[key] = item
         text = tomlkit.dumps(document)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+    atomic_write(path, text)
     return path
 
 
@@ -428,7 +429,7 @@ def set_league_value(league: str | None, key: str, value: str) -> Path:
     else:
         table[key] = item
         text = tomlkit.dumps(document)
-    path.write_text(text, encoding="utf-8")
+    atomic_write(path, text)
     return path
 
 

@@ -46,8 +46,8 @@ def make_play() -> MakePlay:
             play_category,
             special_category,
             user_category,
-            (),
-            (),
+            [],
+            [],
         )
 
     return _make

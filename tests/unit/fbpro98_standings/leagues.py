@@ -55,15 +55,15 @@ def build_league(
         divisions: list[Division] = []
         for division_names in conference:
             count += 1
-            members = tuple(teams[name] for name in division_names)
+            members = [teams[name] for name in division_names]
             divisions.append(
-                Division(name=f"D{count}", teams=members, standings=members)
+                Division(name=f"D{count}", teams=members, standings=list(members))
             )
-        members = tuple(team for division in divisions for team in division.teams)
+        members = [team for division in divisions for team in division.teams]
         conferences.append(
             Conference(
                 name=f"C{conference_number}",
-                divisions=tuple(divisions),
+                divisions=divisions,
                 standings=members,
             )
         )
@@ -73,12 +73,11 @@ def build_league(
         return Game(teams[home], home_score, teams[away], away_score)
 
     return LgeFile(
-        conferences=tuple(conferences),
-        weeks=tuple((game(played),) for played in games),
-        playoffs=tuple(
-            tuple(game(played) for played in games_in_round)
-            for games_in_round in playoffs
-        ),
+        conferences=conferences,
+        weeks=[[game(played)] for played in games],
+        playoffs=[
+            [game(played) for played in games_in_round] for games_in_round in playoffs
+        ],
     )
 
 

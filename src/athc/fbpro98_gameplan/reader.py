@@ -59,7 +59,7 @@ def read_gameplan(path: StrPath) -> GamePlan:
             block IDs, mismatched sizes, truncated structure, a play whose
             category bytes are unrecognized, J95 counts that don't match the
             parsed plays, wrong file-size parity for the profile type, or
-            parsed data that violates a GamePlan invariant, such as a special
+            parsed data that fails `GamePlan.validate()`, such as a special
             slot holding a play with the wrong `special_category`).
         OSError: If the file cannot be opened or read (subclasses include
             FileNotFoundError, PermissionError, IsADirectoryError).
@@ -84,8 +84,8 @@ def parse_gameplan(buffer: bytes, path: StrPath = "<buffer>") -> GamePlan:
             block sequence. Triggered by wrong block IDs, mismatched sizes,
             truncated structure, a play whose category bytes are unrecognized,
             J95 counts that disagree with the parsed plays, wrong file-size
-            parity for the profile type, or parsed data that violates a
-            GamePlan invariant.
+            parity for the profile type, or parsed data that fails
+            `GamePlan.validate()`.
     """
     file_path = Path(path)
     g95_size, audible, plays_by_slot = _parse_g95(buffer, file_path)
@@ -98,21 +98,23 @@ def parse_gameplan(buffer: bytes, path: StrPath = "<buffer>") -> GamePlan:
     _validate_parity(len(buffer), profile_type, file_path)
 
     n_normal = GamePlan.NUMBER_NORMAL_PLAYS
+    gameplan = GamePlan(
+        profile_type=profile_type,
+        normal_plays=plays_by_slot[:n_normal],
+        special_plays=_special_slots(plays_by_slot[n_normal:]),
+        audible=audible,
+        map_filename=map_filename,
+    )
     try:
-        return GamePlan(
-            profile_type=profile_type,
-            normal_plays=tuple(plays_by_slot[:n_normal]),
-            special_plays=_special_slots(plays_by_slot[n_normal:]),
-            audible=audible,
-            map_filename=map_filename,
-        )
+        gameplan.validate()
     except ValueError as e:  # a model invariant: the file is corrupt
         # The slot checks a file can break word their text as a sentence
         # without its period.
         raise InvalidGamePlanError(f"{e}.", file_path) from e
+    return gameplan
 
 
-def _special_slots(plays: Sequence[PlayRef | None]) -> tuple[SpecialSlot, ...]:
+def _special_slots(plays: Sequence[PlayRef | None]) -> list[SpecialSlot]:
     """Offsets 64-85 as one SpecialSlot per category: a (custom, stock) pair for
     each category with a custom slot, then one stock entry per clock category.
     Types are asserted by the model, not here."""
@@ -127,7 +129,7 @@ def _special_slots(plays: Sequence[PlayRef | None]) -> tuple[SpecialSlot, ...]:
     slots.extend(
         SpecialSlot(stock=cast("StockPlayRef | None", play)) for play in plays[paired:]
     )
-    return tuple(slots)
+    return slots
 
 
 def _parse_g95(buffer: bytes, path: Path) -> tuple[int, bytes, list[PlayRef | None]]:

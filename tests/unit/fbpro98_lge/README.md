@@ -89,6 +89,7 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()`
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | `teams` walks conferences, divisions and teams in order | four teams over two conferences | `test_teams_walks_conferences_divisions_and_teams_in_order` | ☑ |
+| Edit by assignment | a record's wins changed, a team removed from its division | `test_lge_is_edited_by_assignment` | ☑ |
 | Official name, either part empty | `"Denver Broncos"`, `"Denver"`, `"Broncos"`, `""` | `test_official_name` `[P]` | ☑ |
 | Record totals | games, win percentage (ties half, 0.0 with no games), point differential | `test_record_totals` `[P]` | ☑ |
 | `ranked` orders from the games, not the records | winner first though listed second | `test_ranked_orders_from_the_files_games_not_the_records` | ☑ |
@@ -96,7 +97,7 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()`
 | `ranked` with an empty input | empty | `test_ranked_with_no_teams_is_empty` | ☑ |
 | Game winner and loser | home win, away win, tie (None) | `test_game_winner_and_loser` `[P]` | ☑ |
 
-## standings.py
+## _standings.py
 
 Built seasons: three divisions, two conferences; `_win(a, b, by)`.
 

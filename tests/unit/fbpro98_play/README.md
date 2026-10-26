@@ -58,6 +58,7 @@ Every damaged file gets one message, "The play file is invalid or corrupted."; o
 | `is_special` | PlayFile | `special_category != 0` → True; `0` → False | `test_is_special` | ☑ |
 | `category` / `category_name` | PlayFile | the enum member and its `long` | `test_category_returns_enum_member` | ☑ |
 | Unrecognized code | PlayFile | `category is UNKNOWN_CATEGORY`; `category_name == "Unknown"` | `test_category_name_of_an_unrecognized_code_is_unknown` | ☑ |
+| Edit by assignment | PlayFile | a changed category byte changes `category`; a list field takes an append | `test_play_file_is_edited_by_assignment` | ☑ |
 | `is_run` / `is_pass` from the long name | enum | run / pass / neither (User Specific) | `test_is_run_is_pass` | ☑ |
 
 ## model.py — `resolve_category`

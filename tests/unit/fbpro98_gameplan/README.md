@@ -24,7 +24,7 @@ Inputs: game-saved `offense.pln` / `defense.pln` in `data/` (+ `data/expected/*_
 | Truncated play header; truncated stock play record (G95 end moved into the last record) | ☑ |
 | Bad G95 / J95 / S98 block id, each naming its offset | ☑ |
 | Play offset below the records; at the G95 end | ☑ |
-| Missing null terminator; stock flag 2; unrecognized play category; custom record in a clock slot (model error wrapped, `<buffer>` path) | ☑ |
+| Missing null terminator; a byte outside ASCII in a filename; a NUL inside a stock play name; stock flag 2; unrecognized play category; custom record in a clock slot (`validate()` error wrapped, `<buffer>` path) | ☑ |
 | J95 size 6 / 8 `[P]`; profile type 2; J95 count mismatch | ☑ |
 | S98 size 11 / 13 `[P]`; S98 content | ☑ |
 | Wrong parity, offense and defense `[P]` | ☑ |
@@ -32,19 +32,20 @@ Inputs: game-saved `offense.pln` / `defense.pln` in `data/` (+ `data/expected/*_
 ## model.py — `test_model.py` (constructed `GamePlan`)
 | Area | Status |
 |---|---|
-| `__post_init__`: slot counts (normal 63 / 65 and special 11 / 13 rejected `[P]`); stock-only clock categories by side; custom/stock typing; `special_category` alignment; side-of-ball parity (normal/special); special-in-normal-slot | ☑ |
+| Editing by assignment, then `validate()`; a deep copy edits apart | ☑ |
+| `validate()`: profile type −1 / 2 rejected `[P]`; slot counts (normal 63 / 65 and special 11 / 13 rejected `[P]`); stock-only clock categories by side; custom/stock typing; `special_category` alignment; side-of-ball parity (normal/special); special-in-normal-slot | ☑ |
+| `validate()` field widths: a category byte 0 / 255 accepted, −1 / 256 rejected; an unrecognized category; a non-ASCII or NUL-holding filename; a stock play name of 8 / 9 characters, non-ASCII; `map_offset` and `map_size` at their maximum / one past; other audible bytes; another map filename; a record offset of 65,535 / 65,536 | ☑ |
 | Properties `is_offense` / `is_defense` | ☑ |
 | `custom_special_plays` view (10 entries, correct slots) | ☑ |
-| `with_normal_plays` (pads to 64; 65 rejected) | ☑ |
-| `with_custom_special_plays` (place by category, preserve stock and clock slots, order-independent, clears uncovered, reject stock, range ends 1 / 10 accepted and 0 / 11 rejected `[P]`, duplicate) | ☑ |
 | `CustomPlayRef.name` stem extraction `[P]` | ☑ |
 
 ## writer.py — `test_writer.py`
 | Area | Status |
 |---|---|
-| `build_gameplan_bytes` reproduces the file; `write_gameplan` round trip byte-identical; `with_normal_plays` round trip (both fixtures) | ☑ |
+| `build_gameplan` reproduces the file; `write_gameplan` round trip byte-identical (both fixtures); no temp file left | ☑ |
 | Special plays survive a normal-plays write | ☑ |
-| Empty slot → zero offset in the offsets table; `<64` pads; all 64 filled | ☑ |
+| `build_gameplan` refuses an invalid plan; `write_gameplan` refuses one and writes nothing | ☑ |
+| Empty slot → zero offset in the offsets table; `<64` slots filled, the rest empty; all 64 filled | ☑ |
 | J95 counts follow the normal plays; a stock play in a normal slot counts as stock; custom special plays set the special count | ☑ |
 | Pad to the side's parity (offense even, defense odd) `[P]` | ☑ |
 

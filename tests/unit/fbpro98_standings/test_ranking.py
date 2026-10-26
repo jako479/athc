@@ -114,12 +114,12 @@ def test_teams_that_look_alike_stay_apart():
     # Two teams equal in every field: told apart by position, never by value.
     first = Team(name="A", nickname="", record=NO_GAMES)
     second = Team(name="A", nickname="", record=NO_GAMES)
-    division = Division(name="D1", teams=(first, second), standings=(first, second))
+    division = Division(name="D1", teams=[first, second], standings=[first, second])
     lge = LgeFile(
-        conferences=(
-            Conference(name="C1", divisions=(division,), standings=(first, second)),
-        ),
-        weeks=((Game(second, 20, first, 10),),),
+        conferences=[
+            Conference(name="C1", divisions=[division], standings=[first, second]),
+        ],
+        weeks=[[Game(second, 20, first, 10)]],
     )
     ranked = Standings(lge, method="game").division(division)
     assert ranked[0] is second

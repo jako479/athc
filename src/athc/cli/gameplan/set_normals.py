@@ -87,12 +87,12 @@ def set_normals(
 
     gp = read_gameplan(target)
     try:
-        updated = apply_normal_plays(gp, plays, pool)
+        apply_normal_plays(gp, plays, pool)
     except InvalidPlayListError as error:
         for invalid in error.invalid_plays:
             reason = specials.get(invalid.line, invalid.reason)
             console.fail(f"{source}line {invalid.line}: {reason}")
         ctx.exit(2)
-    write_gameplan(updated, target)
-    count = sum(1 for p in updated.normal_plays if p is not None)
+    write_gameplan(gp, target)
+    count = sum(1 for p in gp.normal_plays if p is not None)
     console.ok(f"{target}: updated ({count} normal play(s))")

@@ -127,12 +127,12 @@ def parse_profile(buffer: bytes, path: StrPath = "<buffer>") -> Profile:
     _check_unsupported_variants(buffer, body_end, num_game_plan_blocks, file_path)
     _validate_trailer(buffer, body_end, profile_type, file_path)
 
-    situations = tuple(
+    situations = [
         Situation(stop_clock=sc, category_weights=cw) for cw, sc in f95_paired_records
-    )
-    pat_situations = tuple(PatSituation(category_weights=cw) for cw in f95_pat_records)
+    ]
+    pat_situations = [PatSituation(category_weights=cw) for cw in f95_pat_records]
 
-    return Profile(
+    profile = Profile(
         profile_type=profile_type,
         substitutions=f95_substitutions,
         situations=situations,
@@ -140,14 +140,19 @@ def parse_profile(buffer: bytes, path: StrPath = "<buffer>") -> Profile:
         field_goal_range=f95_fg_range,
         use_audibles=bool(f95_use_audibles),
     )
+    try:
+        profile.validate()
+    except ValueError as e:  # a model invariant: the file is corrupt
+        raise InvalidProfileError(f"{e}.", file_path) from e
+    return profile
 
 
 def _parse_f95(
     buffer: bytes, path: Path
 ) -> tuple[
     SubstitutionSettings,
-    tuple[tuple[CategoryWeights, bool], ...],
-    tuple[CategoryWeights, ...],
+    list[tuple[CategoryWeights, bool]],
+    list[CategoryWeights],
     int,
     int,
 ]:
@@ -168,11 +173,11 @@ def _parse_f95(
         )
 
     offset = F95_HEADER.size
-    substitutions = _parse_substitutions(buffer, offset, path)
+    substitutions = _parse_substitutions(buffer, offset)
 
     offset += F95_SUBSTITUTIONS.size
     paired_records = _parse_category_weights_and_stop_clock(
-        buffer, offset, Profile.NUMBER_SITUATIONS, "situation", path
+        buffer, offset, Profile.NUMBER_SITUATIONS
     )
 
     offset += F95_CATEGORY_WEIGHTS.size * Profile.NUMBER_SITUATIONS
@@ -186,7 +191,7 @@ def _parse_f95(
 
     offset += F95_FIELD_GOAL_RANGE.size
     pat_records = _parse_pat_category_weights(
-        buffer, offset, Profile.NUMBER_PAT_SITUATIONS, path
+        buffer, offset, Profile.NUMBER_PAT_SITUATIONS
     )
 
     offset += F95_CATEGORY_WEIGHTS.size * Profile.NUMBER_PAT_SITUATIONS
@@ -199,47 +204,19 @@ def _parse_f95(
     return substitutions, paired_records, pat_records, fg_range, use_audibles
 
 
-def _parse_substitutions(
-    buffer: bytes, offset: int, path: Path
-) -> SubstitutionSettings:
+def _parse_substitutions(buffer: bytes, offset: int) -> SubstitutionSettings:
+    # The values are judged by `Profile.validate()` once the profile is built.
     raw = F95_SUBSTITUTIONS.unpack_from(buffer, offset)
-    pairs: list[SubstitutionPair] = []
-    group_names = (
-        "offensive_linemen",
-        "quarterbacks",
-        "running_backs",
-        "receivers",
-        "defensive_linemen",
-        "linebackers",
-        "defensive_backs",
-        "kickers",
-    )
-    for i, group in enumerate(group_names):
-        out_percent = raw[i * 2]
-        in_percent = raw[i * 2 + 1]
-        try:
-            pairs.append(
-                SubstitutionPair(out_percent=out_percent, in_percent=in_percent)
-            )
-        except ValueError as exc:
-            raise InvalidProfileError(
-                f"Invalid substitution pair for {group}: {exc}.", path
-            ) from exc
-    return SubstitutionSettings(
-        offensive_linemen=pairs[0],
-        quarterbacks=pairs[1],
-        running_backs=pairs[2],
-        receivers=pairs[3],
-        defensive_linemen=pairs[4],
-        linebackers=pairs[5],
-        defensive_backs=pairs[6],
-        kickers=pairs[7],
-    )
+    pairs = {
+        group: SubstitutionPair(out_percent=raw[i * 2], in_percent=raw[i * 2 + 1])
+        for i, group in enumerate(SubstitutionSettings.GROUPS)
+    }
+    return SubstitutionSettings(**pairs)
 
 
 def _parse_category_weights_and_stop_clock(
-    buffer: bytes, offset: int, count: int, label: str, path: Path
-) -> tuple[tuple[CategoryWeights, bool], ...]:
+    buffer: bytes, offset: int, count: int
+) -> list[tuple[CategoryWeights, bool]]:
     records: list[tuple[CategoryWeights, bool]] = []
     for index in range(count):
         record_offset = offset + index * F95_CATEGORY_WEIGHTS.size
@@ -247,35 +224,29 @@ def _parse_category_weights_and_stop_clock(
             buffer, record_offset
         )
         stop_clock = bool(w1 & STOP_CLOCK_BIT)
-        weight1 = w1 & WEIGHT_MASK
-        try:
-            weights = CategoryWeights(
-                play_category1=pc1,
-                weight1=weight1,
-                play_category2=pc2,
-                weight2=w2,
-                play_category3=pc3,
-                weight3=w3,
-            )
-        except ValueError as exc:
-            raise InvalidProfileError(
-                f"Invalid {label} record at index {index}: {exc}.", path
-            ) from exc
+        weights = CategoryWeights(
+            play_category1=pc1,
+            weight1=w1 & WEIGHT_MASK,
+            play_category2=pc2,
+            weight2=w2,
+            play_category3=pc3,
+            weight3=w3,
+        )
         records.append((weights, stop_clock))
-    return tuple(records)
+    return records
 
 
 def _parse_pat_category_weights(
-    buffer: bytes, offset: int, count: int, path: Path
-) -> tuple[CategoryWeights, ...]:
+    buffer: bytes, offset: int, count: int
+) -> list[CategoryWeights]:
     records: list[CategoryWeights] = []
     for index in range(count):
         record_offset = offset + index * F95_CATEGORY_WEIGHTS.size
         pc1, w1, pc2, w2, pc3, w3 = F95_CATEGORY_WEIGHTS.unpack_from(
             buffer, record_offset
         )
-        try:
-            weights = CategoryWeights(
+        records.append(
+            CategoryWeights(
                 play_category1=pc1,
                 weight1=w1,
                 play_category2=pc2,
@@ -283,12 +254,8 @@ def _parse_pat_category_weights(
                 play_category3=pc3,
                 weight3=w3,
             )
-        except ValueError as exc:
-            raise InvalidProfileError(
-                f"Invalid PAT situation record at index {index}: {exc}.", path
-            ) from exc
-        records.append(weights)
-    return tuple(records)
+        )
+    return records
 
 
 def _parse_i95(

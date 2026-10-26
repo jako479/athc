@@ -126,7 +126,8 @@ extension (another extension is a usage error from the option's callback, exit
 
 `athc profile copy SOURCE TARGET... <options> [-r] [--team NAME]` — copies
 selected fields from SOURCE (`one_profile`) into one or more targets
-(`ProfileWriter.apply` → updated `Profile`, written via `write_profile`). The
+(`ProfileWriter.apply` edits the target `Profile` in place and returns it,
+written via `write_profile`). The
 TARGETs go through `expand_names` and `collect_files`: files, folders (`-r` for
 the tree), wildcards and keys, each file once in TARGET order. Files of the
 wrong side are skipped by file-size parity (offense even, defense odd), and

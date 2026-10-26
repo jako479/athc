@@ -174,8 +174,8 @@ def set_specials(
             continue
         try:
             gp = read_gameplan(str(file))
-            new_gp = apply_special_plays(gp, plays, pool)
-            write_gameplan(new_gp, file)
+            apply_special_plays(gp, plays, pool)
+            write_gameplan(gp, file)
         except InvalidPlayListError as error:
             # The line is the list's, so it goes last: after the .pln path it
             # would read as a line of the .pln.
@@ -193,7 +193,7 @@ def set_specials(
             failed += 1
             continue
         updated += 1
-        count = sum(1 for p in new_gp.custom_special_plays if p is not None)
+        count = sum(1 for p in gp.custom_special_plays if p is not None)
         console.ok(f"{file}: updated ({count} special play(s))")
 
     console.print()

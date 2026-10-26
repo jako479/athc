@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -10,6 +9,7 @@ import pytest
 from athc.fbpro98_gameplan import (
     CustomPlayRef,
     GamePlan,
+    PlayRef,
     ProfileType,
     SpecialSlot,
     StockPlayRef,
@@ -48,8 +48,8 @@ def _pool_with(*names: str, special_category: int, defensive: bool = False) -> P
             category,
             special_category,
             category,
-            (),
-            (),
+            [],
+            [],
         )
         if special_category:
             pool.add(SpecialPlay(name, play_file))
@@ -79,19 +79,24 @@ def _offense_gameplan() -> GamePlan:
         )
     return GamePlan(
         profile_type=ProfileType.OFFENSE,
-        normal_plays=(None,) * GamePlan.NUMBER_NORMAL_PLAYS,
-        special_plays=tuple(slots),
+        normal_plays=[None] * GamePlan.NUMBER_NORMAL_PLAYS,
+        special_plays=slots,
     )
 
 
 def _defense_gameplan() -> GamePlan:
     return GamePlan(
         profile_type=ProfileType.DEFENSE,
-        normal_plays=(None,) * GamePlan.NUMBER_NORMAL_PLAYS,
-        special_plays=tuple(
+        normal_plays=[None] * GamePlan.NUMBER_NORMAL_PLAYS,
+        special_plays=[
             SpecialSlot() for _ in range(GamePlan.NUMBER_SPECIAL_CATEGORIES)
-        ),
+        ],
     )
+
+
+def _expected_normals(*plays: CustomPlayRef | None) -> list[PlayRef | None]:
+    """`plays` in the first slots, the rest empty."""
+    return [*plays, *[None] * (GamePlan.NUMBER_NORMAL_PLAYS - len(plays))]
 
 
 def test_special_play_without_custom_slot_is_rejected() -> None:
@@ -112,52 +117,68 @@ def test_special_play_in_a_custom_category_is_accepted(category: int) -> None:
     """Categories 1 and 10 are the first and the last with a custom slot."""
     pool = _pool_with("KICKPLY", special_category=category)
     gp = _offense_gameplan()
-    updated = apply_special_plays(gp, [PlayLine(1, "KICKPLY")], pool)
-    assert updated == replace(
-        gp,
-        special_plays=(
-            *gp.special_plays[: category - 1],
-            SpecialSlot(custom=_ref("KICKPLY", category)),
-            *gp.special_plays[category:],
-        ),
-    )
+    apply_special_plays(gp, [PlayLine(1, "KICKPLY")], pool)
+    expected = _offense_gameplan()
+    expected.special_plays[category - 1].custom = _ref("KICKPLY", category)
+    assert gp == expected
 
 
 def test_normal_plays_fill_slots_in_order_with_blanks_empty() -> None:
     pool = _pool_with("RUNA", "RUNB", special_category=0)
     gp = _offense_gameplan()
-    updated = apply_normal_plays(
+    apply_normal_plays(
         gp, [PlayLine(1, "RUNA"), PlayLine(2, ""), PlayLine(3, "RUNB")], pool
     )
-    assert updated == replace(
-        gp, normal_plays=(_ref("RUNA", 0), None, _ref("RUNB", 0), *(None,) * 61)
-    )
+    expected = _offense_gameplan()
+    expected.normal_plays = _expected_normals(_ref("RUNA", 0), None, _ref("RUNB", 0))
+    assert gp == expected
+
+
+def test_normal_plays_past_the_list_are_emptied() -> None:
+    """A list shorter than the slots clears the slots after it."""
+    pool = _pool_with("RUNA", special_category=0)
+    gp = _offense_gameplan()
+    gp.normal_plays[63] = _ref("RUNA", 0)
+    apply_normal_plays(gp, [PlayLine(1, "RUNA")], pool)
+    expected = _offense_gameplan()
+    expected.normal_plays = _expected_normals(_ref("RUNA", 0))
+    assert gp == expected
 
 
 def test_special_play_replaces_its_category_and_keeps_the_rest() -> None:
     """A listed play replaces the custom in its own category; category 4's
     custom, the blank line and the clock stocks are left as they were."""
-    base = _offense_gameplan()
-    gp = replace(
-        base,
-        special_plays=(
-            base.special_plays[0],
-            SpecialSlot(custom=_ref("OLDKICK", 2)),
-            base.special_plays[2],
-            SpecialSlot(custom=_ref("OLDPUNT", 4)),
-            *base.special_plays[4:],
-        ),
-    )
+    gp = _offense_gameplan()
+    gp.special_plays[1].custom = _ref("OLDKICK", 2)
+    gp.special_plays[3].custom = _ref("OLDPUNT", 4)
     pool = _pool_with("KICKPLY", special_category=2)
-    updated = apply_special_plays(gp, [PlayLine(1, ""), PlayLine(2, "KICKPLY")], pool)
-    assert updated == replace(
-        gp,
-        special_plays=(
-            *gp.special_plays[:1],
-            SpecialSlot(custom=_ref("KICKPLY", 2)),
-            *gp.special_plays[2:],
-        ),
-    )
+    apply_special_plays(gp, [PlayLine(1, ""), PlayLine(2, "KICKPLY")], pool)
+    expected = _offense_gameplan()
+    expected.special_plays[1].custom = _ref("KICKPLY", 2)
+    expected.special_plays[3].custom = _ref("OLDPUNT", 4)
+    assert gp == expected
+
+
+def test_failed_normal_list_leaves_the_game_plan_unchanged() -> None:
+    pool = _pool_with("RUNA", special_category=0)
+    gp = _offense_gameplan()
+    gp.normal_plays[5] = _ref("RUNA", 0)
+    with pytest.raises(InvalidPlayListError):
+        apply_normal_plays(gp, [PlayLine(1, "RUNA"), PlayLine(2, "GHOST")], pool)
+    expected = _offense_gameplan()
+    expected.normal_plays[5] = _ref("RUNA", 0)
+    assert gp == expected
+
+
+def test_failed_special_list_leaves_the_game_plan_unchanged() -> None:
+    pool = _pool_with("KICKPLY", special_category=2)
+    gp = _offense_gameplan()
+    gp.special_plays[3].custom = _ref("OLDPUNT", 4)
+    with pytest.raises(InvalidPlayListError):
+        apply_special_plays(gp, [PlayLine(1, "KICKPLY"), PlayLine(2, "GHOST")], pool)
+    expected = _offense_gameplan()
+    expected.special_plays[3].custom = _ref("OLDPUNT", 4)
+    assert gp == expected
 
 
 def test_special_play_in_a_normal_slot_is_rejected() -> None:
@@ -224,8 +245,10 @@ def test_normal_play_name_matches_any_case() -> None:
     """A list name finds its pool play in any case; the slot gets the pool's file."""
     pool = _pool_with("RUNA", special_category=0)
     gp = _offense_gameplan()
-    updated = apply_normal_plays(gp, [PlayLine(1, "runa")], pool)
-    assert updated == replace(gp, normal_plays=(_ref("RUNA", 0), *(None,) * 63))
+    apply_normal_plays(gp, [PlayLine(1, "runa")], pool)
+    expected = _offense_gameplan()
+    expected.normal_plays = _expected_normals(_ref("RUNA", 0))
+    assert gp == expected
 
 
 def test_every_bad_normal_line_is_reported_at_once() -> None:
@@ -256,8 +279,10 @@ def test_normal_plays_past_64_are_dropped() -> None:
     pool = _pool_with("RUNA", special_category=0)
     lines = [PlayLine(n, "RUNA") for n in range(1, 65)] + [PlayLine(65, "GHOST")]
     gp = _offense_gameplan()
-    updated = apply_normal_plays(gp, lines, pool)
-    assert updated == replace(gp, normal_plays=(_ref("RUNA", 0),) * 64)
+    apply_normal_plays(gp, lines, pool)
+    expected = _offense_gameplan()
+    expected.normal_plays = [_ref("RUNA", 0) for _ in range(64)]
+    assert gp == expected
 
 
 def test_duplicate_special_play_is_rejected_any_case() -> None:

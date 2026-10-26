@@ -315,38 +315,47 @@ def test_wrong_f95_data_size_rejected() -> None:
 def test_invalid_substitution_pair_rejected() -> None:
     data = _bytes_of(OFF1)
     struct.pack_into("<HH", data, SUBSTITUTIONS_OFFSET + 4, 99, 50)
-    with pytest.raises(InvalidProfileError, match="substitution pair for quarterbacks"):
+    with pytest.raises(InvalidProfileError) as exc:
         parse_profile(bytes(data))
+    assert str(exc.value) == (
+        "<buffer>: substitutions.quarterbacks.out_percent: "
+        "Must be at most in_percent (50), got 99."
+    )
 
 
 @pytest.mark.parametrize(
-    ("offset", "value"),
+    ("offset", "value", "message"),
     [
-        (SITUATIONS_OFFSET, 0xFF),
-        (SITUATIONS_OFFSET + 1, 0x8B),
-        (SITUATIONS_OFFSET + 3, 11),
+        (SITUATIONS_OFFSET, 0xFF, "play_category1: Must be 0x00-0x1A, got 0xFF"),
+        (SITUATIONS_OFFSET + 1, 0x8B, "weight1: Must be 0-10, got 11"),
+        (SITUATIONS_OFFSET + 3, 11, "weight2: Must be 0-10, got 11"),
     ],
     ids=["play category 0xFF", "weight 11 under the stop-clock bit", "weight 11"],
 )
-def test_invalid_situation_record_rejected(offset: int, value: int) -> None:
+def test_invalid_situation_record_rejected(
+    offset: int, value: int, message: str
+) -> None:
     data = _bytes_of(OFF1)
     data[offset] = value
-    with pytest.raises(
-        InvalidProfileError, match="Invalid situation record at index 0"
-    ):
+    with pytest.raises(InvalidProfileError) as exc:
         parse_profile(bytes(data))
+    assert str(exc.value) == f"<buffer>: situation 1: {message}."
 
 
 @pytest.mark.parametrize(
-    "value", [0x81, 0x0B], ids=["weight 1 with the stop-clock bit", "weight 11"]
+    ("value", "shown"),
+    [(0x81, 129), (0x0B, 11)],
+    ids=["weight 1 with the stop-clock bit", "weight 11"],
 )
-def test_invalid_pat_situation_record_rejected(value: int) -> None:
+def test_invalid_pat_situation_record_rejected(value: int, shown: int) -> None:
     data = _bytes_of(OFF1)
     data[PAT_SITUATIONS_OFFSET + 1] = value
-    with pytest.raises(
-        InvalidProfileError, match="Invalid PAT situation record at index 0"
-    ):
+    with pytest.raises(InvalidProfileError) as exc:
         parse_profile(bytes(data))
+    assert (
+        str(exc.value)
+        == f"<buffer>: PAT situation 1: weight1: Must be 0-10, got {shown}."
+    )
 
 
 def _with_field_goal_range(value: int) -> bytes:

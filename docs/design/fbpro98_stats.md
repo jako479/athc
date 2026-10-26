@@ -35,7 +35,7 @@ The values shown are the PNFL's after week 16 of 2047. Ids stay numbers: player 
 ## API
 
 - `read_stats(league, league_dir)` reads `<league_dir>/<league>.dat` and returns a `StatsFile`; `parse_stats(buffer, path)` parses raw bytes, `path` only naming the source in errors (`<path>: <reason>`).
-- `StatsFile`: one mapping per block, id to stats (`player_last_game`, `player_season`, `player_career` to `PlayerStats`; `team_last_game`, `team_season`, `opponents_last_game`, `opponents_season` to `TeamStats`), then the honors: `players_of_the_game`, `all_pro`, `coach_of_the_year` (a team number) and `awards`. Every field defaults to empty, so an empty `.dat` is `StatsFile()`.
+- `StatsFile`: one dict per block, id to stats (`player_last_game`, `player_season`, `player_career` to `PlayerStats`; `team_last_game`, `team_season`, `opponents_last_game`, `opponents_season` to `TeamStats`), then the honors: `players_of_the_game`, `all_pro`, `coach_of_the_year` (a team number) and `awards`, the honors lists. Every field defaults to empty, so an empty `.dat` is `StatsFile()`. Every class is a mutable dataclass, edited by assignment ([architecture.md](architecture.md#file-libraries)); the library has no writer yet.
 - `PlayerStats`, `TeamStats`: one field per category, `None` where the file has no record, never a zero object, so a writer can tell an insert from a change. A one-value category is an `int`.
 - Stat classes, values in the spec's order: `ExtraPoints`, `FieldGoals` (`long` and five `FieldGoalRange(made, attempts)`), `Rushing`, `Passing`, `Receiving`, `Interceptions`, `Punting`, `PuntReturns`, `KickReturns`, `FumbleRecoveries`, `TwoPointConversions`; player only `HallOfFamePoints`, `HallOfFameNominee`; team only `FirstDowns`, `Downs`, `GameDetails`.
 - Honors: `PlayerOfTheGame` (`game` from 0, `None` for the Player of the Week), `AllProPick`, `Award` with its `AwardKind`.
@@ -69,7 +69,7 @@ src/athc/fbpro98_stats/
 
 Built for the standings' net-touchdowns tie-breaker, which needs touchdowns the `.lge` lacks; a writer for stat corrections can build on it.
 
-The file is a database of 20-byte records keyed by type (block + category) and id, in no order. The reader scans every slot once, skips deleted ones (first byte `0xFF`), and files each record under its block and id; category 15 player records go to the honors. Mappings and tuples come out in id order, the `.idx` order, since the game reuses deleted slots.
+The file is a database of 20-byte records keyed by type (block + category) and id, in no order. The reader scans every slot once, skips deleted ones (first byte `0xFF`), and files each record under its block and id; category 15 player records go to the honors. Dicts and lists come out in id order, the `.idx` order, since the game reuses deleted slots.
 
 ### What this package does
 

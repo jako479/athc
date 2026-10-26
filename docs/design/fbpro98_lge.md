@@ -70,12 +70,12 @@ uv run pytest
 src/athc/fbpro98_lge/
 ├── __init__.py    # public API re-exports
 ├── model.py       # LgeFile, Conference, Division, Team, Record, Game; ranked()
-├── standings.py   # the game's tie-breakers: rank() over team numbers and results
+├── _standings.py  # internal: the game's tie-breakers, rank() over team numbers and results
 ├── schema.py      # chunk tags, sizes, field offsets, mask factor, schedule layout
 └── reader.py      # read_lge / parse_lge; InvalidLgeError
 ```
 
-The model nests teams in divisions and divisions in conferences, the way the file's chunk tree does. Each team carries its record; each division and conference carries its standings, ranked by the reader from the file's games with `standings.py`; `ranked(lge, teams)` ranks any teams of the file the same way. The file's played games hang off `LgeFile`, by regular-season week and by playoff round, each naming the file's own team objects.
+The model nests teams in divisions and divisions in conferences, the way the file's chunk tree does, in mutable dataclasses with list fields, edited by assignment ([architecture.md](architecture.md#file-libraries)); the library has no writer. Each team carries its record; each division and conference carries its standings, ranked by the reader from the file's games with `_standings.py`, an internal module the package does not export; `ranked(lge, teams)` ranks any teams of the file the same way and returns a list. The file's played games hang off `LgeFile`, by regular-season week and by playoff round, each naming the file's own team objects. A team is found by identity (`id(team)`), never by value: a mutable model is not hashable, and two teams can look the same.
 
 ### What this package does
 

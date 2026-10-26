@@ -244,8 +244,8 @@ class _Found:
         )
 
 
-def _in_id_order[T](honors: list[tuple[int, T]]) -> tuple[T, ...]:
-    return tuple(honor for _, honor in sorted(honors, key=lambda item: item[0]))
+def _in_id_order[T](honors: list[tuple[int, T]]) -> list[T]:
+    return [honor for _, honor in sorted(honors, key=lambda item: item[0])]
 
 
 def _player_of_the_game(found: _Found, id_: int, values: _Values) -> str | None:
@@ -325,10 +325,10 @@ def _field_goals(values: _Values) -> FieldGoals:
     # Each range packs two counts into its unsigned 16 bits.
     return FieldGoals(
         long=values[0],
-        ranges=tuple(
+        ranges=[
             FieldGoalRange(made=value & 0xFF, attempts=(value & 0xFFFF) >> 8)
             for value in values[1 : 1 + FIELD_GOAL_RANGES]
-        ),
+        ],
     )
 
 

@@ -19,22 +19,30 @@ def _team(name: str, record: tuple[int, int, int, int, int]) -> Team:
     return Team(name=name, nickname="", record=Record(*record))
 
 
-def _names(teams: tuple[Team, ...]) -> tuple[str, ...]:
-    return tuple(team.name for team in teams)
+def _names(teams: list[Team]) -> list[str]:
+    return [team.name for team in teams]
 
 
 def test_teams_walks_conferences_divisions_and_teams_in_order():
     a, b, c, d = (_team(name, (0, 0, 0, 0, 0)) for name in "abcd")
-    east = Division(name="East", teams=(a,), standings=(a,))
-    west = Division(name="West", teams=(b, c), standings=(b, c))
-    south = Division(name="South", teams=(d,), standings=(d,))
+    east = Division(name="East", teams=[a], standings=[a])
+    west = Division(name="West", teams=[b, c], standings=[b, c])
+    south = Division(name="South", teams=[d], standings=[d])
     lge = LgeFile(
-        conferences=(
-            Conference(name="AFC", divisions=(east, west), standings=(a, b, c)),
-            Conference(name="NFC", divisions=(south,), standings=(d,)),
-        )
+        conferences=[
+            Conference(name="AFC", divisions=[east, west], standings=[a, b, c]),
+            Conference(name="NFC", divisions=[south], standings=[d]),
+        ]
     )
-    assert lge.teams == (a, b, c, d)
+    assert lge.teams == [a, b, c, d]
+
+
+def test_lge_is_edited_by_assignment():
+    lge, loser, winner = _one_game()
+    loser.record.wins = 9
+    lge.conferences[0].divisions[0].teams.remove(winner)
+    assert lge.teams == [loser]
+    assert lge.teams[0].record.wins == 9
 
 
 @pytest.mark.parametrize(
@@ -77,25 +85,25 @@ def _one_game() -> tuple[LgeFile, Team, Team]:
     first in the file."""
     loser = _team("loser", (0, 1, 0, 10, 20))
     winner = _team("winner", (1, 0, 0, 20, 10))
-    division = Division(name="East", teams=(loser, winner), standings=())
-    conference = Conference(name="AFC", divisions=(division,), standings=())
+    division = Division(name="East", teams=[loser, winner], standings=[])
+    conference = Conference(name="AFC", divisions=[division], standings=[])
     game = Game(home=winner, home_score=20, away=loser, away_score=10)
-    return LgeFile(conferences=(conference,), weeks=((game,),)), loser, winner
+    return LgeFile(conferences=[conference], weeks=[[game]]), loser, winner
 
 
 def test_ranked_orders_from_the_files_games_not_the_records():
     lge, loser, winner = _one_game()
-    assert _names(ranked(lge, (loser, winner))) == ("winner", "loser")
+    assert _names(ranked(lge, [loser, winner])) == ["winner", "loser"]
 
 
 def test_ranked_defaults_to_every_team_of_the_file():
     lge, _, _ = _one_game()
-    assert _names(ranked(lge)) == ("winner", "loser")
+    assert _names(ranked(lge)) == ["winner", "loser"]
 
 
 def test_ranked_with_no_teams_is_empty():
     lge, _, _ = _one_game()
-    assert ranked(lge, ()) == ()
+    assert ranked(lge, []) == []
 
 
 @pytest.mark.parametrize(

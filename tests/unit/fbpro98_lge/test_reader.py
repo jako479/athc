@@ -135,7 +135,10 @@ def _tree(lge: LgeFile):
     return tuple(
         (
             conference.name,
-            tuple((division.name, division.teams) for division in conference.divisions),
+            tuple(
+                (division.name, tuple(division.teams))
+                for division in conference.divisions
+            ),
         )
         for conference in lge.conferences
     )
@@ -150,7 +153,7 @@ def test_custom_league():
 
 def test_teams_are_in_file_order():
     lge = read_lge(LEAGUE, FIXTURE_DIR)
-    assert lge.teams == tuple(_teams(lge))
+    assert lge.teams == _teams(lge)
     assert lge.teams[0].name == "Jacksonville"
     assert lge.teams[17].name == "San Francisco"
 
@@ -257,9 +260,9 @@ def test_missing_file_raises_oserror_for_built_path(tmp_path: Path):
 def test_built_file_parses(make_lge):
     # Every chunk at its exact size: the accepted side of each size limit.
     team = Team("T1", "N1", NO_GAMES)
-    division = Division(name="D1", teams=(team,), standings=(team,))
-    conference = Conference(name="C1", divisions=(division,), standings=(team,))
-    assert parse_lge(make_lge()) == LgeFile(conferences=(conference,))
+    division = Division(name="D1", teams=[team], standings=[team])
+    conference = Conference(name="C1", divisions=[division], standings=[team])
+    assert parse_lge(make_lge()) == LgeFile(conferences=[conference])
 
 
 @pytest.mark.parametrize(
@@ -386,7 +389,7 @@ def test_counted_chunk_of_just_its_fixed_part_accepted(
     # A division with no teams: its D03 chunk is the fixed part alone.
     chunks = make_chunks()
     chunks[D03 : R03 + 1] = [make_chunk(ID_D03, make_division_data(0))]
-    assert parse_lge(make_lge(chunks)).conferences[0].divisions[0].teams == ()
+    assert parse_lge(make_lge(chunks)).conferences[0].divisions[0].teams == []
 
 
 @pytest.mark.parametrize("length", [1, CHUNK_HEADER.size - 1])
@@ -650,9 +653,9 @@ def test_playoff_games_do_not_count():
 
 def test_before_week_one_records_are_zero_and_standings_keep_file_order():
     lge = _parse_fixture(BEFORE_WEEK1)
-    assert {team.record for team in lge.teams} == {NO_GAMES}
+    assert [team.record for team in lge.teams] == [NO_GAMES] * 18
     for conference in lge.conferences:
-        teams = tuple(t for division in conference.divisions for t in division.teams)
+        teams = [t for division in conference.divisions for t in division.teams]
         assert conference.standings == teams
         for division in conference.divisions:
             assert division.standings == division.teams
@@ -682,8 +685,8 @@ def test_unplayed_games_skipped_and_counted(
     regular = [[make_game(0xFF, 0xFF, 0xFF, 0xFF, status=2)]]
     chunks = _with_schedule(make_chunks, make_chunk, make_schedule_data(regular))
     lge = parse_lge(make_lge(chunks))
-    assert {team.record for team in lge.teams} == {NO_GAMES}
-    assert lge.weeks == ((),)
+    assert [team.record for team in lge.teams] == [NO_GAMES, NO_GAMES]
+    assert lge.weeks == [[]]
     assert lge.unplayed_games == 1
 
 
@@ -693,7 +696,7 @@ def test_week_with_no_games_read_as_empty(
     # A game count of 0: the week is there, with nothing in it.
     chunks = _with_schedule(make_chunks, make_chunk, make_schedule_data([[]]))
     lge = parse_lge(make_lge(chunks))
-    assert lge.weeks == ((),)
+    assert lge.weeks == [[]]
     assert lge.unplayed_games == 0
 
 
@@ -702,7 +705,8 @@ def test_playoff_games_skipped(
 ):
     data = make_schedule_data(playoffs=[[make_game(1, 30, 2, 3)]])
     chunks = _with_schedule(make_chunks, make_chunk, data)
-    assert {team.record for team in parse_lge(make_lge(chunks)).teams} == {NO_GAMES}
+    lge = parse_lge(make_lge(chunks))
+    assert [team.record for team in lge.teams] == [NO_GAMES, NO_GAMES]
 
 
 def test_built_standings_break_a_split_series_on_division_net_points(
@@ -714,8 +718,8 @@ def test_built_standings_break_a_split_series_on_division_net_points(
     chunks = _with_schedule(make_chunks, make_chunk, make_schedule_data(regular))
     lge = parse_lge(make_lge(chunks))
     first, second = lge.teams
-    assert lge.conferences[0].divisions[0].standings == (second, first)
-    assert lge.conferences[0].standings == (second, first)
+    assert lge.conferences[0].divisions[0].standings == [second, first]
+    assert lge.conferences[0].standings == [second, first]
 
 
 @pytest.mark.parametrize(("home", "away"), [(1, 2), (2, 1)])
@@ -784,13 +788,13 @@ def test_games_and_playoffs_after_the_super_bowl():
 
 def test_no_playoff_game_before_the_playoffs():
     lge = _parse_fixture(WEEK16)
-    assert lge.playoffs == ((), (), ())
+    assert lge.playoffs == [[], [], []]
     assert lge.unplayed_games == 7
 
 
 def test_no_game_before_week_one():
     lge = _parse_fixture(BEFORE_WEEK1)
-    assert lge.weeks == ((),) * 16
+    assert lge.weeks == [[] for _ in range(16)]
     assert lge.unplayed_games == 16 * 9 + 7
 
 
@@ -824,7 +828,7 @@ def test_unplayed_playoff_game_skipped_and_counted(
     data = make_schedule_data(playoffs=[[make_game(1, 0xFF, 2, 0xFF, status=2)]])
     chunks = _with_schedule(make_chunks, make_chunk, data)
     lge = parse_lge(make_lge(chunks))
-    assert lge.playoffs == ((),)
+    assert lge.playoffs == [[]]
     assert lge.unplayed_games == 1
 
 

@@ -71,7 +71,7 @@ class Season:
 
 def season_of(lge: LgeFile) -> Season:
     """The file's season: its regular-season games and playoff results."""
-    teams = lge.teams
+    teams = tuple(lge.teams)
     number = {id(team): index for index, team in enumerate(teams)}
     division_of: list[int] = []
     conference_of: list[int] = []

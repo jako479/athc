@@ -1,57 +1,57 @@
 """In-memory data model for FbPro98 .dat stats files.
 
-The file's records grouped by block and id: one mapping per block, id to the
+The file's records grouped by block and id: one dict per block, id to the
 player's or team's stats, one field per category. A category with no record is
 None, never a zero object, so a writer can tell a record to insert from one to
-change. Every mapping and tuple is in id order, not file order.
+change. Every dict and list is in id order, not file order. Mutable classes,
+edited by assignment.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class StatsFile:
     """Full in-memory representation of a `.dat` stats file."""
 
-    player_last_game: Mapping[int, PlayerStats] = field(default_factory=dict)
+    player_last_game: dict[int, PlayerStats] = field(default_factory=dict)
     """By player id (`.pyr`): each player's latest game."""
 
-    player_season: Mapping[int, PlayerStats] = field(default_factory=dict)
+    player_season: dict[int, PlayerStats] = field(default_factory=dict)
     """By player id."""
 
-    player_career: Mapping[int, PlayerStats] = field(default_factory=dict)
+    player_career: dict[int, PlayerStats] = field(default_factory=dict)
     """By player id."""
 
-    team_last_game: Mapping[int, TeamStats] = field(default_factory=dict)
+    team_last_game: dict[int, TeamStats] = field(default_factory=dict)
     """By team number (`.lge`): each team's latest game."""
 
-    team_season: Mapping[int, TeamStats] = field(default_factory=dict)
+    team_season: dict[int, TeamStats] = field(default_factory=dict)
     """By team number."""
 
-    opponents_last_game: Mapping[int, TeamStats] = field(default_factory=dict)
+    opponents_last_game: dict[int, TeamStats] = field(default_factory=dict)
     """By team number: what its opponents did against it."""
 
-    opponents_season: Mapping[int, TeamStats] = field(default_factory=dict)
+    opponents_season: dict[int, TeamStats] = field(default_factory=dict)
     """By team number: what its opponents did against it."""
 
-    players_of_the_game: tuple[PlayerOfTheGame, ...] = ()
+    players_of_the_game: list[PlayerOfTheGame] = field(default_factory=list)
     """The last week's Players of the Game and the Player of the Week."""
 
-    all_pro: tuple[AllProPick, ...] = ()
+    all_pro: list[AllProPick] = field(default_factory=list)
     """The season's All-Pro team."""
 
     coach_of_the_year: int | None = None
     """The season's Coach of the Year: a team number."""
 
-    awards: tuple[Award, ...] = ()
+    awards: list[Award] = field(default_factory=list)
     """Every season's awards."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class PlayerStats:
     """One player's stats in one block; None where the file has no record.
     Category 15 records are honors, in `StatsFile`."""
@@ -81,7 +81,7 @@ class PlayerStats:
     two_point_conversions: TwoPointConversions | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class TeamStats:
     """One team's stats, or its opponents', in one block; None where the file
     has no record."""
@@ -106,7 +106,7 @@ class TeamStats:
     two_point_conversions: TwoPointConversions | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class ExtraPoints:
     """Category 0."""
 
@@ -114,7 +114,7 @@ class ExtraPoints:
     made: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class FieldGoalRange:
     """Field goals from one distance range."""
 
@@ -122,17 +122,17 @@ class FieldGoalRange:
     attempts: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class FieldGoals:
     """Category 1."""
 
     long: int
 
-    ranges: tuple[FieldGoalRange, ...]
+    ranges: list[FieldGoalRange]
     """Five: 10-19, 20-29, 30-39, 40-49 and 50+ yards."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Rushing:
     """Category 2."""
 
@@ -142,7 +142,7 @@ class Rushing:
     touchdowns: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Passing:
     """Category 3."""
 
@@ -156,7 +156,7 @@ class Passing:
     sack_yards: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Receiving:
     """Category 4."""
 
@@ -166,7 +166,7 @@ class Receiving:
     touchdowns: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Interceptions:
     """Category 5."""
 
@@ -176,7 +176,7 @@ class Interceptions:
     touchdowns: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Punting:
     """Category 6."""
 
@@ -189,7 +189,7 @@ class Punting:
     touchbacks: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class PuntReturns:
     """Category 7."""
 
@@ -200,7 +200,7 @@ class PuntReturns:
     fair_catches: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class KickReturns:
     """Category 8."""
 
@@ -210,7 +210,7 @@ class KickReturns:
     touchdowns: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class FumbleRecoveries:
     """Category 10."""
 
@@ -220,7 +220,7 @@ class FumbleRecoveries:
     touchdowns: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class HallOfFamePoints:
     """Player category 14."""
 
@@ -229,7 +229,7 @@ class HallOfFamePoints:
     points: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class HallOfFameNominee:
     """Player career category 16."""
 
@@ -240,7 +240,7 @@ class HallOfFameNominee:
     """None until elected."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class FirstDowns:
     """Team category 14."""
 
@@ -250,7 +250,7 @@ class FirstDowns:
     penalty: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Downs:
     """Team category 15."""
 
@@ -261,7 +261,7 @@ class Downs:
     fourth_downs_made: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class GameDetails:
     """Team category 16. Opponent and score are the team's own, in its
     opponents' blocks too: the last game's, or in season blocks the latest
@@ -278,7 +278,7 @@ class GameDetails:
     fumbles_lost: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class TwoPointConversions:
     """Category 17."""
 
@@ -286,7 +286,7 @@ class TwoPointConversions:
     made: int
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class PlayerOfTheGame:
     """One Player of the Game from the last week, or the Player of the Week."""
 
@@ -306,7 +306,7 @@ class PlayerOfTheGame:
     """Team number."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class AllProPick:
     """One player on the season's All-Pro team."""
 
@@ -330,7 +330,7 @@ class AwardKind(Enum):
     ROOKIE_OF_THE_YEAR = "rookie of the year"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Award:
     """One season's award to one player."""
 

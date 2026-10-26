@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import shutil
 from collections.abc import Callable, Sequence
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -68,17 +67,15 @@ MISSING = "NOSUCHPLAYXX"
 
 
 def _set_normal_slots(gp: GamePlan, *placements: tuple[int, CustomPlayRef]) -> GamePlan:
-    normals = list(gp.normal_plays)
     for index, play in placements:
-        normals[index] = play
-    return replace(gp, normal_plays=tuple(normals))
+        gp.normal_plays[index] = play
+    return gp
 
 
 def _set_custom_special(gp: GamePlan, category: int, play: CustomPlayRef) -> GamePlan:
     """Place `play` in the custom slot of `category` (1-10)."""
-    specials = list(gp.special_plays)
-    specials[category - 1] = replace(specials[category - 1], custom=play)
-    return replace(gp, special_plays=tuple(specials))
+    gp.special_plays[category - 1].custom = play
+    return gp
 
 
 def _write(gp: GamePlan, tmp_path: Path, name: str = "gp.pln") -> Path:
@@ -151,9 +148,7 @@ def test_find_skips_stock_special_slots() -> None:
         special_category=1,
         user_category=0,
     )
-    specials = list(gp.special_plays)
-    specials[0] = SpecialSlot(stock=stock)  # category 1's stock slot
-    gp = replace(gp, special_plays=tuple(specials))
+    gp.special_plays[0] = SpecialSlot(stock=stock)  # category 1's stock slot
     assert find_in_gameplan(gp, "STOCKFG") == ([], [])
 
 

@@ -1,7 +1,7 @@
 """In-memory data model for FbPro98 .ply play files.
 
-Defines the types the reader produces (PlayerHeader, PlayerLogic with its
-LogicBox and Command, PlayFile) and the play categories: four per-side enums
+Defines the mutable types the reader produces (PlayerHeader, PlayerLogic with
+its LogicBox and Command, PlayFile) and the play categories: four per-side enums
 (offense, defense, special-offense, special-defense), each member carrying its
 on-disk code and the long game name (league labels live in `labels.py`).
 `resolve_category` names a category from raw bytes. `PlayFile` also tells the
@@ -11,7 +11,7 @@ the defensive front (`DefensiveFront`).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
@@ -173,7 +173,7 @@ def resolve_category(
     )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class PlayerHeader:
     """One player's header within a .ply play file.
 
@@ -197,7 +197,7 @@ class PlayerHeader:
     docs/formats/ply.md section 4.1."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Command:
     """One command in a logic box. See docs/formats/ply.md section 2.4."""
 
@@ -205,11 +205,11 @@ class Command:
     """Command code (u8), e.g. 0x02 Move to, 0x06 Timed pass;
     docs/formats/ply.md section 2.5."""
 
-    arguments: tuple[int, ...]
+    arguments: list[int]
     """Arguments (i16 each), in order; a spot is x, y."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class LogicBox:
     """One logic box: where the player stands when its commands start, then the
     commands in order. See docs/formats/ply.md section 2.3."""
@@ -220,22 +220,22 @@ class LogicBox:
     y: int
     """Downfield spot, positive toward the defense."""
 
-    commands: tuple[Command, ...]
+    commands: list[Command]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class PlayerLogic:
     """One player's logic boxes, before the snap and from the snap on.
     See docs/formats/ply.md section 2.2."""
 
-    pre_snap: tuple[LogicBox, ...] = ()
+    pre_snap: list[LogicBox] = field(default_factory=list)
     """Starts with the player's starting spot."""
 
-    after_snap: tuple[LogicBox, ...] = ()
+    after_snap: list[LogicBox] = field(default_factory=list)
     """Starts with the player's spot at the snap."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class PlayFile:
     """Parsed FbPro98 .ply play file.
 
@@ -260,14 +260,14 @@ class PlayFile:
     user_category: int
     """User category byte at 0x20; bits 5-0 = play category, bits 7-6 vary."""
 
-    player_offsets: tuple[int, ...]
+    player_offsets: list[int]
     """u16 player-record offsets from 0x08, in slot order:
     QB, C, LT, LG, RG, RT, TE, RWR, LWR, LHB, RHB."""
 
-    player_headers: tuple[PlayerHeader, ...]
+    player_headers: list[PlayerHeader]
     """One PlayerHeader per slot, same order as player_offsets."""
 
-    player_logic: tuple[PlayerLogic, ...] = ()
+    player_logic: list[PlayerLogic] = field(default_factory=list)
     """One PlayerLogic per slot, same order as player_headers."""
 
     @property
@@ -351,7 +351,7 @@ class PlayFile:
 
     def _logic_at(self, *positions: int) -> list[PlayerLogic]:
         """The logic of every player at one of `positions`, in slot order."""
-        # A PlayFile built without logic (player_logic=()) has none to give.
+        # A PlayFile built without logic (player_logic=[]) has none to give.
         pairs = zip(self.player_headers, self.player_logic, strict=False)
         return [logic for header, logic in pairs if header.position in positions]
 

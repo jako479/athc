@@ -8,6 +8,7 @@ from os import PathLike
 from pathlib import Path
 
 from athc.errors import FileFormatError
+from athc.fbpro98_lge._standings import rank, season_from_games
 from athc.fbpro98_lge.model import Conference, Division, Game, LgeFile, Record, Team
 from athc.fbpro98_lge.schema import (
     CHUNK_HEADER,
@@ -38,7 +39,6 @@ from athc.fbpro98_lge.schema import (
     TEAM_NAME_OFFSET,
     TEAM_TEXT_SIZE,
 )
-from athc.fbpro98_lge.standings import rank, season_from_games
 
 StrPath = str | PathLike[str]
 
@@ -218,11 +218,9 @@ def _records(weeks: list[list[_RawGame]], team_count: int) -> list[Record]:
     return [_record(team_scores) for team_scores in scores]
 
 
-def _games(
-    weeks: list[list[_RawGame]], teams: list[Team]
-) -> tuple[tuple[Game, ...], ...]:
-    return tuple(
-        tuple(
+def _games(weeks: list[list[_RawGame]], teams: list[Team]) -> list[list[Game]]:
+    return [
+        [
             Game(
                 home=teams[home - 1],
                 home_score=home_score,
@@ -230,9 +228,9 @@ def _games(
                 away_score=away_score,
             )
             for home, home_score, away, away_score in games
-        )
+        ]
         for games in weeks
-    )
+    ]
 
 
 def _record(scores: list[tuple[int, int]]) -> Record:
@@ -247,7 +245,7 @@ def _record(scores: list[tuple[int, int]]) -> Record:
 
 def _build(
     heads: _Heads, names: list[tuple[str, str]], schedule: _Schedule
-) -> tuple[list[Team], tuple[Conference, ...]]:
+) -> tuple[list[Team], list[Conference]]:
     """The teams in file order (team N at index N - 1, the numbers the
     schedule uses) and the conference tree, each division and conference with
     its standings."""
@@ -269,8 +267,8 @@ def _build(
         (game for week in schedule.weeks for game in week), division_of, conference_of
     )
 
-    def ranked(numbers: list[int]) -> tuple[Team, ...]:
-        return tuple(teams[n - 1] for n in rank(numbers, season))
+    def ranked(numbers: list[int]) -> list[Team]:
+        return [teams[n - 1] for n in rank(numbers, season)]
 
     conferences: list[Conference] = []
     number = 0
@@ -284,14 +282,14 @@ def _build(
             built.append(
                 Division(
                     name=division_name,
-                    teams=tuple(teams[n - 1] for n in numbers),
+                    teams=[teams[n - 1] for n in numbers],
                     standings=ranked(numbers),
                 )
             )
         conferences.append(
-            Conference(name=name, divisions=tuple(built), standings=ranked(members))
+            Conference(name=name, divisions=built, standings=ranked(members))
         )
-    return teams, tuple(conferences)
+    return teams, conferences
 
 
 def _take_conference(chunks: _Chunks) -> tuple[str, int]:

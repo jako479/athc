@@ -1,6 +1,7 @@
 """In-memory data model for FbPro98 .lg2 league files.
 
-Each team's eight coaching files, nested by half, then side. A location is a
+Each team's eight coaching files, nested by half, then side, in mutable
+classes edited by assignment. A location is a
 Windows path relative to the game folder, kept as a string like the gameplan
 library's play filenames; split it with `PureWindowsPath`.
 """
@@ -19,7 +20,7 @@ class LeagueType(Enum):
     OLD_STOCK = "old stock"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class FilePair:
     """One side's coaching profile and game plan for one half."""
 
@@ -30,7 +31,7 @@ class FilePair:
     """`.pln` location, `folder\\filename` (or just `filename`)."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class HalfFiles:
     """Offense and defense files for one half."""
 
@@ -38,7 +39,7 @@ class HalfFiles:
     defense: FilePair
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class TeamFiles:
     """One team's files for both halves."""
 
@@ -46,7 +47,7 @@ class TeamFiles:
     second_half: HalfFiles
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Lg2File:
     """Full in-memory representation of a `.lg2` league file."""
 
@@ -54,6 +55,6 @@ class Lg2File:
     """Custom, modern stock or old stock, judged by the first file entry's
     folder field (see the README)."""
 
-    teams: tuple[TeamFiles, ...]
+    teams: list[TeamFiles]
     """One entry per team, in file order: the league's `.lge` team order (see
     docs/formats/lg2.md)."""

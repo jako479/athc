@@ -9,7 +9,13 @@ from collections.abc import Iterable
 
 import pytest
 
-from athc.fbpro98_gameplan import CustomPlayRef, GamePlan, SpecialSlot, StockPlayRef
+from athc.fbpro98_gameplan import (
+    CustomPlayRef,
+    GamePlan,
+    PlayRef,
+    SpecialSlot,
+    StockPlayRef,
+)
 from athc.fbpro98_gameplan import ProfileType as GamePlanType
 from athc.fbpro98_play import DefensiveCategory, OffensiveCategory
 from athc.fbpro98_profile import (
@@ -66,14 +72,14 @@ def make_profile(
     return Profile(
         profile_type=ptype,
         substitutions=SubstitutionSettings.default(),
-        situations=tuple(
+        situations=[
             Situation(stop_clock=False, category_weights=sit)
             for _ in range(Profile.NUMBER_SITUATIONS)
-        ),
-        pat_situations=tuple(
+        ],
+        pat_situations=[
             PatSituation(category_weights=pat)
             for _ in range(Profile.NUMBER_PAT_SITUATIONS)
-        ),
+        ],
         field_goal_range=20,
         use_audibles=False,
     )
@@ -87,17 +93,17 @@ def profile_using(codes: Iterable[int], *, offense: bool) -> Profile:
     return Profile(
         profile_type=ProfileType.OFFENSE if offense else ProfileType.DEFENSE,
         substitutions=SubstitutionSettings.default(),
-        situations=tuple(
+        situations=[
             Situation(
                 stop_clock=False,
                 category_weights=weights(cycle[i % len(cycle)], 1, 0, 0, 0, 0),
             )
             for i in range(Profile.NUMBER_SITUATIONS)
-        ),
-        pat_situations=tuple(
+        ],
+        pat_situations=[
             PatSituation(category_weights=first)
             for _ in range(Profile.NUMBER_PAT_SITUATIONS)
-        ),
+        ],
         field_goal_range=20,
         use_audibles=False,
     )
@@ -113,10 +119,10 @@ def make_gameplan(
     """Gameplan with one custom normal play per `normal` user_category, and custom
     (or stock) special plays in the given special-category slots (1-10)."""
     parity = 0x01 if offense else 0x00
-    plays = tuple(
+    normal_plays: list[PlayRef | None] = [
         CustomPlayRef(f"N{i}.PLY", parity, 0, uc) for i, uc in enumerate(normal)
-    )
-    normal_plays = plays + (None,) * (64 - len(plays))
+    ]
+    normal_plays += [None] * (64 - len(normal_plays))
     slots = [SpecialSlot() for _ in range(GamePlan.NUMBER_SPECIAL_CATEGORIES)]
     for s in special:
         slots[s - 1] = SpecialSlot(custom=CustomPlayRef(f"SP{s}.PLY", parity, s, 0))
@@ -130,7 +136,7 @@ def make_gameplan(
     return GamePlan(
         profile_type=GamePlanType.OFFENSE if offense else GamePlanType.DEFENSE,
         normal_plays=normal_plays,
-        special_plays=tuple(slots),
+        special_plays=slots,
     )
 
 

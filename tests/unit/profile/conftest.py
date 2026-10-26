@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
+import copy
 from pathlib import Path
 
 from athc.fbpro98_profile import (
@@ -107,29 +107,38 @@ def make_profile(
     profile for minimum-count tests).
     """
     base = category_weights or _BASE
+    # Each record gets its own weights, so an edit to one leaves the rest.
     return Profile(
         profile_type=profile_type,
         substitutions=substitutions or SubstitutionSettings.default(),
-        situations=tuple(
-            Situation(stop_clock=False, category_weights=base)
+        situations=[
+            Situation(stop_clock=False, category_weights=copy.copy(base))
             for _ in range(Profile.NUMBER_SITUATIONS)
-        ),
-        pat_situations=tuple(
-            PatSituation(category_weights=_PAT_BASE)
+        ],
+        pat_situations=[
+            PatSituation(category_weights=copy.copy(_PAT_BASE))
             for _ in range(Profile.NUMBER_PAT_SITUATIONS)
-        ),
+        ],
         field_goal_range=field_goal_range,
         use_audibles=use_audibles,
     )
 
 
+def edited[T](model: T, **changes: object) -> T:
+    """A deep copy of `model` with `changes` assigned to its fields."""
+    out = copy.deepcopy(model)
+    for name, value in changes.items():
+        setattr(out, name, value)
+    return out
+
+
 def replace_situation(
     profile: Profile, situation_number: int, **changes: object
 ) -> Profile:
-    """Return `profile` with situation `situation_number` replaced via `dataclasses.replace`."""
-    idx = situation_number - 1
-    new = replace(profile.situations[idx], **changes)
-    return replace(
-        profile,
-        situations=(*profile.situations[:idx], new, *profile.situations[idx + 1 :]),
-    )
+    """A deep copy of `profile` with `changes` assigned to situation
+    `situation_number`."""
+    out = copy.deepcopy(profile)
+    situation = out.situations[situation_number - 1]
+    for name, value in changes.items():
+        setattr(situation, name, value)
+    return out

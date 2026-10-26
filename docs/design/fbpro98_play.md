@@ -37,7 +37,8 @@ print(play_file.defensive_front)
 - `PlayFile`: `file_path`, `stream_length`, `player_offsets`, `player_headers`, `player_logic`, `play_category`, `special_category`, `user_category`; `is_offensive` / `is_defensive` / `is_special`; `category` (a category enum member, `UNKNOWN_CATEGORY` when unrecognized) and `category_name`.
 - Play attributes on `PlayFile`, normal plays only: `is_timed_pass`, `is_qb_run`, `is_rollout(margin)` (the caller picks the margin; 90 units to a yard) and `defensive_front` (`DefensiveFront.THREE_FOUR` / `FOUR_THREE` / `TWO_DL`, or `None`); the rules: [How athc reads a play](playpool.md#how-athc-reads-a-play), whose "it's a pass play" / "it's a run play" clauses playpool applies — `PlayFile` reads the players' logic alone.
 - `PlayerHeader`: `offset`, `rank`, `player_type`, `position`.
-- `PlayerLogic`: `pre_snap` and `after_snap`, each a tuple of `LogicBox` (`x`, `y`, `commands`); `Command`: `code`, `arguments`.
+- `PlayerLogic`: `pre_snap` and `after_snap`, each a list of `LogicBox` (`x`, `y`, `commands`); `Command`: `code`, `arguments`.
+- Every class is a mutable dataclass with list fields, edited by assignment ([architecture.md](architecture.md#file-libraries)); the library has no writer, so nothing checks an edit.
 - Categories: `OffensiveCategory`, `DefensiveCategory`, `SpecialOffensiveCategory`, `SpecialDefensiveCategory`; each member has `code`, `long`, `is_run`, `is_pass`. `resolve_category(play_category, special_category, user_category)` names one from raw bytes.
 - `CategoryLabels`: a league's labels for the offense and defense categories, built from the two `league.toml` tables with `CategoryLabels.from_tables(offense, defense, path)` (`ConfigFileError` on a bad entry, naming `path` when given). `label(category)` is the league label, else the game name; `offense_by_label(label)` / `defense_by_label(label)` look a category up by its league label within one side.
 - `InvalidPlayFileError`: a bad block ID (`Invalid header '<id>' at 0x0.`), or a damaged file — a size field that doesn't match the file length, a file too short for the category bytes or a player header, or a player record too short for its logic boxes — which all read `The play file is invalid or corrupted.`. `read_play` also raises it for an unrecognized category (`Unrecognized play category (…).`), where `parse_play` returns a file whose `category` is `UNKNOWN_CATEGORY`.
@@ -64,7 +65,7 @@ src/athc/fbpro98_play/
 
 ### What this package does
 
-- Parses `.ply` files into `PlayFile` records, each player's logic boxes included
+- Parses `.ply` files into mutable `PlayFile` records, each player's logic boxes included
   (`player_logic`: `PlayerLogic` → `LogicBox` → `Command`)
 - Tells the play attributes from the players' logic, on normal plays only:
   - offense: `is_timed_pass`, `is_qb_run` and `is_rollout(margin)` from the

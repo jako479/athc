@@ -264,13 +264,13 @@ def test_reads_real_fixture_structure(expected: FixtureExpectation) -> None:
     assert play.play_category == expected.play_category
     assert play.special_category == expected.special_category
     assert play.user_category == expected.user_category
-    assert play.player_offsets == expected.player_offsets
-    assert play.player_headers == tuple(
+    assert play.player_offsets == list(expected.player_offsets)
+    assert play.player_headers == [
         PlayerHeader(offset=offset, rank=rank, player_type=ptype, position=position)
         for offset, (rank, ptype, position) in zip(
             expected.player_offsets, expected.player_headers, strict=True
         )
-    )
+    ]
 
 
 def test_offensive_special_category_name() -> None:
@@ -351,7 +351,7 @@ def test_rejects_empty_real_file() -> None:
 
 # The offsets of make_ply()'s 11 minimal records, each a 4-byte header plus
 # two empty box lists, starting right after the category bytes.
-MINIMAL_OFFSETS = (25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105)
+MINIMAL_OFFSETS = [25, 33, 41, 49, 57, 65, 73, 81, 89, 97, 105]
 
 
 def test_parses_minimal_valid_buffer(make_ply) -> None:
@@ -363,11 +363,11 @@ def test_parses_minimal_valid_buffer(make_ply) -> None:
         0x01,
     )
     assert play.player_offsets == MINIMAL_OFFSETS
-    assert play.player_headers == tuple(
+    assert play.player_headers == [
         PlayerHeader(offset=offset, rank=1, player_type=1, position=0x20)
         for offset in MINIMAL_OFFSETS
-    )
-    assert play.player_logic == (PlayerLogic(),) * 11
+    ]
+    assert play.player_logic == [PlayerLogic() for _ in range(11)]
 
 
 def test_decodes_player_logic() -> None:
@@ -376,18 +376,18 @@ def test_decodes_player_logic() -> None:
     other commands."""
     qb = read_play(FIXTURE_DIR / "SF1YemTy.ply").player_logic[0]
     assert qb == PlayerLogic(
-        pre_snap=(LogicBox(20, -500, ()),),
-        after_snap=(
+        pre_snap=[LogicBox(20, -500, [])],
+        after_snap=[
             LogicBox(
                 20,
                 -500,
-                (
-                    Command(0x06, (0,)),
-                    Command(0x05, (602, 830)),
-                    Command(0x07, (1,)),
-                ),
+                [
+                    Command(0x06, [0]),
+                    Command(0x05, [602, 830]),
+                    Command(0x07, [1]),
+                ],
             ),
-        ),
+        ],
     )
 
 
@@ -400,11 +400,11 @@ def test_every_fixture_player_has_logic(expected: FixtureExpectation) -> None:
 
 
 QB_LOGIC = PlayerLogic(
-    pre_snap=(LogicBox(-11, -210, ()),),
-    after_snap=(
-        LogicBox(-11, -210, (Command(0x02, (-11, -380)),)),
-        LogicBox(-11, -380, (Command(0x06, (5,)), Command(0x2D, ()))),
-    ),
+    pre_snap=[LogicBox(-11, -210, [])],
+    after_snap=[
+        LogicBox(-11, -210, [Command(0x02, [-11, -380])]),
+        LogicBox(-11, -380, [Command(0x06, [5]), Command(0x2D, [])]),
+    ],
 )
 
 

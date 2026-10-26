@@ -74,7 +74,7 @@ def _load_expected(name: str) -> list[str]:
     return (EXPECTED_DIR / name).read_text(encoding="utf-8").splitlines()
 
 
-def _slot_names(plays: tuple[PlayRef | None, ...]) -> list[str]:
+def _slot_names(plays: list[PlayRef | None]) -> list[str]:
     """One name per slot, an empty string for an empty slot: the golden's layout."""
     return [p.name if p is not None else "" for p in plays]
 
@@ -127,7 +127,7 @@ def test_custom_special_plays_match_fixture(
 
 def test_offense_clock_categories_hold_stock_plays() -> None:
     plan = read_gameplan(OFFENSE_PATH)
-    assert plan.special_plays[10:] == (
+    assert plan.special_plays[10:] == [
         SpecialSlot(
             stock=StockPlayRef(
                 play_name="RUNCLOCK",
@@ -148,12 +148,12 @@ def test_offense_clock_categories_hold_stock_plays() -> None:
                 user_category=1,
             )
         ),
-    )
+    ]
 
 
 def test_defense_clock_categories_are_empty() -> None:
     plan = read_gameplan(DEFENSE_PATH)
-    assert plan.special_plays[10:] == (SpecialSlot(), SpecialSlot())
+    assert plan.special_plays[10:] == [SpecialSlot(), SpecialSlot()]
 
 
 def test_parse_gameplan_matches_read_gameplan() -> None:
@@ -338,6 +338,27 @@ def test_missing_null_terminator_raises(offense_bytes: bytearray) -> None:
         match=f"Missing null terminator for play record at {body:#x}",
     ):
         parse_gameplan(bytes(offense_bytes))
+
+
+def test_non_ascii_byte_in_a_filename_raises(offense_bytes: bytearray) -> None:
+    # Slot 0 holds a custom play; its filename's first byte becomes 0xE9 (é in
+    # cp1252): the field is ASCII, so the file is invalid on read.
+    offense_bytes[_record_offset(offense_bytes, 0) + G95_PLAY_HEADER.size] = 0xE9
+    with pytest.raises(InvalidGamePlanError) as exc:
+        parse_gameplan(bytes(offense_bytes))
+    assert str(exc.value) == "<buffer>: Normal slot 0: filename: Must be ASCII."
+
+
+def test_nul_inside_a_stock_play_name_raises(offense_bytes: bytearray) -> None:
+    # The last record is the Stop Clock stock play: a NUL inside its 8-byte
+    # name, with text after it, is not a padded name.
+    body = _record_offset(offense_bytes, LAST_SLOT) + G95_PLAY_HEADER.size
+    offense_bytes[body + 4] = 0
+    with pytest.raises(InvalidGamePlanError) as exc:
+        parse_gameplan(bytes(offense_bytes))
+    assert str(exc.value) == (
+        "<buffer>: Special category 12 stock: play_name: Must not contain NUL."
+    )
 
 
 def test_invalid_stock_flag_raises(offense_bytes: bytearray) -> None:

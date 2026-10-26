@@ -1,17 +1,27 @@
 """In-memory data model for FbPro98 .pln gameplan files.
 
-Defines the immutable types that the reader produces and the writer consumes:
+Defines the mutable types that the reader produces and the writer consumes:
 ProfileType, CustomPlayRef, StockPlayRef, SpecialSlot, and the top-level GamePlan
-dataclass.
+dataclass. A game plan is edited by assignment; `GamePlan.validate()` checks
+everything the file format imposes.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator, Sequence
-from dataclasses import dataclass, replace
+from collections.abc import Iterator
+from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import PureWindowsPath
 from typing import ClassVar
+
+from athc.fbpro98_gameplan.schema import (
+    DEFAULT_AUDIBLE,
+    G95_OFFSETS_TABLE,
+    G95_PLAY_HEADER,
+    G95_STOCK_PLAY_BODY,
+    S98_EXPECTED_DATA,
+)
+from athc.fbpro98_play import UNKNOWN_CATEGORY, resolve_category
 
 
 class ProfileType(IntEnum):
@@ -21,7 +31,7 @@ class ProfileType(IntEnum):
     OFFENSE = 1
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class CustomPlayRef:
     """A user-authored play stored as a filename reference (`stock_flag = 0`).
 
@@ -49,7 +59,7 @@ class CustomPlayRef:
         return PureWindowsPath(self.filename).stem
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class StockPlayRef:
     """A built-in play referenced from `STOCK98.MAP` (`stock_flag = 1`).
 
@@ -86,7 +96,7 @@ class StockPlayRef:
 PlayRef = CustomPlayRef | StockPlayRef
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class SpecialSlot:
     """One special category's two slots: the coach's `custom` play and the
     game's `stock` play. Categories 11-12 (Run Clock, Stop Clock) have no custom
@@ -96,14 +106,25 @@ class SpecialSlot:
     stock: StockPlayRef | None = None
 
 
-@dataclass(frozen=True, slots=True)
+# The file's field widths: a category byte, the stock play name, its map
+# offset (u32) and size (u16), and a record's offset in the offsets table
+# (u16, counted from the table's start).
+_BYTE_MAX = 0xFF
+_PLAY_NAME_LENGTH = 8
+_MAP_OFFSET_MAX = 0xFFFF_FFFF
+_MAP_SIZE_MAX = 0xFFFF
+_RECORD_OFFSET_MAX = 0xFFFF
+_MAP_FILENAME = S98_EXPECTED_DATA.rstrip(b"\x00").decode("ascii")
+
+
+@dataclass(slots=True)
 class GamePlan:
     """Full in-memory representation of a `.pln` gameplan file.
 
-    See docs/formats/pln.md for the on-disk binary format. Construction validates
-    structural invariants (slot counts, side-of-ball consistency, special-
-    category alignment, stock-only clock categories) via __post_init__;
-    ValueError is raised for any violation.
+    See docs/formats/pln.md for the on-disk binary format. Edit by assignment;
+    `validate()` checks the structural invariants (slot counts, side-of-ball
+    consistency, special-category alignment, stock-only clock categories) and
+    the field widths, and the writer runs it before packing.
     """
 
     NUMBER_NORMAL_PLAYS: ClassVar[int] = 64
@@ -123,10 +144,10 @@ class GamePlan:
     """Whether this gameplan is for offense or defense. Determines clock-category
     population and file-size parity."""
 
-    normal_plays: tuple[PlayRef | None, ...]
+    normal_plays: list[PlayRef | None]
     """The 64 normal play slots. None indicates an unused slot."""
 
-    special_plays: tuple[SpecialSlot, ...]
+    special_plays: list[SpecialSlot]
     """One SpecialSlot per special category; index = category - 1."""
 
     audible: bytes = b"\x00\x01\x02\x03"
@@ -136,7 +157,21 @@ class GamePlan:
     """Filename of the stock-play map this gameplan references (stored in the
     S98 block)."""
 
-    def __post_init__(self) -> None:
+    def validate(self) -> None:
+        """Check everything the file format imposes; ValueError on the first
+        problem, naming the slot or field and the value.
+
+        The profile type; the counts (64 normal slots, 12 special
+        categories); each special slot's types, category alignment and the
+        stock-only clock categories by side; each play's side parity; no
+        special play in a normal slot; then each play's fields: category
+        bytes that name a known category, an ASCII filename without NUL, a
+        stock play name of at most 8 ASCII characters, its map offset (u32)
+        and size (u16); the audible bytes and the map filename the game
+        writes; and the play records fitting the offsets table (u16).
+        """
+        if self.profile_type not in (ProfileType.DEFENSE, ProfileType.OFFENSE):
+            raise ValueError(f"profile_type: Must be 0 or 1, got {self.profile_type}")
         if len(self.normal_plays) != self.NUMBER_NORMAL_PLAYS:
             raise ValueError(
                 f"normal_plays must have exactly {self.NUMBER_NORMAL_PLAYS} "
@@ -171,6 +206,40 @@ class GamePlan:
                     f"(special_category={play.special_category}); "
                     f"only non-special plays allowed in normal slots"
                 )
+
+        for label, play in self._filled_plays():
+            _check_play_fields(label, play)
+        if self.audible != DEFAULT_AUDIBLE:
+            raise ValueError(
+                f"audible: Must be {DEFAULT_AUDIBLE.hex(' ')}, "
+                f"got {self.audible.hex(' ')}"
+            )
+        if self.map_filename != _MAP_FILENAME:
+            raise ValueError(
+                f"map_filename: Must be {_MAP_FILENAME}, got {self.map_filename}"
+            )
+        self._check_offsets()
+
+    def _check_offsets(self) -> None:
+        """Each record's offset in the table, counted from the table's start,
+        must fit its u16: the records before it set it."""
+        records: list[tuple[str, PlayRef | None]] = [
+            (f"Normal slot {i}", play) for i, play in enumerate(self.normal_plays)
+        ]
+        for category, slot in enumerate(self.special_plays, start=1):
+            if category in self.CUSTOM_SPECIAL_CATEGORIES:
+                records.append((f"Special category {category} custom", slot.custom))
+            records.append((f"Special category {category} stock", slot.stock))
+        offset = G95_OFFSETS_TABLE.size
+        for label, play in records:
+            if play is None:
+                continue
+            if offset > _RECORD_OFFSET_MAX:
+                raise ValueError(
+                    f"{label}: Record offset must be at most {_RECORD_OFFSET_MAX}, "
+                    f"got {offset}"
+                )
+            offset += _record_size(play)
 
     def _check_slot(self, category: int, slot: SpecialSlot) -> None:
         # Runtime type checks stay: callers can smuggle the wrong ref type past
@@ -236,82 +305,57 @@ class GamePlan:
         return self.profile_type == ProfileType.DEFENSE
 
     @property
-    def custom_special_plays(self) -> tuple[CustomPlayRef | None, ...]:
+    def custom_special_plays(self) -> list[CustomPlayRef | None]:
         """The custom play of each category in `CUSTOM_SPECIAL_CATEGORIES`, in
         category order (ten entries)."""
-        return tuple(
+        return [
             self.special_plays[c - 1].custom for c in self.CUSTOM_SPECIAL_CATEGORIES
+        ]
+
+
+def _check_play_fields(label: str, play: PlayRef) -> None:
+    """One play's fields: its category bytes, which must name a category, and,
+    by kind, its filename or its stock name, map offset and map size."""
+    for field_name in ("play_category", "special_category", "user_category"):
+        _check_range(label, field_name, getattr(play, field_name), 0, _BYTE_MAX)
+    category = resolve_category(
+        play.play_category, play.special_category, play.user_category
+    )
+    if category is UNKNOWN_CATEGORY:
+        raise ValueError(
+            f"{label}: Unrecognized play category "
+            f"(play_category=0x{play.play_category:02X}, "
+            f"special_category=0x{play.special_category:02X}, "
+            f"user_category=0x{play.user_category:02X})"
         )
-
-    def with_normal_plays(self, plays: Sequence[PlayRef | None]) -> GamePlan:
-        """Return a new GamePlan with `plays` placed in the 64 normal slots.
-
-        The original GamePlan is not mutated. Shorter sequences are right-padded
-        with None to fill all 64 slots.
-
-        Args:
-            plays: Up to 64 plays (or None entries) in slot order.
-
-        Returns:
-            A new GamePlan with the updated normal slots; all other fields copied
-            from self.
-
-        Raises:
-            ValueError: If `plays` contains more than 64 entries, or if the new
-                GamePlan would violate any __post_init__ invariant.
-        """
-        if len(plays) > self.NUMBER_NORMAL_PLAYS:
-            raise ValueError(
-                f"Expected at most {self.NUMBER_NORMAL_PLAYS} normal plays, "
-                f"got {len(plays)}"
-            )
-        padded = tuple(list(plays) + [None] * (self.NUMBER_NORMAL_PLAYS - len(plays)))
-        return replace(self, normal_plays=padded)
-
-    def with_custom_special_plays(
-        self, plays: Iterable[CustomPlayRef | None]
-    ) -> GamePlan:
-        """Return a new GamePlan with `plays` written into the custom slots of
-        categories 1-10.
-
-        Each play is placed into the category dictated by its own
-        `special_category`. Order doesn't matter. None entries are ignored.
-        Categories not covered by any play have their custom slot cleared. Every
-        stock slot, the clock categories included, is preserved.
-
-        Args:
-            plays: Iterable of CustomPlayRef (or None) values; each play's
-                `special_category` selects its destination category.
-
-        Returns:
-            A new GamePlan with the updated custom special slots.
-
-        Raises:
-            ValueError: If any play's `special_category` is outside
-                `CUSTOM_SPECIAL_CATEGORIES`, or if two plays target the same
-                category.
-        """
-        first = self.CUSTOM_SPECIAL_CATEGORIES[0]
-        last = self.CUSTOM_SPECIAL_CATEGORIES[-1]
-        customs: dict[int, CustomPlayRef] = {}
-        for play in plays:
-            if play is None:
-                continue
-            if play.special_category not in self.CUSTOM_SPECIAL_CATEGORIES:
-                raise ValueError(
-                    f"Play has special_category={play.special_category}, "
-                    f"must be {first}..{last}"
-                )
-            if play.special_category in customs:
-                raise ValueError(
-                    f"Two custom special plays target "
-                    f"special_category={play.special_category}"
-                )
-            customs[play.special_category] = play
-        new_special = tuple(
-            replace(slot, custom=customs.get(category))
-            if category in self.CUSTOM_SPECIAL_CATEGORIES
-            else slot
-            for category, slot in enumerate(self.special_plays, start=1)
+    if isinstance(play, CustomPlayRef):
+        _check_ascii(f"{label}: filename", play.filename)
+        return
+    _check_ascii(f"{label}: play_name", play.play_name)
+    if len(play.play_name) > _PLAY_NAME_LENGTH:
+        raise ValueError(
+            f"{label}: play_name: Must be at most {_PLAY_NAME_LENGTH} characters, "
+            f"got {len(play.play_name)}"
         )
-        return replace(self, special_plays=new_special)
+    _check_range(label, "map_offset", play.map_offset, 0, _MAP_OFFSET_MAX)
+    _check_range(label, "map_size", play.map_size, 0, _MAP_SIZE_MAX)
+
+
+def _record_size(play: PlayRef) -> int:
+    """The bytes a play's record takes on disk."""
+    if isinstance(play, CustomPlayRef):
+        return G95_PLAY_HEADER.size + len(play.filename) + 1
+    return G95_PLAY_HEADER.size + G95_STOCK_PLAY_BODY.size
+
+
+def _check_range(label: str, field_name: str, value: int, low: int, high: int) -> None:
+    if not low <= value <= high:
+        raise ValueError(f"{label}: {field_name}: Must be {low}-{high}, got {value}")
+
+
+def _check_ascii(location: str, text: str) -> None:
+    """A string written as NUL-terminated or NUL-padded ASCII."""
+    if not text.isascii():
+        raise ValueError(f"{location}: Must be ASCII")
+    if "\x00" in text:
+        raise ValueError(f"{location}: Must not contain NUL")

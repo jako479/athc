@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
-
 import pytest
 
 from athc.fbpro98_profile import (
@@ -30,7 +28,12 @@ from athc.profile.rules import (
     PASS_SHORT_RIGHT,
     RUN_MIDDLE,
 )
-from tests.unit.profile.conftest import make_profile, replace_situation, weights
+from tests.unit.profile.conftest import (
+    edited,
+    make_profile,
+    replace_situation,
+    weights,
+)
 
 # Situation 8 = >5 / 1st / 0-1 / DEF5-35; baseline = (RM 4, PSL 3, PML 3).
 N = 8
@@ -56,7 +59,7 @@ def test_profile_type_recorded(ptype: ProfileType) -> None:
 
 def test_field_goal_range_change() -> None:
     a = _offense()
-    b = replace(a, field_goal_range=40)
+    b = edited(a, field_goal_range=40)
     assert diff_profiles(a, b).profile == (
         ScalarChange("field_goal_range", "20", "40"),
     )
@@ -64,15 +67,14 @@ def test_field_goal_range_change() -> None:
 
 def test_audibles_change() -> None:
     a = _offense()
-    b = replace(a, use_audibles=True)
+    b = edited(a, use_audibles=True)
     assert diff_profiles(a, b).profile == (ScalarChange("audibles", "Off", "On"),)
 
 
 def test_substitution_change() -> None:
     a = _offense()  # default subs: QB 80/90
-    b = replace(
-        a, substitutions=replace(a.substitutions, quarterbacks=SubstitutionPair(70, 85))
-    )
+    b = edited(a)
+    b.substitutions.quarterbacks = SubstitutionPair(70, 85)
     assert diff_profiles(a, b).profile == (ScalarChange("sub.QB", "80/90", "70/85"),)
 
 
@@ -142,15 +144,9 @@ def test_unchanged_situations_excluded() -> None:
 def test_pat_change() -> None:
     a = _offense()
     idx = 6  # PAT situation 7
-    new_pat = replace(
-        a.pat_situations[idx],
-        category_weights=weights(
-            FIELD_GOAL_PAT, 8, FAKE_FIELD_GOAL_RUN, 0, FAKE_FIELD_GOAL_PASS, 0
-        ),
-    )
-    b = replace(
-        a,
-        pat_situations=(*a.pat_situations[:idx], new_pat, *a.pat_situations[idx + 1 :]),
+    b = edited(a)
+    b.pat_situations[idx].category_weights = weights(
+        FIELD_GOAL_PAT, 8, FAKE_FIELD_GOAL_RUN, 0, FAKE_FIELD_GOAL_PASS, 0
     )
     d = diff_profiles(a, b)
     slot = SlotChange(1, (FIELD_GOAL_PAT, 10), (FIELD_GOAL_PAT, 8))
@@ -160,7 +156,7 @@ def test_pat_change() -> None:
 
 def test_combined_changes_counts() -> None:
     a = _offense()
-    b = replace(replace_situation(a, N, stop_clock=True), field_goal_range=40)
+    b = edited(replace_situation(a, N, stop_clock=True), field_goal_range=40)
     d = diff_profiles(a, b)
     assert not d.is_empty
     assert len(d.profile) == 1 and len(d.situations) == 1 and d.pat == ()

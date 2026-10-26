@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import shutil
 from collections.abc import Callable
-from dataclasses import replace
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -13,6 +13,7 @@ from athc.cli import cli
 from athc.cli.profile.copy import copy
 from athc.errors import FILE_NOT_FOUND, PATH_NOT_FOUND
 from athc.fbpro98_profile import (
+    CategoryWeights,
     Down,
     FieldPosition,
     SubstitutionPair,
@@ -88,11 +89,10 @@ def _copy_prf(src: Path, dest_dir: Path, *, name: str) -> Path:
 
 def _mutated_source(src: Path, tmp_path: Path, *, flip: tuple[int, ...]) -> Path:
     profile = read_profile(str(src))
-    sits = list(profile.situations)
     for n in flip:
-        sits[n - 1] = replace(sits[n - 1], stop_clock=not sits[n - 1].stop_clock)
+        profile.situations[n - 1].stop_clock = not profile.situations[n - 1].stop_clock
     dest = tmp_path / "source.prf"
-    write_profile(replace(profile, situations=tuple(sits)), str(dest))
+    write_profile(profile, str(dest))
     return dest
 
 
@@ -109,8 +109,10 @@ def _custom_subs() -> SubstitutionSettings:
     )
 
 
-def _bumped(cw):
-    return replace(cw, weight1=(cw.weight1 + 1) % 11)
+def _bumped(cw: CategoryWeights) -> CategoryWeights:
+    out = deepcopy(cw)
+    out.weight1 = (cw.weight1 + 1) % 11
+    return out
 
 
 def _stop_clock(path: Path) -> tuple[bool, ...]:
@@ -191,9 +193,9 @@ def test_cli_copies_stop_clock_defense(runner, tmp_path: Path) -> None:
 
 def test_cli_copies_sub_percent(runner, tmp_path: Path) -> None:
     source = tmp_path / "source.prf"
-    write_profile(
-        replace(read_profile(str(OFF1)), substitutions=_custom_subs()), str(source)
-    )
+    profile = read_profile(str(OFF1))
+    profile.substitutions = _custom_subs()
+    write_profile(profile, str(source))
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     result = runner.invoke(copy, [str(source), str(target), "--substitutions"])
     assert result.exit_code == 0
@@ -209,7 +211,9 @@ def test_cli_copies_field_goal_range(runner, tmp_path: Path) -> None:
         else base.field_goal_range - 1
     )
     source = tmp_path / "source.prf"
-    write_profile(replace(base, field_goal_range=new_range), str(source))
+    edited = deepcopy(base)
+    edited.field_goal_range = new_range
+    write_profile(edited, str(source))
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     assert (
         runner.invoke(copy, [str(source), str(target), "--field-goal-range"]).exit_code
@@ -224,26 +228,21 @@ def test_cli_copies_goal_line_and_stop_clock_combined(runner, tmp_path: Path) ->
     base = read_profile(str(OFF1))
     marker = _bumped(base.situations[0].category_weights)
     flips = {1, 100, 2520}
-    sits = tuple(
-        replace(
-            s,
-            stop_clock=(not s.stop_clock) if n in flips else s.stop_clock,
-            category_weights=marker
-            if state.field_position in _GOAL_LINE
-            else s.category_weights,
-        )
-        for n, state, s in base.iter_situations()
-    )
+    edited = deepcopy(base)
+    for n, state, s in edited.iter_situations():
+        if n in flips:
+            s.stop_clock = not s.stop_clock
+        if state.field_position in _GOAL_LINE:
+            s.category_weights = marker
+    sits = edited.situations
     source = tmp_path / "source.prf"
-    write_profile(replace(base, situations=sits), str(source))
+    write_profile(edited, str(source))
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     run = runner.invoke(copy, [str(source), str(target), "--goal-line", "--stop-clock"])
     assert run.exit_code == 0
     assert run.stdout.startswith(f"OK   {target}: updated (stop-clock, goal-line)\n")
     result = read_profile(str(target))
-    assert tuple(s.stop_clock for s in result.situations) == tuple(
-        s.stop_clock for s in sits
-    )
+    assert [s.stop_clock for s in result.situations] == [s.stop_clock for s in sits]
     goal_line = [
         s
         for _, state, s in result.iter_situations()
@@ -255,25 +254,23 @@ def test_cli_copies_goal_line_and_stop_clock_combined(runner, tmp_path: Path) ->
 def test_cli_copies_fourth_down(runner, tmp_path: Path) -> None:
     """Every source situation differs, so only the 4th-down ones may arrive."""
     base = read_profile(str(OFF1))
-    sits = tuple(
-        replace(
-            s,
-            stop_clock=not s.stop_clock,
-            category_weights=_bumped(s.category_weights),
-        )
-        for s in base.situations
-    )
+    edited = deepcopy(base)
+    for s in edited.situations:
+        s.stop_clock = not s.stop_clock
+        s.category_weights = _bumped(s.category_weights)
+    sits = edited.situations
     source = tmp_path / "source.prf"
-    write_profile(replace(base, situations=sits), str(source))
+    write_profile(edited, str(source))
     target = _copy_prf(OFF1, tmp_path, name="target.prf")
     result = runner.invoke(copy, [str(source), str(target), "--fourth-down"])
     assert result.exit_code == 0
     assert f"OK   {target}: updated (fourth-down)" in result.stdout
-    expected = tuple(
+    expected = deepcopy(base)
+    expected.situations = [
         s if state.down == Down.FOURTH else t
         for (_, state, t), s in zip(base.iter_situations(), sits, strict=True)
-    )
-    assert read_profile(str(target)) == replace(base, situations=expected)
+    ]
+    assert read_profile(str(target)) == expected
 
 
 # ── console output ────────────────────────────────────────────────────────────
@@ -281,12 +278,10 @@ def test_cli_copies_fourth_down(runner, tmp_path: Path) -> None:
 
 def _bumped_pat_source(src: Path, tmp_path: Path) -> Path:
     profile = read_profile(str(src))
-    pats = tuple(
-        replace(p, category_weights=_bumped(p.category_weights))
-        for p in profile.pat_situations
-    )
+    for p in profile.pat_situations:
+        p.category_weights = _bumped(p.category_weights)
     dest = tmp_path / "source.prf"
-    write_profile(replace(profile, pat_situations=pats), str(dest))
+    write_profile(profile, str(dest))
     return dest
 
 
@@ -529,9 +524,9 @@ def test_cli_key_to_key(runner, denver: Path) -> None:
 
 def test_cli_file_to_two_keys(runner, denver: Path, tmp_path: Path) -> None:
     source = tmp_path / "new.prf"
-    write_profile(
-        replace(read_profile(str(OFF1)), substitutions=_custom_subs()), str(source)
-    )
+    profile = read_profile(str(OFF1))
+    profile.substitutions = _custom_subs()
+    write_profile(profile, str(source))
     off1, off2 = _key_file(denver, "off1"), _key_file(denver, "off2")
     result = runner.invoke(copy, [str(source), "off1", "off2", "--substitutions"])
     assert result.exit_code == 0

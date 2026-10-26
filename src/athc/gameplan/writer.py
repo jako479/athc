@@ -1,4 +1,5 @@
-"""Apply play-list updates to a GamePlan: resolve names via the pool, fill slots.
+"""Apply play-list updates to a GamePlan in place: resolve names via the pool,
+fill slots.
 
 Pure logic (no Click, no I/O): callers read/write the `.pln` themselves. Side and
 special classification come from each play's `.ply` header, not the rules.
@@ -11,7 +12,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from athc.errors import AthcError
-from athc.fbpro98_gameplan import CustomPlayRef, GamePlan
+from athc.fbpro98_gameplan import CustomPlayRef, GamePlan, PlayRef
 from athc.playpool import Play, PlayPool
 
 MAX_NORMAL_PLAYS = GamePlan.NUMBER_NORMAL_PLAYS
@@ -60,26 +61,26 @@ def build_custom_play(record: Play, root_dir: Path) -> CustomPlayRef:
     )
 
 
-def apply_normal_plays(
-    gp: GamePlan, plays: Sequence[PlayLine], pool: PlayPool
-) -> GamePlan:
-    """Place plays into the 64 normal slots in input order (>64 truncates; blank = empty
-    slot). Per-line failures raise InvalidPlayListError. Returns a new GamePlan."""
-    entries: list[CustomPlayRef | None] = []
+def apply_normal_plays(gp: GamePlan, plays: Sequence[PlayLine], pool: PlayPool) -> None:
+    """Place plays into the 64 normal slots of `gp`, in input order (>64 truncates;
+    blank = empty slot); the slots past the list are emptied. Every line is
+    resolved first, so an InvalidPlayListError leaves `gp` as it was."""
+    entries: list[PlayRef | None] = []
     invalid_plays: list[InvalidPlay] = []
     for slot, play in enumerate(list(plays)[:MAX_NORMAL_PLAYS]):
         entries.append(_resolve_normal_line(slot, play, gp, pool, invalid_plays))
     if invalid_plays:
         raise InvalidPlayListError(invalid_plays)
-    return gp.with_normal_plays(entries)  # with_normal_plays pads to 64
+    gp.normal_plays = entries + [None] * (MAX_NORMAL_PLAYS - len(entries))
 
 
 def apply_special_plays(
     gp: GamePlan, plays: Sequence[PlayLine], pool: PlayPool
-) -> GamePlan:
-    """Merge custom special plays (unlisted categories preserved). Each play self-slots
-    by its special category. Per-line failures raise InvalidPlayListError."""
-    merged: list[CustomPlayRef | None] = list(gp.custom_special_plays)
+) -> None:
+    """Merge custom special plays into `gp` (unlisted categories preserved). Each
+    play self-slots by its special category. Every line is resolved first, so
+    an InvalidPlayListError leaves `gp` as it was."""
+    merged = gp.custom_special_plays
     seen_names: dict[str, int] = {}
     seen_categories: set[int] = set()
     invalid_plays: list[InvalidPlay] = []
@@ -96,7 +97,10 @@ def apply_special_plays(
             seen_categories.add(entry.special_category)
     if invalid_plays:
         raise InvalidPlayListError(invalid_plays)
-    return gp.with_custom_special_plays(merged)
+    for category, custom in zip(
+        GamePlan.CUSTOM_SPECIAL_CATEGORIES, merged, strict=True
+    ):
+        gp.special_plays[category - 1].custom = custom
 
 
 def _resolve_normal_line(

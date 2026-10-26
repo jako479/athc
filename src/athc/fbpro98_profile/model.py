@@ -1,9 +1,11 @@
 """In-memory data model for FbPro98 .prf coaching profile files.
 
-Defines the immutable types that the reader produces and the writer consumes:
+Defines the mutable types that the reader produces and the writer consumes:
 ProfileType, SubstitutionPair, SubstitutionSettings, Situation, PatSituation,
 CategoryWeights, and the top-level Profile dataclass, plus the GameState and
-PatGameState that Profile decodes from a situation's position.
+PatGameState that Profile decodes from a situation's position. A profile is
+edited by assignment; `Profile.validate()` checks everything the file format
+imposes.
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ class ProfileType(IntEnum):
     OFFENSE = 1
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class SubstitutionPair:
     """One position group's `out`/`in` substitution thresholds (each 0-100, out <= in).
 
@@ -34,19 +36,8 @@ class SubstitutionPair:
     in_percent: int
     """Recovery threshold, 0-100; must be >= out_percent."""
 
-    def __post_init__(self) -> None:
-        if not 0 <= self.out_percent <= 100:
-            raise ValueError(f"out_percent must be in [0, 100], got {self.out_percent}")
-        if not 0 <= self.in_percent <= 100:
-            raise ValueError(f"in_percent must be in [0, 100], got {self.in_percent}")
-        if self.out_percent > self.in_percent:
-            raise ValueError(
-                f"out_percent ({self.out_percent}) must be <= "
-                f"in_percent ({self.in_percent})"
-            )
 
-
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class SubstitutionSettings:
     """All eight position groups' substitution thresholds.
 
@@ -65,24 +56,37 @@ class SubstitutionSettings:
     defensive_backs: SubstitutionPair
     kickers: SubstitutionPair
 
+    GROUPS: ClassVar[tuple[str, ...]] = (
+        "offensive_linemen",
+        "quarterbacks",
+        "running_backs",
+        "receivers",
+        "defensive_linemen",
+        "linebackers",
+        "defensive_backs",
+        "kickers",
+    )
+    """The eight groups, in file order."""
+
     @classmethod
     def default(cls) -> SubstitutionSettings:
         """Return a SubstitutionSettings with every pair at the game's default 80/90.
 
         Returns:
-            A SubstitutionSettings whose every pair is `SubstitutionPair(80, 90)`.
+            A SubstitutionSettings whose every pair is `SubstitutionPair(80, 90)`,
+            each group its own object, so editing one leaves the others.
         """
-        default = SubstitutionPair(out_percent=80, in_percent=90)
         return cls(
-            offensive_linemen=default,
-            quarterbacks=default,
-            running_backs=default,
-            receivers=default,
-            defensive_linemen=default,
-            linebackers=default,
-            defensive_backs=default,
-            kickers=default,
+            **{
+                group: SubstitutionPair(out_percent=80, in_percent=90)
+                for group in cls.GROUPS
+            }
         )
+
+    def pairs(self) -> Iterator[tuple[str, SubstitutionPair]]:
+        """Each group's name and pair, in file order."""
+        for group in self.GROUPS:
+            yield group, getattr(self, group)
 
 
 class Down(IntEnum):
@@ -168,7 +172,7 @@ class PatPointSpread(Enum):
     BEHIND_13_OR_MORE = 14  # Behind by 13+
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class GameState:
     """The five game-state buckets one regular situation slot stands for.
 
@@ -182,7 +186,7 @@ class GameState:
     point_spread: PointSpread
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class PatGameState:
     """The two game-state buckets one PAT situation slot stands for.
 
@@ -193,7 +197,7 @@ class PatGameState:
     point_spread: PatPointSpread
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Situation:
     """One regular situation's play-calling rules.
 
@@ -207,7 +211,7 @@ class Situation:
     category_weights: CategoryWeights
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class PatSituation:
     """One PAT (point-after-touchdown) situation's play-calling rule.
 
@@ -230,7 +234,7 @@ OFFENSE_DISPLAY_CATEGORIES: frozenset[int] = frozenset(range(0x00, 0x1B))
 DEFENSE_DISPLAY_CATEGORIES: frozenset[int] = frozenset(range(0x00, 0x16))
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class CategoryWeights:
     """Three weighted play-category picks used to drive AI play selection.
 
@@ -259,30 +263,21 @@ class CategoryWeights:
     weight3: int
     """Weight of play_category3, 0-10."""
 
-    def __post_init__(self) -> None:
-        for label, value in (
-            ("play_category1", self.play_category1),
-            ("play_category2", self.play_category2),
-            ("play_category3", self.play_category3),
-        ):
-            if not 0x00 <= value <= 0x1A:
-                raise ValueError(f"{label} must be in [0x00, 0x1A], got 0x{value:02X}")
-        for label, value in (
-            ("weight1", self.weight1),
-            ("weight2", self.weight2),
-            ("weight3", self.weight3),
-        ):
-            if not 0 <= value <= 10:
-                raise ValueError(f"{label} must be in [0, 10], got {value}")
+
+# The file's field widths: a play category code and a weight.
+_PLAY_CATEGORY_MAX = 0x1A
+_WEIGHT_MAX = 10
+_PERCENT_MAX = 100
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class Profile:
     """Full in-memory representation of a `.prf` coaching profile file.
 
-    See docs/formats/prf.md for the on-disk binary format. Construction validates
-    structural invariants (record counts and field-goal range) via
-    __post_init__; ValueError is raised for any violation.
+    See docs/formats/prf.md for the on-disk binary format. Edit by assignment;
+    `validate()` checks the structural invariants (record counts, the field
+    goal range) and every record's values, and the writer runs it before
+    packing.
     """
 
     NUMBER_SITUATIONS: ClassVar[int] = 2520
@@ -291,14 +286,24 @@ class Profile:
     FIELD_GOAL_RANGE_MAX: ClassVar[int] = 50
     profile_type: ProfileType
     substitutions: SubstitutionSettings
-    situations: tuple[Situation, ...]
-    pat_situations: tuple[PatSituation, ...]
+    situations: list[Situation]
+    pat_situations: list[PatSituation]
     field_goal_range: int
     """Max FG attempt distance; in [FIELD_GOAL_RANGE_MIN, FIELD_GOAL_RANGE_MAX]."""
 
     use_audibles: bool
 
-    def __post_init__(self) -> None:
+    def validate(self) -> None:
+        """Check everything the file format imposes; ValueError on the first
+        problem, naming the record or field and the value.
+
+        The profile type; the counts (2520 situations, 60 PAT situations);
+        the field goal range (5-50); each substitution pair (0-100, out at
+        most in); each situation's and PAT situation's play categories
+        (0x00-0x1A) and weights (0-10).
+        """
+        if self.profile_type not in (ProfileType.DEFENSE, ProfileType.OFFENSE):
+            raise ValueError(f"profile_type: Must be 0 or 1, got {self.profile_type}")
         if len(self.situations) != self.NUMBER_SITUATIONS:
             raise ValueError(
                 f"situations must have exactly {self.NUMBER_SITUATIONS} "
@@ -319,6 +324,12 @@ class Profile:
                 f"[{self.FIELD_GOAL_RANGE_MIN}, {self.FIELD_GOAL_RANGE_MAX}], "
                 f"got {self.field_goal_range}"
             )
+        for group, pair in self.substitutions.pairs():
+            _check_pair(f"substitutions.{group}", pair)
+        for number, situation in enumerate(self.situations, start=1):
+            _check_weights(f"situation {number}", situation.category_weights)
+        for number, pat in enumerate(self.pat_situations, start=1):
+            _check_weights(f"PAT situation {number}", pat.category_weights)
 
     @property
     def is_offense(self) -> bool:
@@ -414,19 +425,49 @@ class Profile:
             yield number, self.pat_game_state(number), pat
 
     @property
-    def stop_clock_situations(self) -> tuple[tuple[int, GameState, Situation], ...]:
+    def stop_clock_situations(self) -> list[tuple[int, GameState, Situation]]:
         """Return the walk's entries for the situations with stop_clock set.
 
         Only the 2520 regular game-state situations are inspected. PAT situations
         are not included since they have no stop_clock concept.
 
         Returns:
-            Tuple of `(situation_number, GameState, Situation)` triples for
+            List of `(situation_number, GameState, Situation)` triples for
             situations where `stop_clock` is True, in ascending situation_number
             order.
         """
-        return tuple(
+        return [
             (number, state, situation)
             for number, state, situation in self.iter_situations()
             if situation.stop_clock
+        ]
+
+
+def _check_pair(location: str, pair: SubstitutionPair) -> None:
+    _check_range(f"{location}.out_percent", pair.out_percent, 0, _PERCENT_MAX)
+    _check_range(f"{location}.in_percent", pair.in_percent, 0, _PERCENT_MAX)
+    if pair.out_percent > pair.in_percent:
+        raise ValueError(
+            f"{location}.out_percent: Must be at most in_percent "
+            f"({pair.in_percent}), got {pair.out_percent}"
         )
+
+
+def _check_weights(location: str, weights: CategoryWeights) -> None:
+    for field_name in ("play_category1", "play_category2", "play_category3"):
+        value = getattr(weights, field_name)
+        if not 0x00 <= value <= _PLAY_CATEGORY_MAX:
+            shown = f"0x{value:02X}" if value >= 0 else str(value)
+            raise ValueError(
+                f"{location}: {field_name}: Must be 0x00-0x{_PLAY_CATEGORY_MAX:02X}, "
+                f"got {shown}"
+            )
+    for field_name in ("weight1", "weight2", "weight3"):
+        _check_range(
+            f"{location}: {field_name}", getattr(weights, field_name), 0, _WEIGHT_MAX
+        )
+
+
+def _check_range(location: str, value: int, low: int, high: int) -> None:
+    if not low <= value <= high:
+        raise ValueError(f"{location}: Must be {low}-{high}, got {value}")
