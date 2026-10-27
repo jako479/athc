@@ -2,7 +2,7 @@
 
 Cases covered for the `.lge` league file library. Convention in [../../../docs/design/testing-unit.md](../../../docs/design/testing-unit.md).
 
-One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()` = constructed bytes (one team unless a shape is given), `golden` = real `.lge` in `data/` (`08_TEAMS.lge`, `10_TEAMS.LGE`, `12_TEAMS.LGE` one conference; `PNFL.lge` 18 teams, custom, 2049 after week 6; `NFLPA94.lge` 28; `NFLPI97R.LGE` 30; grouped by chunk kind: `NFLPA93E.LGE` 28, `_default.lge` 30; the PNFL's 2047 season: `PNFL-before-week1.lge`, `PNFL-after-week16.lge`, `PNFL-after-super-bowl.lge`; seasons' ends for the tie-breakers: `PNFL-2043-after-super-bowl.lge`, `PNFL-2046-after-super-bowl.lge`, `PNFL-2048-after-week16.lge`). Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_lge` → 133 passing.
+One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()` = constructed bytes (one team unless a shape is given; `make_roster_data()` builds one R03), `golden` = real `.lge` in `data/` (`08_TEAMS.lge`, `10_TEAMS.LGE`, `12_TEAMS.LGE` one conference; `PNFL.lge` 18 teams, custom, 2049 after week 6; `NFLPA94.lge` 28; `NFLPI97R.LGE` 30; grouped by chunk kind: `NFLPA93E.LGE` 28, `_default.lge` 30; the PNFL's 2047 season: `PNFL-before-week1.lge`, `PNFL-after-week16.lge`, `PNFL-after-super-bowl.lge`; seasons' ends for the tie-breakers: `PNFL-2043-after-super-bowl.lge`, `PNFL-2046-after-super-bowl.lge`, `PNFL-2048-after-week16.lge`). Status: ☐ planned · ☑ done. **Implemented** — `pytest tests/unit/fbpro98_lge` → 220 passing.
 
 ## reader.py — `parse_lge` / `read_lge`
 
@@ -84,12 +84,42 @@ One row per behavior. `[P]` = parametrized over variants. Input: `make_chunks()`
 | Unplayed playoff game with teams set | make_chunks | skipped, counted | `test_unplayed_playoff_game_skipped_and_counted` | ☑ |
 | Played playoff game with team 1 / N, team 0 / N+1 | make_chunks | read / "week 2: No team T (teams are 1-N)", numbered on from the regular season | `test_played_playoff_game_with_first_and_last_team_read` `[P]` / `test_played_playoff_game_with_unknown_team_rejected` `[P]` | ☑ |
 
+### Rosters
+| Case | Input | Expected | Test | Status |
+|---|---|---|---|---|
+| Custom league roster, every slot filled | golden | Denver (team 5): assigned[0] = 6283 #6, injured_reserve[9] = 6404 #80, 63 players, the permutation, no camp, the spec's 60-byte table | `test_custom_league_roster` | ☑ |
+| Empty slots are None, not players | golden | Jacksonville: open_inactive[6] (slot 53) and injured_reserve[7-9] (slots 61-63) None, every other slot filled; 59 players, the last at injured_reserve[6] | `test_empty_slots_are_none_and_not_players` | ☑ |
+| Roster team numbers 1..N, both chunk orders | golden | every real file | `test_roster_team_numbers_run_in_file_order` `[P]` | ☑ |
+| No real file has a camp set up | golden | every team's table zero | `test_no_real_file_has_a_training_camp_set_up` `[P]` | ☑ |
+| `team_of` | golden | Denver's assigned[0], Jacksonville's open_inactive[0]; unknown id and 0 → None | `test_team_of_rostered_and_unknown_ids` | ☑ |
+| Grouped order pairs roster k with team k | make_chunks | last team's roster number = N | `test_grouped_order_reads_like_nested` `[P]` | ☑ |
+| Every field at its offset, slots 1 and 63, id and jersey at their maxima | make_chunks | assigned[0], injured_reserve[9], permutation, camp rows in order, unknown bytes as written; `players` skips the empty slots | `test_roster_fields_read_at_their_offsets` | ☑ |
+| Slots split into the status groups at their boundaries | make_chunks | a player in slots 1, 34, 35, 46, 47, 53, 54 and 63 lands at each group's first and last index | `test_slots_split_into_the_status_groups_at_their_boundaries` | ☑ |
+| Empty slot with a jersey byte | make_chunks | None | `test_empty_slot_is_none_whatever_its_jersey_byte` | ☑ |
+| Mask keyed by the roster's own u16 number 0, 1, 255, 256, 65535 | make_chunks | number and player read; not checked against the team's | `test_roster_team_number_in_chunk_keys_the_mask` `[P]` | ☑ |
+| Camp row totalling 100 / a byte 101 / a row totalling 101 | make_chunks | read as is; `validate()` passes / rejects / rejects (the messages are model.py's rows) | `test_camp_read_as_is_and_checked_only_by_validate` `[P]` | ☑ |
+
+No real file has a training camp set up, so the camp's offset and row order are pinned only by the builder, which places the fields with the reader's own constants.
+
 ## model.py
+
+`model` = an `LgeFile` built in Python; `validate()` rules each at their limit and one past it.
 
 | Case | Expected | Test | Status |
 |---|---|---|---|
 | `teams` walks conferences, divisions and teams in order | four teams over two conferences | `test_teams_walks_conferences_divisions_and_teams_in_order` | ☑ |
-| Edit by assignment | a record's wins changed, a team removed from its division | `test_lge_is_edited_by_assignment` | ☑ |
+| Edit by assignment | a record's wins changed, a player put on injured reserve, a team removed from its division | `test_lge_is_edited_by_assignment` | ☑ |
+| `players` | the filled slots of the four groups in slot order, empty ones skipped | `test_players_lists_the_filled_slots_in_slot_order` | ☑ |
+| `team_of`, an id on two teams; unknown id and 0 | the first team in file order; None | `test_team_of_finds_the_first_team_in_file_order`, `test_team_of_unknown_or_empty_id_is_none` `[P]` | ☑ |
+| Valid file; file without teams | passes | `test_valid_file_passes`, `test_file_without_teams_passes` | ☑ |
+| Team number 0 / 65535 / 65536, −1; permutation 10 / 9, 11 bytes; unknown 60 / 59, 61; camp 8 / 7, 9 rows | pass / "team 1: roster: team_number: Must be 0-65535" / "permutation: Must be 10 bytes" / "unknown: Must be 60 bytes" / "training camp: Must be 8 rows" | `test_roster_field_at_its_limit_accepted` `[P]`, `test_roster_field_past_its_limit_rejected` `[P]` | ☑ |
+| Each status group one slot short or long (33, 35 / 11, 13 / 6, 8 / 9, 11) | "Assigned: Must be 34 slots" and the rest, named as on the screen; at its size = the valid roster | `test_group_size_off_by_one_rejected` `[P]` | ☑ |
+| Player id 1, 65535 / 0, 65536; jersey 0, 255 / 256, −1; in a later group | pass / "Assigned slot 1: player_id: Must be 1-65535" / "Assigned slot 1: jersey: Must be 0-255" / "Injured Reserve slot 10: jersey: ..." (slots counted from 1) | `test_player_field_at_its_limit_accepted` `[P]`, `test_player_field_past_its_limit_rejected` `[P]` | ☑ |
+| Camp row of 7 or 9 values | "training camp: QB: Must be 8 values" | `test_camp_row_length_off_by_one_rejected` `[P]` | ☑ |
+| Camp byte 100 / 101, −1 | pass / "training camp: P/K: ST: Must be 0-100" | `test_camp_byte_at_its_limit_accepted`, `test_camp_byte_past_its_limit_rejected` `[P]` | ☑ |
+| Camp row totalling 100 / 101 | pass / "training camp: QB: Must total at most 100, got 101" | `test_camp_row_total_at_its_limit_accepted`, `test_camp_row_total_past_its_limit_rejected` | ☑ |
+| Problem in the second team, its roster numbered 7 | "team 2: roster: Assigned: Must be 34 slots, got 0" (its position, not the roster's number) | `test_problem_in_a_later_team_names_that_team` | ☑ |
+| Bad team 1 and bad team 2 | team 1's message | `test_first_problem_in_file_order_reported` | ☑ |
 | Official name, either part empty | `"Denver Broncos"`, `"Denver"`, `"Broncos"`, `""` | `test_official_name` `[P]` | ☑ |
 | Record totals | games, win percentage (ties half, 0.0 with no games), point differential | `test_record_totals` `[P]` | ☑ |
 | `ranked` orders from the games, not the records | winner first though listed second | `test_ranked_orders_from_the_files_games_not_the_records` | ☑ |

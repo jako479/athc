@@ -22,6 +22,7 @@ from athc.fbpro98_lge import Conference, Division, Game, LgeFile, Record, Team
 from athc.scheduler.domain.league import League
 from athc.scheduler.league_files import league_from_files, load_league
 from athc.scheduler.schedulers.errors import SchedulerError
+from tests.unit.fbpro98_lge.conftest import build_empty_roster
 
 DATA = Path(__file__).resolve().parents[2] / "integration" / "data"
 LEAGUE = "divisions"
@@ -272,7 +273,7 @@ NO_GAMES = Record(0, 0, 0, 0, 0)
 
 
 def _team(name: str, record: Record = NO_GAMES) -> Team:
-    return Team(name=name, nickname="", record=record)
+    return Team(name=name, nickname="", record=record, roster=build_empty_roster())
 
 
 def _conference(name: str, *divisions: tuple[str, Sequence[Team]]) -> Conference:

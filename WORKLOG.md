@@ -4,6 +4,39 @@ History of what changed and why: one entry per session or piece of work, at a
 high level — what was worked on and the reasoning, not the resulting state.
 Where things stand now: [STATUS.md](STATUS.md).
 
+- 2026-10-26 — **fbpro98_lge rosters**: the reader now decodes the R03
+  chunk it used to skip, so every `Team` carries its roster: a coming tool
+  needs each team's players and depth, and `.lge` parsing belongs in this
+  library, not in the tool. The model follows the spec's
+  section 6 (the training camp in the screen's group order and the `.pyr`
+  rating order, the permutation and 60-byte table kept as read for a
+  writer), with one `LgeFile.validate()` on the pyr library's pattern,
+  which the reader does not call: nothing but the camp bytes can break a
+  rule, and a tool that never looks at rosters should not be refused its
+  league over them; whether the game would refuse such a file is untested,
+  since no sampled file has one. A scan of every `.lge` under `tests/`
+  showed the spec's camp rules hold in every real file; only the two
+  conference league files the integration tests build broke them, because
+  the test builder wrote its roster zeros unmasked, so the builder now
+  masks and the files were regenerated (the schedule goldens do not depend
+  on roster bytes). The ImHex pattern had the roster tail wrong (a 9-byte
+  permutation and 65 zero bytes); it now matches the spec, checked headless
+  against `PNFL.lge`. `resolve_team`, `team_not_set` and `TEAM_KEY` are
+  exported from `athc.cli`, so another package uses the team layer without
+  the private module. A test review then tightened the tests: the
+  later-team `validate()` case now gives that roster a number unlike its
+  position, the reader's camp case no longer repeats the model's messages,
+  and the test matrices say what the real files cannot pin. A design review
+  then reshaped the roster: a slot's index and status are the roster's, not
+  the player's, as with a profile's situations, so the 63 `RosterSlot`s with
+  their `SlotStatus` became four lists, `assigned`, `open_active`,
+  `open_inactive` and `injured_reserve`, at the screen's sizes, each
+  holding a `RosterPlayer` (id and jersey) or `None` for an empty slot;
+  `players` joins them in slot order. Slots are counted from 1 wherever
+  they are numbered in words (the spec, the docs, the messages), since a
+  list index is not a slot number; `validate()` names a place as the
+  game's screens do ("Assigned slot 4", "training camp: QB: AC") rather
+  than as a Python index.
 - 2026-10-26 — **fbpro98_pyr**: a read-only library for the `.pyr` player
   file, on the mutable-model shape (plain dataclasses, dicts by id,
   one `validate()` the reader calls last). The coding table is learned from

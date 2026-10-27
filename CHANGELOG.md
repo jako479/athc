@@ -7,6 +7,8 @@ high-level change completed alongside it gets its own line.
 
 ## athc
 
+- athc: `resolve_team`, `team_not_set` and `TEAM_KEY` are public in `athc.cli`
+- fbpro98_lge: reads each team's roster from the league's .lge: its players by id and jersey number in the four status groups, the training camp table, and which team holds a player
 - fbpro98_pyr: reads a league's .pyr player file: every player by id with names, position, group, years, injury, height, weight and both rating sets
 - athc: the six game-file libraries read a file into an object edited by assignment and written back; one `validate()` per written file class checks every rule the format imposes before a write
 - athc: game plans, profiles and the settings files are written whole or not at all: the bytes go to a temp file beside the target and are swapped in

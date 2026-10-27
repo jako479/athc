@@ -9,8 +9,10 @@ import pytest
 from athc.fbpro98_lge import Conference, Division, Game, LgeFile, Record, Team
 from athc.fbpro98_standings import Standings
 from athc.standings import Split, View, difference, percentage, record, render
+from tests.unit.fbpro98_lge.conftest import build_empty_roster
 
 NO_GAMES = Record(0, 0, 0, 0, 0)
+
 
 # Conference name -> division name -> teams as (name, nickname).
 Shape = Sequence[tuple[str, Sequence[tuple[str, Sequence[tuple[str, str]]]]]]
@@ -21,7 +23,9 @@ Played = tuple[str, int, str, int]
 def _league(shape: Shape, games: Sequence[Played] = ()) -> LgeFile:
     """One regular-season week per game."""
     teams = {
-        name: Team(name=name, nickname=nickname, record=NO_GAMES)
+        name: Team(
+            name=name, nickname=nickname, record=NO_GAMES, roster=build_empty_roster()
+        )
         for _, divisions in shape
         for _, members in divisions
         for name, nickname in members

@@ -478,3 +478,13 @@ def test_plain_files_need_no_league(runner, work: Path) -> None:
     result = run(runner, "copy", str(OFF1), str(target), "--stop-clock")
     assert result.exit_code == 0
     assert "1 file(s) processed, 1 updated" in result.stdout
+
+
+def test_team_layer_names_are_public() -> None:
+    # Another package uses the team layer through athc.cli, never _team.
+    import athc.cli
+    from athc.cli import _team
+
+    assert athc.cli.resolve_team is _team.resolve_team
+    assert athc.cli.team_not_set is _team.team_not_set
+    assert athc.cli.TEAM_KEY == _team.TEAM_KEY

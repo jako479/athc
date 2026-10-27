@@ -9,7 +9,16 @@ from pathlib import Path
 
 from athc.errors import FileFormatError
 from athc.fbpro98_lge._standings import rank, season_from_games
-from athc.fbpro98_lge.model import Conference, Division, Game, LgeFile, Record, Team
+from athc.fbpro98_lge.model import (
+    Conference,
+    Division,
+    Game,
+    LgeFile,
+    Record,
+    Roster,
+    RosterPlayer,
+    Team,
+)
 from athc.fbpro98_lge.schema import (
     CHUNK_HEADER,
     CONFERENCE_BASE_SIZE,
@@ -31,7 +40,23 @@ from athc.fbpro98_lge.schema import (
     MASK_FACTOR,
     NAME_SIZE,
     NICKNAME_OFFSET,
+    ROSTER_ASSIGNED_SLOTS,
+    ROSTER_CAMP_OFFSET,
+    ROSTER_CAMP_ROW,
+    ROSTER_CAMP_ROWS,
     ROSTER_CHUNK_SIZE,
+    ROSTER_INJURED_RESERVE_SLOTS,
+    ROSTER_NUMBERS_OFFSET,
+    ROSTER_OPEN_ACTIVE_SLOTS,
+    ROSTER_OPEN_INACTIVE_SLOTS,
+    ROSTER_PERMUTATION_OFFSET,
+    ROSTER_PERMUTATION_SIZE,
+    ROSTER_PLAYERS,
+    ROSTER_PLAYERS_OFFSET,
+    ROSTER_SLOTS,
+    ROSTER_TEAM_SIZE,
+    ROSTER_UNKNOWN_OFFSET,
+    ROSTER_UNKNOWN_SIZE,
     SCHEDULE_HEADER_SIZE,
     SCHEDULE_PLAYOFF_ROUNDS_OFFSET,
     SCHEDULE_REGULAR_WEEKS_OFFSET,
@@ -44,6 +69,10 @@ StrPath = str | PathLike[str]
 
 # A conference's name and its divisions' names and team counts, in file order.
 _Heads = list[tuple[str, list[tuple[str, int]]]]
+
+# What the tree's chunks give: the heads, then each team's names and roster,
+# in file order.
+_Tree = tuple[_Heads, list[tuple[str, str]], list[Roster]]
 
 # A played game as the file has it: home team number, home score, away team
 # number, away score.
@@ -111,12 +140,15 @@ def parse_lge(buffer: bytes, path: StrPath = "<buffer>") -> LgeFile:
         ID_L03, LEAGUE_BASE_SIZE, LEAGUE_CONFERENCES_OFFSET
     )
     walk = _walk_grouped if chunks.grouped() else _walk_nested
-    heads, names = walk(chunks, conference_count)
+    heads, names, rosters = walk(chunks, conference_count)
     # Required after the tree, so a tree with more conferences, divisions or
     # teams than its counts say fails here.
     schedule = _read_schedule(chunks, len(names))
     chunks.finish()
-    teams, conferences = _build(heads, names, schedule)
+    teams, conferences = _build(heads, names, rosters, schedule)
+    # Not validated: the roster fields are fixed-size, so only the training
+    # camp percentages could break a rule, and a tool that never looks at
+    # rosters should not be refused its league over them.
     return LgeFile(
         conferences=conferences,
         weeks=_games(schedule.weeks, teams),
@@ -125,13 +157,12 @@ def parse_lge(buffer: bytes, path: StrPath = "<buffer>") -> LgeFile:
     )
 
 
-def _walk_nested(
-    chunks: _Chunks, conference_count: int
-) -> tuple[_Heads, list[tuple[str, str]]]:
+def _walk_nested(chunks: _Chunks, conference_count: int) -> _Tree:
     # Each conference, then its divisions, each followed by its teams, each
     # followed by its roster.
     heads: _Heads = []
     names: list[tuple[str, str]] = []
+    rosters: list[Roster] = []
     for _ in range(conference_count):
         name, division_count = _take_conference(chunks)
         divisions: list[tuple[str, int]] = []
@@ -140,14 +171,12 @@ def _walk_nested(
             divisions.append((division_name, team_count))
             for _ in range(team_count):
                 names.append(_take_team(chunks))
-                _take_roster(chunks)
+                rosters.append(_take_roster(chunks))
         heads.append((name, divisions))
-    return heads, names
+    return heads, names, rosters
 
 
-def _walk_grouped(
-    chunks: _Chunks, conference_count: int
-) -> tuple[_Heads, list[tuple[str, str]]]:
+def _walk_grouped(chunks: _Chunks, conference_count: int) -> _Tree:
     # Every conference, then every division, team and roster, in the same order
     # as a nested file; the counts nest them.
     conferences = [_take_conference(chunks) for _ in range(conference_count)]
@@ -156,9 +185,8 @@ def _walk_grouped(
     heads = [(name, list(islice(divisions, count))) for name, count in conferences]
     team_count = sum(count for _, division in heads for _, count in division)
     names = [_take_team(chunks) for _ in range(team_count)]
-    for _ in range(team_count):
-        _take_roster(chunks)
-    return heads, names
+    rosters = [_take_roster(chunks) for _ in range(team_count)]
+    return heads, names, rosters
 
 
 def _read_schedule(chunks: _Chunks, team_count: int) -> _Schedule:
@@ -244,14 +272,19 @@ def _record(scores: list[tuple[int, int]]) -> Record:
 
 
 def _build(
-    heads: _Heads, names: list[tuple[str, str]], schedule: _Schedule
+    heads: _Heads,
+    names: list[tuple[str, str]],
+    rosters: list[Roster],
+    schedule: _Schedule,
 ) -> tuple[list[Team], list[Conference]]:
     """The teams in file order (team N at index N - 1, the numbers the
     schedule uses) and the conference tree, each division and conference with
     its standings."""
     teams = [
-        Team(name=name, nickname=nickname, record=record)
-        for (name, nickname), record in zip(names, schedule.records, strict=True)
+        Team(name=name, nickname=nickname, record=record, roster=roster)
+        for (name, nickname), roster, record in zip(
+            names, rosters, schedule.records, strict=True
+        )
     ]
     division_of: dict[int, int] = {}
     conference_of: dict[int, int] = {}
@@ -317,9 +350,39 @@ def _take_team(chunks: _Chunks) -> tuple[str, str]:
     )
 
 
-def _take_roster(chunks: _Chunks) -> None:
-    # Every team has a roster; it is not read.
-    chunks.take(ID_R03, ROSTER_CHUNK_SIZE)
+def _take_roster(chunks: _Chunks) -> Roster:
+    data = chunks.take(ID_R03, ROSTER_CHUNK_SIZE)
+    # Bytes 0-1 are the team number, in clear; it keys the mask on the rest.
+    team = int.from_bytes(data[:ROSTER_TEAM_SIZE], "little")
+    fields = _unmask(team, data[ROSTER_TEAM_SIZE:])
+    ids = ROSTER_PLAYERS.unpack_from(fields, ROSTER_PLAYERS_OFFSET)
+    jerseys = fields[ROSTER_NUMBERS_OFFSET : ROSTER_NUMBERS_OFFSET + ROSTER_SLOTS]
+    # An id of 0 is an empty slot, whatever its jersey byte.
+    slots = (
+        RosterPlayer(player_id=player_id, jersey=jersey) if player_id else None
+        for player_id, jersey in zip(ids, jerseys, strict=True)
+    )
+    return Roster(
+        team_number=team,
+        assigned=list(islice(slots, ROSTER_ASSIGNED_SLOTS)),
+        open_active=list(islice(slots, ROSTER_OPEN_ACTIVE_SLOTS)),
+        open_inactive=list(islice(slots, ROSTER_OPEN_INACTIVE_SLOTS)),
+        injured_reserve=list(islice(slots, ROSTER_INJURED_RESERVE_SLOTS)),
+        permutation=_field(fields, ROSTER_PERMUTATION_OFFSET, ROSTER_PERMUTATION_SIZE),
+        training_camp=[
+            list(
+                ROSTER_CAMP_ROW.unpack_from(
+                    fields, ROSTER_CAMP_OFFSET + row * ROSTER_CAMP_ROW.size
+                )
+            )
+            for row in range(ROSTER_CAMP_ROWS)
+        ],
+        unknown=_field(fields, ROSTER_UNKNOWN_OFFSET, ROSTER_UNKNOWN_SIZE),
+    )
+
+
+def _field(data: bytes, offset: int, size: int) -> bytes:
+    return data[offset : offset + size]
 
 
 def _unmask(team: int, data: bytes) -> bytes:

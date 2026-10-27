@@ -53,6 +53,9 @@ Umbrella concerns: CLI, config, logging, docs, project tooling, install.
 
 ### CLI and help (1.0.0)
 
+- `athc.cli` exports (2026-10-26): `resolve_team`, `team_not_set` and
+  `TEAM_KEY` are public there, so another package uses the team layer
+  without importing `athc.cli._team`.
 - CLI tests reviewed (2026-10-23): the team plans and profiles in the test
   data are the test set; shared path and team handling is tested once; every
   batch command's bug-in-one-file path is covered; the packaging checks run
@@ -324,9 +327,24 @@ Docs: [spec](docs/formats/lg2.md)
 
 ## fbpro98_lge (library)
 
-Reads conference, division and team names, standings and the played games
-from a league's `.lge`. Docs: [spec](docs/formats/lge.md)
+Reads conference, division and team names, rosters, standings and the played
+games from a league's `.lge`. Docs: [design](docs/design/fbpro98_lge.md),
+[spec](docs/formats/lge.md)
 
+- Rosters (2026-10-26): each team's players by `.pyr` id with jersey
+  numbers, in the roster screen's four status groups (Assigned, Open
+  Active, Open Inactive, Injured Reserve) and slot order with `None` for an
+  empty slot, the training camp table, and the permutation and 60-byte
+  table kept as read; `team_of(player_id)` finds a player's team. For a
+  tool that needs each team's players and depth. `LgeFile.validate()`
+  checks the roster rules the spec states (group sizes, id and jersey
+  ranges, byte lengths, camp percentages 0-100 and a row at most 100) for
+  an edit or a future writer; the reader does not call it, since nothing
+  but the camp bytes can break a rule and a tool that never looks at
+  rosters should not be refused its league over them (whether the game
+  would refuse such a file is untested; no sampled file has one). The two
+  built conference league files in the integration data were regenerated:
+  their rosters were unmasked zeros.
 - Mutable model (2026-10-26): list fields, edited by assignment; `ranked`
   returns a list; teams are found by identity; no writer.
 - Standings: each team's W-L-T, PF and PA from the schedule; division and
@@ -344,8 +362,8 @@ from a league's `.lge`. Docs: [spec](docs/formats/lge.md)
 ## fbpro98 league files (specs)
 
 Reverse engineered from the PNFL's game files; `.lge`, `.pyr` and `.dat` have
-a library so far (`fbpro98_lge`, names and standings; `fbpro98_pyr`, the
-players; `fbpro98_stats`, the stats). Docs:
+a library so far (`fbpro98_lge`, names, rosters and standings; `fbpro98_pyr`,
+the players; `fbpro98_stats`, the stats). Docs:
 [overview](docs/formats/README.md), [lge spec](docs/formats/lge.md),
 [pyr spec](docs/formats/pyr.md), [cities spec](docs/formats/cities.md),
 [stats spec](docs/formats/stats.md), [notes](docs/research/pnfl-formats.md).

@@ -6,6 +6,8 @@ from athc.fbpro98_lge.model import (
     Game,
     LgeFile,
     Record,
+    Roster,
+    RosterPlayer,
     Team,
     ranked,
 )
@@ -18,6 +20,8 @@ __all__ = [
     "InvalidLgeError",
     "LgeFile",
     "Record",
+    "Roster",
+    "RosterPlayer",
     "Team",
     "parse_lge",
     "ranked",

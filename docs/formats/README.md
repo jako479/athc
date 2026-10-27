@@ -36,7 +36,7 @@ one exists, sits beside it.
 - `.lge` league: a chunk tree, depth-first; team numbers 1..N follow it and
   key every other file. Team and roster chunks masked (below). Spec:
   [lge.md](lge.md). Library: `fbpro98_lge` (conference, division and team
-  names; standings; the played games and playoff results), used by
+  names; rosters; standings; the played games and playoff results), used by
   `generate-schedule`. One layout in every sampled league, nested or grouped
   by chunk kind (five stock files); the 8-12 team stock leagues have a
   one-byte-shorter league chunk. Holds:

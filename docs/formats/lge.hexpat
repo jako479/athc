@@ -247,12 +247,17 @@ fn team_chunk_format(ref auto t) {
 
 // ---- R03: roster, masked ----
 
+// One Training Camp row: a percentage per rating, in .pyr order.
+struct CampRow<auto Team, auto Start> {
+    MU8<Team, Start> ratings[8] [[comment("AC AG DI EN HA IN SP ST")]];
+};
+
 struct RosterFields<auto Team, auto Start> {
-    MU16<Team, Start> players[63] [[comment("Player ids (.pyr), 0 = empty. Slots 0-33 Assigned, 34-45 Open Active, 46-52 Open Inactive, 53-62 Injured Reserve")]];
+    MU16<Team, Start> players[63] [[comment("Player ids (.pyr), 0 = empty. Slots 1-34 Assigned, 35-46 Open Active, 47-53 Open Inactive, 54-63 Injured Reserve")]];
     MU8<Team, Start> numbers[63] [[comment("Jersey number per slot")]];
-    MBytes<Team, Start, 9> permutation;
-    MBytes<Team, Start, 65> zero;
-    MBytes<Team, Start, 60> table;
+    MBytes<Team, Start, 10> permutation [[comment("A permutation of 0-9; meaning unknown")]];
+    CampRow<Team, Start> trainingCamp[8] [[comment("One row per group QB, RB, REC, OL, DL, LB, DB, P/K")]];
+    MBytes<Team, Start, 60> unknown [[comment("The same in every team")]];
 };
 
 struct RosterChunk {

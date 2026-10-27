@@ -14,6 +14,7 @@ from athc.fbpro98_standings.methods import METHODS, MethodRules, Rules
 from athc.fbpro98_standings.season import season_of
 from athc.fbpro98_standings.standings import _Ranker
 from athc.fbpro98_standings.steps import Context, Values
+from tests.unit.fbpro98_lge.conftest import build_empty_roster
 from tests.unit.fbpro98_standings.leagues import (
     NO_GAMES,
     build_league,
@@ -112,8 +113,8 @@ def test_an_empty_division_has_no_standings():
 
 def test_teams_that_look_alike_stay_apart():
     # Two teams equal in every field: told apart by position, never by value.
-    first = Team(name="A", nickname="", record=NO_GAMES)
-    second = Team(name="A", nickname="", record=NO_GAMES)
+    first = Team(name="A", nickname="", record=NO_GAMES, roster=build_empty_roster())
+    second = Team(name="A", nickname="", record=NO_GAMES, roster=build_empty_roster())
     division = Division(name="D1", teams=[first, second], standings=[first, second])
     lge = LgeFile(
         conferences=[

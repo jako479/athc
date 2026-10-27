@@ -46,7 +46,7 @@ Libraries:
 
 - [fbpro98_gameplan.md](design/fbpro98_gameplan.md) — `.pln` game plans, read and write
 - [fbpro98_lg2.md](design/fbpro98_lg2.md) — `.lg2`: each team's profile and game plan files
-- [fbpro98_lge.md](design/fbpro98_lge.md) — `.lge`: conferences, divisions, teams, standings and games
+- [fbpro98_lge.md](design/fbpro98_lge.md) — `.lge`: conferences, divisions, teams, rosters, standings and games
 - [fbpro98_play.md](design/fbpro98_play.md) — `.ply` plays
 - [fbpro98_profile.md](design/fbpro98_profile.md) — `.prf` coaching profiles, read and write
 - [fbpro98_pyr.md](design/fbpro98_pyr.md) — `.pyr`: every player by id, with position, ratings and injury

@@ -623,6 +623,7 @@ In [test_team.py](test_team.py). `build_teams` in [conftest.py](conftest.py) bui
 | `--team` with no key | check: no PATH / a path / a wildcard; diff; copy | exit 2; stderr ends `Error: --team requires a profile key (off1, def1, off2 or def2).`; stdout empty | `test_team_option_needs_a_key` `[P]` | ☑ |
 | `--league NOPE` | plain and key runs of check / diff / copy | exit 2; the league-not-found line | `test_unknown_league` `[P]` | ☑ |
 | No league, plain files | no athc.toml, no league folder | diff and copy run, exit 0 | `test_plain_files_need_no_league` | ☑ |
+| The team layer's names on `athc.cli` | `resolve_team`, `team_not_set`, `TEAM_KEY` | the same objects as the private module's | `test_team_layer_names_are_public` | ☑ |
 
 ---
 

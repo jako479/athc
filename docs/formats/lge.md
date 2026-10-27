@@ -161,30 +161,30 @@ Bytes 0-1 are the team number (u16), in clear. Bytes 2-324 are masked (section 8
 
 `pnfl.rst` is these 18 chunks, byte for byte, in the sample, except training camp (below); in the 2048 preseason copies its permutations differ (below).
 
-Slot status, the "A"/"O"/"I" column of the game's roster screen; no status byte exists:
+Slot status, the "A"/"O"/"I"/"IF" column of the game's roster screen; no status byte exists. Slots are counted from 1 here, in array order:
 
 | Slots | Status          | Screen | Note                                                    |
 | ----: | :-------------- | :----- | :------------------------------------------------------ |
-|  0-33 | Assigned        | "A"    | The depth chart (below)                                 |
-| 34-45 | Open Active     | "O"    | Depth numbers carry on (WR5, WR6)                       |
-| 46-52 | Open Inactive   | "I"    | No depth number                                         |
-| 53-62 | Injured Reserve | "IF"   | The game's ten IR slots; not in the roster counts       |
+|  1-34 | Assigned        | "A"    | The depth chart (below)                                 |
+| 35-46 | Open Active     | "O"    | Depth numbers carry on (WR5, WR6)                       |
+| 47-53 | Open Inactive   | "I"    | No depth number                                         |
+| 54-63 | Injured Reserve | "IF"   | The game's ten IR slots; not in the roster counts       |
 
-Checked against Denver's roster screen: Assigned 34, Open Active 12, Open Inactive 7. Denver's slots 53-62 hold two injured players and eight healthy ones: a player stays on IR until the next season, even once healed, and the PNFL also uses the IR slots as a practice squad.
+Checked against Denver's roster screen: Assigned 34, Open Active 12, Open Inactive 7. Denver's slots 54-63 hold two injured players and eight healthy ones: a player stays on IR until the next season, even once healed, and the PNFL also uses the IR slots as a practice squad.
 
 Depth chart slots, the same in all 18 teams of `PNFL.lge`:
 
 | Slots | Group           | Positions |
 | ----: | :-------------- | :-------- |
-|   0-1 | Quarterbacks    | QB        |
-|   2-4 | Running backs   | HB, FB    |
-|   5-9 | Receivers       | WR, TE    |
-| 10-15 | Offensive line  | C, G, T   |
-| 16-19 | Defensive line  | DE, DT    |
-| 20-24 | Linebackers     | LB        |
-| 25-31 | Defensive backs | S, CB     |
-|    32 | Kicker          | K         |
-|    33 | Punter          | P         |
+|   1-2 | Quarterbacks    | QB        |
+|   3-5 | Running backs   | HB, FB    |
+|  6-10 | Receivers       | WR, TE    |
+| 11-16 | Offensive line  | C, G, T   |
+| 17-20 | Defensive line  | DE, DT    |
+| 21-25 | Linebackers     | LB        |
+| 26-32 | Defensive backs | S, CB     |
+|    33 | Kicker          | K         |
+|    34 | Punter          | P         |
 
 Order inside a group is depth: the roster screen numbers each position in slot order (QB1, QB2, DE1). Positions mix inside a group (Las Vegas lists a TE first among its receivers).
 

@@ -16,6 +16,7 @@ from athc.fbpro98_lge import (
     InvalidLgeError,
     LgeFile,
     Record,
+    RosterPlayer,
     Team,
     parse_lge,
     ranked,
@@ -27,11 +28,13 @@ from athc.fbpro98_lge.schema import (
     ID_C03,
     ID_D03,
     ID_L03,
+    ID_R03,
     ID_S03,
     ID_T03,
     NAME_SIZE,
     TEAM_TEXT_SIZE,
 )
+from tests.unit.fbpro98_lge.conftest import build_empty_roster
 
 FIXTURE_DIR = Path(__file__).resolve().parent / "data"
 LEAGUE = "PNFL"
@@ -40,7 +43,33 @@ LEAGUE = "PNFL"
 BEFORE_WEEK1 = "PNFL-before-week1.lge"
 WEEK16 = "PNFL-after-week16.lge"
 SUPER_BOWL = "PNFL-after-super-bowl.lge"
+# Every real file in data/.
+REAL_FILES = (
+    "08_TEAMS.lge",
+    "10_TEAMS.LGE",
+    "12_TEAMS.LGE",
+    "PNFL.lge",
+    "NFLPA94.lge",
+    "NFLPI97R.LGE",
+    "NFLPA93E.LGE",
+    "_default.lge",
+    BEFORE_WEEK1,
+    WEEK16,
+    SUPER_BOWL,
+    "PNFL-2043-after-super-bowl.lge",
+    "PNFL-2046-after-super-bowl.lge",
+    "PNFL-2048-after-week16.lge",
+)
 NO_GAMES = Record(0, 0, 0, 0, 0)
+NO_CAMP = [[0] * 8 for _ in range(8)]
+# The 60-byte table of lge.md section 6.
+SPEC_TABLE = bytes.fromhex(
+    "11 22 53 42 23 21 12 54 23 21 14 25 "
+    "23 21 14 52 23 31 15 14 23 22 13 52 "
+    "32 22 12 53 15 22 12 52 33 22 11 44 "
+    "25 22 11 52 22 21 23 44 43 31 22 14 "
+    "22 31 24 24 11 16 12 71 11 16 12 71"
+)
 
 # Chunk positions in the default one-team built file.
 L03, C03, D03, T03, R03, S03 = range(6)
@@ -77,8 +106,9 @@ def _names(team: Team) -> tuple[str, str]:
 
 # --- real files ---
 
-# PNFL.lge's tree: conference name, then each division's name and teams in
-# file order (standings are checked separately below).
+# PNFL.lge's tree: conference name, then each division's name and teams
+# (name, nickname, record) in file order (standings and rosters are checked
+# separately below).
 PNFL_TREE = (
     (
         "",
@@ -86,20 +116,20 @@ PNFL_TREE = (
             (
                 "East",
                 (
-                    Team("Jacksonville", "Jaguars", Record(5, 1, 0, 164, 112)),
-                    Team("San Diego", "Chargers", Record(4, 2, 0, 145, 105)),
-                    Team("New England", "Patriots", Record(2, 4, 0, 114, 155)),
-                    Team("Miami", "Dolphins", Record(2, 4, 0, 144, 154)),
+                    ("Jacksonville", "Jaguars", Record(5, 1, 0, 164, 112)),
+                    ("San Diego", "Chargers", Record(4, 2, 0, 145, 105)),
+                    ("New England", "Patriots", Record(2, 4, 0, 114, 155)),
+                    ("Miami", "Dolphins", Record(2, 4, 0, 144, 154)),
                 ),
             ),
             (
                 "West",
                 (
-                    Team("Denver", "Broncos", Record(2, 4, 0, 131, 157)),
-                    Team("Las Vegas", "Raiders", Record(3, 3, 0, 132, 129)),
-                    Team("Cincinnati", "Bengals", Record(2, 4, 0, 138, 149)),
-                    Team("Baltimore", "Ravens", Record(4, 2, 0, 166, 137)),
-                    Team("Pittsburgh", "Steelers", Record(3, 3, 0, 137, 119)),
+                    ("Denver", "Broncos", Record(2, 4, 0, 131, 157)),
+                    ("Las Vegas", "Raiders", Record(3, 3, 0, 132, 129)),
+                    ("Cincinnati", "Bengals", Record(2, 4, 0, 138, 149)),
+                    ("Baltimore", "Ravens", Record(4, 2, 0, 166, 137)),
+                    ("Pittsburgh", "Steelers", Record(3, 3, 0, 137, 119)),
                 ),
             ),
         ),
@@ -110,20 +140,20 @@ PNFL_TREE = (
             (
                 "East",
                 (
-                    Team("Atlanta", "Falcons", Record(4, 2, 0, 130, 122)),
-                    Team("New York", "Giants", Record(1, 5, 0, 121, 164)),
-                    Team("Philadelphia", "Eagles", Record(3, 3, 0, 138, 149)),
-                    Team("Washington", "Redskins", Record(2, 4, 0, 92, 129)),
+                    ("Atlanta", "Falcons", Record(4, 2, 0, 130, 122)),
+                    ("New York", "Giants", Record(1, 5, 0, 121, 164)),
+                    ("Philadelphia", "Eagles", Record(3, 3, 0, 138, 149)),
+                    ("Washington", "Redskins", Record(2, 4, 0, 92, 129)),
                 ),
             ),
             (
                 "West",
                 (
-                    Team("Green Bay", "Packers", Record(2, 4, 0, 113, 137)),
-                    Team("Chicago", "Cardinals", Record(3, 3, 0, 179, 135)),
-                    Team("Detroit", "Lions", Record(2, 4, 0, 90, 129)),
-                    Team("Minnesota", "Vikings", Record(6, 0, 0, 156, 103)),
-                    Team("San Francisco", "49ers", Record(4, 2, 0, 159, 164)),
+                    ("Green Bay", "Packers", Record(2, 4, 0, 113, 137)),
+                    ("Chicago", "Cardinals", Record(3, 3, 0, 179, 135)),
+                    ("Detroit", "Lions", Record(2, 4, 0, 90, 129)),
+                    ("Minnesota", "Vikings", Record(6, 0, 0, 156, 103)),
+                    ("San Francisco", "49ers", Record(4, 2, 0, 159, 164)),
                 ),
             ),
         ),
@@ -136,7 +166,13 @@ def _tree(lge: LgeFile):
         (
             conference.name,
             tuple(
-                (division.name, tuple(division.teams))
+                (
+                    division.name,
+                    tuple(
+                        (team.name, team.nickname, team.record)
+                        for team in division.teams
+                    ),
+                )
                 for division in conference.divisions
             ),
         )
@@ -259,7 +295,7 @@ def test_missing_file_raises_oserror_for_built_path(tmp_path: Path):
 
 def test_built_file_parses(make_lge):
     # Every chunk at its exact size: the accepted side of each size limit.
-    team = Team("T1", "N1", NO_GAMES)
+    team = Team("T1", "N1", NO_GAMES, build_empty_roster(1))
     division = Division(name="D1", teams=[team], standings=[team])
     conference = Conference(name="C1", divisions=[division], standings=[team])
     assert parse_lge(make_lge()) == LgeFile(conferences=[conference])
@@ -273,6 +309,7 @@ def test_grouped_order_reads_like_nested(make_chunks, make_lge, shape):
     grouped = parse_lge(make_lge(make_chunks(shape, grouped=True)))
     assert grouped == parse_lge(make_lge(make_chunks(shape)))
     assert grouped.teams[-1].name == f"T{len(grouped.teams)}"
+    assert grouped.teams[-1].roster.team_number == len(grouped.teams)
 
 
 def test_grouped_order_missing_roster_rejected(make_chunks, make_lge):
@@ -858,3 +895,153 @@ def test_played_playoff_game_with_unknown_team_rejected(
         InvalidLgeError, match=rf"week 2: No team {bad} \(teams are 1-2\)\.$"
     ):
         parse_lge(make_lge(chunks))
+
+
+# --- rosters ---
+
+
+def test_custom_league_roster():
+    # Denver, team 5: every slot filled; its first slot is the .pyr spec's
+    # sample player (6283, C. J. Stroud); no training camp set up.
+    roster = read_lge(LEAGUE, FIXTURE_DIR).teams[4].roster
+    assert roster.team_number == 5
+    assert roster.assigned[0] == RosterPlayer(6283, 6)
+    assert roster.injured_reserve[9] == RosterPlayer(6404, 80)
+    assert len(roster.players) == 63
+    assert roster.permutation == bytes([2, 6, 4, 8, 3, 7, 9, 5, 1, 0])
+    assert roster.training_camp == NO_CAMP
+    assert roster.unknown == SPEC_TABLE
+
+
+def test_empty_slots_are_none_and_not_players():
+    # Jacksonville, team 1: the last Open Inactive slot (slot 53) and the last
+    # three IR slots (61-63) are empty.
+    roster = read_lge(LEAGUE, FIXTURE_DIR).teams[0].roster
+    assert None not in roster.assigned + roster.open_active
+    assert None not in roster.open_inactive[:6]
+    assert roster.open_inactive[6] is None
+    assert None not in roster.injured_reserve[:7]
+    assert roster.injured_reserve[7:] == [None] * 3
+    assert len(roster.players) == 59
+    assert roster.players[-1] == roster.injured_reserve[6] == RosterPlayer(7765, 64)
+
+
+@pytest.mark.parametrize("filename", REAL_FILES)
+def test_roster_team_numbers_run_in_file_order(filename: str):
+    # Grouped files included: roster k pairs with team k.
+    lge = _parse_fixture(filename)
+    assert [team.roster.team_number for team in lge.teams] == list(
+        range(1, len(lge.teams) + 1)
+    )
+
+
+@pytest.mark.parametrize("filename", REAL_FILES)
+def test_no_real_file_has_a_training_camp_set_up(filename: str):
+    lge = _parse_fixture(filename)
+    assert all(team.roster.training_camp == NO_CAMP for team in lge.teams)
+
+
+def test_team_of_rostered_and_unknown_ids():
+    lge = read_lge(LEAGUE, FIXTURE_DIR)
+    assert lge.team_of(6283) is lge.teams[4]  # Denver's assigned[0]
+    assert lge.team_of(8928) is lge.teams[0]  # Jacksonville's open_inactive[0]
+    assert lge.team_of(1) is None
+    assert lge.team_of(0) is None
+
+
+def _with_roster(make_chunks, make_chunk, data: bytes) -> list[bytes]:
+    chunks = make_chunks()
+    chunks[R03] = make_chunk(ID_R03, data)
+    return chunks
+
+
+def test_roster_fields_read_at_their_offsets(
+    make_chunks, make_chunk, make_roster_data, make_lge
+):
+    camp = [[100], [12, 13, 14, 15, 16, 17, 10, 3]]
+    data = make_roster_data(
+        1,
+        ids=[11, *[0] * 61, 65535],
+        numbers=[99, *[0] * 61, 255],
+        permutation=bytes(range(10, 20)),
+        camp=camp,
+        unknown=bytes(range(60)),
+    )
+    roster = _only_team(
+        parse_lge(make_lge(_with_roster(make_chunks, make_chunk, data)))
+    ).roster
+    assert roster.assigned[0] == RosterPlayer(11, 99)
+    assert roster.assigned[1] is None
+    assert roster.injured_reserve[9] == RosterPlayer(65535, 255)
+    assert roster.players == [roster.assigned[0], roster.injured_reserve[9]]
+    assert roster.permutation == bytes(range(10, 20))
+    assert roster.training_camp == [[100, 0, 0, 0, 0, 0, 0, 0], camp[1], *NO_CAMP[2:]]
+    assert roster.unknown == bytes(range(60))
+
+
+def test_slots_split_into_the_status_groups_at_their_boundaries(
+    make_chunks, make_chunk, make_roster_data, make_lge
+):
+    # Each group's first and last slot holds a player whose id is the slot
+    # number (slots 1, 34, 35, 46, 47, 53, 54 and 63).
+    ids = [0] * 63
+    for slot in (1, 34, 35, 46, 47, 53, 54, 63):
+        ids[slot - 1] = slot
+    roster = _only_team(
+        parse_lge(
+            make_lge(_with_roster(make_chunks, make_chunk, make_roster_data(1, ids)))
+        )
+    ).roster
+    assert roster.assigned[0] == RosterPlayer(1, 0)
+    assert roster.assigned[33] == RosterPlayer(34, 0)
+    assert roster.open_active[0] == RosterPlayer(35, 0)
+    assert roster.open_active[11] == RosterPlayer(46, 0)
+    assert roster.open_inactive[0] == RosterPlayer(47, 0)
+    assert roster.open_inactive[6] == RosterPlayer(53, 0)
+    assert roster.injured_reserve[0] == RosterPlayer(54, 0)
+    assert roster.injured_reserve[9] == RosterPlayer(63, 0)
+    assert len(roster.players) == 8
+
+
+def test_empty_slot_is_none_whatever_its_jersey_byte(
+    make_chunks, make_chunk, make_roster_data, make_lge
+):
+    data = make_roster_data(1, ids=[11], numbers=[99, 7])
+    roster = _only_team(
+        parse_lge(make_lge(_with_roster(make_chunks, make_chunk, data)))
+    ).roster
+    assert roster.assigned[:2] == [RosterPlayer(11, 99), None]
+
+
+@pytest.mark.parametrize("number", [0, 1, 255, 256, 65535])
+def test_roster_team_number_in_chunk_keys_the_mask(
+    make_chunks, make_chunk, make_roster_data, make_lge, number: int
+):
+    # The roster's own number keys its mask; it is not checked against the
+    # team's.
+    data = make_roster_data(number, ids=[4242])
+    roster = _only_team(
+        parse_lge(make_lge(_with_roster(make_chunks, make_chunk, data)))
+    ).roster
+    assert roster.team_number == number
+    assert roster.assigned[0] == RosterPlayer(4242, 0)
+
+
+@pytest.mark.parametrize(
+    ("row", "rejected"),
+    [([13] * 7 + [9], False), ([101], True), ([13] * 7 + [10], True)],
+)
+def test_camp_read_as_is_and_checked_only_by_validate(
+    make_chunks, make_chunk, make_roster_data, make_lge, row, rejected: bool
+):
+    # The game reads a file whatever its camp bytes, so the reader does too;
+    # the screen's limits are validate()'s, for an edit or a write (each rule
+    # and its message is pinned in test_model.py).
+    data = make_roster_data(1, camp=[row])
+    lge = parse_lge(make_lge(_with_roster(make_chunks, make_chunk, data)))
+    assert _only_team(lge).roster.training_camp[0] == row + [0] * (8 - len(row))
+    if rejected:
+        with pytest.raises(ValueError):
+            lge.validate()
+    else:
+        lge.validate()

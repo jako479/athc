@@ -7,6 +7,11 @@ from typing import Any, NoReturn
 
 import click
 
+# The team layer's names another package may use, re-exported so nothing
+# outside athc imports the private module.
+from athc.cli._team import TEAM_KEY as TEAM_KEY
+from athc.cli._team import resolve_team as resolve_team
+from athc.cli._team import team_not_set as team_not_set
 from athc.console import console
 from athc.errors import AthcError, error_line
 from athc.log import logger, setup_logging

@@ -20,10 +20,12 @@ from athc.fbpro98_lge import (
     Team,
     parse_lge,
 )
+from tests.unit.fbpro98_lge.conftest import build_empty_roster
 
 TESTS = Path(__file__).resolve().parents[2]
 DATA_DIRS = (TESTS / "unit" / "fbpro98_lge" / "data", TESTS / "integration" / "data")
 NO_GAMES = Record(0, 0, 0, 0, 0)
+
 
 # Conferences, each a list of divisions, each a list of team names.
 Shape = Sequence[Sequence[Sequence[str]]]
@@ -44,7 +46,7 @@ def build_league(
     """Conferences `C1`.. and divisions `D1`.. in file order; one
     regular-season week per game; one playoff round per inner list."""
     teams = {
-        name: Team(name=name, nickname="", record=NO_GAMES)
+        name: Team(name=name, nickname="", record=NO_GAMES, roster=build_empty_roster())
         for conference in shape
         for division in conference
         for name in division

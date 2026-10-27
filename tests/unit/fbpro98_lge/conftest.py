@@ -11,6 +11,7 @@ from collections.abc import Sequence
 
 import pytest
 
+from athc.fbpro98_lge import Roster
 from athc.fbpro98_lge.schema import (
     CHUNK_HEADER,
     CONFERENCE_BASE_SIZE,
@@ -31,7 +32,21 @@ from athc.fbpro98_lge.schema import (
     LEAGUE_CONFERENCES_OFFSET,
     MASK_FACTOR,
     NICKNAME_OFFSET,
+    ROSTER_ASSIGNED_SLOTS,
+    ROSTER_CAMP_OFFSET,
+    ROSTER_CAMP_ROW,
+    ROSTER_CAMP_ROWS,
     ROSTER_CHUNK_SIZE,
+    ROSTER_INJURED_RESERVE_SLOTS,
+    ROSTER_NUMBERS_OFFSET,
+    ROSTER_OPEN_ACTIVE_SLOTS,
+    ROSTER_OPEN_INACTIVE_SLOTS,
+    ROSTER_PERMUTATION_OFFSET,
+    ROSTER_PERMUTATION_SIZE,
+    ROSTER_PLAYERS_OFFSET,
+    ROSTER_TEAM_SIZE,
+    ROSTER_UNKNOWN_OFFSET,
+    ROSTER_UNKNOWN_SIZE,
     TEAM_CHUNK_SIZE,
     TEAM_NAME_OFFSET,
 )
@@ -95,9 +110,46 @@ def build_team_data(
     return bytes([number]) + mask(number, bytes(fields))
 
 
-def build_roster_data(number: int) -> bytes:
-    """R03 data: the clear team number (u16), then zeros; not read."""
-    return number.to_bytes(2, "little") + bytes(ROSTER_CHUNK_SIZE - 2)
+def build_roster_data(
+    number: int,
+    ids: Sequence[int] = (),
+    numbers: Sequence[int] = (),
+    permutation: bytes = bytes(ROSTER_PERMUTATION_SIZE),
+    camp: Sequence[Sequence[int]] = (),
+    unknown: bytes = bytes(ROSTER_UNKNOWN_SIZE),
+) -> bytes:
+    """R03 data: the clear team number (u16), then the masked fields. `ids`
+    and `numbers` fill the first slots, `camp` rows the first groups (a short
+    row its first ratings); everything not given is zero."""
+    fields = bytearray(ROSTER_CHUNK_SIZE - ROSTER_TEAM_SIZE)
+    players = b"".join(player_id.to_bytes(2, "little") for player_id in ids)
+    fields[ROSTER_PLAYERS_OFFSET : ROSTER_PLAYERS_OFFSET + len(players)] = players
+    fields[ROSTER_NUMBERS_OFFSET : ROSTER_NUMBERS_OFFSET + len(numbers)] = bytes(
+        numbers
+    )
+    fields[ROSTER_PERMUTATION_OFFSET : ROSTER_PERMUTATION_OFFSET + len(permutation)] = (
+        permutation
+    )
+    for row_index, row in enumerate(camp):
+        offset = ROSTER_CAMP_OFFSET + row_index * ROSTER_CAMP_ROW.size
+        fields[offset : offset + len(row)] = bytes(row)
+    fields[ROSTER_UNKNOWN_OFFSET : ROSTER_UNKNOWN_OFFSET + len(unknown)] = unknown
+    return number.to_bytes(2, "little") + mask(number, bytes(fields))
+
+
+def build_empty_roster(number: int = 0) -> Roster:
+    """The roster `build_roster_data(number)` reads back: every slot empty,
+    nothing set up."""
+    return Roster(
+        team_number=number,
+        assigned=[None] * ROSTER_ASSIGNED_SLOTS,
+        open_active=[None] * ROSTER_OPEN_ACTIVE_SLOTS,
+        open_inactive=[None] * ROSTER_OPEN_INACTIVE_SLOTS,
+        injured_reserve=[None] * ROSTER_INJURED_RESERVE_SLOTS,
+        permutation=bytes(ROSTER_PERMUTATION_SIZE),
+        training_camp=[[0] * ROSTER_CAMP_ROW.size for _ in range(ROSTER_CAMP_ROWS)],
+        unknown=bytes(ROSTER_UNKNOWN_SIZE),
+    )
 
 
 def build_game(
@@ -206,6 +258,12 @@ def make_division_data():
 def make_team_data():
     """Factory for T03 data (see build_team_data)."""
     return build_team_data
+
+
+@pytest.fixture
+def make_roster_data():
+    """Factory for R03 data (see build_roster_data)."""
+    return build_roster_data
 
 
 @pytest.fixture
